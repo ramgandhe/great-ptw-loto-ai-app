@@ -1,34 +1,54 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { LayoutDashboard, Settings, Shield, Users } from "lucide-react";
+import { Icon } from "@/components/icons";
+import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/workforce", label: "Workforce", icon: Users },
   { href: "/safety", label: "Safety", icon: Shield },
-];
+] as const;
 
 export function AppNavigation() {
+  const pathname = usePathname();
+
   return (
-    <nav className="flex h-full w-56 flex-col border-r border-border bg-card p-4">
+    <nav
+      aria-label="Main navigation"
+      className="flex h-full w-56 shrink-0 flex-col border-r border-border bg-card p-4"
+    >
       <div className="mb-8 px-2">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           PTW Platform
         </p>
-        <p className="text-sm font-semibold">SP-01.01</p>
+        <p className="text-sm font-semibold">Permit-to-Work</p>
       </div>
       <ul className="flex flex-col gap-1">
-        {navItems.map(({ href, label, icon: Icon }) => (
-          <li key={href}>
-            <Link
-              href={href}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent"
-            >
-              <Icon className="size-4" aria-hidden />
-              {label}
-            </Link>
-          </li>
-        ))}
+        {navItems.map(({ href, label, icon }) => {
+          const isActive = href === "/" ? pathname === href : pathname.startsWith(href);
+
+          return (
+            <li key={href}>
+              <Link
+                href={href}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+                  isActive
+                    ? "bg-accent font-medium text-accent-foreground"
+                    : "text-foreground hover:bg-accent/60",
+                )}
+              >
+                <Icon icon={icon} size="sm" />
+                {label}
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );
