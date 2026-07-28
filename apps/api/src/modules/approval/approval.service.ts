@@ -99,7 +99,7 @@ export class ApprovalService {
       throw new BadRequestException('Approval comment is required for this workflow step');
     }
 
-    return this.db.transaction(async (tx) => {
+    await this.db.transaction(async (tx) => {
       const [approval] = await tx
         .insert(permitApprovals)
         .values({
@@ -174,9 +174,9 @@ export class ApprovalService {
       });
 
       await this.permitCacheService.invalidatePermit(permit.tenantId, permitId);
-
-      return this.review(permitId, user);
     });
+
+    return this.review(permitId, user);
   }
 
   async reject(permitId: string, dto: RejectPermitDto, user: AuthenticatedUser) {
@@ -306,7 +306,7 @@ export class ApprovalService {
       notificationAction,
     } = params;
 
-    return this.db.transaction(async (tx) => {
+    await this.db.transaction(async (tx) => {
       const [approval] = await tx
         .insert(permitApprovals)
         .values({
@@ -361,9 +361,9 @@ export class ApprovalService {
       });
 
       await this.permitCacheService.invalidatePermit(permit.tenantId, permitId);
-
-      return this.review(permitId, user);
     });
+
+    return this.review(permitId, user);
   }
 
   private requireTenant(user: AuthenticatedUser): string {
