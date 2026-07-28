@@ -14,11 +14,16 @@ describe('Permit approval schema (PUS-139)', () => {
   let db: ReturnType<typeof drizzle<typeof schema>>;
   let canConnect = false;
 
-  const tenantId = randomUUID();
-  const permitTypeId = randomUUID();
   const approverId = randomUUID();
   const issuerId = randomUUID();
   const locationId = randomUUID();
+
+  function testIds() {
+    return {
+      tenantId: randomUUID(),
+      permitTypeId: randomUUID(),
+    };
+  }
 
   beforeAll(async () => {
     pool = new Pool({ connectionString });
@@ -48,7 +53,7 @@ describe('Permit approval schema (PUS-139)', () => {
     });
   };
 
-  async function createSubmittedPermit() {
+  async function createSubmittedPermit(tenantId: string, permitTypeId: string) {
     const [permit] = await db
       .insert(schema.permits)
       .values({
@@ -68,7 +73,7 @@ describe('Permit approval schema (PUS-139)', () => {
     return permit;
   }
 
-  async function createWorkflowSteps() {
+  async function createWorkflowSteps(tenantId: string, permitTypeId: string) {
     const [step1] = await db
       .insert(schema.workflowSteps)
       .values({
@@ -97,7 +102,8 @@ describe('Permit approval schema (PUS-139)', () => {
   }
 
   dbTest('creates workflow steps with tenant-scoped sequencing', async () => {
-    const { step1, step2 } = await createWorkflowSteps();
+    const { tenantId, permitTypeId } = testIds();
+    const { step1, step2 } = await createWorkflowSteps(tenantId, permitTypeId);
 
     expect(step1.stepSequence).toBe(1);
     expect(step2.stepSequence).toBe(2);
@@ -115,8 +121,9 @@ describe('Permit approval schema (PUS-139)', () => {
   });
 
   dbTest('creates workflow assignment linked to permit and step', async () => {
-    const permit = await createSubmittedPermit();
-    const { step1 } = await createWorkflowSteps();
+    const { tenantId, permitTypeId } = testIds();
+    const permit = await createSubmittedPermit(tenantId, permitTypeId);
+    const { step1 } = await createWorkflowSteps(tenantId, permitTypeId);
 
     const [assignment] = await db
       .insert(schema.workflowAssignments)
@@ -134,8 +141,9 @@ describe('Permit approval schema (PUS-139)', () => {
   });
 
   dbTest('rejects duplicate workflow assignment for the same permit step', async () => {
-    const permit = await createSubmittedPermit();
-    const { step1 } = await createWorkflowSteps();
+    const { tenantId, permitTypeId } = testIds();
+    const permit = await createSubmittedPermit(tenantId, permitTypeId);
+    const { step1 } = await createWorkflowSteps(tenantId, permitTypeId);
 
     await db.insert(schema.workflowAssignments).values({
       permitId: permit.id,
@@ -157,8 +165,9 @@ describe('Permit approval schema (PUS-139)', () => {
   });
 
   dbTest('records permit approval with timestamp and comment', async () => {
-    const permit = await createSubmittedPermit();
-    const { step1 } = await createWorkflowSteps();
+    const { tenantId, permitTypeId } = testIds();
+    const permit = await createSubmittedPermit(tenantId, permitTypeId);
+    const { step1 } = await createWorkflowSteps(tenantId, permitTypeId);
 
     const [assignment] = await db
       .insert(schema.workflowAssignments)
@@ -190,8 +199,9 @@ describe('Permit approval schema (PUS-139)', () => {
   });
 
   dbTest('rejects duplicate approval for the same permit step', async () => {
-    const permit = await createSubmittedPermit();
-    const { step1 } = await createWorkflowSteps();
+    const { tenantId, permitTypeId } = testIds();
+    const permit = await createSubmittedPermit(tenantId, permitTypeId);
+    const { step1 } = await createWorkflowSteps(tenantId, permitTypeId);
 
     await db.insert(schema.permitApprovals).values({
       permitId: permit.id,
@@ -213,8 +223,9 @@ describe('Permit approval schema (PUS-139)', () => {
   });
 
   dbTest('stores immutable approval history and blocks updates', async () => {
-    const permit = await createSubmittedPermit();
-    const { step1 } = await createWorkflowSteps();
+    const { tenantId, permitTypeId } = testIds();
+    const permit = await createSubmittedPermit(tenantId, permitTypeId);
+    const { step1 } = await createWorkflowSteps(tenantId, permitTypeId);
 
     const [history] = await db
       .insert(schema.approvalHistory)
@@ -245,8 +256,9 @@ describe('Permit approval schema (PUS-139)', () => {
   });
 
   dbTest('rejects invalid workflow assignment status', async () => {
-    const permit = await createSubmittedPermit();
-    const { step1 } = await createWorkflowSteps();
+    const { tenantId, permitTypeId } = testIds();
+    const permit = await createSubmittedPermit(tenantId, permitTypeId);
+    const { step1 } = await createWorkflowSteps(tenantId, permitTypeId);
 
     await expect(
       db.insert(schema.workflowAssignments).values({
@@ -260,7 +272,8 @@ describe('Permit approval schema (PUS-139)', () => {
   });
 
   dbTest('supports extended permit approval statuses', async () => {
-    const permit = await createSubmittedPermit();
+    const { tenantId, permitTypeId } = testIds();
+    const permit = await createSubmittedPermit(tenantId, permitTypeId);
 
     await db
       .update(schema.permits)
@@ -276,8 +289,9 @@ describe('Permit approval schema (PUS-139)', () => {
   });
 
   dbTest('cascades workflow data when permit is deleted', async () => {
-    const permit = await createSubmittedPermit();
-    const { step1 } = await createWorkflowSteps();
+    const { tenantId, permitTypeId } = testIds();
+    const permit = await createSubmittedPermit(tenantId, permitTypeId);
+    const { step1 } = await createWorkflowSteps(tenantId, permitTypeId);
 
     await db.insert(schema.workflowAssignments).values({
       permitId: permit.id,
