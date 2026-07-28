@@ -1,13 +1,24 @@
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { PLATFORM_VERSION } from "@ptw/shared";
+import { getDatabaseStatus } from "@/lib/database";
 
 export default function HomeScreen() {
+  const [dbStatus, setDbStatus] = useState<"initialising" | "ready" | "error">("initialising");
+
+  useEffect(() => {
+    getDatabaseStatus()
+      .then(({ ready }) => setDbStatus(ready ? "ready" : "error"))
+      .catch(() => setDbStatus("error"));
+  }, []);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Permit-to-Work Platform</Text>
       <Text style={styles.subtitle}>Mobile foundation (SP-01.01)</Text>
       <Text style={styles.meta}>Version {PLATFORM_VERSION}</Text>
+      <Text style={styles.meta}>SQLite: {dbStatus}</Text>
       <Pressable style={styles.button} onPress={() => router.push("/login")}>
         <Text style={styles.buttonText}>Sign in</Text>
       </Pressable>
