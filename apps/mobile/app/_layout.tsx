@@ -8,9 +8,10 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <StatusBar style="auto" />
-        <Stack>
-          <Stack.Screen name="index" options={{ title: "PTW Platform" }} />
-          <Stack.Screen name="login" options={{ title: "Sign in" }} />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(app)" />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>
