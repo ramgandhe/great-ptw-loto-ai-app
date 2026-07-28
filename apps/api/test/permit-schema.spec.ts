@@ -177,7 +177,7 @@ describe('Permit creation schema (PUS-134)', () => {
     await expect(
       db.insert(schema.permits).values({
         tenantId,
-        status: 'approved' as 'draft',
+        status: 'invalid_status' as 'draft',
         permitTypeId,
         title: 'Invalid status permit',
         createdBy: issuerId,
