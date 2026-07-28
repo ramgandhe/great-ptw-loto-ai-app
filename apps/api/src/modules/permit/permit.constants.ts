@@ -1,4 +1,5 @@
 export const PERMIT_WRITE_ROLES = [
+  'job-issuer',
   'operator',
   'supervisor',
   'org-admin',

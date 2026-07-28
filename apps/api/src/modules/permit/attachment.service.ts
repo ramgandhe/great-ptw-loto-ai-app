@@ -16,6 +16,8 @@ import {
   ALLOWED_ATTACHMENT_CONTENT_TYPES,
   MAX_ATTACHMENT_SIZE_BYTES,
 } from './permit.constants';
+import { PermitCacheService } from './permit-cache.service';
+import { PermitLogService } from './permit-log.service';
 import { UploadedFilePayload } from './uploaded-file.interface';
 
 @Injectable()
@@ -24,6 +26,8 @@ export class AttachmentService {
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly storageService: StorageService,
     private readonly auditService: AuditService,
+    private readonly permitCacheService: PermitCacheService,
+    private readonly permitLogService: PermitLogService,
   ) {}
 
   async upload(
@@ -84,6 +88,16 @@ export class AttachmentService {
       metadata: { attachmentId: attachment.id, fileName: file.originalname },
     });
 
+    this.permitLogService.logEvent({
+      action: 'permit.attachment.uploaded',
+      permitId,
+      tenantId: user.tenantId,
+      userId: user.id,
+      metadata: { attachmentId: attachment.id, fileName: file.originalname },
+    });
+
+    await this.permitCacheService.invalidatePermit(user.tenantId, permitId);
+
     return attachment;
   }
 
@@ -136,6 +150,16 @@ export class AttachmentService {
       tenantId: user.tenantId,
       metadata: { attachmentId },
     });
+
+    this.permitLogService.logEvent({
+      action: 'permit.attachment.removed',
+      permitId,
+      tenantId: user.tenantId,
+      userId: user.id,
+      metadata: { attachmentId },
+    });
+
+    await this.permitCacheService.invalidatePermit(user.tenantId, permitId);
   }
 
   private validateFile(file: UploadedFilePayload): void {
