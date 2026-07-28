@@ -13,7 +13,13 @@ import {
 } from 'drizzle-orm/pg-core';
 import { auditColumns } from './base';
 
-export const PERMIT_STATUSES = ['draft', 'pending_approval'] as const;
+export const PERMIT_STATUSES = [
+  'draft',
+  'pending_approval',
+  'approved',
+  'rejected',
+  'deferred',
+] as const;
 export type PermitStatus = (typeof PERMIT_STATUSES)[number];
 
 export const permits = pgTable(
