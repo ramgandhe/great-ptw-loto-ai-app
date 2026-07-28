@@ -14,6 +14,7 @@ import { StorageModule } from './infrastructure/storage/storage.module';
 import { QueueModule } from './infrastructure/queue/queue.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SystemModule } from './modules/system/system.module';
+import { PermitModule } from './modules/permit/permit.module';
 import { LoggingModule } from './modules/logging/logging.module';
 
 @Module({
@@ -47,6 +48,7 @@ import { LoggingModule } from './modules/logging/logging.module';
     LoggingModule,
     AuthModule,
     SystemModule,
+    PermitModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
