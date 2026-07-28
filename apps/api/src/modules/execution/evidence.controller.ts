@@ -15,17 +15,21 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { UploadedFilePayload } from '../permit/uploaded-file.interface';
 import {
   EXECUTION_READ_ROLES,
-  EXECUTION_WRITE_ROLES,
+  EXECUTION_UPDATE_ROLES,
   MAX_EVIDENCE_SIZE_BYTES,
 } from './execution.constants';
 import { UploadEvidenceDto } from './dto/upload-evidence.dto';
 import { EvidenceService } from './evidence.service';
+import { ExecutionEvidenceService } from './execution-evidence.service';
 
 @Controller('permits')
 export class EvidenceController {
-  constructor(private readonly evidenceService: EvidenceService) {}
+  constructor(
+    private readonly evidenceService: EvidenceService,
+    private readonly executionEvidenceService: ExecutionEvidenceService,
+  ) {}
 
-  @Roles(...EXECUTION_WRITE_ROLES)
+  @Roles(...EXECUTION_UPDATE_ROLES)
   @Post(':id/evidence')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -45,5 +49,15 @@ export class EvidenceController {
   @Get(':id/evidence')
   list(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.evidenceService.list(id, user);
+  }
+
+  @Roles(...EXECUTION_READ_ROLES)
+  @Get(':id/evidence/:evidenceId/download-url')
+  downloadUrl(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('evidenceId', ParseUUIDPipe) evidenceId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.executionEvidenceService.getDownloadUrl(id, evidenceId, user);
   }
 }

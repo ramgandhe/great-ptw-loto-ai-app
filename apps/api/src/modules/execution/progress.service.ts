@@ -14,6 +14,8 @@ import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
 import { ACTIVE_STATUS } from './execution.constants';
 import { ProgressUpdateDto } from './dto/progress-update.dto';
+import { ExecutionCacheService } from './execution-cache.service';
+import { ExecutionLogService } from './execution-log.service';
 import { NotificationService } from './notification.service';
 
 @Injectable()
@@ -24,6 +26,8 @@ export class ProgressService {
     private readonly notificationService: NotificationService,
     private readonly auditService: AuditService,
     private readonly permitCacheService: PermitCacheService,
+    private readonly executionCacheService: ExecutionCacheService,
+    private readonly executionLogService: ExecutionLogService,
   ) {}
 
   async addProgress(permitId: string, dto: ProgressUpdateDto, user: AuthenticatedUser) {
@@ -69,6 +73,15 @@ export class ProgressService {
     });
 
     await this.permitCacheService.invalidatePermit(tenantId, permitId);
+    await this.executionCacheService.invalidatePermit(tenantId, permitId);
+
+    this.executionLogService.logEvent({
+      action: 'execution.progress_recorded',
+      permitId,
+      tenantId,
+      userId: user.id,
+      metadata: { progressId: progress.id },
+    });
 
     return progress;
   }
