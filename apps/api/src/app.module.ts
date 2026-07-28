@@ -16,6 +16,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { SystemModule } from './modules/system/system.module';
 import { PermitModule } from './modules/permit/permit.module';
 import { ApprovalModule } from './modules/approval/approval.module';
+import { ExecutionModule } from './modules/execution/execution.module';
 import { LoggingModule } from './modules/logging/logging.module';
 
 @Module({
@@ -51,6 +52,7 @@ import { LoggingModule } from './modules/logging/logging.module';
     SystemModule,
     PermitModule,
     ApprovalModule,
+    ExecutionModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
