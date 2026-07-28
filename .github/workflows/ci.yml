@@ -2,13 +2,29 @@ name: CI
 
 on:
   push:
-    branches: [main, "mundadariddhii/**", "cursor/**"]
+    branches: [main, "mundadariddhii/**", "cursor/**", "ravijik123/**"]
   pull_request:
-    branches: [main, "mundadariddhii/**"]
+    branches: [main, "mundadariddhii/**", "ravijik123/**"]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ptw
+          POSTGRES_PASSWORD: ptw_dev_password
+          POSTGRES_DB: ptw_platform
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ptw -d ptw_platform"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ptw:ptw_dev_password@localhost:5432/ptw_platform
     steps:
       - uses: actions/checkout@v4
 
@@ -22,6 +38,11 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Verify migrations and seed
+        run: |
+          npm run db:migrate -w api
+          npm run db:seed -w api
 
       - name: Test
         run: npm run test
