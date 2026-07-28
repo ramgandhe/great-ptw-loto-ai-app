@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "@/providers/auth-provider";
+import { OfflineProvider } from "@/providers/offline-provider";
 import { ThemeProvider, useTheme } from "@/providers/theme-provider";
 
 function RootNavigation() {
@@ -23,9 +24,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <RootNavigation />
-        </AuthProvider>
+        <OfflineProvider>
+          <AuthProvider>
+            <RootNavigation />
+          </AuthProvider>
+        </OfflineProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
