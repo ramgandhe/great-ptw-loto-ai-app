@@ -405,3 +405,43 @@ Never:
 - change major framework versions during a feature task,
 - fabricate test results,
 - conceal failed commands or incomplete work.
+
+# Issue Development Workflow
+
+Each Linear issue shall be implemented through a dedicated feature branch. The complete development lifecycle for every issue shall follow the process below.
+
+1. **Review requirements** — Understand the issue requirements, associated functional requirements, use cases, business rules and acceptance criteria before beginning implementation.
+2. **Plan before coding** — Analyse the existing implementation and prepare a clear implementation approach and development plan prior to making any code changes.
+3. **Create a feature branch** — Create a dedicated feature branch using the approved branch naming convention.
+4. **Implement** — Implement the solution in accordance with the approved architecture, coding standards and project guidelines.
+5. **Verify locally** — Perform local verification throughout development to ensure the implementation satisfies the intended behaviour.
+6. **Execute all relevant tests**, including:
+   - Positive test cases
+   - Negative test cases
+   - Unit tests
+   - Integration tests
+   - Regression tests (where applicable)
+7. **Confirm requirement coverage** — Verify that the implementation satisfies:
+   - The associated use case(s)
+   - All functional requirements
+   - Business rules
+   - Functional criteria
+   - Positive and negative test cases
+   - Acceptance criteria
+   - Negative acceptance criteria
+8. **Update Linear throughout** — Update the Linear issue with regular development progress, implementation decisions, blockers and testing status throughout the development lifecycle.
+9. **Commit** — Commit changes using meaningful commit messages that reference the associated issue.
+10. **Push** — Push the feature branch to the remote repository.
+11. **Open a PR** — Create a Pull Request targeting the **current sprint branch** (not `main`, unless the sprint branch is `main`).
+12. **Address review** — Resolve review comments and complete any required modifications.
+13. **Merge** — Once the implementation has been reviewed, tested and approved, merge the feature branch into the sprint branch.
+14. **Post-merge verification** — Verify the integrated implementation within the sprint branch to ensure no regressions or integration issues have been introduced.
+15. **Close out the issue** — Update the Linear issue to reflect completion, including implementation notes, testing evidence and merge reference before marking the issue as complete.
+
+## Cursor Cloud specific instructions
+
+- This repository is currently **specification-only** (docs and static HTML prototypes under `docs/specs/`). There is no application source, package manager lockfile, or runnable NestJS/Next.js service yet. Do not invent application scaffolding unless a Linear issue explicitly requests it.
+- Static design prototypes can be previewed with a local static server from `docs/specs/` (e.g. `python3 -m http.server 8080`).
+- **Linear MCP** is required to follow the Issue Development Workflow (read issues, post progress, close issues). If Linear tools are unavailable (`needsAuth`), ask the user to authenticate the Linear MCP server in the Cursor desktop IDE, then retry — interactive MCP auth is not available in Cloud Agent VMs.
+- Pull requests for Linear issues must target the **current sprint branch**. Confirm the active sprint branch from Linear/project docs before opening a PR; do not default to `main` when a sprint branch exists.
+- Cloud Agent feature branches must still use the `cursor/<descriptive-name>-e88f` naming template required by the agent environment, while remaining one branch per Linear issue.
