@@ -1,21 +1,28 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-
-const KEYCLOAK_URL = process.env.EXPO_PUBLIC_KEYCLOAK_URL ?? "http://localhost:8080";
-const REALM = process.env.EXPO_PUBLIC_KEYCLOAK_REALM ?? "ptw-platform";
-const CLIENT_ID = process.env.EXPO_PUBLIC_KEYCLOAK_CLIENT_ID ?? "ptw-mobile";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect } from "react";
+import { router } from "expo-router";
+import { useAuth } from "@/providers/auth-provider";
 
 export default function LoginScreen() {
-  const redirectUri = "ptw://callback";
-  const loginUrl = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid`;
+  const { signIn, isLoading, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/");
+    }
+  }, [isAuthenticated]);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Sign in</Text>
       <Text style={styles.subtitle}>Authenticate with Keycloak to continue.</Text>
-      <Pressable style={styles.button} onPress={() => {}}>
-        <Text style={styles.buttonText}>Continue with Keycloak</Text>
+      <Pressable style={styles.button} disabled={isLoading} onPress={() => signIn()}>
+        {isLoading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Continue with Keycloak</Text>
+        )}
       </Pressable>
-      <Text style={styles.hint}>{loginUrl}</Text>
     </View>
   );
 }
@@ -40,13 +47,11 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
+    minHeight: 44,
+    justifyContent: "center",
   },
   buttonText: {
     color: "#fff",
     fontWeight: "500",
-  },
-  hint: {
-    fontSize: 10,
-    color: "#999",
   },
 });
