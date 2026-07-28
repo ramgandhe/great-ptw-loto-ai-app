@@ -1,16 +1,8 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { useEffect } from "react";
-import { router } from "expo-router";
 import { useAuth } from "@/providers/auth-provider";
 
 export default function LoginScreen() {
-  const { signIn, isLoading, isAuthenticated } = useAuth();
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.replace("/");
-    }
-  }, [isAuthenticated]);
+  const { signIn, isLoading } = useAuth();
 
   return (
     <View style={styles.container}>
