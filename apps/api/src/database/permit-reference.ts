@@ -17,13 +17,13 @@ export async function generatePermitReference(
   tenantId: string,
 ): Promise<string> {
   const year = new Date().getFullYear();
-  const prefix = `PTW-${year}-`;
+  const likePattern = `PTW-${year}-%`;
 
   const result = await db.execute<{ max_seq: string | null }>(sql`
-    SELECT MAX(CAST(SUBSTRING(reference FROM ${prefix.length + 1}) AS INTEGER)) AS max_seq
+    SELECT MAX(CAST(SPLIT_PART(reference, '-', 3) AS INTEGER)) AS max_seq
     FROM permits
     WHERE tenant_id = ${tenantId}
-      AND reference LIKE ${`${prefix}%`}
+      AND reference LIKE ${likePattern}
   `);
 
   const currentMax = Number(result.rows[0]?.max_seq ?? 0);
