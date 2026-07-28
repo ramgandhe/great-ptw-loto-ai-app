@@ -1,19 +1,28 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { PLATFORM_VERSION } from "@ptw/shared";
+import { ApiError } from "@/lib/api";
 import { getHealth } from "@/lib/api";
 import { useAuth } from "@/providers/auth-provider";
+import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
 
 export default function HomeScreen() {
   const { isAuthenticated } = useAuth();
+  const { isOnline, isReady, pendingCount, isSyncing } = useOffline();
   const { tokens } = useTheme();
   const [apiStatus, setApiStatus] = useState<string>("checking");
 
   useEffect(() => {
     getHealth()
       .then((health) => setApiStatus(health.status))
-      .catch(() => setApiStatus("unreachable"));
+      .catch((error) => {
+        if (error instanceof ApiError && error.code === "OFFLINE_CACHE_MISS") {
+          setApiStatus("offline (no cache)");
+          return;
+        }
+        setApiStatus("unreachable");
+      });
   }, []);
 
   return (
@@ -26,6 +35,15 @@ export default function HomeScreen() {
       </Text>
       <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body - 2 }}>
         Version {PLATFORM_VERSION}
+      </Text>
+      <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body - 2 }}>
+        Network: {isOnline ? "online" : "offline"}
+      </Text>
+      <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body - 2 }}>
+        Storage: {isReady ? "ready" : "initialising"}
+      </Text>
+      <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body - 2 }}>
+        Sync queue: {pendingCount} pending{isSyncing ? " (syncing)" : ""}
       </Text>
       <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body - 2 }}>
         API: {apiStatus}

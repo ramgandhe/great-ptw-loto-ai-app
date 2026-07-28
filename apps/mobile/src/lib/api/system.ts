@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { offlineFetch } from "@/lib/offline";
 
 export interface HealthStatus {
   status: "healthy" | "degraded" | "unhealthy";
@@ -14,7 +15,7 @@ export interface SystemVersion {
 }
 
 export function getHealth() {
-  return apiClient.get<HealthStatus>("/health", { auth: false });
+  return offlineFetch<HealthStatus>("/health", { auth: false, method: "GET" });
 }
 
 export function getSystemVersion() {
