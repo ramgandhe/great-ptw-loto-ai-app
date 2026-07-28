@@ -14,7 +14,11 @@
     "android": {
       "package": "com.ptw.platform"
     },
-    "plugins": ["expo-router", "expo-sqlite"],
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-secure-store"
+    ],
     "experiments": {
       "typedRoutes": true
     }
