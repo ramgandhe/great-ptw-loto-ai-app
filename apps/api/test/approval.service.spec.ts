@@ -28,28 +28,10 @@ describe('ApprovalService integration (PUS-136)', () => {
   let canConnect = false;
   let approvalService: ApprovalService;
 
-  const tenantId = randomUUID();
-  const permitTypeId = randomUUID();
-  const locationId = randomUUID();
   const issuerId = randomUUID();
   const supervisorId = randomUUID();
   const orgAdminId = randomUUID();
-
-  const supervisorUser: AuthenticatedUser = {
-    id: supervisorId,
-    username: 'supervisor',
-    tenantId,
-    roles: ['supervisor'],
-    email: 'supervisor@example.com',
-  };
-
-  const orgAdminUser: AuthenticatedUser = {
-    id: orgAdminId,
-    username: 'org-admin',
-    tenantId,
-    roles: ['org-admin'],
-    email: 'org-admin@example.com',
-  };
+  const locationId = randomUUID();
 
   beforeAll(async () => {
     pool = new Pool({ connectionString });
@@ -84,9 +66,7 @@ describe('ApprovalService integration (PUS-136)', () => {
         const [permit] = await db
           .select()
           .from(schema.permits)
-          .where(
-            eq(schema.permits.id, permitId),
-          );
+          .where(eq(schema.permits.id, permitId));
 
         if (!permit || permit.tenantId !== user.tenantId) {
           throw new Error('Permit not found');
@@ -129,55 +109,87 @@ describe('ApprovalService integration (PUS-136)', () => {
     });
   };
 
-  async function createWorkflowSteps() {
-    const [step1] = await db
-      .insert(schema.workflowSteps)
-      .values({
-        tenantId,
-        permitTypeId,
-        stepSequence: 1,
-        name: 'Safety Officer Review',
-        approverRole: 'supervisor',
-        createdBy: issuerId,
-      })
-      .returning();
+  function testContext() {
+    const tenantId = randomUUID();
+    const permitTypeId = randomUUID();
 
-    const [step2] = await db
-      .insert(schema.workflowSteps)
-      .values({
-        tenantId,
-        permitTypeId,
-        stepSequence: 2,
-        name: 'Head of Department Approval',
-        approverRole: 'org-admin',
-        createdBy: issuerId,
-      })
-      .returning();
+    const supervisorUser: AuthenticatedUser = {
+      id: supervisorId,
+      username: 'supervisor',
+      tenantId,
+      roles: ['supervisor'],
+      email: 'supervisor@example.com',
+    };
 
-    return { step1, step2 };
-  }
+    const orgAdminUser: AuthenticatedUser = {
+      id: orgAdminId,
+      username: 'org-admin',
+      tenantId,
+      roles: ['org-admin'],
+      email: 'org-admin@example.com',
+    };
 
-  async function createPendingPermit() {
-    const [permit] = await db
-      .insert(schema.permits)
-      .values({
-        tenantId,
-        status: 'pending_approval',
-        permitTypeId,
-        title: 'Confined space entry',
-        locationId,
-        plannedStartAt: new Date('2026-09-01T08:00:00Z'),
-        plannedEndAt: new Date('2026-09-01T16:00:00Z'),
-        submittedAt: new Date(),
-        submittedBy: issuerId,
-        createdBy: issuerId,
-      })
-      .returning();
+    async function createWorkflowSteps() {
+      const [step1] = await db
+        .insert(schema.workflowSteps)
+        .values({
+          tenantId,
+          permitTypeId,
+          stepSequence: 1,
+          name: 'Safety Officer Review',
+          approverRole: 'supervisor',
+          createdBy: issuerId,
+        })
+        .returning();
 
-    return permit;
+      const [step2] = await db
+        .insert(schema.workflowSteps)
+        .values({
+          tenantId,
+          permitTypeId,
+          stepSequence: 2,
+          name: 'Head of Department Approval',
+          approverRole: 'org-admin',
+          createdBy: issuerId,
+        })
+        .returning();
+
+      return { step1, step2 };
+    }
+
+    async function createPendingPermit() {
+      const [permit] = await db
+        .insert(schema.permits)
+        .values({
+          tenantId,
+          status: 'pending_approval',
+          permitTypeId,
+          title: 'Confined space entry',
+          locationId,
+          plannedStartAt: new Date('2026-09-01T08:00:00Z'),
+          plannedEndAt: new Date('2026-09-01T16:00:00Z'),
+          submittedAt: new Date(),
+          submittedBy: issuerId,
+          createdBy: issuerId,
+        })
+        .returning();
+
+      return permit;
+    }
+
+    return {
+      tenantId,
+      permitTypeId,
+      supervisorUser,
+      orgAdminUser,
+      createWorkflowSteps,
+      createPendingPermit,
+    };
   }
 
   dbTest('rejects approval when permit is not pending', async () => {
+    const { tenantId, permitTypeId, supervisorUser } = testContext();
+
     const [permit] = await db
       .insert(schema.permits)
       .values({
@@ -198,6 +210,7 @@ describe('ApprovalService integration (PUS-136)', () => {
   });
 
   dbTest('rejects duplicate approval for the same step', async () => {
+    const { supervisorUser, createPendingPermit, createWorkflowSteps } = testContext();
     const permit = await createPendingPermit();
     await createWorkflowSteps();
 
@@ -209,6 +222,7 @@ describe('ApprovalService integration (PUS-136)', () => {
   });
 
   dbTest('rejects out-of-sequence approver', async () => {
+    const { orgAdminUser, createPendingPermit, createWorkflowSteps } = testContext();
     const permit = await createPendingPermit();
     await createWorkflowSteps();
 
@@ -218,6 +232,7 @@ describe('ApprovalService integration (PUS-136)', () => {
   });
 
   dbTest('rejects defer without comment when step requires it', async () => {
+    const { supervisorUser, createPendingPermit, createWorkflowSteps } = testContext();
     const permit = await createPendingPermit();
     await createWorkflowSteps();
 
@@ -227,6 +242,12 @@ describe('ApprovalService integration (PUS-136)', () => {
   });
 
   dbTest('advances multi-stage workflow and finalises permit', async () => {
+    const {
+      supervisorUser,
+      orgAdminUser,
+      createPendingPermit,
+      createWorkflowSteps,
+    } = testContext();
     const permit = await createPendingPermit();
     await createWorkflowSteps();
 
@@ -243,6 +264,7 @@ describe('ApprovalService integration (PUS-136)', () => {
   });
 
   dbTest('rejects permit with mandatory comment', async () => {
+    const { supervisorUser, createPendingPermit, createWorkflowSteps } = testContext();
     const permit = await createPendingPermit();
     await createWorkflowSteps();
 
@@ -256,6 +278,7 @@ describe('ApprovalService integration (PUS-136)', () => {
   });
 
   dbTest('defers permit to deferred status', async () => {
+    const { supervisorUser, createPendingPermit, createWorkflowSteps } = testContext();
     const permit = await createPendingPermit();
     await createWorkflowSteps();
 
