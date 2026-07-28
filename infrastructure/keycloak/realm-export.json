@@ -1,0 +1,87 @@
+{
+  "realm": "ptw-platform",
+  "enabled": true,
+  "displayName": "PTW Platform",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "roles": {
+    "realm": [
+      {
+        "name": "platform-admin",
+        "description": "Platform administrator"
+      },
+      {
+        "name": "org-admin",
+        "description": "Organisation administrator"
+      },
+      {
+        "name": "supervisor",
+        "description": "Operational supervisor"
+      },
+      {
+        "name": "operator",
+        "description": "Field operator"
+      },
+      {
+        "name": "viewer",
+        "description": "Read-only viewer"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "ptw-web",
+      "name": "PTW Web Application",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "ptw-api",
+      "name": "PTW API Service",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "ptw-api-dev-secret",
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "ptw-mobile",
+      "name": "PTW Mobile Application",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": ["ptw://callback/*", "exp://localhost:8081/*"],
+      "webOrigins": ["*"],
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "email": "admin@ptw.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["platform-admin"]
+    }
+  ]
+}
