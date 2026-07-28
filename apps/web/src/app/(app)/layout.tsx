@@ -1,10 +1,5 @@
-import { AppNavigation } from "@/components/app-navigation";
+import { AppLayoutShell } from "@/components/layout/app-layout-shell";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-screen bg-background text-foreground">
-      <AppNavigation />
-      <div className="flex flex-1 flex-col">{children}</div>
-    </div>
-  );
+  return <AppLayoutShell>{children}</AppLayoutShell>;
 }
