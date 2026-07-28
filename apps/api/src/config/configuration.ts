@@ -37,4 +37,12 @@ export default () => ({
     draftRetentionDays: parseInt(process.env.PERMIT_DRAFT_RETENTION_DAYS ?? '90', 10),
     draftCleanupCron: process.env.PERMIT_DRAFT_CLEANUP_CRON ?? '0 2 * * *',
   },
+  approval: {
+    cacheTtlSeconds: parseInt(process.env.APPROVAL_CACHE_TTL_SECONDS ?? '300', 10),
+    reminderCron: process.env.APPROVAL_REMINDER_CRON ?? '0 8 * * *',
+    attachmentUrlExpirySeconds: parseInt(
+      process.env.APPROVAL_ATTACHMENT_URL_EXPIRY_SECONDS ?? '3600',
+      10,
+    ),
+  },
 });

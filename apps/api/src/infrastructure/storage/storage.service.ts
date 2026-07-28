@@ -64,4 +64,8 @@ export class StorageService implements OnModuleInit {
   async deleteObject(key: string): Promise<void> {
     await this.client.removeObject(this.bucket, key);
   }
+
+  async presignedGetObject(key: string, expirySeconds: number): Promise<string> {
+    return this.client.presignedGetObject(this.bucket, key, expirySeconds);
+  }
 }

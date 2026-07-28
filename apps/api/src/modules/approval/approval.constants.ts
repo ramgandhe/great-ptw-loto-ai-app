@@ -1,4 +1,5 @@
 export const APPROVAL_NOTIFICATION_JOB = 'approval.notification';
+export const APPROVAL_REMINDER_JOB = 'approval.reminder';
 
 export const APPROVER_ROLES = ['supervisor', 'org-admin', 'platform-admin'] as const;
 
