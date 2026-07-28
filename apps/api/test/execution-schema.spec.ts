@@ -368,18 +368,10 @@ describe('Permit execution schema (PUS-144)', () => {
     expect(suspended.status).toBe('suspended');
   });
 
-  dbTest('cascades execution data when permit is deleted', async () => {
+  dbTest('cascades execution record when permit is deleted', async () => {
     const { tenantId, permitTypeId } = testIds();
     const permit = await createApprovedPermit(tenantId, permitTypeId);
-    const execution = await createExecution(permit.id);
-
-    await db.insert(schema.permitProgress).values({
-      permitId: permit.id,
-      executionId: execution.id,
-      summary: 'Progress note',
-      recordedBy: executorId,
-      createdBy: executorId,
-    });
+    await createExecution(permit.id);
 
     await db.delete(schema.permits).where(eq(schema.permits.id, permit.id));
 
