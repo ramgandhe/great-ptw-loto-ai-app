@@ -129,7 +129,7 @@ describe('ApprovalService integration (PUS-136)', () => {
       email: 'org-admin@example.com',
     };
 
-    async function createWorkflowSteps() {
+    async function createWorkflowSteps(stepCount: 1 | 2 = 2) {
       const [step1] = await db
         .insert(schema.workflowSteps)
         .values({
@@ -141,6 +141,10 @@ describe('ApprovalService integration (PUS-136)', () => {
           createdBy: issuerId,
         })
         .returning();
+
+      if (stepCount === 1) {
+        return { step1, step2: null };
+      }
 
       const [step2] = await db
         .insert(schema.workflowSteps)
@@ -212,7 +216,7 @@ describe('ApprovalService integration (PUS-136)', () => {
   dbTest('rejects duplicate approval for the same step', async () => {
     const { supervisorUser, createPendingPermit, createWorkflowSteps } = testContext();
     const permit = await createPendingPermit();
-    await createWorkflowSteps();
+    await createWorkflowSteps(1);
 
     await approvalService.approve(permit.id, { comment: 'Looks good' }, supervisorUser);
 
@@ -242,23 +246,22 @@ describe('ApprovalService integration (PUS-136)', () => {
   });
 
   dbTest('advances multi-stage workflow and finalises permit', async () => {
-    const {
-      supervisorUser,
-      orgAdminUser,
-      createPendingPermit,
-      createWorkflowSteps,
-    } = testContext();
+    const { supervisorUser, createPendingPermit, createWorkflowSteps } = testContext();
+    const multiStageApprover: AuthenticatedUser = {
+      ...supervisorUser,
+      roles: ['supervisor', 'org-admin'],
+    };
     const permit = await createPendingPermit();
     await createWorkflowSteps();
 
-    const afterFirst = await approvalService.approve(permit.id, {}, supervisorUser);
+    const afterFirst = await approvalService.approve(permit.id, {}, multiStageApprover);
     expect(afterFirst.permit.status).toBe('pending_approval');
     expect(afterFirst.activeAssignment?.step.approverRole).toBe('org-admin');
 
-    const afterSecond = await approvalService.approve(permit.id, {}, orgAdminUser);
+    const afterSecond = await approvalService.approve(permit.id, {}, multiStageApprover);
     expect(afterSecond.permit.status).toBe('approved');
 
-    const history = await approvalService.getHistory(permit.id, supervisorUser);
+    const history = await approvalService.getHistory(permit.id, multiStageApprover);
     expect(history.some((entry) => entry.action === 'stage_advanced')).toBe(true);
     expect(history.some((entry) => entry.action === 'approved')).toBe(true);
   });

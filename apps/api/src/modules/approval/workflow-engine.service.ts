@@ -179,7 +179,6 @@ export class WorkflowEngineService {
       .update(workflowAssignments)
       .set({
         status: 'active',
-        assigneeId: userId,
         updatedBy: userId,
       })
       .where(eq(workflowAssignments.id, next.assignment.id))
