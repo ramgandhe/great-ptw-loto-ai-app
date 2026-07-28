@@ -20,6 +20,8 @@ import {
 import { AuditService } from '../logging/audit.service';
 import { CreatePermitDto } from './dto/create-permit.dto';
 import { UpdatePermitDto } from './dto/update-permit.dto';
+import { PermitCacheService } from './permit-cache.service';
+import { PermitLogService } from './permit-log.service';
 import { PermitValidationService } from './permit-validation.service';
 
 export interface PermitDetail {
@@ -37,6 +39,8 @@ export class PermitService {
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly validationService: PermitValidationService,
     private readonly auditService: AuditService,
+    private readonly permitCacheService: PermitCacheService,
+    private readonly permitLogService: PermitLogService,
   ) {}
 
   async create(dto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -85,6 +89,16 @@ export class PermitService {
         metadata: { status: 'draft' },
       });
 
+      this.permitLogService.logEvent({
+        action: 'permit.created',
+        permitId: permit.id,
+        tenantId,
+        userId: user.id,
+        metadata: { status: 'draft' },
+      });
+
+      await this.permitCacheService.invalidateTenant(tenantId);
+
       const detail = await this.loadDetail(tx, permit.id, tenantId);
       return { ...detail, draft };
     });
@@ -96,21 +110,40 @@ export class PermitService {
   ): Promise<(typeof permits.$inferSelect)[]> {
     const tenantId = this.requireTenant(user);
 
+    const cached = await this.permitCacheService.getPermitList<(typeof permits.$inferSelect)[]>(
+      tenantId,
+      status,
+    );
+    if (cached) {
+      return cached;
+    }
+
     const conditions = [eq(permits.tenantId, tenantId)];
     if (status) {
       conditions.push(eq(permits.status, status));
     }
 
-    return this.db
+    const results = await this.db
       .select()
       .from(permits)
       .where(and(...conditions))
       .orderBy(desc(permits.createdAt));
+
+    await this.permitCacheService.setPermitList(tenantId, status, results);
+    return results;
   }
 
   async findOne(id: string, user: AuthenticatedUser): Promise<PermitDetail> {
     const tenantId = this.requireTenant(user);
-    return this.loadDetail(this.db, id, tenantId);
+
+    const cached = await this.permitCacheService.getPermitDetail(tenantId, id);
+    if (cached) {
+      return cached;
+    }
+
+    const detail = await this.loadDetail(this.db, id, tenantId);
+    await this.permitCacheService.setPermitDetail(tenantId, id, detail);
+    return detail;
   }
 
   async update(
@@ -184,6 +217,16 @@ export class PermitService {
         metadata: { status: 'draft' },
       });
 
+      this.permitLogService.logEvent({
+        action: 'permit.updated',
+        permitId: id,
+        tenantId,
+        userId: user.id,
+        metadata: { status: 'draft' },
+      });
+
+      await this.permitCacheService.invalidatePermit(tenantId, id);
+
       return this.loadDetail(tx, id, tenantId);
     });
   }
@@ -220,6 +263,16 @@ export class PermitService {
       tenantId,
       metadata: { reference, status: 'pending_approval' },
     });
+
+    this.permitLogService.logEvent({
+      action: 'permit.submitted',
+      permitId: id,
+      tenantId,
+      userId: user.id,
+      metadata: { reference, status: 'pending_approval' },
+    });
+
+    await this.permitCacheService.invalidatePermit(tenantId, id);
 
     return this.loadDetail(this.db, id, tenantId);
   }

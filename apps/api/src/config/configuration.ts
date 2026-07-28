@@ -32,4 +32,9 @@ export default () => ({
     auditLogging: process.env.FEATURE_AUDIT_LOGGING !== 'false',
     rateLimiting: process.env.FEATURE_RATE_LIMITING !== 'false',
   },
+  permit: {
+    cacheTtlSeconds: parseInt(process.env.PERMIT_CACHE_TTL_SECONDS ?? '300', 10),
+    draftRetentionDays: parseInt(process.env.PERMIT_DRAFT_RETENTION_DAYS ?? '90', 10),
+    draftCleanupCron: process.env.PERMIT_DRAFT_CLEANUP_CRON ?? '0 2 * * *',
+  },
 });

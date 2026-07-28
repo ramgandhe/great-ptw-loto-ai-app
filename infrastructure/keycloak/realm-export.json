@@ -26,6 +26,10 @@
         "description": "Field operator"
       },
       {
+        "name": "job-issuer",
+        "description": "Job Issuer — creates and submits permits"
+      },
+      {
         "name": "viewer",
         "description": "Read-only viewer"
       }
