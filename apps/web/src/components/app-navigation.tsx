@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { LayoutDashboard, Settings, Shield, Users } from "lucide-react";
+import { ClipboardList, LayoutDashboard, Settings, Shield, Users } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/permits", label: "Permits", icon: ClipboardList },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/workforce", label: "Workforce", icon: Users },
   { href: "/safety", label: "Safety", icon: Shield },
