@@ -10,6 +10,7 @@ import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { APPROVAL_ACTION_ROLES, APPROVAL_READ_ROLES } from './approval.constants';
+import { ApprovalAttachmentService } from './approval-attachment.service';
 import { ApprovalService } from './approval.service';
 import { ApprovePermitDto } from './dto/approve-permit.dto';
 import { DeferPermitDto } from './dto/defer-permit.dto';
@@ -17,7 +18,10 @@ import { RejectPermitDto } from './dto/reject-permit.dto';
 
 @Controller('approvals')
 export class ApprovalController {
-  constructor(private readonly approvalService: ApprovalService) {}
+  constructor(
+    private readonly approvalService: ApprovalService,
+    private readonly approvalAttachmentService: ApprovalAttachmentService,
+  ) {}
 
   @Roles(...APPROVAL_READ_ROLES)
   @Get()
@@ -71,5 +75,15 @@ export class ApprovalController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.approvalService.getHistory(permitId, user);
+  }
+
+  @Roles(...APPROVAL_READ_ROLES)
+  @Get(':permitId/attachments/:attachmentId/download-url')
+  attachmentDownloadUrl(
+    @Param('permitId', ParseUUIDPipe) permitId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.approvalAttachmentService.getDownloadUrl(permitId, attachmentId, user);
   }
 }

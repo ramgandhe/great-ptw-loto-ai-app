@@ -17,6 +17,8 @@ import {
 import { AuditService } from '../logging/audit.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
+import { ApprovalCacheService } from './approval-cache.service';
+import { ApprovalLogService } from './approval-log.service';
 import { PENDING_APPROVAL_STATUS } from './approval.constants';
 import { ApprovalHistoryService } from './approval-history.service';
 import { ApprovePermitDto } from './dto/approve-permit.dto';
@@ -35,11 +37,27 @@ export class ApprovalService {
     private readonly notificationService: NotificationService,
     private readonly auditService: AuditService,
     private readonly permitCacheService: PermitCacheService,
+    private readonly approvalCacheService: ApprovalCacheService,
+    private readonly approvalLogService: ApprovalLogService,
   ) {}
 
   async listPending(user: AuthenticatedUser) {
     const tenantId = this.requireTenant(user);
 
+    const cached = await this.approvalCacheService.getPendingList<
+      Awaited<ReturnType<ApprovalService['loadPending']>>
+    >(tenantId, user.id);
+
+    if (cached) {
+      return cached;
+    }
+
+    const rows = await this.loadPending(tenantId, user);
+    await this.approvalCacheService.setPendingList(tenantId, user.id, rows);
+    return rows;
+  }
+
+  private async loadPending(tenantId: string, user: AuthenticatedUser) {
     const rows = await this.db
       .select({
         assignment: workflowAssignments,
@@ -174,6 +192,15 @@ export class ApprovalService {
       });
 
       await this.permitCacheService.invalidatePermit(permit.tenantId, permitId);
+      await this.approvalCacheService.invalidateTenant(permit.tenantId);
+
+      this.approvalLogService.logEvent({
+        action: hasNext ? 'approval.stage_advanced' : 'approval.approved',
+        permitId,
+        tenantId: permit.tenantId,
+        userId: user.id,
+        metadata: { workflowStepId: step.id, final: !hasNext },
+      });
     });
 
     return this.review(permitId, user);
@@ -361,6 +388,15 @@ export class ApprovalService {
       });
 
       await this.permitCacheService.invalidatePermit(permit.tenantId, permitId);
+      await this.approvalCacheService.invalidateTenant(permit.tenantId);
+
+      this.approvalLogService.logEvent({
+        action: `approval.${historyAction}`,
+        permitId,
+        tenantId: permit.tenantId,
+        userId: user.id,
+        metadata: { workflowStepId: step.id },
+      });
     });
 
     return this.review(permitId, user);

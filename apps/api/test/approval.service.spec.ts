@@ -11,6 +11,8 @@ import { Pool } from 'pg';
 import { AuthenticatedUser } from '../src/common/interfaces/authenticated-user.interface';
 import * as schema from '../src/database/schema';
 import { ApprovalHistoryService } from '../src/modules/approval/approval-history.service';
+import { ApprovalCacheService } from '../src/modules/approval/approval-cache.service';
+import { ApprovalLogService } from '../src/modules/approval/approval-log.service';
 import { ApprovalService } from '../src/modules/approval/approval.service';
 import { NotificationService } from '../src/modules/approval/notification.service';
 import { WorkflowEngineService } from '../src/modules/approval/workflow-engine.service';
@@ -27,6 +29,7 @@ describe('ApprovalService integration (PUS-136)', () => {
   let db: ReturnType<typeof drizzle<typeof schema>>;
   let canConnect = false;
   let approvalService: ApprovalService;
+  let approvalCacheService: ApprovalCacheService;
 
   const issuerId = randomUUID();
   const supervisorId = randomUUID();
@@ -60,6 +63,14 @@ describe('ApprovalService integration (PUS-136)', () => {
       getPermitDetail: jest.fn().mockResolvedValue(null),
       setPermitDetail: jest.fn().mockResolvedValue(undefined),
     } as unknown as PermitCacheService;
+    approvalCacheService = {
+      getPendingList: jest.fn().mockResolvedValue(null),
+      setPendingList: jest.fn().mockResolvedValue(undefined),
+      invalidateTenant: jest.fn().mockResolvedValue(undefined),
+    } as unknown as ApprovalCacheService;
+    const approvalLogService = {
+      logEvent: jest.fn(),
+    } as unknown as ApprovalLogService;
 
     const permitService = {
       findOne: jest.fn(async (permitId: string, user: AuthenticatedUser) => {
@@ -91,6 +102,8 @@ describe('ApprovalService integration (PUS-136)', () => {
       notificationService,
       auditService,
       permitCacheService,
+      approvalCacheService,
+      approvalLogService,
     );
   });
 
@@ -264,6 +277,20 @@ describe('ApprovalService integration (PUS-136)', () => {
     const history = await approvalService.getHistory(permit.id, multiStageApprover);
     expect(history.some((entry) => entry.action === 'stage_advanced')).toBe(true);
     expect(history.some((entry) => entry.action === 'approved')).toBe(true);
+  });
+
+  dbTest('invalidates approval cache after reject decision', async () => {
+    const { supervisorUser, createPendingPermit, createWorkflowSteps, tenantId } = testContext();
+    const permit = await createPendingPermit();
+    await createWorkflowSteps(1);
+
+    await approvalService.reject(
+      permit.id,
+      { comment: 'Missing isolation plan' },
+      supervisorUser,
+    );
+
+    expect(approvalCacheService.invalidateTenant).toHaveBeenCalledWith(tenantId);
   });
 
   dbTest('rejects permit with mandatory comment', async () => {
