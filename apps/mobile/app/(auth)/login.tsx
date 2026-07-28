@@ -1,18 +1,30 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "@/providers/auth-provider";
+import { useTheme } from "@/providers/theme-provider";
 
 export default function LoginScreen() {
   const { signIn, isLoading } = useAuth();
+  const { tokens } = useTheme();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Sign in</Text>
-      <Text style={styles.subtitle}>Authenticate with Keycloak to continue.</Text>
-      <Pressable style={styles.button} disabled={isLoading} onPress={() => signIn()}>
+    <View style={[styles.container, { backgroundColor: tokens.colors.background, padding: tokens.spacing.lg }]}>
+      <Text style={[styles.title, { color: tokens.colors.foreground, fontSize: tokens.typography.title }]}>
+        Sign in
+      </Text>
+      <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body }}>
+        Authenticate with Keycloak to continue.
+      </Text>
+      <Pressable
+        style={[styles.button, { backgroundColor: tokens.colors.primary, borderRadius: tokens.radius }]}
+        disabled={isLoading}
+        onPress={() => signIn()}
+      >
         {isLoading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={tokens.colors.primaryForeground} />
         ) : (
-          <Text style={styles.buttonText}>Continue with Keycloak</Text>
+          <Text style={[styles.buttonText, { color: tokens.colors.primaryForeground }]}>
+            Continue with Keycloak
+          </Text>
         )}
       </Pressable>
     </View>
@@ -20,30 +32,14 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    justifyContent: "center",
-    gap: 12,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "600",
-  },
-  subtitle: {
-    color: "#666",
-  },
+  container: { flex: 1, justifyContent: "center", gap: 12 },
+  title: { fontWeight: "600" },
   button: {
     marginTop: 8,
-    backgroundColor: "#1f2937",
     padding: 12,
-    borderRadius: 8,
     alignItems: "center",
     minHeight: 44,
     justifyContent: "center",
   },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "500",
-  },
+  buttonText: { fontWeight: "500" },
 });

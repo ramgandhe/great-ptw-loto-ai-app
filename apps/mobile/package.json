@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ptw/shared": "*",
+    "@react-native-async-storage/async-storage": "1.23.1",
     "@react-navigation/bottom-tabs": "^7.18.14",
     "expo": "~52.0.40",
     "expo-auth-session": "~6.0.3",
