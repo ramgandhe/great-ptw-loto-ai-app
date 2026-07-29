@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
+import { ApprovalModule } from '../approval/approval.module';
 import { AttachmentController } from './attachment.controller';
 import { AttachmentService } from './attachment.service';
 import { DraftController } from './draft.controller';
@@ -11,6 +12,7 @@ import { PermitJobsService } from './permit-jobs.service';
 import { PermitLogService } from './permit-log.service';
 
 @Module({
+  imports: [forwardRef(() => ApprovalModule)],
   controllers: [PermitController, DraftController, AttachmentController],
   providers: [
     PermitService,
@@ -21,6 +23,6 @@ import { PermitLogService } from './permit-log.service';
     PermitLogService,
     PermitJobsService,
   ],
-  exports: [PermitService, PermitCacheService],
+  exports: [PermitService, PermitCacheService, PermitLogService],
 })
 export class PermitModule {}

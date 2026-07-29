@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { listPermits } from "@/lib/permit/api";
 import type { PermitRecord } from "@/lib/permit/types";
+import { isEditablePermitStatus } from "@/lib/permit/status";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
 
@@ -35,12 +36,17 @@ export default function PermitsPage() {
             Create, manage drafts and track submitted permits.
           </p>
         </div>
-        <Link href="/permits/new">
-          <Button>
-            <Plus className="size-4" aria-hidden />
-            Create permit
-          </Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/permits/new">
+            <Button>
+              <Plus className="size-4" aria-hidden />
+              Create permit
+            </Button>
+          </Link>
+          <Link href="/permits/drafts">
+            <Button variant="outline">Drafts</Button>
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -95,9 +101,9 @@ export default function PermitsPage() {
                       <Link href={`/permits/${permit.id}`} className="text-primary hover:underline">
                         View
                       </Link>
-                      {permit.status === "draft" ? (
+                      {isEditablePermitStatus(permit.status) ? (
                         <Link href={`/permits/${permit.id}/edit`} className="text-primary hover:underline">
-                          Edit
+                          {permit.status === "draft" ? "Edit" : "Revise"}
                         </Link>
                       ) : null}
                     </div>

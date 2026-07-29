@@ -17,6 +17,11 @@ dist/
 build/
 coverage/
 .expo/
+*.tsbuildinfo
+packages/shared/src/*.js
+packages/shared/src/*.d.ts
+packages/shared/src/*.js.map
+packages/shared/src/*.d.ts.map
 
 # Drizzle
 **/migrations/meta/*.json
@@ -25,6 +30,7 @@ coverage/
 # IDE
 .vscode/
 .idea/
+.tmp-finish-sp-0201-0202/
 
 # OS
 Thumbs.db

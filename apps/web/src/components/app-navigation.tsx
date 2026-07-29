@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Activity,
   Building2,
   CheckSquare,
   ClipboardList,
+  FileEdit,
   Hammer,
   LayoutDashboard,
+  ListChecks,
   Lock,
   Settings,
   Shield,
@@ -20,7 +23,10 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/organisation", label: "Organisation", icon: Building2 },
   { href: "/permits", label: "Permits", icon: ClipboardList },
+  { href: "/active-permits", label: "Active work", icon: Activity },
+  { href: "/permits/drafts", label: "Drafts", icon: FileEdit },
   { href: "/approvals", label: "Approvals", icon: CheckSquare },
+  { href: "/approvals/deferred", label: "Deferred", icon: ListChecks },
   { href: "/execution", label: "Execution", icon: Hammer },
   { href: "/closure", label: "Closure", icon: Lock },
   { href: "/settings", label: "Settings", icon: Settings },

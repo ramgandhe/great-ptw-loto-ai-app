@@ -18,6 +18,7 @@ import {
   validateStep,
 } from "@/lib/permit/form";
 import type { PermitAttachment, PermitDetail, PermitFormState } from "@/lib/permit/types";
+import { isEditablePermitStatus } from "@/lib/permit/status";
 import { Button } from "@/components/ui/button";
 import { DraftBanner } from "./draft-banner";
 import { fieldClassName, FormField } from "./form-field";
@@ -170,14 +171,19 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     setAttachments((current) => current.filter((item) => item.id !== attachmentId));
   };
 
-  const isReadOnly = status !== "draft";
+  const isReadOnly = !isEditablePermitStatus(status);
+  const isResubmit = status === "deferred" || status === "rejected";
   const step = form.currentStep;
 
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">
-          {mode === "create" ? "Create permit" : "Edit draft permit"}
+          {mode === "create"
+            ? "Create permit"
+            : isResubmit
+              ? "Revise & resubmit permit"
+              : "Edit draft permit"}
         </h1>
         <p className="text-sm text-muted-foreground">
           Complete each step to prepare the permit for submission.

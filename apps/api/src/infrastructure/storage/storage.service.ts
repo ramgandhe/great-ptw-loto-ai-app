@@ -56,9 +56,16 @@ export class StorageService implements OnModuleInit {
     contentType: string,
     size: number,
   ): Promise<void> {
-    await this.client.putObject(this.bucket, key, body, size, {
-      'Content-Type': contentType,
-    });
+    try {
+      await this.client.putObject(this.bucket, key, body, size, {
+        'Content-Type': contentType,
+      });
+    } catch {
+      await this.ensureBucket();
+      await this.client.putObject(this.bucket, key, body, size, {
+        'Content-Type': contentType,
+      });
+    }
   }
 
   async deleteObject(key: string): Promise<void> {

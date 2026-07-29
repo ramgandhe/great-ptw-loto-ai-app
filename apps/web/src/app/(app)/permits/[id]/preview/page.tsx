@@ -7,13 +7,11 @@ import { ApiError } from "@/lib/api";
 import { getPermit } from "@/lib/permit/api";
 import { permitDetailToForm } from "@/lib/permit/form";
 import type { PermitDetail } from "@/lib/permit/types";
-import { isEditablePermitStatus } from "@/lib/permit/status";
-import { PermitApprovalStatus } from "@/components/permit/permit-approval-status";
 import { PermitSummary } from "@/components/permit/permit-summary";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
 
-export default function PermitDetailPage() {
+export default function PermitPreviewPage() {
   const params = useParams<{ id: string }>();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,42 +31,31 @@ export default function PermitDetailPage() {
   }
 
   if (!detail) {
-    return <p className="p-8 text-sm text-muted-foreground">Loading permit...</p>;
+    return <p className="p-8 text-sm text-muted-foreground">Loading permit preview...</p>;
   }
 
   const form = permitDetailToForm(detail);
-  const canEdit = isEditablePermitStatus(detail.permit.status);
-  const isResubmit =
-    detail.permit.status === "deferred" || detail.permit.status === "rejected";
+  const isDraft = detail.permit.status === "draft";
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="mb-2 flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">{detail.permit.title}</h1>
+            <h1 className="text-2xl font-semibold">Permit preview</h1>
             <PermitStatusBadge status={detail.permit.status} />
           </div>
-          <p className="text-sm text-muted-foreground">
-            {detail.permit.reference ? `Reference ${detail.permit.reference}` : "Draft permit"}
-          </p>
+          <p className="text-sm text-muted-foreground">{detail.permit.title}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/permits/${detail.permit.id}/preview`}>
-            <Button variant="outline">Preview</Button>
-          </Link>
-          {canEdit ? (
+        <div className="flex gap-2">
+          {isDraft ? (
             <Link href={`/permits/${detail.permit.id}/edit`}>
-              <Button>{isResubmit ? "Revise & resubmit" : "Edit draft"}</Button>
+              <Button>Edit draft</Button>
             </Link>
           ) : null}
-          {["approved", "active", "suspended"].includes(detail.permit.status) ? (
-            <Link href={`/execution/${detail.permit.id}`}>
-              <Button>
-                {detail.permit.status === "approved" ? "Start execution" : "Open execution"}
-              </Button>
-            </Link>
-          ) : null}
+          <Link href={`/permits/${detail.permit.id}`}>
+            <Button variant="ghost">Full details</Button>
+          </Link>
         </div>
       </div>
 
@@ -77,8 +64,6 @@ export default function PermitDetailPage() {
         status={detail.permit.status}
         reference={detail.permit.reference}
       />
-
-      <PermitApprovalStatus permitId={detail.permit.id} status={detail.permit.status} />
 
       <section className="grid gap-3">
         <h2 className="text-sm font-semibold">Attachments</h2>
