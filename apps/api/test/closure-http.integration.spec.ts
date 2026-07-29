@@ -146,6 +146,14 @@ describe('Closure HTTP integration (PUS-146 / PUS-147 / PUS-148)', () => {
     expect(verifyRes.body.data.verification.permitId).toBe(permitId);
     expect(verifyRes.body.data.permit.status).toBe('active');
 
+    const verificationRes = await request(app.getHttpServer())
+      .get(`/api/v1/permits/${permitId}/verification`)
+      .expect(200);
+
+    expect(verificationRes.body.success).toBe(true);
+    expect(verificationRes.body.data.permitId).toBe(permitId);
+    expect(verificationRes.body.data.checklist.workCompleted).toBe(true);
+
     const closeRes = await request(app.getHttpServer())
       .post(`/api/v1/permits/${permitId}/close`)
       .send({ comment: 'Work complete' })
@@ -183,6 +191,17 @@ describe('Closure HTTP integration (PUS-146 / PUS-147 / PUS-148)', () => {
     expect(Array.isArray(auditRes.body.data)).toBe(true);
     expect(auditRes.body.data.some((entry: { action: string }) => entry.action === 'permit.verified')).toBe(true);
     expect(auditRes.body.data.some((entry: { action: string }) => entry.action === 'permit.closed')).toBe(true);
+  });
+
+  httpTest('returns null verification before verify step', async () => {
+    const permitId = await seedActivePermit();
+
+    const verificationRes = await request(app.getHttpServer())
+      .get(`/api/v1/permits/${permitId}/verification`)
+      .expect(200);
+
+    expect(verificationRes.body.success).toBe(true);
+    expect(verificationRes.body.data).toBeNull();
   });
 
   httpTest('rejects close without verification', async () => {
