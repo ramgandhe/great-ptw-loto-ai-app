@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { ApiError } from "@/lib/api";
-import { createPermit, savePermitDraft, submitPermit } from "@/lib/permit/api";
+import { createPermit, savePermitDraft, submitPermit, uploadPermitAttachment } from "@/lib/permit/api";
 import {
   createEmptyPermitForm,
   formToSavePayload,
@@ -24,6 +24,8 @@ import {
   saveLocalPermitDraft,
 } from "@/lib/permit/offline";
 import type { PermitDetail, PermitFormState } from "@/lib/permit/types";
+import { isEditablePermitStatus } from "@/lib/permit/status";
+import * as DocumentPicker from "expo-document-picker";
 
 type PermitWizardProps = {
   mode: "create" | "edit";
@@ -54,6 +56,10 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   const [message, setMessage] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [queuedOffline, setQueuedOffline] = useState(false);
+  const [attachments, setAttachments] = useState(initialDetail?.attachments ?? []);
+
+  const permitStatus = initialDetail?.permit.status ?? "draft";
+  const isReadOnly = !isEditablePermitStatus(permitStatus);
 
   const persistDraft = useCallback(async () => {
     const payload = formToSavePayload(form);
@@ -137,6 +143,39 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
       }));
     } catch (error) {
       setMessage(error instanceof ApiError ? error.message : "Failed to save progress");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handlePickAttachment = async () => {
+    if (!currentPermitId) {
+      setMessage("Save the draft before uploading attachments");
+      return;
+    }
+
+    const result = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+
+    if (result.canceled || !result.assets?.[0]) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    setIsBusy(true);
+    setMessage(null);
+    try {
+      const uploaded = await uploadPermitAttachment(currentPermitId, {
+        uri: asset.uri,
+        name: asset.name,
+        mimeType: asset.mimeType ?? "application/octet-stream",
+      });
+      setAttachments((current) => [...current, uploaded]);
+      setMessage("Attachment uploaded");
+    } catch (error) {
+      setMessage(error instanceof ApiError ? error.message : "Failed to upload attachment");
     } finally {
       setIsBusy(false);
     }
@@ -360,7 +399,25 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
           <Text style={styles.summaryLine}>
             Executors: {form.executors.filter((e) => e.workforceUserId.trim()).length}
           </Text>
-          <Text style={styles.hint}>Attachment uploads queue when back online.</Text>
+          <Text style={styles.sectionTitle}>Attachments</Text>
+          {attachments.length === 0 ? (
+            <Text style={styles.hint}>No attachments uploaded yet.</Text>
+          ) : (
+            attachments.map((attachment) => (
+              <Text key={attachment.id} style={styles.summaryLine}>
+                {attachment.fileName}
+              </Text>
+            ))
+          )}
+          {!isReadOnly && currentPermitId ? (
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => void handlePickAttachment()}
+              disabled={isBusy}
+            >
+              <Text style={styles.secondaryButtonText}>Add attachment</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 

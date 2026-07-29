@@ -15,6 +15,7 @@ import { AuditService } from '../logging/audit.service';
 import {
   ALLOWED_ATTACHMENT_CONTENT_TYPES,
   MAX_ATTACHMENT_SIZE_BYTES,
+  isEditablePermitStatus,
 } from './permit.constants';
 import { PermitCacheService } from './permit-cache.service';
 import { PermitLogService } from './permit-log.service';
@@ -50,8 +51,8 @@ export class AttachmentService {
       throw new NotFoundException('Permit not found');
     }
 
-    if (permit.status !== 'draft') {
-      throw new ConflictException('Attachments can only be added to draft permits');
+    if (!isEditablePermitStatus(permit.status)) {
+      throw new ConflictException('Attachments can only be changed on editable permits');
     }
 
     const bucket = this.storageService.getBucket();
@@ -119,8 +120,8 @@ export class AttachmentService {
       throw new NotFoundException('Permit not found');
     }
 
-    if (permit.status !== 'draft') {
-      throw new ConflictException('Attachments can only be removed from draft permits');
+    if (!isEditablePermitStatus(permit.status)) {
+      throw new ConflictException('Attachments can only be changed on editable permits');
     }
 
     const [attachment] = await this.db

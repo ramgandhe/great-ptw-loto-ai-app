@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api";
 import { getPermit } from "@/lib/permit/api";
 import { permitDetailToForm } from "@/lib/permit/form";
 import type { PermitDetail } from "@/lib/permit/types";
+import { isEditablePermitStatus } from "@/lib/permit/status";
 import { PermitApprovalStatus } from "@/components/permit/permit-approval-status";
 import { PermitSummary } from "@/components/permit/permit-summary";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
@@ -36,8 +37,9 @@ export default function PermitDetailPage() {
   }
 
   const form = permitDetailToForm(detail);
-  const isDraft = detail.permit.status === "draft";
-  const isDeferred = detail.permit.status === "deferred";
+  const canEdit = isEditablePermitStatus(detail.permit.status);
+  const isResubmit =
+    detail.permit.status === "deferred" || detail.permit.status === "rejected";
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-8">
@@ -55,9 +57,9 @@ export default function PermitDetailPage() {
           <Link href={`/permits/${detail.permit.id}/preview`}>
             <Button variant="outline">Preview</Button>
           </Link>
-          {isDraft || isDeferred ? (
+          {canEdit ? (
             <Link href={`/permits/${detail.permit.id}/edit`}>
-              <Button>{isDeferred ? "Revise & resubmit" : "Edit draft"}</Button>
+              <Button>{isResubmit ? "Revise & resubmit" : "Edit draft"}</Button>
             </Link>
           ) : null}
         </div>

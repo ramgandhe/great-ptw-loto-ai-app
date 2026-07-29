@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { listPermits } from "@/lib/permit/api";
 import type { PermitRecord } from "@/lib/permit/types";
+import { isEditablePermitStatus } from "@/lib/permit/status";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
 
@@ -100,9 +101,9 @@ export default function PermitsPage() {
                       <Link href={`/permits/${permit.id}`} className="text-primary hover:underline">
                         View
                       </Link>
-                      {permit.status === "draft" ? (
+                      {isEditablePermitStatus(permit.status) ? (
                         <Link href={`/permits/${permit.id}/edit`} className="text-primary hover:underline">
-                          Edit
+                          {permit.status === "draft" ? "Edit" : "Revise"}
                         </Link>
                       ) : null}
                     </div>

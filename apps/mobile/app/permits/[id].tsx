@@ -7,6 +7,7 @@ import type { ApprovalHistoryEntry, ApprovalReview } from "@/lib/approval/types"
 import { getPermit } from "@/lib/permit/api";
 import { getLocalPermitDraft } from "@/lib/permit/offline";
 import { permitDetailToForm } from "@/lib/permit/form";
+import { isEditablePermitStatus } from "@/lib/permit/status";
 import type { PermitDetail } from "@/lib/permit/types";
 
 const APPROVAL_STATUSES = new Set([
@@ -81,8 +82,8 @@ export default function PermitDetailScreen() {
 
   const form = permitDetailToForm(detail!);
   const status = detail!.permit.status;
-  const isDraft = status === "draft";
-  const isDeferred = status === "deferred";
+  const canEdit = isEditablePermitStatus(status);
+  const isResubmit = status === "deferred" || status === "rejected";
   const completedStages = review?.workflow.filter((row) => row.assignment.status === "completed").length ?? 0;
   const totalStages = review?.workflow.length ?? 0;
 
@@ -120,9 +121,9 @@ export default function PermitDetailScreen() {
         </View>
       ) : null}
 
-      {isDraft || isDeferred ? (
+      {canEdit ? (
         <Pressable style={styles.button} onPress={() => router.push(`/permits/${id}/edit`)}>
-          <Text style={styles.buttonText}>{isDeferred ? "Revise & resubmit" : "Edit draft"}</Text>
+          <Text style={styles.buttonText}>{isResubmit ? "Revise & resubmit" : "Edit draft"}</Text>
         </Pressable>
       ) : null}
     </ScrollView>
