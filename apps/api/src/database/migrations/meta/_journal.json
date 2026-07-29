@@ -29,6 +29,13 @@
       "when": 1753690800000,
       "tag": "0003_permit_execution",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1753694400000,
+      "tag": "0004_permit_closure",
+      "breakpoints": true
     }
   ]
 }

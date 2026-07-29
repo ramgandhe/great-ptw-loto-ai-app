@@ -5,6 +5,7 @@ export * from './base';
 export * from './permit';
 export * from './approval';
 export * from './execution';
+export * from './closure';
 
 export const platformMetadata = pgTable('platform_metadata', {
   ...auditColumns,
