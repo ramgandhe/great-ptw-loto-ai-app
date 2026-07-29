@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { listArchivedPermits } from "@/lib/closure/api";
 import type { ArchivedPermitSummary, ArchiveSearchParams } from "@/lib/closure/types";
@@ -13,20 +13,28 @@ export default function PermitArchivePage() {
   const [filters, setFilters] = useState<ArchiveSearchParams>({});
   const [items, setItems] = useState<ArchivedPermitSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  async function handleSearch() {
+  const loadArchive = useCallback(async (params?: ArchiveSearchParams) => {
     setIsLoading(true);
     setError(null);
     try {
-      setItems(await listArchivedPermits(filters));
-      setHasSearched(true);
+      setItems(await listArchivedPermits(params));
+      setHasLoaded(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to search archive");
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    void loadArchive();
+  }, [loadArchive]);
+
+  async function handleSearch() {
+    await loadArchive(filters);
   }
 
   return (
@@ -56,8 +64,10 @@ export default function PermitArchivePage() {
         </div>
       ) : null}
 
-      {hasSearched && items.length === 0 ? (
+      {hasLoaded && !isLoading && items.length === 0 ? (
         <p className="text-sm text-muted-foreground">No archived permits match your search.</p>
+      ) : isLoading && items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Loading archive...</p>
       ) : (
         <div className="grid gap-3">
           {items.map((item) => (

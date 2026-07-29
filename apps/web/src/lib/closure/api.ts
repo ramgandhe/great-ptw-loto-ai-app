@@ -6,6 +6,7 @@ import type {
   AuditLogEntry,
   ClosePermitResult,
   PermitHistoryEntry,
+  PermitVerification,
   VerificationChecklist,
   VerifyPermitResult,
 } from "./types";
@@ -26,6 +27,21 @@ function buildArchiveQuery(params?: ArchiveSearchParams): string {
   }
   const query = search.toString();
   return query ? `?${query}` : "";
+}
+
+export function getPermitVerification(permitId: string) {
+  return fetchApi<PermitVerification | null>(`/permits/${permitId}/verification`);
+}
+
+export type DownloadUrlResult = {
+  url: string;
+  expiresInSeconds: number;
+};
+
+export function getArchiveAttachmentDownloadUrl(permitId: string, attachmentId: string) {
+  return fetchApi<DownloadUrlResult>(
+    `/permits/archive/${permitId}/attachments/${attachmentId}/download-url`,
+  );
 }
 
 export function verifyPermit(

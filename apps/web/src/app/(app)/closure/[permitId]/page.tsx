@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
-import { closePermit, getPermitAudit, getPermitHistory, verifyPermit } from "@/lib/closure/api";
+import { closePermit, getPermitAudit, getPermitHistory, getPermitVerification, verifyPermit } from "@/lib/closure/api";
 import type { AuditLogEntry, PermitHistoryEntry, PermitVerification } from "@/lib/closure/types";
-import { listEvidence, listProgress } from "@/lib/execution/api";
+import { getEvidenceDownloadUrl, listEvidence, listProgress } from "@/lib/execution/api";
 import type { EvidenceRecord, ProgressRecord } from "@/lib/execution/types";
 import { getPermit } from "@/lib/permit/api";
 import type { PermitDetail } from "@/lib/permit/types";
@@ -21,6 +21,7 @@ import {
 } from "@/components/closure/verification-checklist";
 import { ProgressFeed } from "@/components/execution/progress-feed";
 import { Button } from "@/components/ui/button";
+import { openPresignedDownload } from "@/lib/download";
 
 export default function PermitClosurePage() {
   const params = useParams<{ permitId: string }>();
@@ -39,17 +40,20 @@ export default function PermitClosurePage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [closeError, setCloseError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [downloadingEvidenceId, setDownloadingEvidenceId] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
       getPermit(params.permitId),
+      getPermitVerification(params.permitId).catch(() => null),
       getPermitHistory(params.permitId).catch(() => []),
       getPermitAudit(params.permitId).catch(() => []),
       listProgress(params.permitId).catch(() => []),
       listEvidence(params.permitId).catch(() => []),
     ])
-      .then(([permitDetail, historyItems, auditItems, progressItems, evidenceItems]) => {
+      .then(([permitDetail, verificationRecord, historyItems, auditItems, progressItems, evidenceItems]) => {
         setDetail(permitDetail);
+        setVerification(verificationRecord);
         setHistory(historyItems);
         setAudit(auditItems);
         setProgress(progressItems);
@@ -59,6 +63,17 @@ export default function PermitClosurePage() {
         setError(err instanceof ApiError ? err.message : "Failed to load permit");
       });
   }, [params.permitId]);
+
+  async function handleEvidenceDownload(evidenceId: string) {
+    setDownloadingEvidenceId(evidenceId);
+    try {
+      await openPresignedDownload(() => getEvidenceDownloadUrl(params.permitId, evidenceId));
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Download failed");
+    } finally {
+      setDownloadingEvidenceId(null);
+    }
+  }
 
   async function handleVerify() {
     if (!isChecklistComplete(checklist)) {
@@ -138,8 +153,20 @@ export default function PermitClosurePage() {
         ) : (
           <ul className="grid gap-2 text-sm">
             {evidence.map((item) => (
-              <li key={item.id} className="rounded-lg border border-border px-3 py-2">
-                {item.fileName}
+              <li
+                key={item.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
+              >
+                <span>{item.fileName}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={downloadingEvidenceId === item.id}
+                  onClick={() => void handleEvidenceDownload(item.id)}
+                >
+                  {downloadingEvidenceId === item.id ? "Opening..." : "Download"}
+                </Button>
               </li>
             ))}
           </ul>

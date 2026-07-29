@@ -3,6 +3,7 @@ import type {
   ArchivedPermitDetail,
   ArchivedPermitSummary,
   ClosePermitResult,
+  PermitVerification,
   VerificationChecklist,
   VerifyPermitResult,
 } from "./types";
@@ -10,6 +11,21 @@ import {
   listPendingVerifications,
   removePendingVerification,
 } from "./offline";
+
+export function getPermitVerification(permitId: string) {
+  return fetchApi<PermitVerification | null>(`/permits/${permitId}/verification`);
+}
+
+export type DownloadUrlResult = {
+  url: string;
+  expiresInSeconds: number;
+};
+
+export function getArchiveAttachmentDownloadUrl(permitId: string, attachmentId: string) {
+  return fetchApi<DownloadUrlResult>(
+    `/permits/archive/${permitId}/attachments/${attachmentId}/download-url`,
+  );
+}
 
 export function verifyPermit(
   permitId: string,

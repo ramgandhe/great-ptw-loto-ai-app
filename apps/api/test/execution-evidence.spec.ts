@@ -79,6 +79,37 @@ describe('ExecutionEvidenceService (PUS-145)', () => {
     expect(result.url).toContain('minio.example');
     expect(result.expiresInSeconds).toBe(3600);
   });
+
+  it('returns presigned download url for closed permit evidence', async () => {
+    const permit = {
+      id: 'permit-1',
+      tenantId: 'tenant-1',
+      status: 'closed',
+    };
+    const evidence = {
+      id: 'evidence-1',
+      permitId: 'permit-1',
+      storageKey: 'tenant-1/permit-1/evidence.jpg',
+    };
+
+    const permitSelect = {
+      from: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([permit]),
+    };
+    const evidenceSelect = {
+      from: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([evidence]),
+    };
+
+    db.select = jest
+      .fn()
+      .mockReturnValueOnce(permitSelect)
+      .mockReturnValueOnce(evidenceSelect);
+
+    const result = await service.getDownloadUrl('permit-1', 'evidence-1', viewer);
+
+    expect(result.url).toContain('minio.example');
+  });
 });
 
 describe('EvidenceService MinIO upload (PUS-145)', () => {
