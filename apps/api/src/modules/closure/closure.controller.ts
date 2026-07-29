@@ -21,6 +21,12 @@ export class ClosureController {
     private readonly historyService: HistoryService,
   ) {}
 
+  @Roles(...CLOSURE_HISTORY_READ_ROLES)
+  @Get(':id/verification')
+  verification(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.verificationService.getVerification(id, user);
+  }
+
   @Roles(...CLOSURE_VERIFY_ROLES)
   @Post(':id/verify')
   verify(

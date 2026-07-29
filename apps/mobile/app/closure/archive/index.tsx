@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -16,21 +16,29 @@ import type { ArchivedPermitSummary } from "@/lib/closure/types";
 export default function ClosureArchiveScreen() {
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<ArchivedPermitSummary[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searched, setSearched] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  async function handleSearch() {
+  const loadArchive = useCallback(async (search?: string) => {
     setLoading(true);
     setError(null);
     try {
-      setItems(await listArchivedPermits(query.trim() || undefined));
-      setSearched(true);
+      setItems(await listArchivedPermits(search));
+      setHasLoaded(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Search failed");
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    void loadArchive();
+  }, [loadArchive]);
+
+  async function handleSearch() {
+    await loadArchive(query.trim() || undefined);
   }
 
   return (
@@ -45,14 +53,14 @@ export default function ClosureArchiveScreen() {
         <Text style={styles.buttonText}>{loading ? "Searching..." : "Search"}</Text>
       </Pressable>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      {loading ? (
+      {loading && items.length === 0 ? (
         <ActivityIndicator style={{ marginTop: 24 }} />
       ) : (
         <FlatList
           data={items}
           keyExtractor={(item) => item.permit.id}
           ListEmptyComponent={
-            searched ? <Text style={styles.empty}>No archived permits found.</Text> : null
+            hasLoaded ? <Text style={styles.empty}>No archived permits found.</Text> : null
           }
           renderItem={({ item }) => (
             <Pressable

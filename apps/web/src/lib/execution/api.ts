@@ -46,6 +46,15 @@ export function listEvidence(permitId: string) {
   return fetchApi<EvidenceRecord[]>(`/permits/${permitId}/evidence`);
 }
 
+export type DownloadUrlResult = {
+  url: string;
+  expiresInSeconds: number;
+};
+
+export function getEvidenceDownloadUrl(permitId: string, evidenceId: string) {
+  return fetchApi<DownloadUrlResult>(`/permits/${permitId}/evidence/${evidenceId}/download-url`);
+}
+
 export async function uploadEvidence(
   permitId: string,
   file: File,

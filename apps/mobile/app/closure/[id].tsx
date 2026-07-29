@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { ApiError } from "@/lib/api";
-import { closePermit, verifyPermit } from "@/lib/closure/api";
+import { closePermit, getPermitVerification, verifyPermit } from "@/lib/closure/api";
 import { initClosureOfflineStorage, queueOfflineVerification } from "@/lib/closure/offline";
 import {
   defaultVerificationChecklist,
@@ -53,11 +53,13 @@ export default function PermitVerificationScreen() {
     Promise.all([
       initClosureOfflineStorage(),
       getPermit(permitId),
+      getPermitVerification(permitId).catch(() => null),
       listProgress(permitId).catch(() => []),
       listEvidence(permitId).catch(() => []),
     ])
-      .then(([, permitDetail, progress, evidence]) => {
+      .then(([, permitDetail, verificationRecord, progress, evidence]) => {
         setDetail(permitDetail);
+        setVerified(Boolean(verificationRecord));
         setProgressCount(progress.length);
         setEvidenceCount(evidence.length);
       })
