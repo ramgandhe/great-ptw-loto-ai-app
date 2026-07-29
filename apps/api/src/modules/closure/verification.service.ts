@@ -122,6 +122,11 @@ export class VerificationService {
     };
   }
 
+  async getVerification(permitId: string, user: AuthenticatedUser) {
+    await this.permitService.findOne(permitId, user);
+    return this.findByPermit(permitId);
+  }
+
   async findByPermit(permitId: string) {
     const [verification] = await this.db
       .select()
