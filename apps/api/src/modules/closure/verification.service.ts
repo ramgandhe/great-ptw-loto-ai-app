@@ -16,8 +16,10 @@ import { AuditService } from '../logging/audit.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
 import { ACTIVE_STATUS } from './closure.constants';
+import { ClosureCacheService } from './closure-cache.service';
 import { ClosureLogService } from './closure-log.service';
 import { VerificationDto } from './dto/verification.dto';
+import { NotificationService } from './notification.service';
 
 @Injectable()
 export class VerificationService {
@@ -26,7 +28,9 @@ export class VerificationService {
     private readonly permitService: PermitService,
     private readonly auditService: AuditService,
     private readonly permitCacheService: PermitCacheService,
+    private readonly closureCacheService: ClosureCacheService,
     private readonly closureLogService: ClosureLogService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async verify(permitId: string, dto: VerificationDto, user: AuthenticatedUser) {
@@ -94,6 +98,15 @@ export class VerificationService {
     });
 
     await this.permitCacheService.invalidatePermit(tenantId, permitId);
+    await this.closureCacheService.invalidatePermit(tenantId, permitId);
+
+    await this.notificationService.enqueueClosureNotification({
+      permitId,
+      tenantId,
+      action: 'verified',
+      actorId: user.id,
+      metadata: { verificationId: verification.id },
+    });
 
     this.closureLogService.logEvent({
       action: 'closure.verified',

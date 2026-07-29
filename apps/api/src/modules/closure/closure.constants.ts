@@ -14,3 +14,7 @@ export const CLOSURE_ARCHIVE_READ_ROLES = [
 ] as const;
 
 export const CLOSURE_HISTORY_READ_ROLES = [...CLOSURE_ARCHIVE_READ_ROLES] as const;
+
+export const CLOSURE_NOTIFICATION_JOB = 'closure.notification';
+export const CLOSURE_ARCHIVE_JOB = 'closure.archive';
+export const CLOSURE_REPORT_JOB = 'closure.report';
