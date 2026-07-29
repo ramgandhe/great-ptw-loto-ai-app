@@ -48,7 +48,7 @@ describe('Master data services (PUS-70)', () => {
     } as unknown as MasterDataCacheService;
     const auditService = { log: jest.fn().mockResolvedValue(undefined) } as unknown as AuditService;
     const logService = { logEvent: jest.fn() } as unknown as MasterDataLogService;
-    const referenceIntegrity = new ReferenceIntegrityService(db);
+    const referenceIntegrity = new ReferenceIntegrityService();
 
     permitTypeService = new PermitTypeService(
       db,

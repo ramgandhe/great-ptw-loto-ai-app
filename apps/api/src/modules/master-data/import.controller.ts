@@ -12,7 +12,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
-import { UploadedFilePayload } from '../permit/uploaded-file.interface';
+import { UploadedFilePayload } from './uploaded-file.interface';
 import { MASTER_DATA_WRITE_ROLES } from './master-data.constants';
 import { BulkImportDto } from './dto/bulk-import.dto';
 import { ImportService } from './import.service';

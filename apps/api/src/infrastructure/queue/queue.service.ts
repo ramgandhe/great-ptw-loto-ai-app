@@ -1,22 +1,29 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Inject } from '@nestjs/common';
-import { Queue, Worker } from 'bullmq';
+import { Job, Queue, Worker } from 'bullmq';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../redis/redis.module';
 
 export const PLATFORM_QUEUE = 'platform-queue';
+
+export type QueueJobHandler = (job: Job) => Promise<void>;
 
 @Injectable()
 export class QueueService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(QueueService.name);
   private queue!: Queue;
   private worker!: Worker;
+  private readonly handlers = new Map<string, QueueJobHandler>();
 
   constructor(
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly configService: ConfigService,
   ) {}
+
+  registerHandler(name: string, handler: QueueJobHandler): void {
+    this.handlers.set(name, handler);
+  }
 
   async onModuleInit(): Promise<void> {
     const connection = {
@@ -37,7 +44,12 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
     this.worker = new Worker(
       PLATFORM_QUEUE,
       async (job) => {
-        this.logger.debug(`Processing job ${job.id}: ${job.name}`);
+        const handler = this.handlers.get(job.name);
+        if (handler) {
+          await handler(job);
+          return;
+        }
+        this.logger.debug(`No handler registered for job ${job.id}: ${job.name}`);
       },
       { connection },
     );
