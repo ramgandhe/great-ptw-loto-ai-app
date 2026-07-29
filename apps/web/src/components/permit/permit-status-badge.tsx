@@ -8,6 +8,7 @@ const statusStyles: Record<string, string> = {
   suspended: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
   rejected: "bg-destructive/15 text-destructive",
   deferred: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  closed: "bg-muted text-muted-foreground",
 };
 
 export function PermitStatusBadge({ status }: { status: string }) {
