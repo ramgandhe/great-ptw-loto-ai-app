@@ -19,6 +19,10 @@ export default function RootLayout() {
         <Stack.Screen name="execution/[id]" options={{ title: "Execute permit" }} />
         <Stack.Screen name="execution/[id]/progress" options={{ title: "Progress updates" }} />
         <Stack.Screen name="execution/[id]/evidence" options={{ title: "Evidence gallery" }} />
+        <Stack.Screen name="closure/index" options={{ title: "Permit closure" }} />
+        <Stack.Screen name="closure/[id]" options={{ title: "Verify permit" }} />
+        <Stack.Screen name="closure/archive/index" options={{ title: "Permit archive" }} />
+        <Stack.Screen name="closure/archive/[id]" options={{ title: "Historical permit" }} />
       </Stack>
     </>
   );
