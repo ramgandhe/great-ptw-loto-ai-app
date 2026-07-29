@@ -35,12 +35,17 @@ export default function PermitsPage() {
             Create, manage drafts and track submitted permits.
           </p>
         </div>
-        <Link href="/permits/new">
-          <Button>
-            <Plus className="size-4" aria-hidden />
-            Create permit
-          </Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/permits/new">
+            <Button>
+              <Plus className="size-4" aria-hidden />
+              Create permit
+            </Button>
+          </Link>
+          <Link href="/permits/drafts">
+            <Button variant="outline">Drafts</Button>
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">

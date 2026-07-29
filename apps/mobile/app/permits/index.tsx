@@ -12,6 +12,13 @@ import type { PermitRecord } from "@/lib/permit/types";
 
 type Tab = "drafts" | "submitted";
 
+const SUBMITTED_STATUSES = [
+  "pending_approval",
+  "approved",
+  "rejected",
+  "deferred",
+] as const;
+
 export default function PermitsScreen() {
   const [tab, setTab] = useState<Tab>("drafts");
   const [permits, setPermits] = useState<PermitRecord[]>([]);
@@ -34,12 +41,22 @@ export default function PermitsScreen() {
             listLocalPermitDrafts(),
           ]);
           const localRecords = local.map(localDraftToPermitRecord);
-          const merged = [...localRecords, ...remote.filter((r) => !localRecords.some((l) => l.id === r.id))];
+          const merged = [
+            ...localRecords,
+            ...remote.filter((r) => !localRecords.some((l) => l.id === r.id)),
+          ];
           setPermits(merged);
           return;
         }
 
-        setPermits(await listPermits("pending_approval"));
+        const groups = await Promise.all(
+          SUBMITTED_STATUSES.map((status) => listPermits(status).catch(() => [] as PermitRecord[])),
+        );
+        setPermits(
+          groups
+            .flat()
+            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+        );
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "Failed to load permits");
       } finally {
