@@ -53,4 +53,13 @@ export default () => ({
       10,
     ),
   },
+  closure: {
+    cacheTtlSeconds: parseInt(process.env.CLOSURE_CACHE_TTL_SECONDS ?? '300', 10),
+    archiveCron: process.env.CLOSURE_ARCHIVE_CRON ?? '0 3 * * *',
+    reportCron: process.env.CLOSURE_REPORT_CRON ?? '0 4 * * 1',
+    attachmentUrlExpirySeconds: parseInt(
+      process.env.CLOSURE_ATTACHMENT_URL_EXPIRY_SECONDS ?? '3600',
+      10,
+    ),
+  },
 });

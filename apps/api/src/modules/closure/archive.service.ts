@@ -4,6 +4,7 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { permitArchive, permits } from '../../database/schema';
 import { PermitService } from '../permit/permit.service';
+import { ClosureCacheService } from './closure-cache.service';
 import { ClosureService } from './closure.service';
 import { ArchiveSearchDto } from './dto/archive-search.dto';
 import { VerificationService } from './verification.service';
@@ -15,10 +16,42 @@ export class ArchiveService {
     private readonly permitService: PermitService,
     private readonly verificationService: VerificationService,
     private readonly closureService: ClosureService,
+    private readonly closureCacheService: ClosureCacheService,
   ) {}
 
   async search(user: AuthenticatedUser, query: ArchiveSearchDto) {
     const tenantId = this.requireTenant(user);
+
+    const cached = await this.closureCacheService.getSearchResults<
+      Awaited<ReturnType<ArchiveService['loadSearchResults']>>
+    >(tenantId, query);
+
+    if (cached) {
+      return cached;
+    }
+
+    const results = await this.loadSearchResults(tenantId, query);
+    await this.closureCacheService.setSearchResults(tenantId, query, results);
+    return results;
+  }
+
+  async findOne(permitId: string, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+
+    const cached = await this.closureCacheService.getArchiveDetail<
+      Awaited<ReturnType<ArchiveService['loadArchiveDetail']>>
+    >(tenantId, permitId);
+
+    if (cached) {
+      return cached;
+    }
+
+    const detail = await this.loadArchiveDetail(permitId, user);
+    await this.closureCacheService.setArchiveDetail(tenantId, permitId, detail);
+    return detail;
+  }
+
+  private async loadSearchResults(tenantId: string, query: ArchiveSearchDto) {
     const conditions = [eq(permitArchive.tenantId, tenantId)];
 
     if (query.q) {
@@ -51,7 +84,7 @@ export class ArchiveService {
     }));
   }
 
-  async findOne(permitId: string, user: AuthenticatedUser) {
+  private async loadArchiveDetail(permitId: string, user: AuthenticatedUser) {
     const tenantId = this.requireTenant(user);
 
     const [archive] = await this.db

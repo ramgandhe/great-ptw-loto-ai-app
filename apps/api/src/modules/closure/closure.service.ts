@@ -18,8 +18,10 @@ import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
 import { StatusTransitionService } from '../execution/status-transition.service';
 import { ACTIVE_STATUS, CLOSED_STATUS } from './closure.constants';
+import { ClosureCacheService } from './closure-cache.service';
 import { ClosureLogService } from './closure-log.service';
 import { ClosePermitDto } from './dto/close-permit.dto';
+import { NotificationService } from './notification.service';
 
 @Injectable()
 export class ClosureService {
@@ -29,7 +31,9 @@ export class ClosureService {
     private readonly statusTransitionService: StatusTransitionService,
     private readonly auditService: AuditService,
     private readonly permitCacheService: PermitCacheService,
+    private readonly closureCacheService: ClosureCacheService,
     private readonly closureLogService: ClosureLogService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async close(permitId: string, dto: ClosePermitDto, user: AuthenticatedUser) {
@@ -121,6 +125,15 @@ export class ClosureService {
     });
 
     await this.permitCacheService.invalidatePermit(tenantId, permitId);
+    await this.closureCacheService.invalidatePermit(tenantId, permitId);
+
+    await this.notificationService.enqueueClosureNotification({
+      permitId,
+      tenantId,
+      action: 'closed',
+      actorId: user.id,
+      metadata: { closureId: closure.id },
+    });
 
     this.closureLogService.logEvent({
       action: 'closure.closed',

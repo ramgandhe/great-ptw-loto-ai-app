@@ -79,14 +79,22 @@ describe('Closure services integration (PUS-146)', () => {
     const permitCacheService = {
       invalidatePermit: jest.fn().mockResolvedValue(undefined),
     } as unknown as PermitCacheService;
+    const closureCacheService = {
+      invalidatePermit: jest.fn().mockResolvedValue(undefined),
+    } as unknown as import('../src/modules/closure/closure-cache.service').ClosureCacheService;
     const closureLogService = { logEvent: jest.fn() } as unknown as ClosureLogService;
+    const notificationService = {
+      enqueueClosureNotification: jest.fn().mockResolvedValue(undefined),
+    } as unknown as import('../src/modules/closure/notification.service').NotificationService;
 
     verificationService = new VerificationService(
       db,
       permitService,
       auditService,
       permitCacheService,
+      closureCacheService,
       closureLogService,
+      notificationService,
     );
 
     closureService = new ClosureService(
@@ -95,7 +103,9 @@ describe('Closure services integration (PUS-146)', () => {
       new StatusTransitionService(db),
       auditService,
       permitCacheService,
+      closureCacheService,
       closureLogService,
+      notificationService,
     );
   });
 
