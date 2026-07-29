@@ -12,6 +12,9 @@ export default function RootLayout() {
         <Stack.Screen name="permits/new" options={{ title: "Create permit" }} />
         <Stack.Screen name="permits/[id]" options={{ title: "Permit" }} />
         <Stack.Screen name="permits/[id]/edit" options={{ title: "Edit draft" }} />
+        <Stack.Screen name="approvals/index" options={{ title: "Pending approvals" }} />
+        <Stack.Screen name="approvals/[id]" options={{ title: "Permit review" }} />
+        <Stack.Screen name="approvals/[id]/history" options={{ title: "Approval history" }} />
       </Stack>
     </>
   );
