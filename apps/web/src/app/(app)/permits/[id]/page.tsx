@@ -62,6 +62,13 @@ export default function PermitDetailPage() {
               <Button>{isResubmit ? "Revise & resubmit" : "Edit draft"}</Button>
             </Link>
           ) : null}
+          {["approved", "active", "suspended"].includes(detail.permit.status) ? (
+            <Link href={`/permits/${detail.permit.id}/execute`}>
+              <Button>
+                {detail.permit.status === "approved" ? "Start execution" : "Open execution"}
+              </Button>
+            </Link>
+          ) : null}
         </div>
       </div>
 

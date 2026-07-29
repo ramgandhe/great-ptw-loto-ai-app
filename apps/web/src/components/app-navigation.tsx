@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CheckSquare, ClipboardList, FileEdit, LayoutDashboard, ListChecks } from "lucide-react";
+import { Activity, CheckSquare, ClipboardList, FileEdit, LayoutDashboard, ListChecks } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/permits", label: "Permits", icon: ClipboardList },
+  { href: "/active-permits", label: "Active work", icon: Activity },
   { href: "/permits/drafts", label: "Drafts", icon: FileEdit },
   { href: "/approvals", label: "Approvals", icon: CheckSquare },
   { href: "/approvals/deferred", label: "Deferred", icon: ListChecks },
@@ -21,7 +22,7 @@ export function AppNavigation() {
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           PTW Platform
         </p>
-        <p className="text-sm font-semibold">SP-02.01 / 02.02</p>
+        <p className="text-sm font-semibold">Permit-to-Work Core</p>
       </div>
       <ul className="flex flex-col gap-1">
         {navItems.map(({ href, label, icon: Icon }) => {

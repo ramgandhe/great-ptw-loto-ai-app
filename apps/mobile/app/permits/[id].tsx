@@ -126,6 +126,13 @@ export default function PermitDetailScreen() {
           <Text style={styles.buttonText}>{isResubmit ? "Revise & resubmit" : "Edit draft"}</Text>
         </Pressable>
       ) : null}
+      {["approved", "active", "suspended"].includes(status) ? (
+        <Pressable style={styles.button} onPress={() => router.push(`/executions/${id}`)}>
+          <Text style={styles.buttonText}>
+            {status === "approved" ? "Start execution" : "Open execution"}
+          </Text>
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
 }

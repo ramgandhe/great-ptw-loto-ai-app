@@ -23,6 +23,6 @@ import { PermitLogService } from './permit-log.service';
     PermitLogService,
     PermitJobsService,
   ],
-  exports: [PermitService, PermitCacheService],
+  exports: [PermitService, PermitCacheService, PermitLogService],
 })
 export class PermitModule {}

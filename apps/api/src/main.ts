@@ -30,6 +30,8 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  await app.init();
+
   const storageService = app.get(StorageService);
   await storageService.ensureBucket();
 

@@ -4,6 +4,7 @@ import { auditColumns } from './base';
 export * from './base';
 export * from './permit';
 export * from './approval';
+export * from './execution';
 
 export const platformMetadata = pgTable('platform_metadata', {
   ...auditColumns,

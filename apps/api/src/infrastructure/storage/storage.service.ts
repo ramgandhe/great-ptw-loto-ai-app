@@ -60,7 +60,7 @@ export class StorageService implements OnModuleInit {
       await this.client.putObject(this.bucket, key, body, size, {
         'Content-Type': contentType,
       });
-    } catch (error) {
+    } catch {
       await this.ensureBucket();
       await this.client.putObject(this.bucket, key, body, size, {
         'Content-Type': contentType,
