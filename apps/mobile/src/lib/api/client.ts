@@ -3,6 +3,8 @@ import { getAccessToken } from "@/lib/auth/token-storage";
 import { apiConfig } from "./config";
 import { ApiError } from "./errors";
 
+export { ApiError } from "./errors";
+
 export interface FetchApiOptions extends RequestInit {
   token?: string;
   auth?: boolean;
@@ -22,7 +24,7 @@ export async function fetchApi<T>(path: string, options: FetchApiOptions = {}): 
     },
   });
 
-  let body: ApiResponse<T> | { success: false; error: { code: string; message: string } };
+  let body: ApiResponse<T> | { success: false; error: { code: string; message: string; details?: unknown } };
   try {
     body = await response.json();
   } catch {
@@ -31,7 +33,12 @@ export async function fetchApi<T>(path: string, options: FetchApiOptions = {}): 
 
   if (!response.ok || body.success === false) {
     const error = "error" in body ? body.error : undefined;
-    throw new ApiError(error?.message ?? "API request failed", error?.code, response.status);
+    throw new ApiError(
+      error?.message ?? "API request failed",
+      error?.code,
+      response.status,
+      error?.details,
+    );
   }
 
   return body.data;

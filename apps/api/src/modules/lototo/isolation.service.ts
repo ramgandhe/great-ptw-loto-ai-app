@@ -5,8 +5,10 @@ import { isolationPoints } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { AddIsolationPointDto } from './dto/add-isolation-point.dto';
 import { EquipmentService } from './equipment.service';
+import { LototoCacheService } from './lototo-cache.service';
 import { LototoLogService } from './lototo-log.service';
 import { LototoValidationService } from './lototo-validation.service';
+import { NotificationService } from './notification.service';
 
 @Injectable()
 export class IsolationService {
@@ -16,6 +18,8 @@ export class IsolationService {
     private readonly equipmentService: EquipmentService,
     private readonly auditService: AuditService,
     private readonly lototoLogService: LototoLogService,
+    private readonly lototoCacheService: LototoCacheService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async addIsolationPoint(planId: string, dto: AddIsolationPointDto, user: AuthenticatedUser) {
@@ -64,6 +68,16 @@ export class IsolationService {
         tenantId,
         userId: user.id,
         metadata: { isolationPointId: point.id },
+      });
+
+      await this.lototoCacheService.invalidatePlan(tenantId, planId, plan.permitId);
+      await this.notificationService.enqueuePlanningNotification({
+        planId,
+        permitId: plan.permitId,
+        tenantId,
+        action: 'isolation_point_added',
+        actorId: user.id,
+        metadata: { isolationNumber: dto.isolationNumber },
       });
 
       return point;

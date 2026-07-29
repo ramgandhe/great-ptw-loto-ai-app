@@ -7,8 +7,10 @@ import { AuditService } from '../logging/audit.service';
 import { PermitService } from '../permit/permit.service';
 import { AssignPersonnelDto } from './dto/assign-personnel.dto';
 import { CreateLototoPlanDto } from './dto/create-lototo-plan.dto';
+import { LototoCacheService } from './lototo-cache.service';
 import { LototoLogService } from './lototo-log.service';
 import { LototoValidationService } from './lototo-validation.service';
+import { NotificationService } from './notification.service';
 
 @Injectable()
 export class LototoService {
@@ -18,6 +20,8 @@ export class LototoService {
     private readonly validationService: LototoValidationService,
     private readonly auditService: AuditService,
     private readonly lototoLogService: LototoLogService,
+    private readonly lototoCacheService: LototoCacheService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async create(dto: CreateLototoPlanDto, user: AuthenticatedUser) {
@@ -67,6 +71,15 @@ export class LototoService {
         userId: user.id,
       });
 
+      await this.lototoCacheService.invalidateTenant(tenantId);
+      await this.notificationService.enqueuePlanningNotification({
+        planId: plan.id,
+        permitId: dto.permitId,
+        tenantId,
+        action: 'plan_created',
+        actorId: user.id,
+      });
+
       return plan;
     } catch (error) {
       if (error instanceof Error && error.message.includes('require an existing permit')) {
@@ -82,16 +95,26 @@ export class LototoService {
   async findAll(user: AuthenticatedUser, permitId?: string) {
     const tenantId = this.validationService.requireTenant(user);
 
+    const cached = await this.lototoCacheService.getPlanList<
+      (typeof lototoPlans.$inferSelect)[]
+    >(tenantId, permitId);
+    if (cached) {
+      return cached;
+    }
+
     const conditions = [eq(lototoPlans.tenantId, tenantId)];
     if (permitId) {
       conditions.push(eq(lototoPlans.permitId, permitId));
     }
 
-    return this.db
+    const plans = await this.db
       .select()
       .from(lototoPlans)
       .where(and(...conditions))
       .orderBy(desc(lototoPlans.createdAt));
+
+    await this.lototoCacheService.setPlanList(tenantId, permitId, plans);
+    return plans;
   }
 
   async assignPersonnel(planId: string, dto: AssignPersonnelDto, user: AuthenticatedUser) {
@@ -126,6 +149,16 @@ export class LototoService {
         tenantId,
         userId: user.id,
         metadata: { role: dto.role, workforceUserId: dto.workforceUserId },
+      });
+
+      await this.lototoCacheService.invalidatePlan(tenantId, planId, plan.permitId);
+      await this.notificationService.enqueuePlanningNotification({
+        planId,
+        permitId: plan.permitId,
+        tenantId,
+        action: 'assignment_created',
+        actorId: user.id,
+        metadata: { role: dto.role },
       });
 
       return assignment;
