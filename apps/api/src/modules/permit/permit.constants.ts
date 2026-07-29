@@ -1,3 +1,15 @@
+export const EDITABLE_PERMIT_STATUSES = ['draft', 'deferred', 'rejected'] as const;
+
+export const SUBMITTABLE_PERMIT_STATUSES = ['draft', 'deferred', 'rejected'] as const;
+
+export function isEditablePermitStatus(status: string): boolean {
+  return (EDITABLE_PERMIT_STATUSES as readonly string[]).includes(status);
+}
+
+export function isSubmittablePermitStatus(status: string): boolean {
+  return (SUBMITTABLE_PERMIT_STATUSES as readonly string[]).includes(status);
+}
+
 export const PERMIT_WRITE_ROLES = [
   'job-issuer',
   'operator',

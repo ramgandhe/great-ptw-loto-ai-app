@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  forwardRef,
 } from '@nestjs/common';
 import { and, desc, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -18,8 +19,11 @@ import {
   permits,
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
+import { ApprovalHistoryService } from '../approval/approval-history.service';
+import { WorkflowEngineService } from '../approval/workflow-engine.service';
 import { CreatePermitDto } from './dto/create-permit.dto';
 import { UpdatePermitDto } from './dto/update-permit.dto';
+import { isEditablePermitStatus, isSubmittablePermitStatus } from './permit.constants';
 import { PermitCacheService } from './permit-cache.service';
 import { PermitLogService } from './permit-log.service';
 import { PermitValidationService } from './permit-validation.service';
@@ -41,6 +45,10 @@ export class PermitService {
     private readonly auditService: AuditService,
     private readonly permitCacheService: PermitCacheService,
     private readonly permitLogService: PermitLogService,
+    @Inject(forwardRef(() => WorkflowEngineService))
+    private readonly workflowEngine: WorkflowEngineService,
+    @Inject(forwardRef(() => ApprovalHistoryService))
+    private readonly approvalHistoryService: ApprovalHistoryService,
   ) {}
 
   async create(dto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -154,8 +162,8 @@ export class PermitService {
     const tenantId = this.requireTenant(user);
     const existing = await this.loadDetail(this.db, id, tenantId);
 
-    if (existing.permit.status !== 'draft') {
-      throw new ConflictException('Only draft permits can be updated');
+    if (!isEditablePermitStatus(existing.permit.status)) {
+      throw new ConflictException('Only draft, deferred or rejected permits can be updated');
     }
 
     return this.db.transaction(async (tx) => {
@@ -235,41 +243,68 @@ export class PermitService {
     const tenantId = this.requireTenant(user);
     const detail = await this.loadDetail(this.db, id, tenantId);
 
-    if (detail.permit.status !== 'draft') {
-      throw new ConflictException('Permit has already been submitted');
+    if (!isSubmittablePermitStatus(detail.permit.status)) {
+      throw new ConflictException('Permit cannot be submitted in its current status');
     }
 
     this.validationService.validateForSubmit(detail);
 
-    const reference = await generatePermitReference(this.db, tenantId);
+    const isResubmit = detail.permit.status === 'deferred' || detail.permit.status === 'rejected';
+    const reference =
+      detail.permit.reference ?? (await generatePermitReference(this.db, tenantId));
     const submittedAt = new Date();
+    const fromStatus = detail.permit.status;
 
-    await this.db
-      .update(permits)
-      .set({
-        status: 'pending_approval',
-        reference,
-        submittedAt,
-        submittedBy: user.id,
-        updatedBy: user.id,
-      })
-      .where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(permits)
+        .set({
+          status: 'pending_approval',
+          reference,
+          submittedAt,
+          submittedBy: user.id,
+          updatedBy: user.id,
+        })
+        .where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
+
+      if (isResubmit) {
+        await this.approvalHistoryService.record(
+          {
+            permitId: id,
+            action: 'resubmitted',
+            fromStatus,
+            toStatus: 'pending_approval',
+            actorId: user.id,
+            createdBy: user.id,
+          },
+          tx,
+        );
+      }
+
+      await this.workflowEngine.initializeAtSubmit(
+        id,
+        tenantId,
+        detail.permit.permitTypeId,
+        user.id,
+        tx,
+      );
+    });
 
     await this.auditService.log({
-      action: 'permit.submitted',
+      action: isResubmit ? 'permit.resubmitted' : 'permit.submitted',
       entityType: 'permit',
       entityId: id,
       userId: user.id,
       tenantId,
-      metadata: { reference, status: 'pending_approval' },
+      metadata: { reference, status: 'pending_approval', fromStatus },
     });
 
     this.permitLogService.logEvent({
-      action: 'permit.submitted',
+      action: isResubmit ? 'permit.resubmitted' : 'permit.submitted',
       permitId: id,
       tenantId,
       userId: user.id,
-      metadata: { reference, status: 'pending_approval' },
+      metadata: { reference, status: 'pending_approval', fromStatus },
     });
 
     await this.permitCacheService.invalidatePermit(tenantId, id);

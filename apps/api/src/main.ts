@@ -1,4 +1,4 @@
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
@@ -18,11 +18,8 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  app.setGlobalPrefix('api');
-  app.enableVersioning({
-    type: VersioningType.URI,
-    defaultVersion: configService.get<string>('apiVersion') ?? 'v1',
-  });
+  const apiVersion = configService.get<string>('apiVersion') ?? 'v1';
+  app.setGlobalPrefix(`api/${apiVersion}`);
 
   app.useGlobalPipes(
     new ValidationPipe({

@@ -72,7 +72,6 @@ export class ApprovalService {
           eq(permits.tenantId, tenantId),
           eq(permits.status, PENDING_APPROVAL_STATUS),
           eq(workflowAssignments.status, 'active'),
-          eq(workflowAssignments.assigneeId, user.id),
         ),
       );
 
@@ -82,13 +81,16 @@ export class ApprovalService {
   }
 
   async review(permitId: string, user: AuthenticatedUser) {
-    const tenantId = this.requireTenant(user);
+    this.requireTenant(user);
     const detail = await this.permitService.findOne(permitId, user);
 
-    if (detail.permit.status === PENDING_APPROVAL_STATUS) {
-      await this.workflowEngine.ensureAssignmentsInitialized(
+    if (
+      detail.permit.status === PENDING_APPROVAL_STATUS &&
+      (await this.workflowEngine.listAssignmentsForPermit(permitId)).length === 0
+    ) {
+      await this.workflowEngine.initializeAtSubmit(
         permitId,
-        tenantId,
+        detail.permit.tenantId,
         detail.permit.permitTypeId,
         user.id,
       );
@@ -102,7 +104,7 @@ export class ApprovalService {
       .where(eq(permitApprovals.permitId, permitId));
 
     return {
-      ...detail,
+      ...(await this.permitService.findOne(permitId, user)),
       workflow,
       activeAssignment: active,
       decisions,
@@ -262,7 +264,7 @@ export class ApprovalService {
     user: AuthenticatedUser,
     decision: 'approve' | 'reject' | 'defer',
   ) {
-    const tenantId = this.requireTenant(user);
+    this.requireTenant(user);
     const detail = await this.permitService.findOne(permitId, user);
     const { permit } = detail;
 
@@ -270,12 +272,15 @@ export class ApprovalService {
       throw new ConflictException(`Cannot ${decision} a permit that is not pending approval`);
     }
 
-    await this.workflowEngine.ensureAssignmentsInitialized(
-      permitId,
-      tenantId,
-      permit.permitTypeId,
-      user.id,
-    );
+    const existingAssignments = await this.workflowEngine.listAssignmentsForPermit(permitId);
+    if (existingAssignments.length === 0) {
+      await this.workflowEngine.initializeAtSubmit(
+        permitId,
+        permit.tenantId,
+        permit.permitTypeId,
+        user.id,
+      );
+    }
 
     const active = await this.workflowEngine.getActiveAssignmentWithStep(permitId);
     if (!active) {
@@ -283,10 +288,6 @@ export class ApprovalService {
     }
 
     const { assignment, step } = active;
-
-    if (assignment.assigneeId !== user.id) {
-      throw new ForbiddenException('You are not assigned to the current approval step');
-    }
 
     if (!this.workflowEngine.userHasApproverRole(user.roles, step.approverRole)) {
       throw new ForbiddenException('You do not have permission to act on this approval step');

@@ -9,6 +9,7 @@ import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   workflowAssignments,
   workflowSteps,
+  permitApprovals,
   type AssignmentStatus,
 } from '../../database/schema';
 
@@ -52,6 +53,42 @@ export class WorkflowEngineService {
       .orderBy(asc(workflowSteps.stepSequence));
   }
 
+  async initializeAtSubmit(
+    permitId: string,
+    tenantId: string,
+    permitTypeId: string,
+    submittedBy: string,
+    db?: DbClient,
+  ) {
+    await this.resetWorkflow(permitId, db);
+
+    const steps = await this.resolveSteps(tenantId, permitTypeId);
+    if (steps.length === 0) {
+      throw new BadRequestException('No approval workflow configured for this permit type');
+    }
+
+    return this.client(db)
+      .insert(workflowAssignments)
+      .values(
+        steps.map((step, index) => ({
+          permitId,
+          workflowStepId: step.id,
+          assigneeId: submittedBy,
+          status: (index === 0 ? 'active' : 'pending') satisfies AssignmentStatus,
+          createdBy: submittedBy,
+          updatedBy: submittedBy,
+        })),
+      )
+      .returning();
+  }
+
+  async resetWorkflow(permitId: string, db?: DbClient) {
+    const client = this.client(db);
+    await client.delete(permitApprovals).where(eq(permitApprovals.permitId, permitId));
+    await client.delete(workflowAssignments).where(eq(workflowAssignments.permitId, permitId));
+  }
+
+  /** @deprecated Use initializeAtSubmit during permit submission instead. */
   async ensureAssignmentsInitialized(
     permitId: string,
     tenantId: string,
@@ -67,24 +104,7 @@ export class WorkflowEngineService {
       return existing;
     }
 
-    const steps = await this.resolveSteps(tenantId, permitTypeId);
-    if (steps.length === 0) {
-      throw new BadRequestException('No approval workflow configured for this permit type');
-    }
-
-    return this.db
-      .insert(workflowAssignments)
-      .values(
-        steps.map((step, index) => ({
-          permitId,
-          workflowStepId: step.id,
-          assigneeId: actorId,
-          status: (index === 0 ? 'active' : 'pending') satisfies AssignmentStatus,
-          createdBy: actorId,
-          updatedBy: actorId,
-        })),
-      )
-      .returning();
+    return this.initializeAtSubmit(permitId, tenantId, permitTypeId, actorId);
   }
 
   async getActiveAssignment(permitId: string) {

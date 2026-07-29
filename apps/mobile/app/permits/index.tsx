@@ -8,6 +8,7 @@ import {
   listLocalPermitDrafts,
   localDraftToPermitRecord,
 } from "@/lib/permit/offline";
+import { isEditablePermitStatus } from "@/lib/permit/status";
 import type { PermitRecord } from "@/lib/permit/types";
 
 type Tab = "drafts" | "submitted";
@@ -102,7 +103,11 @@ export default function PermitsScreen() {
             <Pressable
               style={styles.card}
               onPress={() =>
-                router.push(item.status === "draft" ? `/permits/${item.id}/edit` : `/permits/${item.id}`)
+                router.push(
+                  isEditablePermitStatus(item.status)
+                    ? `/permits/${item.id}/edit`
+                    : `/permits/${item.id}`,
+                )
               }
             >
               <Text style={styles.cardTitle}>{item.title}</Text>
