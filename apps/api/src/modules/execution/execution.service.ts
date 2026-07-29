@@ -8,7 +8,7 @@ import {
 import { and, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { permitExecution, permitExecutors } from '../../database/schema';
+import { permitExecution, permitExecutors, permits } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
@@ -19,6 +19,8 @@ import {
 } from './execution.constants';
 import { ActivatePermitDto } from './dto/activate-permit.dto';
 import { SuspendPermitDto } from './dto/suspend-permit.dto';
+import { ExecutionCacheService } from './execution-cache.service';
+import { ExecutionLogService } from './execution-log.service';
 import { NotificationService } from './notification.service';
 import { StatusTransitionService } from './status-transition.service';
 
@@ -31,6 +33,8 @@ export class ExecutionService {
     private readonly notificationService: NotificationService,
     private readonly auditService: AuditService,
     private readonly permitCacheService: PermitCacheService,
+    private readonly executionCacheService: ExecutionCacheService,
+    private readonly executionLogService: ExecutionLogService,
   ) {}
 
   async activate(permitId: string, dto: ActivatePermitDto, user: AuthenticatedUser) {
@@ -93,6 +97,15 @@ export class ExecutionService {
     });
 
     await this.permitCacheService.invalidatePermit(tenantId, permitId);
+    await this.executionCacheService.invalidatePermit(tenantId, permitId);
+
+    this.executionLogService.logEvent({
+      action: 'execution.activated',
+      permitId,
+      tenantId,
+      userId: user.id,
+      metadata: { executionId: result.id },
+    });
 
     return { execution: result, permit: { ...permit, status: ACTIVE_STATUS } };
   }
@@ -153,6 +166,15 @@ export class ExecutionService {
     });
 
     await this.permitCacheService.invalidatePermit(tenantId, permitId);
+    await this.executionCacheService.invalidatePermit(tenantId, permitId);
+
+    this.executionLogService.logEvent({
+      action: 'execution.suspended',
+      permitId,
+      tenantId,
+      userId: user.id,
+      metadata: { executionId: execution.id, reason: dto.reason },
+    });
 
     return { execution: { ...execution, suspendedAt, suspensionReason: dto.reason }, permit: { ...permit, status: SUSPENDED_STATUS } };
   }
@@ -219,12 +241,63 @@ export class ExecutionService {
     });
 
     await this.permitCacheService.invalidatePermit(tenantId, permitId);
+    await this.executionCacheService.invalidatePermit(tenantId, permitId);
+
+    this.executionLogService.logEvent({
+      action: 'execution.resumed',
+      permitId,
+      tenantId,
+      userId: user.id,
+      metadata: { executionId: execution.id },
+    });
 
     return { execution: { ...execution, suspendedAt: null, resumedAt }, permit: { ...permit, status: ACTIVE_STATUS } };
   }
 
   async getExecutionForPermit(permitId: string, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
     await this.permitService.findOne(permitId, user);
+
+    const cached = await this.executionCacheService.getExecutionDetail<
+      Awaited<ReturnType<ExecutionService['loadExecution']>>
+    >(tenantId, permitId);
+
+    if (cached) {
+      return cached;
+    }
+
+    const execution = await this.loadExecution(permitId);
+    await this.executionCacheService.setExecutionDetail(tenantId, permitId, execution);
+    return execution;
+  }
+
+  async listActive(user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+
+    const cached = await this.executionCacheService.getActiveList<
+      Awaited<ReturnType<ExecutionService['loadActivePermits']>>
+    >(tenantId);
+
+    if (cached) {
+      return cached;
+    }
+
+    const rows = await this.loadActivePermits(tenantId);
+    await this.executionCacheService.setActiveList(tenantId, rows);
+    return rows;
+  }
+
+  private async loadActivePermits(tenantId: string) {
+    return this.db
+      .select()
+      .from(permitExecution)
+      .innerJoin(permits, eq(permitExecution.permitId, permits.id))
+      .where(
+        and(eq(permits.tenantId, tenantId), eq(permits.status, ACTIVE_STATUS)),
+      );
+  }
+
+  private async loadExecution(permitId: string) {
     return this.getExecution(permitId);
   }
 

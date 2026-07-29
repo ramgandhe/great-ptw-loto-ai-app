@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/commo
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
-import { EXECUTION_READ_ROLES, EXECUTION_WRITE_ROLES } from './execution.constants';
+import { EXECUTION_READ_ROLES, EXECUTION_UPDATE_ROLES } from './execution.constants';
 import { ProgressUpdateDto } from './dto/progress-update.dto';
 import { ProgressService } from './progress.service';
 
@@ -10,7 +10,7 @@ import { ProgressService } from './progress.service';
 export class ProgressController {
   constructor(private readonly progressService: ProgressService) {}
 
-  @Roles(...EXECUTION_WRITE_ROLES)
+  @Roles(...EXECUTION_UPDATE_ROLES)
   @Post(':id/progress')
   addProgress(
     @Param('id', ParseUUIDPipe) id: string,

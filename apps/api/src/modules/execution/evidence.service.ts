@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -27,6 +28,8 @@ import {
   MAX_EVIDENCE_SIZE_BYTES,
 } from './execution.constants';
 import { UploadEvidenceDto } from './dto/upload-evidence.dto';
+import { ExecutionCacheService } from './execution-cache.service';
+import { ExecutionLogService } from './execution-log.service';
 import { NotificationService } from './notification.service';
 
 @Injectable()
@@ -38,6 +41,8 @@ export class EvidenceService {
     private readonly notificationService: NotificationService,
     private readonly auditService: AuditService,
     private readonly permitCacheService: PermitCacheService,
+    private readonly executionCacheService: ExecutionCacheService,
+    private readonly executionLogService: ExecutionLogService,
   ) {}
 
   async upload(
@@ -75,12 +80,16 @@ export class EvidenceService {
     const bucket = this.storageService.getBucket();
     const storageKey = `${tenantId}/${permitId}/evidence/${randomUUID()}-${file.originalname}`;
 
-    await this.storageService.putObject(
-      storageKey,
-      file.buffer,
-      file.mimetype,
-      file.size,
-    );
+    try {
+      await this.storageService.putObject(
+        storageKey,
+        file.buffer,
+        file.mimetype,
+        file.size,
+      );
+    } catch {
+      throw new BadGatewayException('Evidence storage is temporarily unavailable');
+    }
 
     const [evidence] = await this.db
       .insert(permitEvidence)
@@ -118,6 +127,15 @@ export class EvidenceService {
     });
 
     await this.permitCacheService.invalidatePermit(tenantId, permitId);
+    await this.executionCacheService.invalidatePermit(tenantId, permitId);
+
+    this.executionLogService.logEvent({
+      action: 'execution.evidence_uploaded',
+      permitId,
+      tenantId,
+      userId: user.id,
+      metadata: { evidenceId: evidence.id, fileName: file.originalname },
+    });
 
     return evidence;
   }

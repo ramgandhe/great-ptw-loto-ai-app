@@ -45,4 +45,12 @@ export default () => ({
       10,
     ),
   },
+  execution: {
+    cacheTtlSeconds: parseInt(process.env.EXECUTION_CACHE_TTL_SECONDS ?? '300', 10),
+    reminderCron: process.env.EXECUTION_REMINDER_CRON ?? '0 8 * * *',
+    evidenceUrlExpirySeconds: parseInt(
+      process.env.EXECUTION_EVIDENCE_URL_EXPIRY_SECONDS ?? '3600',
+      10,
+    ),
+  },
 });

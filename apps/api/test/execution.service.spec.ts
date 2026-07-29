@@ -10,6 +10,8 @@ import { AuditService } from '../src/modules/logging/audit.service';
 import { PermitCacheService } from '../src/modules/permit/permit-cache.service';
 import { PermitService } from '../src/modules/permit/permit.service';
 import { EvidenceService } from '../src/modules/execution/evidence.service';
+import { ExecutionCacheService } from '../src/modules/execution/execution-cache.service';
+import { ExecutionLogService } from '../src/modules/execution/execution-log.service';
 import { ExecutionService } from '../src/modules/execution/execution.service';
 import { NotificationService } from '../src/modules/execution/notification.service';
 import { ProgressService } from '../src/modules/execution/progress.service';
@@ -27,6 +29,7 @@ describe('ExecutionService integration (PUS-141)', () => {
   let executionService: ExecutionService;
   let progressService: ProgressService;
   let evidenceService: EvidenceService;
+  let executionCacheService: ExecutionCacheService;
 
   const issuerId = randomUUID();
   const executorId = randomUUID();
@@ -57,6 +60,16 @@ describe('ExecutionService integration (PUS-141)', () => {
     const permitCacheService = {
       invalidatePermit: jest.fn().mockResolvedValue(undefined),
     } as unknown as PermitCacheService;
+    executionCacheService = {
+      invalidatePermit: jest.fn().mockResolvedValue(undefined),
+      getActiveList: jest.fn().mockResolvedValue(null),
+      setActiveList: jest.fn().mockResolvedValue(undefined),
+      getExecutionDetail: jest.fn().mockResolvedValue(null),
+      setExecutionDetail: jest.fn().mockResolvedValue(undefined),
+    } as unknown as ExecutionCacheService;
+    const executionLogService = {
+      logEvent: jest.fn(),
+    } as unknown as ExecutionLogService;
     const storageService = {
       getBucket: jest.fn().mockReturnValue('ptw-documents'),
       putObject: jest.fn().mockResolvedValue(undefined),
@@ -91,6 +104,8 @@ describe('ExecutionService integration (PUS-141)', () => {
       notificationService,
       auditService,
       permitCacheService,
+      executionCacheService,
+      executionLogService,
     );
 
     progressService = new ProgressService(
@@ -99,6 +114,8 @@ describe('ExecutionService integration (PUS-141)', () => {
       notificationService,
       auditService,
       permitCacheService,
+      executionCacheService,
+      executionLogService,
     );
 
     evidenceService = new EvidenceService(
@@ -108,6 +125,8 @@ describe('ExecutionService integration (PUS-141)', () => {
       notificationService,
       auditService,
       permitCacheService,
+      executionCacheService,
+      executionLogService,
     );
   });
 
@@ -347,5 +366,17 @@ describe('ExecutionService integration (PUS-141)', () => {
 
     const entries = await evidenceService.list(permit.id, executorUser);
     expect(entries).toHaveLength(1);
+  });
+
+  dbTest('invalidates execution cache after status change', async () => {
+    const { executorUser, createApprovedPermit } = testContext();
+    const permit = await createApprovedPermit();
+
+    await executionService.activate(permit.id, {}, executorUser);
+
+    expect(executionCacheService.invalidatePermit).toHaveBeenCalledWith(
+      expect.any(String),
+      permit.id,
+    );
   });
 });
