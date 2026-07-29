@@ -1,6 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ChecklistController } from './checklist.controller';
 import { ChecklistService } from './checklist.service';
+import {
+  PpeConfigurationAliasController,
+  SafetyChecklistAliasController,
+} from './master-data-alias.controller';
 import { HazardController } from './hazard.controller';
 import { HazardService } from './hazard.service';
 import { ImportController } from './import.controller';
@@ -27,6 +31,8 @@ import { WorkstationService } from './workstation.service';
     HazardController,
     ChecklistController,
     ImportController,
+    PpeConfigurationAliasController,
+    SafetyChecklistAliasController,
   ],
   providers: [
     PermitTypeService,

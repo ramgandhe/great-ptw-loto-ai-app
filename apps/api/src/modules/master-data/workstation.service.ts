@@ -65,6 +65,29 @@ export class WorkstationService {
     return rows;
   }
 
+  async update(id: string, dto: Partial<CreateWorkstationDto>, user: AuthenticatedUser) {
+    const tenantId = this.referenceIntegrity.requireTenant(user);
+    const [row] = await this.db
+      .update(workstationCatalogue)
+      .set({
+        ...(dto.code !== undefined ? { code: dto.code.trim() } : {}),
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(workstationCatalogue.id, id), eq(workstationCatalogue.tenantId, tenantId)))
+      .returning();
+
+    if (!row) {
+      throw new ConflictException('Workstation not found');
+    }
+
+    await this.afterMutation(tenantId, user, 'workstation.updated', id);
+    return row;
+  }
+
   async remove(id: string, user: AuthenticatedUser) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
     await this.referenceIntegrity.assertWorkstationNotReferenced(tenantId, id);
