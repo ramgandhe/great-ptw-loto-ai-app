@@ -1,5 +1,4 @@
 import { WorkforceCrudPage } from "@/components/workforce/workforce-crud-page";
-import { agenciesApi } from "@/lib/workforce/api";
 
 const fields = [
   { key: "name", label: "Agency name", required: true },
@@ -12,7 +11,7 @@ export default function AgenciesPage() {
     <WorkforceCrudPage
       title="Agency management"
       description="Register contractor agencies."
-      api={agenciesApi}
+      resource="agencies"
       fields={fields}
     />
   );

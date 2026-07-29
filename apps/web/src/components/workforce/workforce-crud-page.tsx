@@ -2,33 +2,40 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
-import type { EntityField } from "@/lib/workforce/types";
+import { agenciesApi, competenciesApi, contractorsApi, employeesApi } from "@/lib/workforce/api";
+import type { CompetencyRecord, EntityField, WorkforceRecord } from "@/lib/workforce/types";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { Button } from "@/components/ui/button";
 
-type WorkforceApi<T extends { id: string; name: string; status?: string }> = {
-  list: () => Promise<T[]>;
-  create: (payload: Partial<T>) => Promise<T>;
-  update: (id: string, payload: Partial<T>) => Promise<T>;
-  archive: (id: string) => Promise<void>;
-};
+const workforceApis = {
+  employees: employeesApi,
+  contractors: contractorsApi,
+  agencies: agenciesApi,
+  competencies: competenciesApi,
+  certifications: competenciesApi,
+} as const;
+
+export type WorkforceEntityResource = keyof typeof workforceApis;
+
+type WorkforceItem = WorkforceRecord | CompetencyRecord;
 
 function emptyForm(fields: EntityField[]) {
   return Object.fromEntries(fields.map((f) => [f.key, ""]));
 }
 
-export function WorkforceCrudPage<T extends { id: string; name: string; status?: string }>({
+export function WorkforceCrudPage({
   title,
   description,
-  api,
+  resource,
   fields,
 }: {
   title: string;
   description: string;
-  api: WorkforceApi<T>;
+  resource: WorkforceEntityResource;
   fields: EntityField[];
 }) {
-  const [items, setItems] = useState<T[]>([]);
+  const api = workforceApis[resource];
+  const [items, setItems] = useState<WorkforceItem[]>([]);
   const [form, setForm] = useState(() => emptyForm(fields));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,9 +62,9 @@ export function WorkforceCrudPage<T extends { id: string; name: string; status?:
     const payload = Object.fromEntries(fields.map((f) => [f.key, form[f.key]?.trim() ?? ""]));
     try {
       if (editingId) {
-        await api.update(editingId, payload as Partial<T>);
+        await api.update(editingId, payload);
       } else {
-        await api.create(payload as Partial<T>);
+        await api.create(payload);
       }
       setForm(emptyForm(fields));
       setEditingId(null);

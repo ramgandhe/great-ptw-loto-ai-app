@@ -1,5 +1,4 @@
 import { WorkforceCrudPage } from "@/components/workforce/workforce-crud-page";
-import { employeesApi } from "@/lib/workforce/api";
 
 const fields = [
   { key: "name", label: "Full name", required: true },
@@ -13,7 +12,7 @@ export default function EmployeesPage() {
     <WorkforceCrudPage
       title="Employee management"
       description="Register and manage employees."
-      api={employeesApi}
+      resource="employees"
       fields={fields}
     />
   );

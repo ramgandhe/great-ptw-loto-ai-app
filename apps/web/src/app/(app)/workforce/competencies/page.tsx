@@ -1,5 +1,4 @@
 import { WorkforceCrudPage } from "@/components/workforce/workforce-crud-page";
-import { competenciesApi } from "@/lib/workforce/api";
 
 const fields = [
   { key: "name", label: "Competency name", required: true },
@@ -12,7 +11,7 @@ export default function CompetenciesPage() {
     <WorkforceCrudPage
       title="Competencies"
       description="Maintain workforce competency records."
-      api={competenciesApi}
+      resource="competencies"
       fields={fields}
     />
   );

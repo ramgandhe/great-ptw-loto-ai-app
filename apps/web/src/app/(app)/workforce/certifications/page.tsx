@@ -1,5 +1,4 @@
 import { WorkforceCrudPage } from "@/components/workforce/workforce-crud-page";
-import { competenciesApi } from "@/lib/workforce/api";
 
 const fields = [
   { key: "name", label: "Certification name", required: true },
@@ -13,7 +12,7 @@ export default function CertificationsPage() {
     <WorkforceCrudPage
       title="Certifications"
       description="Track workforce certifications and expiry dates."
-      api={competenciesApi}
+      resource="certifications"
       fields={fields}
     />
   );
