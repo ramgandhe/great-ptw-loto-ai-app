@@ -1,5 +1,4 @@
 import { EntityCrudPage } from "@/components/organisation/entity-crud-page";
-import { safetyChecklistsApi } from "@/lib/organisation/api";
 
 const fields = [
   { key: "name", label: "Checklist name", required: true },
@@ -12,7 +11,7 @@ export default function ChecklistsPage() {
     <EntityCrudPage
       title="Safety checklists"
       description="Configure reusable safety checklists."
-      api={safetyChecklistsApi}
+      resource="checklists"
       fields={fields}
     />
   );

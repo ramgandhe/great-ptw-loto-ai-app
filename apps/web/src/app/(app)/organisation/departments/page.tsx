@@ -1,5 +1,4 @@
 import { EntityCrudPage } from "@/components/organisation/entity-crud-page";
-import { departmentsApi } from "@/lib/organisation/api";
 
 const fields = [
   { key: "name", label: "Department name", required: true },
@@ -13,7 +12,7 @@ export default function DepartmentsPage() {
     <EntityCrudPage
       title="Departments"
       description="Manage departments within the organisational hierarchy."
-      api={departmentsApi}
+      resource="departments"
       fields={fields}
     />
   );

@@ -1,5 +1,4 @@
 import { EntityCrudPage } from "@/components/organisation/entity-crud-page";
-import { plantsApi } from "@/lib/organisation/api";
 
 const fields = [
   { key: "name", label: "Plant name", required: true },
@@ -12,7 +11,7 @@ export default function PlantsPage() {
     <EntityCrudPage
       title="Plants"
       description="Manage top-level operational plants for the organisation."
-      api={plantsApi}
+      resource="plants"
       fields={fields}
     />
   );

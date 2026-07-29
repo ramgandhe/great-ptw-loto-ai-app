@@ -1,5 +1,4 @@
 import { EntityCrudPage } from "@/components/organisation/entity-crud-page";
-import { approvalWorkflowsApi } from "@/lib/organisation/api";
 
 const fields = [
   { key: "name", label: "Workflow name", required: true },
@@ -12,7 +11,7 @@ export default function WorkflowsPage() {
     <EntityCrudPage
       title="Approval workflows"
       description="Configure organisation approval workflow stages."
-      api={approvalWorkflowsApi}
+      resource="workflows"
       fields={fields}
     />
   );

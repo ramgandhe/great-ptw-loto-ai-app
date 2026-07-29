@@ -1,5 +1,4 @@
 import { EntityCrudPage } from "@/components/organisation/entity-crud-page";
-import { permitTemplatesApi } from "@/lib/organisation/api";
 
 const fields = [
   { key: "name", label: "Template name", required: true },
@@ -12,7 +11,7 @@ export default function TemplatesPage() {
     <EntityCrudPage
       title="Permit templates"
       description="Publish and manage permit templates."
-      api={permitTemplatesApi}
+      resource="templates"
       fields={fields}
     />
   );

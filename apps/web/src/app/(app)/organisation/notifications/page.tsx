@@ -1,5 +1,4 @@
 import { EntityCrudPage } from "@/components/organisation/entity-crud-page";
-import { notificationPreferencesApi } from "@/lib/organisation/api";
 
 const fields = [
   { key: "name", label: "Preference name", required: true },
@@ -13,7 +12,7 @@ export default function NotificationsPage() {
     <EntityCrudPage
       title="Notification preferences"
       description="Configure organisation notification channels and events."
-      api={notificationPreferencesApi}
+      resource="notifications"
       fields={fields}
     />
   );
