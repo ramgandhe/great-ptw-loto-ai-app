@@ -1,5 +1,4 @@
 import { EntityCrudPage } from "@/components/organisation/entity-crud-page";
-import { workstationsApi } from "@/lib/organisation/api";
 
 const fields = [
   { key: "name", label: "Workstation name", required: true },
@@ -13,7 +12,7 @@ export default function WorkstationsPage() {
     <EntityCrudPage
       title="Workstations"
       description="Manage workstations within locations."
-      api={workstationsApi}
+      resource="workstations"
       fields={fields}
     />
   );

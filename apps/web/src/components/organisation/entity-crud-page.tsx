@@ -2,37 +2,60 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
+import {
+  approvalWorkflowsApi,
+  departmentsApi,
+  locationsApi,
+  machineryApi,
+  notificationPreferencesApi,
+  permitTemplatesApi,
+  plantsApi,
+  ppeConfigurationsApi,
+  safetyChecklistsApi,
+  workstationsApi,
+} from "@/lib/organisation/api";
 import type { EntityField, OrgRecord } from "@/lib/organisation/types";
 import { OrgStatusBadge } from "./org-status-badge";
 import { Button } from "@/components/ui/button";
 
-type EntityApi<T extends OrgRecord> = {
-  list: () => Promise<T[]>;
-  create: (payload: Partial<T>) => Promise<T>;
-  update: (id: string, payload: Partial<T>) => Promise<T>;
-  archive: (id: string) => Promise<void>;
-};
+const entityApis = {
+  plants: plantsApi,
+  departments: departmentsApi,
+  locations: locationsApi,
+  workstations: workstationsApi,
+  machinery: machineryApi,
+  workflows: approvalWorkflowsApi,
+  templates: permitTemplatesApi,
+  checklists: safetyChecklistsApi,
+  ppe: ppeConfigurationsApi,
+  notifications: notificationPreferencesApi,
+} as const;
 
-type EntityCrudPageProps<T extends OrgRecord> = {
+export type OrganisationEntityResource = keyof typeof entityApis;
+
+type EntityApi = (typeof entityApis)[OrganisationEntityResource];
+
+type EntityCrudPageProps = {
   title: string;
   description: string;
-  api: EntityApi<T>;
+  resource: OrganisationEntityResource;
   fields: EntityField[];
-  nameField?: keyof T;
+  nameField?: keyof OrgRecord;
 };
 
 function emptyForm(fields: EntityField[]): Record<string, string> {
   return Object.fromEntries(fields.map((f) => [f.key, ""]));
 }
 
-export function EntityCrudPage<T extends OrgRecord>({
+export function EntityCrudPage({
   title,
   description,
-  api,
+  resource,
   fields,
-  nameField = "name" as keyof T,
-}: EntityCrudPageProps<T>) {
-  const [items, setItems] = useState<T[]>([]);
+  nameField = "name",
+}: EntityCrudPageProps) {
+  const api = entityApis[resource] as EntityApi;
+  const [items, setItems] = useState<OrgRecord[]>([]);
   const [form, setForm] = useState<Record<string, string>>(() => emptyForm(fields));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,9 +81,9 @@ export function EntityCrudPage<T extends OrgRecord>({
     setEditingId(null);
   }
 
-  function startEdit(item: T) {
+  function startEdit(item: OrgRecord) {
     setEditingId(item.id);
-    setForm(Object.fromEntries(fields.map((f) => [f.key, String(item[f.key as keyof T] ?? "")])));
+    setForm(Object.fromEntries(fields.map((f) => [f.key, String(item[f.key as keyof OrgRecord] ?? "")])));
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -71,9 +94,9 @@ export function EntityCrudPage<T extends OrgRecord>({
 
     try {
       if (editingId) {
-        await api.update(editingId, payload as Partial<T>);
+        await api.update(editingId, payload);
       } else {
-        await api.create(payload as Partial<T>);
+        await api.create(payload);
       }
       resetForm();
       load();

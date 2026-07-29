@@ -1,5 +1,4 @@
 import { EntityCrudPage } from "@/components/organisation/entity-crud-page";
-import { ppeConfigurationsApi } from "@/lib/organisation/api";
 
 const fields = [
   { key: "name", label: "PPE item", required: true },
@@ -12,7 +11,7 @@ export default function PpePage() {
     <EntityCrudPage
       title="PPE configuration"
       description="Configure organisation PPE requirements."
-      api={ppeConfigurationsApi}
+      resource="ppe"
       fields={fields}
     />
   );
