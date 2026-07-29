@@ -22,6 +22,8 @@ async function bootstrap(): Promise<void> {
   app.enableVersioning({
     type: VersioningType.URI,
     defaultVersion: configService.get<string>('apiVersion') ?? 'v1',
+    // apiVersion already includes the "v" prefix (e.g. "v1"); disable Nest's default "v" prefix
+    prefix: false,
   });
 
   app.useGlobalPipes(

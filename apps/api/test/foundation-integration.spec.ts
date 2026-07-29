@@ -172,4 +172,12 @@ describe('Foundation integration (PUS-71)', () => {
     const actions = auditLog.mock.calls.map((call) => call[0].action);
     expect(actions).toEqual(expect.arrayContaining(['organisation.created', 'plant.created']));
   });
+
+  dbTest('isolates master data permit types per tenant', async () => {
+    const tenantAPermits = await permitTypeService.findAll(user(tenantA));
+    const tenantBPermits = await permitTypeService.findAll(user(tenantB));
+
+    expect(tenantAPermits.length).toBeGreaterThan(0);
+    expect(tenantBPermits).toHaveLength(0);
+  });
 });
