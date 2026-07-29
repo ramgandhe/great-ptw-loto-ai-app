@@ -55,10 +55,12 @@ import { LoggingModule } from './modules/logging/logging.module';
     ExecutionModule,
   ],
   providers: [
+    JwtAuthGuard,
+    RolesGuard,
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useExisting: JwtAuthGuard },
+    { provide: APP_GUARD, useExisting: RolesGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })

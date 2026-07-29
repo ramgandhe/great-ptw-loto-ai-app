@@ -22,6 +22,7 @@ async function bootstrap(): Promise<void> {
   app.enableVersioning({
     type: VersioningType.URI,
     defaultVersion: configService.get<string>('apiVersion') ?? 'v1',
+    prefix: false,
   });
 
   app.useGlobalPipes(

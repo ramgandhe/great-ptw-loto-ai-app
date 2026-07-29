@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { PermitModule } from '../permit/permit.module';
-import { PermitCacheService } from '../permit/permit-cache.service';
 import { EvidenceController } from './evidence.controller';
 import { EvidenceService } from './evidence.service';
 import { ExecutionCacheService } from './execution-cache.service';
@@ -27,7 +26,6 @@ import { StatusTransitionService } from './status-transition.service';
     ExecutionJobsService,
     ExecutionLogService,
     ExecutionEvidenceService,
-    PermitCacheService,
   ],
   exports: [
     ExecutionService,

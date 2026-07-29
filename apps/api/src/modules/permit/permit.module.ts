@@ -21,6 +21,6 @@ import { PermitLogService } from './permit-log.service';
     PermitLogService,
     PermitJobsService,
   ],
-  exports: [PermitService],
+  exports: [PermitService, PermitCacheService],
 })
 export class PermitModule {}
