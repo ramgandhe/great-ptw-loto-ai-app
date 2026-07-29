@@ -1,12 +1,9 @@
-import { timestamp, uuid, pgTable, varchar, text, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, jsonb } from 'drizzle-orm/pg-core';
 
-export const auditColumns = {
-  id: uuid('id').primaryKey().defaultRandom(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  createdBy: uuid('created_by'),
-  updatedBy: uuid('updated_by'),
-};
+export * from './base';
+export * from './master-data';
+
+import { auditColumns } from './base';
 
 export const platformMetadata = pgTable('platform_metadata', {
   ...auditColumns,
