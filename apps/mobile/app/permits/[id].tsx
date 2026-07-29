@@ -127,7 +127,7 @@ export default function PermitDetailScreen() {
         </Pressable>
       ) : null}
       {["approved", "active", "suspended"].includes(status) ? (
-        <Pressable style={styles.button} onPress={() => router.push(`/executions/${id}`)}>
+        <Pressable style={styles.button} onPress={() => router.push(`/execution/${id}`)}>
           <Text style={styles.buttonText}>
             {status === "approved" ? "Start execution" : "Open execution"}
           </Text>

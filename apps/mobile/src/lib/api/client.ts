@@ -1,42 +1,65 @@
+import type { ApiResponse } from "@ptw/shared";
 import { getAccessToken } from "@/lib/auth/token-storage";
+import { apiConfig } from "./config";
+import { ApiError } from "./errors";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
-
-export class ApiError extends Error {
-  code?: string;
-  details?: unknown;
-
-  constructor(message: string, code?: string, details?: unknown) {
-    super(message);
-    this.name = "ApiError";
-    this.code = code;
-    this.details = details;
-  }
+export interface FetchApiOptions extends RequestInit {
+  token?: string;
+  auth?: boolean;
 }
 
-export async function fetchApi<T>(
-  path: string,
-  init?: RequestInit & { token?: string },
-): Promise<T> {
-  const token = init?.token ?? (await getAccessToken()) ?? undefined;
+export async function fetchApi<T>(path: string, options: FetchApiOptions = {}): Promise<T> {
+  const { token, auth = true, headers, ...init } = options;
+  const accessToken = auth ? (token ?? (await getAccessToken()) ?? undefined) : undefined;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${apiConfig.baseUrl}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init?.headers,
+      Accept: "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...headers,
     },
   });
 
-  const body = await response.json();
-  if (!response.ok || body.success === false) {
-    throw new ApiError(body.error?.message ?? "API request failed", body.error?.code, body.error?.details);
+  let body: ApiResponse<T> | { success: false; error: { code: string; message: string } };
+  try {
+    body = await response.json();
+  } catch {
+    throw new ApiError("Invalid API response", "INVALID_RESPONSE", response.status);
   }
 
-  return body.data as T;
+  if (!response.ok || body.success === false) {
+    const error = "error" in body ? body.error : undefined;
+    throw new ApiError(error?.message ?? "API request failed", error?.code, response.status);
+  }
+
+  return body.data;
 }
 
 export function getApiBaseUrl(): string {
-  return API_BASE_URL;
+  return apiConfig.baseUrl;
 }
+
+export const apiClient = {
+  get<T>(path: string, options?: FetchApiOptions) {
+    return fetchApi<T>(path, { ...options, method: "GET" });
+  },
+  post<T>(path: string, data?: unknown, options?: FetchApiOptions) {
+    return fetchApi<T>(path, {
+      ...options,
+      method: "POST",
+      body: data === undefined ? undefined : JSON.stringify(data),
+    });
+  },
+  patch<T>(path: string, data?: unknown, options?: FetchApiOptions) {
+    return fetchApi<T>(path, {
+      ...options,
+      method: "PATCH",
+      body: data === undefined ? undefined : JSON.stringify(data),
+    });
+  },
+  delete<T>(path: string, options?: FetchApiOptions) {
+    return fetchApi<T>(path, { ...options, method: "DELETE" });
+  },
+};

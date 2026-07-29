@@ -1,7 +1,10 @@
+import { randomUUID } from 'crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
-import { platformMetadata } from './schema';
+import { organisations, platformMetadata } from './schema';
+
+const DEMO_TENANT_ID = '00000000-0000-4000-8000-000000000001';
 
 async function seed(): Promise<void> {
   const connectionString =
@@ -17,6 +20,19 @@ async function seed(): Promise<void> {
     .values({
       key: 'platform.initialised',
       value: new Date().toISOString(),
+    })
+    .onConflictDoNothing();
+
+  console.log('Seeding demo organisation...');
+  await db
+    .insert(organisations)
+    .values({
+      tenantId: DEMO_TENANT_ID,
+      name: 'Demo Organisation',
+      legalName: 'Demo Organisation Ltd',
+      registrationNumber: 'DEMO-001',
+      createdBy: randomUUID(),
+      updatedBy: randomUUID(),
     })
     .onConflictDoNothing();
 

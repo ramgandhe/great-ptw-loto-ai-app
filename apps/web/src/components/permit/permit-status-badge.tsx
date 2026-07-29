@@ -4,8 +4,11 @@ const statusStyles: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   pending_approval: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
   approved: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  active: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+  suspended: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
   rejected: "bg-destructive/15 text-destructive",
   deferred: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  closed: "bg-muted text-muted-foreground",
 };
 
 export function PermitStatusBadge({ status }: { status: string }) {

@@ -63,7 +63,7 @@ export default function PermitDetailPage() {
             </Link>
           ) : null}
           {["approved", "active", "suspended"].includes(detail.permit.status) ? (
-            <Link href={`/permits/${detail.permit.id}/execute`}>
+            <Link href={`/execution/${detail.permit.id}`}>
               <Button>
                 {detail.permit.status === "approved" ? "Start execution" : "Open execution"}
               </Button>

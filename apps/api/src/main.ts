@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
@@ -18,8 +18,13 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  const apiVersion = configService.get<string>('apiVersion') ?? 'v1';
-  app.setGlobalPrefix(`api/${apiVersion}`);
+  app.setGlobalPrefix('api');
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: configService.get<string>('apiVersion') ?? 'v1',
+    // apiVersion already includes the "v" prefix (e.g. "v1"); disable Nest's default "v" prefix
+    prefix: false,
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -29,8 +34,6 @@ async function bootstrap(): Promise<void> {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
-
-  await app.init();
 
   const storageService = app.get(StorageService);
   await storageService.ensureBucket();

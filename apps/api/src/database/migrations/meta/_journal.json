@@ -12,22 +12,43 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1753683600000,
-      "tag": "0001_permit_creation",
+      "when": 1753694400000,
+      "tag": "0001_master_data",
       "breakpoints": true
     },
     {
       "idx": 2,
       "version": "7",
-      "when": 1753687200000,
-      "tag": "0002_permit_approval",
+      "when": 1753698000000,
+      "tag": "0002_organisation_workforce",
       "breakpoints": true
     },
     {
       "idx": 3,
       "version": "7",
-      "when": 1785312000000,
-      "tag": "0003_permit_execution",
+      "when": 1753701600000,
+      "tag": "0003_permit_creation",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1753705200000,
+      "tag": "0004_permit_approval",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1753708800000,
+      "tag": "0005_permit_execution",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1753712400000,
+      "tag": "0006_permit_closure",
       "breakpoints": true
     }
   ]

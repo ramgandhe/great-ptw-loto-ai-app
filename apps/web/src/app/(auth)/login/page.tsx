@@ -1,13 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
   const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL ?? "http://localhost:8080";
   const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM ?? "ptw-platform";
   const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID ?? "ptw-web";
-  const redirectUri =
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000/";
+  const redirectUri = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000/";
 
   const loginUrl = useMemo(() => {
     const params = new URLSearchParams({
@@ -27,10 +28,7 @@ export default function LoginPage() {
           Authenticate with Keycloak to access the platform.
         </p>
       </div>
-      <a
-        href={loginUrl}
-        className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/80"
-      >
+      <a href={loginUrl} className={cn(buttonVariants(), "w-full")}>
         Continue with Keycloak
       </a>
     </div>

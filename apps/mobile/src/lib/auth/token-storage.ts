@@ -1,15 +1,25 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 const ACCESS_TOKEN_KEY = "ptw_access_token";
+const REFRESH_TOKEN_KEY = "ptw_refresh_token";
+
+export interface StoredTokens {
+  accessToken: string;
+  refreshToken?: string;
+}
+
+export async function saveTokens(tokens: StoredTokens): Promise<void> {
+  await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokens.accessToken);
+  if (tokens.refreshToken) {
+    await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokens.refreshToken);
+  }
+}
 
 export async function getAccessToken(): Promise<string | null> {
-  return AsyncStorage.getItem(ACCESS_TOKEN_KEY);
+  return SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
 }
 
-export async function saveAccessToken(token: string): Promise<void> {
-  await AsyncStorage.setItem(ACCESS_TOKEN_KEY, token);
-}
-
-export async function clearAccessToken(): Promise<void> {
-  await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
+export async function clearTokens(): Promise<void> {
+  await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+  await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
 }

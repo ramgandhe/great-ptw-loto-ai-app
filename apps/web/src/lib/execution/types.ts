@@ -1,11 +1,11 @@
 import type { PermitRecord } from "@/lib/permit/types";
 
-export type PermitExecutionRecord = {
+export type PermitExecution = {
   id: string;
-  tenantId: string;
   permitId: string;
   activatedAt: string;
   activatedBy: string;
+  actualStartAt: string;
   suspendedAt: string | null;
   suspendedBy: string | null;
   suspensionReason: string | null;
@@ -16,37 +16,31 @@ export type PermitExecutionRecord = {
 export type ProgressRecord = {
   id: string;
   permitId: string;
+  executionId: string;
   summary: string;
   recordedBy: string;
   recordedAt: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
 };
 
 export type EvidenceRecord = {
   id: string;
   permitId: string;
+  executionId: string;
   progressId: string | null;
   fileName: string;
   contentType: string;
   fileSize: number;
+  storageBucket: string;
+  storageKey: string;
+  checksum: string | null;
   comment: string | null;
   uploadedBy: string;
   createdAt: string;
 };
 
-export type StatusHistoryRecord = {
-  id: string;
-  permitId: string;
-  fromStatus: string;
-  toStatus: string;
-  reason: string | null;
-  changedBy: string;
-  changedAt: string;
-};
-
-export type ExecutionDetail = {
+export type ExecutionActionResult = {
+  execution: PermitExecution;
   permit: PermitRecord;
-  execution: PermitExecutionRecord | null;
-  progress: ProgressRecord[];
-  evidence: EvidenceRecord[];
-  history: StatusHistoryRecord[];
 };

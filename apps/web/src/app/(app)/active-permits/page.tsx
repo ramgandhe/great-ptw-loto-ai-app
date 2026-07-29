@@ -59,7 +59,7 @@ export default function ActivePermitsPage() {
                   {new Date(permit.updatedAt).toLocaleString()}
                 </p>
               </div>
-              <Link href={`/permits/${permit.id}/execute`}>
+              <Link href={`/execution/${permit.id}`}>
                 <Button variant="outline">Open execution</Button>
               </Link>
             </article>
