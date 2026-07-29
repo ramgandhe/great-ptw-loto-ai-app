@@ -37,6 +37,10 @@ export async function fetchApi<T>(path: string, options: FetchApiOptions = {}): 
   return body.data;
 }
 
+export function getApiBaseUrl(): string {
+  return apiConfig.baseUrl;
+}
+
 export const apiClient = {
   get<T>(path: string, options?: FetchApiOptions) {
     return fetchApi<T>(path, { ...options, method: "GET" });

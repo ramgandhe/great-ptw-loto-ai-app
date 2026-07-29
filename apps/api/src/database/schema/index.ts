@@ -1,11 +1,14 @@
-import { pgTable, uuid, varchar, text, jsonb } from 'drizzle-orm/pg-core';
+import { jsonb, pgTable, text, uuid, varchar } from 'drizzle-orm/pg-core';
+import { auditColumns } from './base';
 
 export * from './base';
 export * from './master-data';
 export * from './organisation';
 export * from './workforce';
-
-import { auditColumns } from './base';
+export * from './permit';
+export * from './approval';
+export * from './execution';
+export * from './closure';
 
 export const platformMetadata = pgTable('platform_metadata', {
   ...auditColumns,
