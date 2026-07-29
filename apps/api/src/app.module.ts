@@ -22,7 +22,6 @@ import { ApprovalModule } from './modules/approval/approval.module';
 import { ExecutionModule } from './modules/execution/execution.module';
 import { ClosureModule } from './modules/closure/closure.module';
 import { LoggingModule } from './modules/logging/logging.module';
-import { ExecutionModule } from './modules/execution/execution.module';
 
 @Module({
   imports: [
