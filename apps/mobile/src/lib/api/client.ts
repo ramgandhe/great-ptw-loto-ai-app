@@ -48,4 +48,14 @@ export const apiClient = {
       body: data === undefined ? undefined : JSON.stringify(data),
     });
   },
+  patch<T>(path: string, data?: unknown, options?: FetchApiOptions) {
+    return fetchApi<T>(path, {
+      ...options,
+      method: "PATCH",
+      body: data === undefined ? undefined : JSON.stringify(data),
+    });
+  },
+  delete<T>(path: string, options?: FetchApiOptions) {
+    return fetchApi<T>(path, { ...options, method: "DELETE" });
+  },
 };
