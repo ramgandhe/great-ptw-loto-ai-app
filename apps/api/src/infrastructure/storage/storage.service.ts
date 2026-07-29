@@ -49,4 +49,15 @@ export class StorageService implements OnModuleInit {
   getBucket(): string {
     return this.bucket;
   }
+
+  async putObject(
+    key: string,
+    body: Buffer,
+    contentType: string,
+    size: number,
+  ): Promise<void> {
+    await this.client.putObject(this.bucket, key, body, size, {
+      'Content-Type': contentType,
+    });
+  }
 }

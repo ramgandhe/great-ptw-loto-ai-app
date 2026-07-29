@@ -32,4 +32,7 @@ export default () => ({
     auditLogging: process.env.FEATURE_AUDIT_LOGGING !== 'false',
     rateLimiting: process.env.FEATURE_RATE_LIMITING !== 'false',
   },
+  masterData: {
+    cacheTtlSeconds: parseInt(process.env.MASTER_DATA_CACHE_TTL_SECONDS ?? '300', 10),
+  },
 });
