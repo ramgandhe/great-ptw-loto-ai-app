@@ -17,6 +17,7 @@
     "expo": "~52.0.40",
     "expo-auth-session": "~6.0.3",
     "expo-crypto": "~14.0.2",
+    "expo-image-picker": "~16.0.6",
     "expo-router": "~4.0.18",
     "expo-secure-store": "~14.0.1",
     "expo-sqlite": "~15.1.2",

@@ -35,4 +35,34 @@ export default () => ({
   masterData: {
     cacheTtlSeconds: parseInt(process.env.MASTER_DATA_CACHE_TTL_SECONDS ?? '300', 10),
   },
+  permit: {
+    cacheTtlSeconds: parseInt(process.env.PERMIT_CACHE_TTL_SECONDS ?? '300', 10),
+    draftRetentionDays: parseInt(process.env.PERMIT_DRAFT_RETENTION_DAYS ?? '90', 10),
+    draftCleanupCron: process.env.PERMIT_DRAFT_CLEANUP_CRON ?? '0 2 * * *',
+  },
+  approval: {
+    cacheTtlSeconds: parseInt(process.env.APPROVAL_CACHE_TTL_SECONDS ?? '300', 10),
+    reminderCron: process.env.APPROVAL_REMINDER_CRON ?? '0 8 * * *',
+    attachmentUrlExpirySeconds: parseInt(
+      process.env.APPROVAL_ATTACHMENT_URL_EXPIRY_SECONDS ?? '3600',
+      10,
+    ),
+  },
+  execution: {
+    cacheTtlSeconds: parseInt(process.env.EXECUTION_CACHE_TTL_SECONDS ?? '300', 10),
+    reminderCron: process.env.EXECUTION_REMINDER_CRON ?? '0 8 * * *',
+    evidenceUrlExpirySeconds: parseInt(
+      process.env.EXECUTION_EVIDENCE_URL_EXPIRY_SECONDS ?? '3600',
+      10,
+    ),
+  },
+  closure: {
+    cacheTtlSeconds: parseInt(process.env.CLOSURE_CACHE_TTL_SECONDS ?? '300', 10),
+    archiveCron: process.env.CLOSURE_ARCHIVE_CRON ?? '0 3 * * *',
+    reportCron: process.env.CLOSURE_REPORT_CRON ?? '0 4 * * 1',
+    attachmentUrlExpirySeconds: parseInt(
+      process.env.CLOSURE_ATTACHMENT_URL_EXPIRY_SECONDS ?? '3600',
+      10,
+    ),
+  },
 });
