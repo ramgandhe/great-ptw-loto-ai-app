@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 import { PLATFORM_VERSION } from "@ptw/shared";
 import { ApiError } from "@/lib/api";
 import { getHealth } from "@/lib/api";
@@ -51,6 +52,18 @@ export default function HomeScreen() {
       <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body - 2 }}>
         Auth: {isAuthenticated ? "signed in" : "signed out"}
       </Text>
+      <Pressable
+        style={[styles.linkButton, { borderColor: tokens.colors.border }]}
+        onPress={() => router.push("/organisation")}
+      >
+        <Text style={{ color: tokens.colors.foreground, fontWeight: "500" }}>Organisation</Text>
+      </Pressable>
+      <Pressable
+        style={[styles.linkButton, { borderColor: tokens.colors.border }]}
+        onPress={() => router.push("/workforce")}
+      >
+        <Text style={{ color: tokens.colors.foreground, fontWeight: "500" }}>Workforce</Text>
+      </Pressable>
     </View>
   );
 }
@@ -64,5 +77,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: "600",
+  },
+  linkButton: {
+    marginTop: 8,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
 });

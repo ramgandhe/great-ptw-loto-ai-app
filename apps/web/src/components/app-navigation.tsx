@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Settings, Shield, Users } from "lucide-react";
+import { Building2, LayoutDashboard, Settings, Shield, Users } from "lucide-react";
 import { Icon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/organisation", label: "Organisation", icon: Building2 },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/workforce", label: "Workforce", icon: Users },
   { href: "/safety", label: "Safety", icon: Shield },
