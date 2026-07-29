@@ -26,6 +26,9 @@ export default function HomeScreen() {
       <Pressable style={styles.secondaryButton} onPress={() => router.push("/approvals")}>
         <Text style={styles.secondaryButtonText}>Approvals</Text>
       </Pressable>
+      <Pressable style={styles.secondaryButton} onPress={() => router.push("/execution")}>
+        <Text style={styles.secondaryButtonText}>Execution</Text>
+      </Pressable>
     </View>
   );
 }
