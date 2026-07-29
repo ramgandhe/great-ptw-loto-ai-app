@@ -65,4 +65,8 @@ export default () => ({
       10,
     ),
   },
+  lototo: {
+    cacheTtlSeconds: parseInt(process.env.LOTOTO_CACHE_TTL_SECONDS ?? '300', 10),
+    planningReminderCron: process.env.LOTOTO_PLANNING_REMINDER_CRON ?? '0 8 * * *',
+  },
 });

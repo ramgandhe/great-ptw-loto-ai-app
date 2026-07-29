@@ -5,8 +5,10 @@ import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { isolationPoints, isolationSequences } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { ConfigureSequenceDto } from './dto/configure-sequence.dto';
+import { LototoCacheService } from './lototo-cache.service';
 import { LototoLogService } from './lototo-log.service';
 import { LototoValidationService } from './lototo-validation.service';
+import { NotificationService } from './notification.service';
 
 @Injectable()
 export class SequenceService {
@@ -15,6 +17,8 @@ export class SequenceService {
     private readonly validationService: LototoValidationService,
     private readonly auditService: AuditService,
     private readonly lototoLogService: LototoLogService,
+    private readonly lototoCacheService: LototoCacheService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async configureSequence(planId: string, dto: ConfigureSequenceDto, user: AuthenticatedUser) {
@@ -66,6 +70,16 @@ export class SequenceService {
           permitId: plan.permitId,
           tenantId,
           userId: user.id,
+          metadata: { stepCount: rows.length },
+        });
+
+        await this.lototoCacheService.invalidatePlan(tenantId, planId, plan.permitId);
+        await this.notificationService.enqueuePlanningNotification({
+          planId,
+          permitId: plan.permitId,
+          tenantId,
+          action: 'sequence_configured',
+          actorId: user.id,
           metadata: { stepCount: rows.length },
         });
 
