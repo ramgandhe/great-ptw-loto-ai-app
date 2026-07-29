@@ -21,6 +21,7 @@ import { PermitModule } from './modules/permit/permit.module';
 import { ApprovalModule } from './modules/approval/approval.module';
 import { ExecutionModule } from './modules/execution/execution.module';
 import { ClosureModule } from './modules/closure/closure.module';
+import { LototoModule } from './modules/lototo/lototo.module';
 import { LoggingModule } from './modules/logging/logging.module';
 
 @Module({
@@ -61,6 +62,7 @@ import { LoggingModule } from './modules/logging/logging.module';
     PermitModule,
     ApprovalModule,
     ExecutionModule,
+    LototoModule,
   ],
   providers: [
     JwtAuthGuard,
