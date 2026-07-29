@@ -66,6 +66,30 @@ export class PpeService {
     return rows;
   }
 
+  async update(id: string, dto: Partial<CreatePpeDto>, user: AuthenticatedUser) {
+    const tenantId = this.referenceIntegrity.requireTenant(user);
+    const [row] = await this.db
+      .update(ppeCatalogue)
+      .set({
+        ...(dto.code !== undefined ? { code: dto.code.trim() } : {}),
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.category !== undefined ? { category: dto.category } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(ppeCatalogue.id, id), eq(ppeCatalogue.tenantId, tenantId)))
+      .returning();
+
+    if (!row) {
+      throw new ConflictException('PPE item not found');
+    }
+
+    await this.afterMutation(tenantId, user, 'ppe.updated', id);
+    return row;
+  }
+
   async remove(id: string, user: AuthenticatedUser) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
     await this.referenceIntegrity.assertPpeNotReferenced(id);

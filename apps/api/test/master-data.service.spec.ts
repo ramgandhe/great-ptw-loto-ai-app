@@ -111,7 +111,8 @@ describe('Master data services (PUS-70)', () => {
       user,
     );
 
-    await expect(hazardService.remove(hazard.id, user)).resolves.toBeUndefined();
+    const removed = await hazardService.remove(hazard.id, user);
+    expect(removed.id).toBe(hazard.id);
   });
 
   dbTest('lists permit types with tenant isolation', async () => {

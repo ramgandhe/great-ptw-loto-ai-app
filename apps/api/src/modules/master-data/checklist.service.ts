@@ -116,6 +116,49 @@ export class ChecklistService {
     return results;
   }
 
+  async listSummaries(user: AuthenticatedUser) {
+    const results = await this.findAll(user);
+    return results.map(({ checklist }) => checklist);
+  }
+
+  async update(id: string, dto: Partial<CreateChecklistDto>, user: AuthenticatedUser) {
+    const tenantId = this.referenceIntegrity.requireTenant(user);
+    const [row] = await this.db
+      .update(safetyChecklists)
+      .set({
+        ...(dto.code !== undefined ? { code: dto.code.trim() } : {}),
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(safetyChecklists.id, id), eq(safetyChecklists.tenantId, tenantId)))
+      .returning();
+
+    if (!row) {
+      throw new NotFoundException('Checklist not found');
+    }
+
+    await this.afterMutation(tenantId, user, 'checklist.updated', id);
+    return row;
+  }
+
+  async archive(id: string, user: AuthenticatedUser) {
+    const tenantId = this.referenceIntegrity.requireTenant(user);
+    const [row] = await this.db
+      .update(safetyChecklists)
+      .set({ status: 'archived', updatedBy: user.id, updatedAt: new Date() })
+      .where(and(eq(safetyChecklists.id, id), eq(safetyChecklists.tenantId, tenantId)))
+      .returning();
+
+    if (!row) {
+      throw new NotFoundException('Checklist not found');
+    }
+
+    await this.afterMutation(tenantId, user, 'checklist.archived', id);
+    return row;
+  }
+
   async publish(id: string, user: AuthenticatedUser) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
 

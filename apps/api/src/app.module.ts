@@ -15,6 +15,8 @@ import { QueueModule } from './infrastructure/queue/queue.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SystemModule } from './modules/system/system.module';
 import { MasterDataModule } from './modules/master-data/master-data.module';
+import { OrganisationModule } from './modules/organisation/organisation.module';
+import { WorkforceModule } from './modules/workforce/workforce.module';
 import { LoggingModule } from './modules/logging/logging.module';
 
 @Module({
@@ -49,12 +51,16 @@ import { LoggingModule } from './modules/logging/logging.module';
     AuthModule,
     SystemModule,
     MasterDataModule,
+    OrganisationModule,
+    WorkforceModule,
   ],
   providers: [
+    JwtAuthGuard,
+    RolesGuard,
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useExisting: JwtAuthGuard },
+    { provide: APP_GUARD, useExisting: RolesGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })

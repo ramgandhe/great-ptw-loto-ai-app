@@ -15,6 +15,13 @@
       "when": 1753694400000,
       "tag": "0001_master_data",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1753698000000,
+      "tag": "0002_organisation_workforce",
+      "breakpoints": true
     }
   ]
 }

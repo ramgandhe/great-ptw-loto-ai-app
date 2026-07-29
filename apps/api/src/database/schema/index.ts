@@ -2,6 +2,8 @@ import { pgTable, uuid, varchar, text, jsonb } from 'drizzle-orm/pg-core';
 
 export * from './base';
 export * from './master-data';
+export * from './organisation';
+export * from './workforce';
 
 import { auditColumns } from './base';
 
