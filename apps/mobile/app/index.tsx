@@ -20,6 +20,9 @@ export default function HomeScreen() {
       <Pressable style={styles.button} onPress={() => router.push("/login")}>
         <Text style={styles.buttonText}>Sign in</Text>
       </Pressable>
+      <Pressable style={styles.secondaryButton} onPress={() => router.push("/permits")}>
+        <Text style={styles.secondaryButtonText}>Permits</Text>
+      </Pressable>
     </View>
   );
 }
@@ -53,6 +56,18 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: "#fff",
+    fontWeight: "500",
+  },
+  secondaryButton: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  secondaryButtonText: {
+    color: "#111827",
     fontWeight: "500",
   },
 });
