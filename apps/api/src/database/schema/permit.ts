@@ -21,6 +21,7 @@ export const PERMIT_STATUSES = [
   'deferred',
   'active',
   'suspended',
+  'closed',
 ] as const;
 export type PermitStatus = (typeof PERMIT_STATUSES)[number];
 

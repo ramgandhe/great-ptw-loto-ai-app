@@ -16,6 +16,8 @@ export const PERMIT_STATUS_HISTORY_ACTIONS = [
   'activated',
   'suspended',
   'resumed',
+  'verified',
+  'closed',
 ] as const;
 export type PermitStatusHistoryAction = (typeof PERMIT_STATUS_HISTORY_ACTIONS)[number];
 
