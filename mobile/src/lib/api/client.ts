@@ -1,4 +1,4 @@
-import type { ApiResponse } from "@ptw/shared";
+import type { ApiErrorResponse, ApiResponse } from "@ptw/shared";
 import { getAccessToken } from "@/lib/auth/token-storage";
 import { apiConfig } from "./config";
 import { ApiError } from "./errors";
@@ -24,7 +24,7 @@ export async function fetchApi<T>(path: string, options: FetchApiOptions = {}): 
     },
   });
 
-  let body: ApiResponse<T> | { success: false; error: { code: string; message: string } };
+  let body: ApiResponse<T> | ApiErrorResponse;
   try {
     body = await response.json();
   } catch {
