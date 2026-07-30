@@ -102,12 +102,16 @@ export async function queuePermitMutation(input: {
   localDraftId?: string;
   title?: string;
 }) {
-  await enqueueSyncItem("permits", {
-    method: input.method,
+  await enqueueSyncItem({
+    entityType: "permits",
+    method: input.method === "POST_SUBMIT" ? "POST" : input.method,
     path: input.path,
-    body: input.payload ?? {},
-    localDraftId: input.localDraftId,
-    title: input.title,
+    payload: {
+      ...(input.payload ?? {}),
+      ...(input.localDraftId ? { localDraftId: input.localDraftId } : {}),
+      ...(input.title ? { title: input.title } : {}),
+      ...(input.method === "POST_SUBMIT" ? { action: "submit" } : {}),
+    },
   });
 }
 

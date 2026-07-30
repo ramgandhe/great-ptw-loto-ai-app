@@ -1,10 +1,30 @@
-import { randomUUID } from 'crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
-import { organisations, platformMetadata } from './schema';
+import {
+  departments,
+  hazardCategories,
+  locations,
+  organisations,
+  permitTypes,
+  plants,
+  platformMetadata,
+  ppeCatalogue,
+} from './schema';
 
 const DEMO_TENANT_ID = '00000000-0000-4000-8000-000000000001';
+const SEED_ACTOR_ID = '00000000-0000-4000-8000-000000000010';
+
+export const DEMO_IDS = {
+  tenantId: DEMO_TENANT_ID,
+  permitTypeHotWork: '00000000-0000-4000-8000-000000000101',
+  permitTypeColdWork: '00000000-0000-4000-8000-000000000102',
+  plant: '00000000-0000-4000-8000-000000000103',
+  department: '00000000-0000-4000-8000-000000000104',
+  location: '00000000-0000-4000-8000-000000000105',
+  hazardFire: '00000000-0000-4000-8000-000000000106',
+  ppeHelmet: '00000000-0000-4000-8000-000000000107',
+} as const;
 
 async function seed(): Promise<void> {
   const connectionString =
@@ -31,8 +51,98 @@ async function seed(): Promise<void> {
       name: 'Demo Organisation',
       legalName: 'Demo Organisation Ltd',
       registrationNumber: 'DEMO-001',
-      createdBy: randomUUID(),
-      updatedBy: randomUUID(),
+      createdBy: SEED_ACTOR_ID,
+      updatedBy: SEED_ACTOR_ID,
+    })
+    .onConflictDoNothing();
+
+  console.log('Seeding demo master data...');
+  await db
+    .insert(permitTypes)
+    .values([
+      {
+        id: DEMO_IDS.permitTypeHotWork,
+        tenantId: DEMO_TENANT_ID,
+        code: 'HOT-WORK',
+        name: 'Hot Work',
+        description: 'Welding, grinding, and other ignition-source work',
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+      {
+        id: DEMO_IDS.permitTypeColdWork,
+        tenantId: DEMO_TENANT_ID,
+        code: 'COLD-WORK',
+        name: 'Cold Work',
+        description: 'General maintenance without ignition sources',
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+    ])
+    .onConflictDoNothing();
+
+  await db
+    .insert(plants)
+    .values({
+      id: DEMO_IDS.plant,
+      tenantId: DEMO_TENANT_ID,
+      name: 'Demo Plant',
+      code: 'PLANT-01',
+      description: 'Primary demonstration plant',
+      createdBy: SEED_ACTOR_ID,
+      updatedBy: SEED_ACTOR_ID,
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(departments)
+    .values({
+      id: DEMO_IDS.department,
+      tenantId: DEMO_TENANT_ID,
+      plantId: DEMO_IDS.plant,
+      name: 'Operations',
+      code: 'OPS',
+      createdBy: SEED_ACTOR_ID,
+      updatedBy: SEED_ACTOR_ID,
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(locations)
+    .values({
+      id: DEMO_IDS.location,
+      tenantId: DEMO_TENANT_ID,
+      departmentId: DEMO_IDS.department,
+      name: 'Tank Farm',
+      code: 'LOC-TF-01',
+      createdBy: SEED_ACTOR_ID,
+      updatedBy: SEED_ACTOR_ID,
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(hazardCategories)
+    .values({
+      id: DEMO_IDS.hazardFire,
+      tenantId: DEMO_TENANT_ID,
+      code: 'FIRE',
+      name: 'Fire / ignition',
+      severity: 'high',
+      createdBy: SEED_ACTOR_ID,
+      updatedBy: SEED_ACTOR_ID,
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(ppeCatalogue)
+    .values({
+      id: DEMO_IDS.ppeHelmet,
+      tenantId: DEMO_TENANT_ID,
+      code: 'PPE-HELMET',
+      name: 'Safety helmet',
+      category: 'head',
+      createdBy: SEED_ACTOR_ID,
+      updatedBy: SEED_ACTOR_ID,
     })
     .onConflictDoNothing();
 

@@ -4,10 +4,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 import * as schema from '../app/src/database/schema';
-
-const connectionString =
-  process.env.DATABASE_URL ??
-  'postgresql://ptw:ptw_dev_password@localhost:5432/ptw_platform';
+import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 
 describe('Permit approval schema (PUS-139)', () => {
   let pool: Pool;
@@ -26,13 +23,13 @@ describe('Permit approval schema (PUS-139)', () => {
   }
 
   beforeAll(async () => {
-    pool = new Pool({ connectionString });
+    pool = new Pool({ connectionString: testDatabaseUrl });
     db = drizzle(pool, { schema });
 
     try {
       await pool.query('SELECT 1');
       canConnect = true;
-      await migrate(db, { migrationsFolder: './src/database/migrations' });
+      await migrate(db, { migrationsFolder });
     } catch {
       canConnect = false;
     }

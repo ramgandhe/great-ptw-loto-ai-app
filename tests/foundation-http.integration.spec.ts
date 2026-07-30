@@ -10,10 +10,7 @@ import { JwtAuthGuard } from '../app/src/common/guards/jwt-auth.guard';
 import { AuthenticatedUser } from '../app/src/common/interfaces/authenticated-user.interface';
 import { QueueService } from '../app/src/infrastructure/queue/queue.service';
 import * as schema from '../app/src/database/schema';
-
-const connectionString =
-  process.env.DATABASE_URL ??
-  'postgresql://ptw:ptw_dev_password@localhost:5432/ptw_platform';
+import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 
 function authGuardAs(user: AuthenticatedUser) {
   return {
@@ -74,12 +71,12 @@ describe('Foundation HTTP integration (PUS-71)', () => {
   };
 
   beforeAll(async () => {
-    pool = new Pool({ connectionString });
+    pool = new Pool({ connectionString: testDatabaseUrl });
     try {
       await pool.query('SELECT 1');
       canConnect = true;
       const db = drizzle(pool, { schema });
-      await migrate(db, { migrationsFolder: './src/database/migrations' });
+      await migrate(db, { migrationsFolder });
     } catch {
       canConnect = false;
       return;

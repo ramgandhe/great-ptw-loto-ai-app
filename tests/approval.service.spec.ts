@@ -19,10 +19,7 @@ import { WorkflowEngineService } from '../app/src/modules/approval/workflow-engi
 import { AuditService } from '../app/src/modules/logging/audit.service';
 import { PermitCacheService } from '../app/src/modules/permit/permit-cache.service';
 import { PermitService } from '../app/src/modules/permit/permit.service';
-
-const connectionString =
-  process.env.DATABASE_URL ??
-  'postgresql://ptw:ptw_dev_password@localhost:5432/ptw_platform';
+import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 
 describe('ApprovalService integration (PUS-136)', () => {
   let pool: Pool;
@@ -37,13 +34,13 @@ describe('ApprovalService integration (PUS-136)', () => {
   const locationId = randomUUID();
 
   beforeAll(async () => {
-    pool = new Pool({ connectionString });
+    pool = new Pool({ connectionString: testDatabaseUrl });
     db = drizzle(pool, { schema });
 
     try {
       await pool.query('SELECT 1');
       canConnect = true;
-      await migrate(db, { migrationsFolder: './src/database/migrations' });
+      await migrate(db, { migrationsFolder });
     } catch {
       canConnect = false;
     }

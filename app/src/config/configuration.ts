@@ -24,6 +24,10 @@ export default () => ({
     realm: process.env.KEYCLOAK_REALM ?? 'ptw-platform',
     clientId: process.env.KEYCLOAK_CLIENT_ID ?? 'ptw-api',
   },
+  auth: {
+    defaultTenantId:
+      process.env.DEFAULT_TENANT_ID ?? '00000000-0000-4000-8000-000000000001',
+  },
   logging: {
     level: process.env.LOG_LEVEL ?? 'info',
     lokiUrl: process.env.LOKI_URL ?? 'http://localhost:3100',
@@ -62,6 +66,14 @@ export default () => ({
     reportCron: process.env.CLOSURE_REPORT_CRON ?? '0 4 * * 1',
     attachmentUrlExpirySeconds: parseInt(
       process.env.CLOSURE_ATTACHMENT_URL_EXPIRY_SECONDS ?? '3600',
+      10,
+    ),
+  },
+  isolation: {
+    cacheTtlSeconds: parseInt(process.env.ISOLATION_CACHE_TTL_SECONDS ?? '300', 10),
+    reminderCron: process.env.ISOLATION_REMINDER_CRON ?? '0 */4 * * *',
+    evidenceUrlExpirySeconds: parseInt(
+      process.env.ISOLATION_EVIDENCE_URL_EXPIRY_SECONDS ?? '3600',
       10,
     ),
   },
