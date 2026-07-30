@@ -12,10 +12,7 @@ import { MasterDataLogService } from '../app/src/modules/master-data/master-data
 import { ReferenceIntegrityService } from '../app/src/modules/master-data/reference-integrity.service';
 import { OrganisationService } from '../app/src/modules/organisation/organisation.service';
 import { WorkforceService } from '../app/src/modules/workforce/workforce.service';
-
-const connectionString =
-  process.env.DATABASE_URL ??
-  'postgresql://ptw:ptw_dev_password@localhost:5432/ptw_platform';
+import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 
 describe('Foundation integration (PUS-71)', () => {
   let pool: Pool;
@@ -31,13 +28,13 @@ describe('Foundation integration (PUS-71)', () => {
   const adminId = randomUUID();
 
   beforeAll(async () => {
-    pool = new Pool({ connectionString });
+    pool = new Pool({ connectionString: testDatabaseUrl });
     db = drizzle(pool, { schema });
 
     try {
       await pool.query('SELECT 1');
       canConnect = true;
-      await migrate(db, { migrationsFolder: './src/database/migrations' });
+      await migrate(db, { migrationsFolder });
     } catch {
       canConnect = false;
     }
