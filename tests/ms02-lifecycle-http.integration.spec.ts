@@ -133,11 +133,41 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
       .expect(201);
     const locationId = locationRes.body.data.id;
 
+    const hazardRes = await request(app.getHttpServer())
+      .post('/api/v1/hazards')
+      .send({
+        code: `HZ-${randomUUID().slice(0, 6)}`,
+        name: 'Fire hazard',
+        severity: 'high',
+      })
+      .expect(201);
+    const hazardCategoryId = hazardRes.body.data.id;
+
+    const ppeRes = await request(app.getHttpServer())
+      .post('/api/v1/ppe-configurations')
+      .send({
+        code: `PPE-${randomUUID().slice(0, 6)}`,
+        name: 'Safety helmet',
+        category: 'head',
+      })
+      .expect(201);
+    const ppeCatalogueId = ppeRes.body.data.id;
+
     const permitTypeRes = await request(app.getHttpServer())
       .post('/api/v1/permit-types')
       .send({ code: `HOT-${randomUUID().slice(0, 4)}`, name: 'Hot Work' })
       .expect(201);
     const permitTypeId = permitTypeRes.body.data.id;
+
+    const db = drizzle(pool, { schema });
+    await db.insert(schema.workflowSteps).values({
+      tenantId,
+      permitTypeId,
+      stepSequence: 1,
+      name: 'Org Admin Approval',
+      approverRole: 'org-admin',
+      createdBy: userId,
+    });
 
     const createRes = await request(app.getHttpServer())
       .post('/api/v1/permits')
@@ -148,6 +178,8 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
         plantId,
         plannedStartAt: '2026-09-01T08:00:00Z',
         plannedEndAt: '2026-09-01T16:00:00Z',
+        hazards: [{ hazardCategoryId }],
+        ppe: [{ ppeCatalogueId }],
         executors: [{ workforceUserId: userId, isPrimary: true }],
       })
       .expect(201);
