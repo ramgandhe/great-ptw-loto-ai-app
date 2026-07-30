@@ -10,6 +10,7 @@ export * from './approval';
 export * from './execution';
 export * from './closure';
 export * from './lototo';
+export * from './lototo-execution';
 
 export const platformMetadata = pgTable('platform_metadata', {
   ...auditColumns,
