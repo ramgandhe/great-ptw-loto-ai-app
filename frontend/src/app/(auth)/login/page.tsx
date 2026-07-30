@@ -1,36 +1,58 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { startKeycloakLogin } from "@/lib/auth/keycloak";
 
-export default function LoginPage() {
-  const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL ?? "http://localhost:8080";
-  const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM ?? "ptw-platform";
-  const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID ?? "ptw-web";
-  const redirectUri = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000/";
+function LoginContent() {
+  const searchParams = useSearchParams();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const next = searchParams.get("next") ?? "/";
 
-  const loginUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      response_type: "code",
-      scope: "openid",
-    });
-    return `${keycloakUrl}/realms/${realm}/protocol/openid-connect/auth?${params.toString()}`;
-  }, [clientId, keycloakUrl, realm, redirectUri]);
+  async function handleLogin() {
+    setError(null);
+    setLoading(true);
+    try {
+      await startKeycloakLogin(next);
+    } catch (err) {
+      setLoading(false);
+      setError(err instanceof Error ? err.message : "Could not start sign in.");
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-semibold">Sign in</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Authenticate with Keycloak to access the platform.
+          You will be redirected to Keycloak in this tab to sign in.
         </p>
       </div>
-      <a href={loginUrl} className={cn(buttonVariants(), "w-full")}>
-        Continue with Keycloak
-      </a>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <button
+        type="button"
+        onClick={handleLogin}
+        disabled={loading}
+        className={cn(buttonVariants(), "w-full")}
+      >
+        {loading ? "Redirecting…" : "Continue with Keycloak"}
+      </button>
+      <p className="text-xs text-muted-foreground">
+        Keycloak must be running at{" "}
+        <code className="rounded bg-muted px-1">http://localhost:8080</code>. Use{" "}
+        <strong>admin@ptw.local</strong> / <strong>admin</strong>.
+      </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
+      <LoginContent />
+    </Suspense>
   );
 }

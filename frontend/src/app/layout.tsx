@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { MotionProvider } from "@/components/motion-provider";
+import { OAuthCodeRedirect } from "@/components/auth/oauth-code-redirect";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -21,7 +23,12 @@ export default function RootLayout({
     <html lang="en" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <MotionProvider>{children}</MotionProvider>
+          <MotionProvider>
+            <Suspense fallback={null}>
+              <OAuthCodeRedirect />
+            </Suspense>
+            {children}
+          </MotionProvider>
         </ThemeProvider>
       </body>
     </html>

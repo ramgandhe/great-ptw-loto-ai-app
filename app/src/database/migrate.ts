@@ -1,7 +1,10 @@
+import { join } from 'path';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 import * as schema from './schema';
+
+const migrationsFolder = join(__dirname, 'migrations');
 
 async function runMigrations(): Promise<void> {
   const connectionString =
@@ -12,7 +15,7 @@ async function runMigrations(): Promise<void> {
   const db = drizzle(pool, { schema });
 
   console.log('Running database migrations...');
-  await migrate(db, { migrationsFolder: './src/database/migrations' });
+  await migrate(db, { migrationsFolder });
   console.log('Migrations completed.');
 
   await pool.end();

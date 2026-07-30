@@ -11,11 +11,12 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
+    "test": "npm run build -w @ptw/shared && npm run test --workspaces --if-present",
     "dev:api": "npm run start:dev -w api",
     "dev:web": "npm run dev -w web",
     "dev:mobile": "npm run start -w mobile",
     "db:migrate": "npm run db:migrate -w api",
+    "db:reset": "npm run db:reset -w api",
     "db:seed": "npm run db:seed -w api",
     "healthcheck": "tsx scripts/healthcheck.ts"
   },
