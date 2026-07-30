@@ -3,6 +3,8 @@ module.exports = {
   rootDir: '.',
   roots: ['<rootDir>/src', '<rootDir>/../tests'],
   testMatch: ['<rootDir>/../tests/**/*.spec.ts'],
+  testTimeout: 30000,
+  maxWorkers: process.env.CI ? 1 : '50%',
   transform: {
     '^.+\\.(t|j)s$': [
       'ts-jest',

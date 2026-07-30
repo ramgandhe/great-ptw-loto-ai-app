@@ -33,7 +33,12 @@ export async function fetchApi<T>(path: string, options: FetchApiOptions = {}): 
 
   if (!response.ok || body.success === false) {
     const error = "error" in body ? body.error : undefined;
-    throw new ApiError(error?.message ?? "API request failed", error?.code, response.status);
+    throw new ApiError(
+      error?.message ?? "API request failed",
+      error?.code,
+      response.status,
+      error?.details,
+    );
   }
 
   return body.data;
