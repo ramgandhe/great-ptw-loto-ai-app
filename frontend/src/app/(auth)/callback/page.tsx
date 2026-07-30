@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { completeKeycloakLogin, consumeAuthRedirect } from "@/lib/auth/keycloak";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -59,5 +59,20 @@ export default function AuthCallbackPage() {
       <h1 className="text-xl font-semibold">Signing in</h1>
       <p className="text-sm text-muted-foreground">Completing Keycloak authentication…</p>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex flex-col gap-2">
+          <h1 className="text-xl font-semibold">Signing in</h1>
+          <p className="text-sm text-muted-foreground">Completing Keycloak authentication…</p>
+        </div>
+      }
+    >
+      <AuthCallbackContent />
+    </Suspense>
   );
 }
