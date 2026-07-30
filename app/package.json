@@ -8,6 +8,7 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,../tests}/**/*.ts\"",
+    "pretest": "npm run build -w @ptw/shared",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
