@@ -50,6 +50,13 @@
       "when": 1753712400000,
       "tag": "0006_permit_closure",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1753716000000,
+      "tag": "0007_lototo_configuration",
+      "breakpoints": true
     }
   ]
 }
