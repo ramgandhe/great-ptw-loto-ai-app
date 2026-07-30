@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
+import { IsolationCacheService } from './isolation-cache.service';
 import { IsolationExecutionController } from './isolation-execution.controller';
 import { IsolationExecutionService } from './isolation-execution.service';
+import { IsolationJobsService } from './isolation-jobs.service';
+import { IsolationLogService } from './isolation-log.service';
 import { LockController } from './lock.controller';
 import { LockService } from './lock.service';
 import { StatusValidationService } from './status-validation.service';
@@ -22,6 +25,9 @@ import { VerificationService } from './verification.service';
     TagService,
     VerificationService,
     StatusValidationService,
+    IsolationCacheService,
+    IsolationLogService,
+    IsolationJobsService,
   ],
   exports: [IsolationExecutionService],
 })

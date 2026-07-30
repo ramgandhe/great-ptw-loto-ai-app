@@ -5,9 +5,11 @@ import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { validateEnv } from './config/validate-env';
 import { StorageService } from './infrastructure/storage/storage.service';
 
 async function bootstrap(): Promise<void> {
+  validateEnv();
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const configService = app.get(ConfigService);
   const logger = app.get(Logger);

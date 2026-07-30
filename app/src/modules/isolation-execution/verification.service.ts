@@ -5,7 +5,9 @@ import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { isolationVerifications } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { RecordVerificationDto } from './dto/record-verification.dto';
+import { IsolationCacheService } from './isolation-cache.service';
 import { IsolationExecutionService } from './isolation-execution.service';
+import { IsolationLogService } from './isolation-log.service';
 import { VERIFICATION_PASS } from './isolation-execution.constants';
 import { StatusValidationService } from './status-validation.service';
 
@@ -16,6 +18,8 @@ export class VerificationService {
     private readonly executionService: IsolationExecutionService,
     private readonly statusValidation: StatusValidationService,
     private readonly auditService: AuditService,
+    private readonly cacheService: IsolationCacheService,
+    private readonly logService: IsolationLogService,
   ) {}
 
   async record(executionId: string, dto: RecordVerificationDto, user: AuthenticatedUser) {
@@ -68,6 +72,15 @@ export class VerificationService {
         result: dto.result,
       },
     });
+    this.logService.logEvent({
+      action: 'isolation.verification.recorded',
+      executionId,
+      planId: execution.planId,
+      tenantId: execution.tenantId,
+      userId: user.id,
+      metadata: { isolationPointId: dto.isolationPointId, result: dto.result },
+    });
+    await this.cacheService.invalidate(execution.tenantId, executionId, execution.planId);
 
     return verification;
   }

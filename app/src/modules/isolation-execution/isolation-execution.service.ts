@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { and, asc, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
@@ -17,8 +18,13 @@ import {
   isolationVerifications,
   lototoPlans,
 } from '../../database/schema';
+import { ConfigService } from '@nestjs/config';
+import { StorageService } from '../../infrastructure/storage/storage.service';
 import { AuditService } from '../logging/audit.service';
 import { CaptureEvidenceDto } from './dto/capture-evidence.dto';
+import { EvidenceUploadUrlDto } from './dto/evidence-upload-url.dto';
+import { IsolationCacheService } from './isolation-cache.service';
+import { IsolationLogService } from './isolation-log.service';
 import {
   EXECUTION_IN_PROGRESS,
   EXECUTION_ISOLATED,
@@ -34,6 +40,10 @@ export class IsolationExecutionService {
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly statusValidation: StatusValidationService,
     private readonly auditService: AuditService,
+    private readonly cacheService: IsolationCacheService,
+    private readonly logService: IsolationLogService,
+    private readonly storageService: StorageService,
+    private readonly configService: ConfigService,
   ) {}
 
   async start(planId: string, user: AuthenticatedUser) {
@@ -84,6 +94,14 @@ export class IsolationExecutionService {
       tenantId,
       metadata: { planId },
     });
+    this.logService.logEvent({
+      action: 'isolation.execution.started',
+      executionId: execution.id,
+      planId,
+      tenantId,
+      userId: user.id,
+    });
+    await this.cacheService.invalidate(tenantId, execution.id, planId);
 
     return execution;
   }
@@ -91,6 +109,13 @@ export class IsolationExecutionService {
   async getForPlan(planId: string, user: AuthenticatedUser) {
     const tenantId = this.requireTenant(user);
     await this.getPlan(planId, tenantId);
+
+    const cached = await this.cacheService.getDetailByPlan<
+      Awaited<ReturnType<IsolationExecutionService['assembleDetail']>>
+    >(tenantId, planId);
+    if (cached) {
+      return cached;
+    }
 
     const [execution] = await this.db
       .select()
@@ -103,12 +128,26 @@ export class IsolationExecutionService {
       throw new NotFoundException('Isolation execution not found for this plan');
     }
 
-    return this.assembleDetail(execution);
+    const detail = await this.assembleDetail(execution);
+    await this.cacheService.setDetailByPlan(tenantId, planId, detail);
+    await this.cacheService.setDetailByExecution(tenantId, execution.id, detail);
+    return detail;
   }
 
   async getDetail(executionId: string, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const cached = await this.cacheService.getDetailByExecution<
+      Awaited<ReturnType<IsolationExecutionService['assembleDetail']>>
+    >(tenantId, executionId);
+    if (cached) {
+      return cached;
+    }
+
     const execution = await this.getExecutionEntity(executionId, user);
-    return this.assembleDetail(execution);
+    const detail = await this.assembleDetail(execution);
+    await this.cacheService.setDetailByExecution(tenantId, executionId, detail);
+    await this.cacheService.setDetailByPlan(tenantId, execution.planId, detail);
+    return detail;
   }
 
   async markIsolated(executionId: string, user: AuthenticatedUser) {
@@ -136,6 +175,14 @@ export class IsolationExecutionService {
       tenantId,
       metadata: { planId: execution.planId },
     });
+    this.logService.logEvent({
+      action: 'isolation.execution.isolated',
+      executionId,
+      planId: execution.planId,
+      tenantId,
+      userId: user.id,
+    });
+    await this.cacheService.invalidate(tenantId, executionId, execution.planId);
 
     return updated;
   }
@@ -165,6 +212,14 @@ export class IsolationExecutionService {
       tenantId,
       metadata: { planId: execution.planId },
     });
+    this.logService.logEvent({
+      action: 'isolation.execution.verified',
+      executionId,
+      planId: execution.planId,
+      tenantId,
+      userId: user.id,
+    });
+    await this.cacheService.invalidate(tenantId, executionId, execution.planId);
 
     return updated;
   }
@@ -222,8 +277,61 @@ export class IsolationExecutionService {
       tenantId,
       metadata: { executionId },
     });
+    this.logService.logEvent({
+      action: 'isolation.evidence.captured',
+      executionId,
+      planId: execution.planId,
+      tenantId,
+      userId: user.id,
+      metadata: { evidenceId: evidence.id },
+    });
+    await this.cacheService.invalidate(tenantId, executionId, execution.planId);
 
     return evidence;
+  }
+
+  /**
+   * MinIO wiring for evidence storage: issues a presigned PUT URL so clients
+   * upload the binary directly to object storage, then POST the metadata via
+   * captureEvidence. Keeps large binaries out of the API/DB.
+   */
+  async evidenceUploadUrl(
+    executionId: string,
+    dto: EvidenceUploadUrlDto,
+    user: AuthenticatedUser,
+  ) {
+    const tenantId = this.requireTenant(user);
+    const execution = await this.getExecutionEntity(executionId, user);
+    const storageKey = `${tenantId}/${execution.planId}/isolation/${executionId}/${randomUUID()}-${dto.fileName}`;
+    const expiry = this.configService.get<number>('isolation.evidenceUrlExpirySeconds') ?? 3600;
+    const uploadUrl = await this.storageService.presignedPutObject(storageKey, expiry);
+
+    return {
+      storageBucket: this.storageService.getBucket(),
+      storageKey,
+      uploadUrl,
+      expiresInSeconds: expiry,
+    };
+  }
+
+  async evidenceDownloadUrl(executionId: string, evidenceId: string, user: AuthenticatedUser) {
+    await this.getExecutionEntity(executionId, user);
+    const [evidence] = await this.db
+      .select()
+      .from(isolationEvidence)
+      .where(
+        and(
+          eq(isolationEvidence.id, evidenceId),
+          eq(isolationEvidence.executionId, executionId),
+        ),
+      );
+    if (!evidence) {
+      throw new NotFoundException('Evidence not found for this execution');
+    }
+
+    const expiry = this.configService.get<number>('isolation.evidenceUrlExpirySeconds') ?? 3600;
+    const downloadUrl = await this.storageService.presignedGetObject(evidence.storageKey, expiry);
+    return { evidenceId, downloadUrl, expiresInSeconds: expiry };
   }
 
   /**

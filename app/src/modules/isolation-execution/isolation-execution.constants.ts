@@ -1,3 +1,5 @@
+export const ISOLATION_REMINDER_JOB = 'isolation.reminder';
+
 export const EXECUTION_IN_PROGRESS = 'in_progress' as const;
 export const EXECUTION_ISOLATED = 'isolated' as const;
 export const EXECUTION_VERIFIED = 'verified' as const;
