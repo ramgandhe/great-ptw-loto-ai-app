@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
+import { getProfile } from "@/lib/auth/api";
+import { masterDataApi, type MasterDataRecord } from "@/lib/master-data/api";
+import { departmentsApi, locationsApi, plantsApi } from "@/lib/organisation/api";
 import {
   createPermit,
   removePermitAttachment,
@@ -19,9 +22,12 @@ import {
 } from "@/lib/permit/form";
 import type { PermitAttachment, PermitDetail, PermitFormState } from "@/lib/permit/types";
 import { isEditablePermitStatus } from "@/lib/permit/status";
+import { ensureEndAfterStart } from "@/lib/datetime";
 import { Button } from "@/components/ui/button";
 import { DraftBanner } from "./draft-banner";
 import { fieldClassName, FormField } from "./form-field";
+import { MasterDataSelect } from "./master-data-select";
+import { PlannedDateTimeField } from "./planned-datetime-field";
 import { PermitStepNav } from "./permit-step-nav";
 import { PermitSummary } from "./permit-summary";
 import { ValidationSummary } from "./validation-summary";
@@ -46,6 +52,53 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [permitTypes, setPermitTypes] = useState<MasterDataRecord[]>([]);
+  const [plants, setPlants] = useState<MasterDataRecord[]>([]);
+  const [departments, setDepartments] = useState<MasterDataRecord[]>([]);
+  const [locations, setLocations] = useState<MasterDataRecord[]>([]);
+  const [hazards, setHazards] = useState<MasterDataRecord[]>([]);
+  const [ppeItems, setPpeItems] = useState<MasterDataRecord[]>([]);
+  const [executorOptions, setExecutorOptions] = useState<MasterDataRecord[]>([]);
+  const [masterDataLoading, setMasterDataLoading] = useState(true);
+
+  useEffect(() => {
+    setMasterDataLoading(true);
+    Promise.all([
+      masterDataApi.permitTypes(),
+      plantsApi.list(),
+      departmentsApi.list(),
+      locationsApi.list(),
+      masterDataApi.hazards(),
+      masterDataApi.ppe(),
+      getProfile(),
+    ])
+      .then(([permitTypeRows, plantRows, departmentRows, locationRows, hazardRows, ppeRows, profile]) => {
+        setPermitTypes(permitTypeRows);
+        setPlants(plantRows);
+        setDepartments(departmentRows);
+        setLocations(locationRows);
+        setHazards(hazardRows);
+        setPpeItems(ppeRows);
+
+        const displayName =
+          [profile.firstName, profile.lastName].filter(Boolean).join(" ") || profile.username;
+        setExecutorOptions([{ id: profile.id, name: `${displayName} (you)` }]);
+
+        setForm((current) => {
+          if (current.executors.some((executor) => executor.workforceUserId.trim())) {
+            return current;
+          }
+          return {
+            ...current,
+            executors: [{ workforceUserId: profile.id, isPrimary: true }],
+          };
+        });
+      })
+      .catch((error) => {
+        setApiError(error instanceof ApiError ? error.message : "Failed to load master data");
+      })
+      .finally(() => setMasterDataLoading(false));
+  }, []);
 
   useEffect(() => {
     if (initialDetail) {
@@ -204,13 +257,24 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
       {step === 0 ? (
         <section className="grid gap-4 md:grid-cols-2">
-          <FormField label="Permit type ID" htmlFor="permitTypeId" hint="UUID from permit type master data">
-            <input
+          <FormField
+            label="Permit type"
+            htmlFor="permitTypeId"
+            hint={
+              masterDataLoading
+                ? "Loading permit types…"
+                : permitTypes.length === 0
+                  ? "No permit types found. Run npm run db:seed or create one in Organisation."
+                  : undefined
+            }
+          >
+            <MasterDataSelect
               id="permitTypeId"
-              className={fieldClassName}
               value={form.permitTypeId}
-              disabled={isReadOnly}
-              onChange={(e) => setForm({ ...form, permitTypeId: e.target.value })}
+              options={permitTypes}
+              disabled={isReadOnly || masterDataLoading}
+              placeholder="Select permit type"
+              onChange={(permitTypeId) => setForm({ ...form, permitTypeId })}
             />
           </FormField>
           <FormField label="Title" htmlFor="title">
@@ -236,41 +300,81 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
       {step === 1 ? (
         <section className="grid gap-4 md:grid-cols-2">
-          {[
-            ["Plant ID", "plantId"],
-            ["Department ID", "departmentId"],
-            ["Location ID", "locationId"],
-            ["Workstation ID", "workstationId"],
-            ["Machinery ID", "machineryId"],
-          ].map(([label, key]) => (
-            <FormField key={key} label={label} htmlFor={key}>
-              <input
-                id={key}
-                className={fieldClassName}
-                value={form[key as keyof PermitFormState] as string}
-                disabled={isReadOnly}
-                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-              />
-            </FormField>
-          ))}
-          <FormField label="Planned start" htmlFor="plannedStartAt">
-            <input
-              id="plannedStartAt"
-              type="datetime-local"
-              className={fieldClassName}
-              value={form.plannedStartAt}
-              disabled={isReadOnly}
-              onChange={(e) => setForm({ ...form, plannedStartAt: e.target.value })}
+          <FormField label="Plant" htmlFor="plantId">
+            <MasterDataSelect
+              id="plantId"
+              value={form.plantId}
+              options={plants}
+              disabled={isReadOnly || masterDataLoading}
+              placeholder="Select plant"
+              onChange={(plantId) => setForm({ ...form, plantId })}
             />
           </FormField>
-          <FormField label="Planned end" htmlFor="plannedEndAt">
+          <FormField label="Department" htmlFor="departmentId">
+            <MasterDataSelect
+              id="departmentId"
+              value={form.departmentId}
+              options={departments}
+              disabled={isReadOnly || masterDataLoading}
+              placeholder="Select department"
+              onChange={(departmentId) => setForm({ ...form, departmentId })}
+            />
+          </FormField>
+          <FormField label="Location" htmlFor="locationId">
+            <MasterDataSelect
+              id="locationId"
+              value={form.locationId}
+              options={locations}
+              disabled={isReadOnly || masterDataLoading}
+              placeholder="Select location"
+              onChange={(locationId) => setForm({ ...form, locationId })}
+            />
+          </FormField>
+          <FormField label="Workstation ID" htmlFor="workstationId" hint="Optional — enter UUID if required">
             <input
-              id="plannedEndAt"
-              type="datetime-local"
+              id="workstationId"
               className={fieldClassName}
-              value={form.plannedEndAt}
+              value={form.workstationId}
               disabled={isReadOnly}
-              onChange={(e) => setForm({ ...form, plannedEndAt: e.target.value })}
+              onChange={(e) => setForm({ ...form, workstationId: e.target.value })}
+            />
+          </FormField>
+          <FormField label="Machinery ID" htmlFor="machineryId" hint="Optional — enter UUID if required">
+            <input
+              id="machineryId"
+              className={fieldClassName}
+              value={form.machineryId}
+              disabled={isReadOnly}
+              onChange={(e) => setForm({ ...form, machineryId: e.target.value })}
+            />
+          </FormField>
+          <FormField label="Planned start" htmlFor="plannedStartAt">
+            <PlannedDateTimeField
+              id="plannedStartAt"
+              value={form.plannedStartAt}
+              disabled={isReadOnly}
+              onChange={(plannedStartAt) => {
+                setForm((current) => ({
+                  ...current,
+                  plannedStartAt,
+                  plannedEndAt: current.plannedEndAt
+                    ? ensureEndAfterStart(plannedStartAt, current.plannedEndAt)
+                    : current.plannedEndAt,
+                }));
+              }}
+            />
+          </FormField>
+          <FormField
+            label="Planned end"
+            htmlFor="plannedEndAt"
+            hint={form.plannedStartAt ? "Must be after planned start" : undefined}
+          >
+            <PlannedDateTimeField
+              id="plannedEndAt"
+              value={form.plannedEndAt}
+              minValue={form.plannedStartAt || undefined}
+              disabled={isReadOnly || !form.plannedStartAt}
+              onChange={(plannedEndAt) => setForm({ ...form, plannedEndAt })}
             />
           </FormField>
         </section>
@@ -298,16 +402,17 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             </div>
             {form.hazards.map((hazard, index) => (
               <div key={`hazard-${index}`} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-2">
-                <FormField label="Hazard category ID" htmlFor={`hazard-${index}`}>
-                  <input
+                <FormField label="Hazard category" htmlFor={`hazard-${index}`}>
+                  <MasterDataSelect
                     id={`hazard-${index}`}
-                    className={fieldClassName}
                     value={hazard.hazardCategoryId}
-                    disabled={isReadOnly}
-                    onChange={(e) => {
-                      const hazards = [...form.hazards];
-                      hazards[index] = { ...hazard, hazardCategoryId: e.target.value };
-                      setForm({ ...form, hazards });
+                    options={hazards}
+                    disabled={isReadOnly || masterDataLoading}
+                    placeholder="Select hazard"
+                    onChange={(hazardCategoryId) => {
+                      const hazardRows = [...form.hazards];
+                      hazardRows[index] = { ...hazard, hazardCategoryId };
+                      setForm({ ...form, hazards: hazardRows });
                     }}
                   />
                 </FormField>
@@ -348,15 +453,16 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             </div>
             {form.ppe.map((item, index) => (
               <div key={`ppe-${index}`} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-2">
-                <FormField label="PPE catalogue ID" htmlFor={`ppe-${index}`}>
-                  <input
+                <FormField label="PPE item" htmlFor={`ppe-${index}`}>
+                  <MasterDataSelect
                     id={`ppe-${index}`}
-                    className={fieldClassName}
                     value={item.ppeCatalogueId}
-                    disabled={isReadOnly}
-                    onChange={(e) => {
+                    options={ppeItems}
+                    disabled={isReadOnly || masterDataLoading}
+                    placeholder="Select PPE"
+                    onChange={(ppeCatalogueId) => {
                       const ppe = [...form.ppe];
-                      ppe[index] = { ...item, ppeCatalogueId: e.target.value };
+                      ppe[index] = { ...item, ppeCatalogueId };
                       setForm({ ...form, ppe });
                     }}
                   />
@@ -403,15 +509,20 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           </div>
           {form.executors.map((executor, index) => (
             <div key={`executor-${index}`} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[1fr_auto]">
-              <FormField label="Workforce user ID" htmlFor={`executor-${index}`}>
-                <input
+              <FormField
+                label="Executor"
+                htmlFor={`executor-${index}`}
+                hint="Must be a platform user ID. Defaults to you so execution works later."
+              >
+                <MasterDataSelect
                   id={`executor-${index}`}
-                  className={fieldClassName}
                   value={executor.workforceUserId}
-                  disabled={isReadOnly}
-                  onChange={(e) => {
+                  options={executorOptions}
+                  disabled={isReadOnly || masterDataLoading}
+                  placeholder="Select executor"
+                  onChange={(workforceUserId) => {
                     const executors = [...form.executors];
-                    executors[index] = { ...executor, workforceUserId: e.target.value };
+                    executors[index] = { ...executor, workforceUserId };
                     setForm({ ...form, executors });
                   }}
                 />

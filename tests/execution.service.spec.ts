@@ -17,10 +17,7 @@ import { NotificationService } from '../app/src/modules/execution/notification.s
 import { ProgressService } from '../app/src/modules/execution/progress.service';
 import { StatusTransitionService } from '../app/src/modules/execution/status-transition.service';
 import { StorageService } from '../app/src/infrastructure/storage/storage.service';
-
-const connectionString =
-  process.env.DATABASE_URL ??
-  'postgresql://ptw:ptw_dev_password@localhost:5432/ptw_platform';
+import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 
 describe('ExecutionService integration (PUS-141)', () => {
   let pool: Pool;
@@ -37,13 +34,13 @@ describe('ExecutionService integration (PUS-141)', () => {
   const locationId = randomUUID();
 
   beforeAll(async () => {
-    pool = new Pool({ connectionString });
+    pool = new Pool({ connectionString: testDatabaseUrl });
     db = drizzle(pool, { schema });
 
     try {
       await pool.query('SELECT 1');
       canConnect = true;
-      await migrate(db, { migrationsFolder: './src/database/migrations' });
+      await migrate(db, { migrationsFolder });
     } catch {
       canConnect = false;
     }

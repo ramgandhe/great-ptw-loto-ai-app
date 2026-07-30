@@ -1,3 +1,6 @@
+import { refreshAccessToken } from "@/lib/auth/keycloak";
+import { clearTokens, getAccessToken } from "@/lib/auth/token-storage";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
 
 export class ApiError extends Error {
@@ -12,25 +15,32 @@ export class ApiError extends Error {
   }
 }
 
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") {
-    return {};
-  }
-  const token = localStorage.getItem("ptw_access_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+export async function fetchApi<T>(path: string, init?: RequestInit, retried = false): Promise<T> {
+  const token = getAccessToken();
 
-export async function fetchApi<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeaders(),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   });
 
   const body = await response.json();
+
+  if (response.status === 401 && !retried && typeof window !== "undefined") {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return fetchApi<T>(path, init, true);
+    }
+
+    clearTokens();
+    const next = `${window.location.pathname}${window.location.search}`;
+    window.location.assign(`/login?next=${encodeURIComponent(next)}`);
+    throw new ApiError("Session expired. Redirecting to sign in…", "Unauthorized");
+  }
+
   if (!response.ok || body.success === false) {
     throw new ApiError(
       body.error?.message ?? "API request failed",

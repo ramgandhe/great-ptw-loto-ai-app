@@ -203,17 +203,23 @@ export class PermitService {
 
       if (dto.hazards !== undefined) {
         await tx.delete(permitHazards).where(eq(permitHazards.permitId, id));
-        await this.insertHazards(tx, id, user.id, dto.hazards);
+        if (dto.hazards.length > 0) {
+          await this.insertHazards(tx, id, user.id, dto.hazards);
+        }
       }
 
       if (dto.ppe !== undefined) {
         await tx.delete(permitPpe).where(eq(permitPpe.permitId, id));
-        await this.insertPpe(tx, id, user.id, dto.ppe);
+        if (dto.ppe.length > 0) {
+          await this.insertPpe(tx, id, user.id, dto.ppe);
+        }
       }
 
       if (dto.executors !== undefined) {
         await tx.delete(permitExecutors).where(eq(permitExecutors.permitId, id));
-        await this.insertExecutors(tx, id, user.id, dto.executors);
+        if (dto.executors.length > 0) {
+          await this.insertExecutors(tx, id, user.id, dto.executors);
+        }
       }
 
       await this.auditService.log({
@@ -374,6 +380,10 @@ export class PermitService {
     userId: string,
     hazards: NonNullable<CreatePermitDto['hazards']>,
   ): Promise<void> {
+    if (hazards.length === 0) {
+      return;
+    }
+
     await db.insert(permitHazards).values(
       hazards.map((hazard) => ({
         permitId,
@@ -391,6 +401,10 @@ export class PermitService {
     userId: string,
     ppeItems: NonNullable<CreatePermitDto['ppe']>,
   ): Promise<void> {
+    if (ppeItems.length === 0) {
+      return;
+    }
+
     await db.insert(permitPpe).values(
       ppeItems.map((item) => ({
         permitId,
@@ -408,6 +422,10 @@ export class PermitService {
     userId: string,
     executors: NonNullable<CreatePermitDto['executors']>,
   ): Promise<void> {
+    if (executors.length === 0) {
+      return;
+    }
+
     await db.insert(permitExecutors).values(
       executors.map((executor) => ({
         permitId,

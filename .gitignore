@@ -32,5 +32,5 @@ packages/shared/src/*.d.ts.map
 .idea/
 .tmp-finish-sp-0201-0202/
 
-# OS
-Thumbs.db
+# Legacy paths (pre-restructure)
+apps/

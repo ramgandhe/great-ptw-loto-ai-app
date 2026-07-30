@@ -24,6 +24,10 @@ export default () => ({
     realm: process.env.KEYCLOAK_REALM ?? 'ptw-platform',
     clientId: process.env.KEYCLOAK_CLIENT_ID ?? 'ptw-api',
   },
+  auth: {
+    defaultTenantId:
+      process.env.DEFAULT_TENANT_ID ?? '00000000-0000-4000-8000-000000000001',
+  },
   logging: {
     level: process.env.LOG_LEVEL ?? 'info',
     lokiUrl: process.env.LOKI_URL ?? 'http://localhost:3100',

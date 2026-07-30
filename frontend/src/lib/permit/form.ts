@@ -106,8 +106,8 @@ export function validateStep(form: PermitFormState, step: number): string[] {
 
   if (step === 1) {
     if (!form.locationId.trim()) errors.push("Location is required");
-    if (!form.plannedStartAt) errors.push("Planned start is required");
-    if (!form.plannedEndAt) errors.push("Planned end is required");
+    if (!form.plannedStartAt) errors.push("Planned start date and time are required");
+    if (!form.plannedEndAt) errors.push("Planned end date and time are required");
     if (form.plannedStartAt && form.plannedEndAt && form.plannedEndAt <= form.plannedStartAt) {
       errors.push("Planned end must be after planned start");
     }

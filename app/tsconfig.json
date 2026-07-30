@@ -17,10 +17,7 @@
     "noImplicitAny": true,
     "strictBindCallApply": true,
     "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
-    "paths": {
-      "@ptw/shared": ["../packages/shared/src"]
-    }
+    "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*", "../tests/**/*"]
+  "include": ["src/**/*"]
 }
