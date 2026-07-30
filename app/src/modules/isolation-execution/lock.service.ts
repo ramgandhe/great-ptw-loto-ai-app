@@ -5,7 +5,9 @@ import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { appliedLocks } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { ApplyLockDto } from './dto/apply-lock.dto';
+import { IsolationCacheService } from './isolation-cache.service';
 import { IsolationExecutionService } from './isolation-execution.service';
+import { IsolationLogService } from './isolation-log.service';
 import { LOCK_APPLIED, LOCK_REMOVED } from './isolation-execution.constants';
 import { StatusValidationService } from './status-validation.service';
 
@@ -16,6 +18,8 @@ export class LockService {
     private readonly executionService: IsolationExecutionService,
     private readonly statusValidation: StatusValidationService,
     private readonly auditService: AuditService,
+    private readonly cacheService: IsolationCacheService,
+    private readonly logService: IsolationLogService,
   ) {}
 
   async apply(executionId: string, dto: ApplyLockDto, user: AuthenticatedUser) {
@@ -65,12 +69,21 @@ export class LockService {
       tenantId: execution.tenantId,
       metadata: { executionId, isolationPointId: dto.isolationPointId, lockMethod: dto.lockMethod },
     });
+    this.logService.logEvent({
+      action: 'isolation.lock.applied',
+      executionId,
+      planId: execution.planId,
+      tenantId: execution.tenantId,
+      userId: user.id,
+      metadata: { isolationPointId: dto.isolationPointId, lockMethod: dto.lockMethod },
+    });
+    await this.cacheService.invalidate(execution.tenantId, executionId, execution.planId);
 
     return lock;
   }
 
   async remove(lockId: string, user: AuthenticatedUser) {
-    const lock = await this.getLock(lockId, user);
+    const { lock, execution } = await this.getLock(lockId, user);
 
     if (lock.status === LOCK_REMOVED) {
       throw new ConflictException('Lock has already been removed');
@@ -91,6 +104,15 @@ export class LockService {
       tenantId: lock.tenantId,
       metadata: { executionId: lock.executionId },
     });
+    this.logService.logEvent({
+      action: 'isolation.lock.removed',
+      executionId: lock.executionId,
+      planId: execution.planId,
+      tenantId: lock.tenantId,
+      userId: user.id,
+      metadata: { lockId },
+    });
+    await this.cacheService.invalidate(lock.tenantId, lock.executionId, execution.planId);
 
     return updated;
   }
@@ -106,7 +128,7 @@ export class LockService {
       throw new NotFoundException('Lock not found');
     }
     // Enforce tenant scoping via the parent execution.
-    await this.executionService.getExecutionEntity(lock.executionId, user);
-    return lock;
+    const execution = await this.executionService.getExecutionEntity(lock.executionId, user);
+    return { lock, execution };
   }
 }

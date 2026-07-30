@@ -75,4 +75,8 @@ export class StorageService implements OnModuleInit {
   async presignedGetObject(key: string, expirySeconds: number): Promise<string> {
     return this.client.presignedGetObject(this.bucket, key, expirySeconds);
   }
+
+  async presignedPutObject(key: string, expirySeconds: number): Promise<string> {
+    return this.client.presignedPutObject(this.bucket, key, expirySeconds);
+  }
 }

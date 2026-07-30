@@ -69,4 +69,12 @@ export default () => ({
       10,
     ),
   },
+  isolation: {
+    cacheTtlSeconds: parseInt(process.env.ISOLATION_CACHE_TTL_SECONDS ?? '300', 10),
+    reminderCron: process.env.ISOLATION_REMINDER_CRON ?? '0 */4 * * *',
+    evidenceUrlExpirySeconds: parseInt(
+      process.env.ISOLATION_EVIDENCE_URL_EXPIRY_SECONDS ?? '3600',
+      10,
+    ),
+  },
 });
