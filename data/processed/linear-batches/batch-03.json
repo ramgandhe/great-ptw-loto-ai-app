@@ -1,0 +1,137 @@
+[
+  {
+    "id": "PUS-176",
+    "description": "## Issue summary\n\nNestJS API implementation, validation, RBAC and audit logging for Daily Progress backend.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-05.01 (Execution order: 6)\n**Layer:** BE\n**Priority:** High (2)\n\n## Positive test cases\n\n- Endpoints return correct data for authorised tenant/user\n- RBAC enforced server-side on every protected route\n- Invalid workflow transitions rejected with clear errors\n- Audit events recorded for safety-critical actions\n- Integration tests pass against PostgreSQL\n\n## Negative test cases\n\n- Unauthenticated access to protected endpoints\n- Cross-tenant data leakage via missing scoping\n- Invalid state transition accepted\n- Business logic in controller instead of service\n\n## Acceptance criteria\n\n- API contract matches docs/api-reference.md\n- DTO validation with class-validator\n- Unit + integration tests added\n- Error responses follow standard envelope\n\n## Definition of Done\n\n- `npm run test -w api` passes\n- `npm run build -w api` passes\n- No bypass of Keycloak/RBAC\n- PR reviewed and merged\n\n---\n\n## Existing notes\n\nBackend implementation for **SP-05.01 — Daily Progress**.\n\n**Functional requirements:** FR-MDP-001 to FR-MDP-004\n\n## Modules\n\n* Daily Progress Module\n* Shift Handover Module\n* Daily History Module\n\n## Controllers\n\n* DailyProgressController\n* ShiftHandoverController\n\n## Services\n\n* DailyProgressService\n* ShiftHandoverService\n* DailyHistoryService\n\n## DTOs\n\n* DailyProgressDto\n* ShiftHandoverDto\n* DailySummaryDto\n\n## API Endpoints\n\n| Method | Endpo… (truncated, use `get_issue` for full description)",
+    "priority": 2,
+    "labels": [
+      "Backend",
+      "ptw-s06"
+    ]
+  },
+  {
+    "id": "PUS-177",
+    "description": "## Issue summary\n\nNext.js UI for Daily Progress frontend using design system tokens and accessible states.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-05.01 (Execution order: 6)\n**Layer:** FE\n**Priority:** Medium (3)\n\n## Positive test cases\n\n- UI renders loading, empty, success and error states\n- Works across themes, light/dark and responsive breakpoints\n- API errors surfaced without losing form data\n- Safety-critical actions require confirmation\n- Navigation and RBAC-gated routes behave correctly\n\n## Negative test cases\n\n- Hardcoded colours bypassing design tokens\n- Status communicated by colour alone\n- Client trusts frontend permissions without server enforcement\n- Broken layout on tablet/mobile\n\n## Acceptance criteria\n\n- Pages wired to API client\n- TypeScript lint/build passes\n- Matches approved UI patterns\n\n## Definition of Done\n\n- `npm run build -w web` passes\n- Manual smoke test documented\n- Accessible labels/icons for status\n\n---\n\n## Existing notes\n\nFrontend (Next.js) implementation for **SP-05.01 — Daily Progress**.\n\n**Functional requirements:** FR-MDP-001 to FR-MDP-004\n\n## Pages\n\n* Daily Progress\n* Shift Handover\n* Daily History\n\n## Components\n\n* Daily Progress Form\n* Work Summary Card\n* Handover Form\n* Timeline\n* Evidence Viewer\n* Activity Feed",
+    "priority": 3,
+    "labels": [
+      "Frontend",
+      "ptw-s06"
+    ]
+  },
+  {
+    "id": "PUS-178",
+    "description": "## Issue summary\n\nReact Native (Expo) mobile flows for Daily Progress mobile with offline-safe behaviour.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-05.01 (Execution order: 6)\n**Layer:** MOB\n**Priority:** Medium (3)\n\n## Positive test cases\n\n- Core workflow usable offline with queued sync\n- Auth tokens stored securely\n- Offline changes reconcile without data loss\n- UI reflects connectivity state clearly\n\n## Negative test cases\n\n- Authoritative data stored only in SQLite\n- Sync overwrites newer local changes silently\n- Crash on network loss mid-submit\n\n## Acceptance criteria\n\n- Mobile screens implemented for sprint scope\n- Offline queue + sync tested\n- TypeScript lint passes\n\n## Definition of Done\n\n- Expo app runs on iOS/Android simulator\n- Offline scenario manually verified\n- No secrets in mobile bundle\n\n---\n\n## Existing notes\n\nMobile (React Native) implementation for **SP-05.01 — Daily Progress**.\n\n**Functional requirements:** FR-MDP-001 to FR-MDP-004\n\n## Screens\n\n* Daily Progress\n* Shift Handover\n* Daily History\n\n## Capabilities\n\n* Offline progress recording\n* Camera uploads\n* Background synchronisation\n* Daily notifications",
+    "priority": 3,
+    "labels": [
+      "Mobile",
+      "ptw-s06"
+    ]
+  },
+  {
+    "id": "PUS-184",
+    "description": "## Issue summary\n\nDatabase schema, migrations, constraints and tenant-scoped data model for Daily Revalidation database.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-05.02 (Execution order: 7)\n**Layer:** DB\n**Priority:** Urgent (1)\n\n## Positive test cases\n\n- Migration applies cleanly on empty and existing databases\n- Foreign keys, unique constraints and indexes enforce data integrity\n- Tenant isolation verified — no cross-tenant reads/writes\n- Seed data loads without violating constraints\n- Rollback/migration idempotency validated\n\n## Negative test cases\n\n- Migration fails on duplicate or invalid legacy data\n- Cross-tenant reference allowed by schema\n- Required audit/immutable fields can be updated or deleted\n- Migration breaks existing permit lifecycle queries\n\n## Acceptance criteria\n\n- Drizzle schema and migration committed\n- Constraints match PRD workflow rules\n- Integration tests cover tenant scoping\n- CI migration step passes\n\n## Definition of Done\n\n- `npm run db:migrate -w api` succeeds in CI\n- Schema reviewed for safety-critical invariants\n- No raw SQL unless justified\n- Documentation updated if ERD changed\n\n---\n\n## Existing notes\n\nDatabase implementation for **SP-05.02 — Daily Revalidation**.\n\n**Functional requirements:** FR-MDP-005 to FR-MDP-008\n\n## Tables\n\n* permit_revalidations\n* permit_extensions\n* permit_suspensions\n* revalidation_history\n\n## Implementation activities\n\n* Revalidation timestamps\n* Extension approval records\n* Suspension history\n* Historical indexing\n* Migration scripts",
+    "priority": 1,
+    "labels": [
+      "Database",
+      "ptw-s07"
+    ]
+  },
+  {
+    "id": "PUS-185",
+    "description": "## Issue summary\n\nInfrastructure, Docker, CI/CD and environment configuration for Daily Revalidation infra.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-05.02 (Execution order: 7)\n**Layer:** INF\n**Priority:** Urgent (1)\n\n## Positive test cases\n\n- `docker compose up` starts all required services healthy\n- CI pipeline runs lint, test, migrate and build\n- Environment variables documented and validated at startup\n- Redis/MinIO/Keycloak integrations reachable from API\n\n## Negative test cases\n\n- Service starts without health checks passing\n- Secrets committed to repository\n- CI passes without database migration verification\n- Local and CI environments diverge silently\n\n## Acceptance criteria\n\n- Infrastructure changes merged with compose/CI updates\n- Health endpoints green for dependent services\n- Rollback path documented\n\n## Definition of Done\n\n- CI green on PR\n- README/deployment docs updated\n- No hardcoded credentials\n\n---\n\n## Existing notes\n\nInfrastructure dependencies for **SP-05.02 — Daily Revalidation**.\n\n**Functional requirements:** FR-MDP-005 to FR-MDP-008\n\n## Dependencies\n\n* Redis for active permit caching\n* BullMQ daily reminder and extension approval jobs\n* MinIO storage for inspection evidence\n* Keycloak role validation\n* Grafana Loki logging",
+    "priority": 1,
+    "labels": [
+      "Infrastructure",
+      "ptw-s07"
+    ]
+  },
+  {
+    "id": "PUS-122",
+    "description": "## Issue summary\n\nSprint delivery unit covering end-to-end capability for Daily Revalidation.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-05.02 (Execution order: 7)\n**Layer:** SP\n**Priority:** Urgent (1)\n\n## Positive test cases\n\n- All child issues (DB/INF/BE/FE/MOB) completed\n- End-to-end workflow demonstrated across web and API\n- Regression suite passes for prior milestones\n\n## Negative test cases\n\n- Partial delivery merged without integration proof\n- Critical defects deferred without approval\n- Cross-module regressions in permit lifecycle\n\n## Acceptance criteria\n\n- Sprint objective met per Implementation Plan\n- Demo recorded or documented\n- Stakeholder sign-off captured\n\n## Definition of Done\n\n- All child issues Done\n- CI green on main\n- Release notes updated\n\n---\n\n## Existing notes\n\n## Sprint objective\n\nThe objective of this sprint is to ensure that hazardous work continues only after safety conditions have been reassessed and approved at the beginning of each operational day.\n\n**Type:** Feature Sprint\n**Estimated duration:** 2 weeks\n**Functional requirements:** FR-MDP-005 to FR-MDP-008\n\n## Core scope\n\nDaily revalidation can be performed; Safety conditions can be reassessed; Permits can be continued; Permits can be suspende… (truncated, use `get_issue` for full description)",
+    "priority": 1,
+    "labels": [
+      "Sprint",
+      "ptw-s07"
+    ]
+  },
+  {
+    "id": "PUS-181",
+    "description": "## Issue summary\n\nNestJS API implementation, validation, RBAC and audit logging for Daily Revalidation backend.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-05.02 (Execution order: 7)\n**Layer:** BE\n**Priority:** High (2)\n\n## Positive test cases\n\n- Endpoints return correct data for authorised tenant/user\n- RBAC enforced server-side on every protected route\n- Invalid workflow transitions rejected with clear errors\n- Audit events recorded for safety-critical actions\n- Integration tests pass against PostgreSQL\n\n## Negative test cases\n\n- Unauthenticated access to protected endpoints\n- Cross-tenant data leakage via missing scoping\n- Invalid state transition accepted\n- Business logic in controller instead of service\n\n## Acceptance criteria\n\n- API contract matches docs/api-reference.md\n- DTO validation with class-validator\n- Unit + integration tests added\n- Error responses follow standard envelope\n\n## Definition of Done\n\n- `npm run test -w api` passes\n- `npm run build -w api` passes\n- No bypass of Keycloak/RBAC\n- PR reviewed and merged\n\n---\n\n## Existing notes\n\nBackend implementation for **SP-05.02 — Daily Revalidation**.\n\n**Functional requirements:** FR-MDP-005 to FR-MDP-008\n\n## Modules\n\n* Revalidation Module\n* Permit Continuation Module\n* Permit Extension Module\n\n## Controllers\n\n* RevalidationController\n* PermitContinuationController\n* PermitExtensionController\n\n## Services\n\n* RevalidationService\n* ContinuationService\n* ExtensionService\n* SuspensionService\n\n## DTOs\n\n* RevalidationDto\n* ContinuePermit… (truncated, use `get_issue` for full description)",
+    "priority": 2,
+    "labels": [
+      "Backend",
+      "ptw-s07"
+    ]
+  },
+  {
+    "id": "PUS-182",
+    "description": "## Issue summary\n\nNext.js UI for Daily Revalidation frontend using design system tokens and accessible states.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-05.02 (Execution order: 7)\n**Layer:** FE\n**Priority:** Medium (3)\n\n## Positive test cases\n\n- UI renders loading, empty, success and error states\n- Works across themes, light/dark and responsive breakpoints\n- API errors surfaced without losing form data\n- Safety-critical actions require confirmation\n- Navigation and RBAC-gated routes behave correctly\n\n## Negative test cases\n\n- Hardcoded colours bypassing design tokens\n- Status communicated by colour alone\n- Client trusts frontend permissions without server enforcement\n- Broken layout on tablet/mobile\n\n## Acceptance criteria\n\n- Pages wired to API client\n- TypeScript lint/build passes\n- Matches approved UI patterns\n\n## Definition of Done\n\n- `npm run build -w web` passes\n- Manual smoke test documented\n- Accessible labels/icons for status\n\n---\n\n## Existing notes\n\nFrontend (Next.js) implementation for **SP-05.02 — Daily Revalidation**.\n\n**Functional requirements:** FR-MDP-005 to FR-MDP-008\n\n## Pages\n\n* Daily Revalidation\n* Permit Continuation\n* Permit Extension\n* Revalidation History\n\n## Components\n\n* Inspection Checklist\n* Continuation Dialog\n* Suspension Dialog\n* Extension Request Form\n* Approval Timeline\n* Revalidation Summary",
+    "priority": 3,
+    "labels": [
+      "Frontend",
+      "ptw-s07"
+    ]
+  },
+  {
+    "id": "PUS-183",
+    "description": "## Issue summary\n\nReact Native (Expo) mobile flows for Daily Revalidation mobile with offline-safe behaviour.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-05.02 (Execution order: 7)\n**Layer:** MOB\n**Priority:** Medium (3)\n\n## Positive test cases\n\n- Core workflow usable offline with queued sync\n- Auth tokens stored securely\n- Offline changes reconcile without data loss\n- UI reflects connectivity state clearly\n\n## Negative test cases\n\n- Authoritative data stored only in SQLite\n- Sync overwrites newer local changes silently\n- Crash on network loss mid-submit\n\n## Acceptance criteria\n\n- Mobile screens implemented for sprint scope\n- Offline queue + sync tested\n- TypeScript lint passes\n\n## Definition of Done\n\n- Expo app runs on iOS/Android simulator\n- Offline scenario manually verified\n- No secrets in mobile bundle\n\n---\n\n## Existing notes\n\nMobile (React Native) implementation for **SP-05.02 — Daily Revalidation**.\n\n**Functional requirements:** FR-MDP-005 to FR-MDP-008\n\n## Screens\n\n* Daily Inspection\n* Permit Continuation\n* Permit Suspension\n* Extension Request\n\n## Capabilities\n\n* Offline inspections\n* Camera evidence capture\n* Digital signatures\n* Synchronisation of inspection records",
+    "priority": 3,
+    "labels": [
+      "Mobile",
+      "ptw-s07"
+    ]
+  },
+  {
+    "id": "PUS-189",
+    "description": "## Issue summary\n\nDatabase schema, migrations, constraints and tenant-scoped data model for Incident Recording database.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-06.01 (Execution order: 8)\n**Layer:** DB\n**Priority:** Urgent (1)\n\n## Positive test cases\n\n- Migration applies cleanly on empty and existing databases\n- Foreign keys, unique constraints and indexes enforce data integrity\n- Tenant isolation verified — no cross-tenant reads/writes\n- Seed data loads without violating constraints\n- Rollback/migration idempotency validated\n\n## Negative test cases\n\n- Migration fails on duplicate or invalid legacy data\n- Cross-tenant reference allowed by schema\n- Required audit/immutable fields can be updated or deleted\n- Migration breaks existing permit lifecycle queries\n\n## Acceptance criteria\n\n- Drizzle schema and migration committed\n- Constraints match PRD workflow rules\n- Integration tests cover tenant scoping\n- CI migration step passes\n\n## Definition of Done\n\n- `npm run db:migrate -w api` succeeds in CI\n- Schema reviewed for safety-critical invariants\n- No raw SQL unless justified\n- Documentation updated if ERD changed\n\n---\n\n## Existing notes\n\nDatabase implementation for **SP-06.01 — Incident Recording**.\n\n**Functional requirements:** FR-INC-001 to FR-INC-004\n\n## Tables\n\n* incidents\n* incident_evidence\n* incident_equipment\n* incident_permits\n\n## Implementation activities\n\n* Incident numbering\n* Foreign keys\n* Audit fields\n* Migration scripts",
+    "priority": 1,
+    "labels": [
+      "Database",
+      "ptw-s08"
+    ]
+  },
+  {
+    "id": "PUS-190",
+    "description": "## Issue summary\n\nInfrastructure, Docker, CI/CD and environment configuration for Incident Recording infra.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-06.01 (Execution order: 8)\n**Layer:** INF\n**Priority:** Urgent (1)\n\n## Positive test cases\n\n- `docker compose up` starts all required services healthy\n- CI pipeline runs lint, test, migrate and build\n- Environment variables documented and validated at startup\n- Redis/MinIO/Keycloak integrations reachable from API\n\n## Negative test cases\n\n- Service starts without health checks passing\n- Secrets committed to repository\n- CI passes without database migration verification\n- Local and CI environments diverge silently\n\n## Acceptance criteria\n\n- Infrastructure changes merged with compose/CI updates\n- Health endpoints green for dependent services\n- Rollback path documented\n\n## Definition of Done\n\n- CI green on PR\n- README/deployment docs updated\n- No hardcoded credentials\n\n---\n\n## Existing notes\n\nInfrastructure dependencies for **SP-06.01 — Incident Recording**.\n\n**Functional requirements:** FR-INC-001 to FR-INC-004\n\n## Dependencies\n\n* Redis caching\n* BullMQ incident notifications\n* MinIO evidence storage\n* Keycloak role validation\n* Grafana Loki logging",
+    "priority": 1,
+    "labels": [
+      "Infrastructure",
+      "ptw-s08"
+    ]
+  },
+  {
+    "id": "PUS-123",
+    "description": "## Issue summary\n\nSprint delivery unit covering end-to-end capability for Incident Recording.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-06.01 (Execution order: 8)\n**Layer:** SP\n**Priority:** Urgent (1)\n\n## Positive test cases\n\n- All child issues (DB/INF/BE/FE/MOB) completed\n- End-to-end workflow demonstrated across web and API\n- Regression suite passes for prior milestones\n\n## Negative test cases\n\n- Partial delivery merged without integration proof\n- Critical defects deferred without approval\n- Cross-module regressions in permit lifecycle\n\n## Acceptance criteria\n\n- Sprint objective met per Implementation Plan\n- Demo recorded or documented\n- Stakeholder sign-off captured\n\n## Definition of Done\n\n- All child issues Done\n- CI green on main\n- Release notes updated\n\n---\n\n## Existing notes\n\n## Sprint objective\n\nThe objective of this sprint is to provide a structured mechanism for recording operational incidents immediately after they occur.\n\n**Type:** Feature Sprint\n**Estimated duration:** 2 weeks\n**Functional requirements:** FR-INC-001 to FR-INC-004\n\n## Core scope\n\nIncidents can be reported; Near misses can be recorded; Unsafe conditions can be reported; Evidence can be uploaded; Incidents can be linked to permits and equipment; N… (truncated, use `get_issue` for full description)",
+    "priority": 1,
+    "labels": [
+      "Sprint",
+      "ptw-s08"
+    ]
+  },
+  {
+    "id": "PUS-186",
+    "description": "## Issue summary\n\nNestJS API implementation, validation, RBAC and audit logging for Incident Recording backend.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-06.01 (Execution order: 8)\n**Layer:** BE\n**Priority:** High (2)\n\n## Positive test cases\n\n- Endpoints return correct data for authorised tenant/user\n- RBAC enforced server-side on every protected route\n- Invalid workflow transitions rejected with clear errors\n- Audit events recorded for safety-critical actions\n- Integration tests pass against PostgreSQL\n\n## Negative test cases\n\n- Unauthenticated access to protected endpoints\n- Cross-tenant data leakage via missing scoping\n- Invalid state transition accepted\n- Business logic in controller instead of service\n\n## Acceptance criteria\n\n- API contract matches docs/api-reference.md\n- DTO validation with class-validator\n- Unit + integration tests added\n- Error responses follow standard envelope\n\n## Definition of Done\n\n- `npm run test -w api` passes\n- `npm run build -w api` passes\n- No bypass of Keycloak/RBAC\n- PR reviewed and merged\n\n---\n\n## Existing notes\n\nBackend implementation for **SP-06.01 — Incident Recording**.\n\n**Functional requirements:** FR-INC-001 to FR-INC-004\n\n## Modules\n\n* Incident Module\n* Evidence Module\n* Notification Module\n\n## Controllers\n\n* IncidentController\n* IncidentEvidenceController\n\n## Services\n\n* IncidentService\n* IncidentEvidenceService\n* IncidentNotificationService\n\n## DTOs\n\n* CreateIncidentDto\n* NearMissDto\n* UnsafeConditionDto\n* UploadIncidentEvidenceDto\n\n## API Endpo… (truncated, use `get_issue` for full description)",
+    "priority": 2,
+    "labels": [
+      "Backend",
+      "ptw-s08"
+    ]
+  },
+  {
+    "id": "PUS-187",
+    "description": "## Issue summary\n\nNext.js UI for Incident Recording frontend using design system tokens and accessible states.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-06.01 (Execution order: 8)\n**Layer:** FE\n**Priority:** Medium (3)\n\n## Positive test cases\n\n- UI renders loading, empty, success and error states\n- Works across themes, light/dark and responsive breakpoints\n- API errors surfaced without losing form data\n- Safety-critical actions require confirmation\n- Navigation and RBAC-gated routes behave correctly\n\n## Negative test cases\n\n- Hardcoded colours bypassing design tokens\n- Status communicated by colour alone\n- Client trusts frontend permissions without server enforcement\n- Broken layout on tablet/mobile\n\n## Acceptance criteria\n\n- Pages wired to API client\n- TypeScript lint/build passes\n- Matches approved UI patterns\n\n## Definition of Done\n\n- `npm run build -w web` passes\n- Manual smoke test documented\n- Accessible labels/icons for status\n\n---\n\n## Existing notes\n\nFrontend (Next.js) implementation for **SP-06.01 — Incident Recording**.\n\n**Functional requirements:** FR-INC-001 to FR-INC-004\n\n## Pages\n\n* Incident Reporting\n* Near Miss Reporting\n* Unsafe Condition Reporting\n* Incident Dashboard\n\n## Components\n\n* Incident Form\n* Evidence Upload\n* Incident Category Selector\n* Permit Selector\n* Equipment Selector\n* Incident Summary",
+    "priority": 3,
+    "labels": [
+      "Frontend",
+      "ptw-s08"
+    ]
+  },
+  {
+    "id": "PUS-188",
+    "description": "## Issue summary\n\nReact Native (Expo) mobile flows for Incident Recording mobile with offline-safe behaviour.\n\n**Project:** great-ptw-loto-ai-app\n**Sprint:** SP-06.01 (Execution order: 8)\n**Layer:** MOB\n**Priority:** Medium (3)\n\n## Positive test cases\n\n- Core workflow usable offline with queued sync\n- Auth tokens stored securely\n- Offline changes reconcile without data loss\n- UI reflects connectivity state clearly\n\n## Negative test cases\n\n- Authoritative data stored only in SQLite\n- Sync overwrites newer local changes silently\n- Crash on network loss mid-submit\n\n## Acceptance criteria\n\n- Mobile screens implemented for sprint scope\n- Offline queue + sync tested\n- TypeScript lint passes\n\n## Definition of Done\n\n- Expo app runs on iOS/Android simulator\n- Offline scenario manually verified\n- No secrets in mobile bundle\n\n---\n\n## Existing notes\n\nMobile (React Native) implementation for **SP-06.01 — Incident Recording**.\n\n**Functional requirements:** FR-INC-001 to FR-INC-004\n\n## Screens\n\n* Report Incident\n* Report Near Miss\n* Report Unsafe Condition\n\n## Capabilities\n\n* Offline reporting\n* Camera integration\n* GPS capture (optional)\n* Background synchronisation",
+    "priority": 3,
+    "labels": [
+      "Mobile",
+      "ptw-s08"
+    ]
+  }
+]
