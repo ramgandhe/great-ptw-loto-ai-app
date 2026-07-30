@@ -17,7 +17,7 @@ interface KeycloakJwtPayload {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     const keycloakUrl = configService.get<string>('keycloak.url')!;
     const realm = configService.get<string>('keycloak.realm')!;
 
@@ -36,6 +36,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   validate(payload: KeycloakJwtPayload): AuthenticatedUser {
+    const defaultTenantId = this.configService.get<string>('auth.defaultTenantId');
+
     return {
       id: payload.sub,
       username: payload.preferred_username ?? payload.sub,
@@ -43,7 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       firstName: payload.given_name,
       lastName: payload.family_name,
       roles: payload.realm_access?.roles ?? [],
-      tenantId: payload.tenant_id,
+      tenantId: payload.tenant_id ?? defaultTenantId,
     };
   }
 }

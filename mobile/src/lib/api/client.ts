@@ -3,6 +3,8 @@ import { getAccessToken } from "@/lib/auth/token-storage";
 import { apiConfig } from "./config";
 import { ApiError } from "./errors";
 
+export { ApiError } from "./errors";
+
 export interface FetchApiOptions extends RequestInit {
   token?: string;
   auth?: boolean;

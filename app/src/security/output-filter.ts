@@ -4,6 +4,6 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class OutputFilter {
   filter(answer: string): string {
-    return answer.replace(/\u0000/g, '').trim();
+    return [...answer].filter((char) => char.charCodeAt(0) !== 0).join('').trim();
   }
 }
