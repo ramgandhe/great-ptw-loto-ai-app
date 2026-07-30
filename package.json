@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "apps/*",
+    "app",
+    "frontend",
+    "mobile",
     "packages/*"
   ],
   "scripts": {
@@ -12,7 +14,10 @@
     "test": "npm run test --workspaces --if-present",
     "dev:api": "npm run start:dev -w api",
     "dev:web": "npm run dev -w web",
-    "dev:mobile": "npm run start -w mobile"
+    "dev:mobile": "npm run start -w mobile",
+    "db:migrate": "npm run db:migrate -w api",
+    "db:seed": "npm run db:seed -w api",
+    "healthcheck": "tsx scripts/healthcheck.ts"
   },
   "engines": {
     "node": ">=20"

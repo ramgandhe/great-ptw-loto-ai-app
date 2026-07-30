@@ -1,0 +1,16 @@
+{
+  "cases": [
+    {
+      "id": "lifecycle-basic",
+      "query": "What are the permit lifecycle states?",
+      "expectRoute": "permit",
+      "expectSourceId": "ptw-lifecycle"
+    },
+    {
+      "id": "loto-basic",
+      "query": "Explain LOTO isolation requirements",
+      "expectRoute": "loto",
+      "expectSourceId": "loto-isolation"
+    }
+  ]
+}

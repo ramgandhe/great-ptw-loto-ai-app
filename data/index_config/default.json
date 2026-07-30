@@ -1,0 +1,6 @@
+{
+  "provider": "none",
+  "embeddingModel": null,
+  "chunkSize": 512,
+  "overlap": 64
+}

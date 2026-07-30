@@ -1,55 +1,46 @@
 # PTW Platform
 
-Enterprise Permit-to-Work and safety management platform (MS-01 / SP-01.01).
+Enterprise Permit-to-Work and safety management platform with an AI assistant layer.
 
 ## Repository structure
 
 ```
-apps/
-  api/      NestJS backend
-  web/      Next.js web application
-  mobile/   React Native (Expo) mobile application
-packages/
-  shared/   Shared TypeScript types and constants
-infrastructure/
-  docker-compose.yml
-  keycloak/
-docs/
-  specs/
+app/                 NestJS backend (PTW + AI RAG)
+frontend/            Next.js web application
+mobile/              React Native (Expo) mobile application
+packages/shared/     Shared TypeScript types and constants
+tests/               Jest suites
+evaluation/          Golden dataset + offline/online eval
+observability/       Tracing, feedback, cost tracking (re-exports)
+data/                Raw → processed → index config
+scripts/             seed, migrate, healthcheck
+infrastructure/      Keycloak realm export
+docs/                Specs, architecture, API, deployment
+docker-compose.yml   Local infrastructure + app containers
 ```
 
 ## Prerequisites
 
 - Node.js 20+
-- Docker and Docker Compose (for local infrastructure)
+- Docker and Docker Compose
 
 ## Quick start
 
-1. Copy environment template:
+1. Start infrastructure:
 
 ```bash
-cp infrastructure/.env.example .env
+docker compose up -d postgres redis minio keycloak
 ```
 
-2. Start infrastructure services:
-
-```bash
-docker compose -f infrastructure/docker-compose.yml up -d
-```
-
-3. Install dependencies:
+2. Install and migrate:
 
 ```bash
 npm install
+npm run db:migrate
+npm run db:seed
 ```
 
-4. Run database migrations:
-
-```bash
-npm run db:migrate -w api
-```
-
-5. Start applications:
+3. Run apps:
 
 ```bash
 npm run dev:api
@@ -57,15 +48,24 @@ npm run dev:web
 npm run start -w mobile
 ```
 
-## API endpoints (SP-01.01)
+4. Healthcheck:
+
+```bash
+npm run healthcheck
+```
+
+## API endpoints (foundation + AI)
 
 | Endpoint | Method | Auth | Purpose |
 | --- | --- | --- | --- |
 | `/api/v1/health` | GET | Public | Service health |
+| `/api/v1/ai/health` | GET | Public | AI layer health |
+| `/api/v1/ai/query` | POST | Required | RAG assistant query |
 | `/api/v1/auth/profile` | GET | Required | Current user profile |
-| `/api/v1/auth/logout` | POST | Required | Logout acknowledgement |
 | `/api/v1/system/config` | GET | Public | Client configuration |
 | `/api/v1/system/version` | GET | Public | Version information |
+
+Web AI UI: `/ai`
 
 ## Default Keycloak credentials (development)
 
@@ -82,4 +82,4 @@ npm run test
 
 ## Sprint reference
 
-This foundation implements **MS-01 – Platform Foundation**, sprint **SP-01.01 – Platform Infrastructure** per `docs/specs/IMPLEMENTATION PLAN.md`.
+Foundation implements **MS-01 – Platform Foundation** per `docs/specs/IMPLEMENTATION PLAN.md`.
