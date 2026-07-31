@@ -16,6 +16,11 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
           port: configService.get<number>('redis.port'),
           maxRetriesPerRequest: null,
           lazyConnect: true,
+          // Fail cache/health commands fast when Redis is unreachable instead of
+          // queueing them indefinitely, so the API (and CI without Redis)
+          // degrades gracefully via CacheService's try/catch rather than hanging.
+          enableOfflineQueue: false,
+          commandTimeout: 2000,
         });
       },
     },
@@ -26,6 +31,11 @@ export class RedisModule implements OnModuleDestroy {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
   async onModuleDestroy(): Promise<void> {
-    await this.redis.quit();
+    try {
+      await this.redis.quit();
+    } catch {
+      // Redis may never have connected (e.g. unavailable); force-close quietly.
+      this.redis.disconnect();
+    }
   }
 }
