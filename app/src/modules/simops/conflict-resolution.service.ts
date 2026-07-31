@@ -15,6 +15,7 @@ import {
   conflictResolutions,
   mitigationPlans,
   permits,
+  permitSuspensions,
   simopsConflicts,
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
@@ -376,7 +377,7 @@ export class ConflictResolutionService {
       );
 
     for (const participant of participants) {
-      await this.db
+      const [updated] = await this.db
         .update(permits)
         .set({ status: 'suspended', updatedBy: userId, updatedAt: new Date() })
         .where(
@@ -385,7 +386,22 @@ export class ConflictResolutionService {
             eq(permits.tenantId, tenantId),
             inArray(permits.status, ['approved', 'active', 'pending_approval']),
           ),
-        );
+        )
+        .returning({ id: permits.id });
+
+      // Authoritative suspension row so MS-05 continue cannot silently clear SIMOPS holds.
+      // Uses source=manual until a dedicated simops_rejection source is added to the CHECK.
+      if (updated) {
+        await this.db.insert(permitSuspensions).values({
+          tenantId,
+          permitId: participant.permitId,
+          reason: `SIMOPS conflict rejected:${conflictId}`,
+          suspendedBy: userId,
+          source: 'manual',
+          createdBy: userId,
+          updatedBy: userId,
+        });
+      }
     }
   }
 
