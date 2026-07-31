@@ -127,6 +127,13 @@
       "when": 1753752000000,
       "tag": "0017_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1753755600000,
+      "tag": "0018_dashboards_analytics",
+      "breakpoints": true
     }
   ]
 }
