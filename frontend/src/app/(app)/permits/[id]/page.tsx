@@ -63,11 +63,16 @@ export default function PermitDetailPage() {
             </Link>
           ) : null}
           {["approved", "active", "suspended"].includes(detail.permit.status) ? (
-            <Link href={`/execution/${detail.permit.id}`}>
-              <Button>
-                {detail.permit.status === "approved" ? "Start execution" : "Open execution"}
-              </Button>
-            </Link>
+            <>
+              <Link href={`/execution/${detail.permit.id}`}>
+                <Button>
+                  {detail.permit.status === "approved" ? "Start execution" : "Open execution"}
+                </Button>
+              </Link>
+              <Link href={`/lototo/plans/new?permitId=${detail.permit.id}`}>
+                <Button variant="outline">Configure LOTOTO</Button>
+              </Link>
+            </>
           ) : null}
         </div>
       </div>

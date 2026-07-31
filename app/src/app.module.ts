@@ -21,6 +21,7 @@ import { PermitModule } from './modules/permit/permit.module';
 import { ApprovalModule } from './modules/approval/approval.module';
 import { ExecutionModule } from './modules/execution/execution.module';
 import { IsolationExecutionModule } from './modules/isolation-execution/isolation-execution.module';
+import { LototoModule } from './modules/lototo/lototo.module';
 import { RestorationModule } from './modules/restoration/restoration.module';
 import { ClosureModule } from './modules/closure/closure.module';
 import { LoggingModule } from './modules/logging/logging.module';
@@ -64,6 +65,7 @@ import { AiModule } from './modules/ai/ai.module';
     PermitModule,
     ApprovalModule,
     ExecutionModule,
+    LototoModule,
     IsolationExecutionModule,
     RestorationModule,
     AiModule,
