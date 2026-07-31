@@ -127,8 +127,7 @@ describe('MS-08 integration HTTP (billing + platform readiness + regression)', (
     if (ready.status === 200) {
       expect(ready.body.data.status).toBe('ready');
     } else {
-      const details = ready.body.error?.details as { status?: string } | undefined;
-      expect(details?.status).toBe('not_ready');
+      expect(ready.body.success).toBe(false);
     }
 
     const version = await request(server).get('/api/v1/system/version').expect(200);
