@@ -39,6 +39,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Validate compose configs
+        run: |
+          docker compose -f docker-compose.yml config >/dev/null
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+            --env-file .env.production.example config >/dev/null
+
       - name: Verify migrations and seed
         run: |
           npm run db:migrate -w api

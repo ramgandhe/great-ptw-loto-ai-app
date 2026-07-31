@@ -11,6 +11,49 @@ npm run dev:api
 npm run dev:web
 ```
 
+## Production deployment (SP-08.03)
+
+Use the production overlay — secrets come from `.env.production` (never committed):
+
+```bash
+cp .env.production.example .env.production
+# edit secrets, CORS_ORIGIN, KEYCLOAK_HOSTNAME, NEXT_PUBLIC_API_URL
+docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+  --env-file .env.production up -d --build
+DATABASE_URL=... npm run db:migrate
+curl -fsS http://127.0.0.1:4000/api/v1/health
+```
+
+### Go-live sequence
+
+1. Infrastructure verification (Postgres, Redis, MinIO, Keycloak, Loki, Metabase healthy).
+2. Verified backup (`backup_runs` / external snapshot) before migrate.
+3. Deploy API image; run migrations forward only.
+4. Deploy frontend; confirm `NEXT_PUBLIC_API_URL`.
+5. Smoke: auth, health, permit create/approve path, file upload, notifications.
+6. Enable production traffic; enter hypercare with raised Loki/alert attention.
+
+### Production compose controls
+
+`docker-compose.prod.yml` requires secret env vars (`POSTGRES_PASSWORD`,
+`REDIS_PASSWORD`, MinIO keys, Keycloak admin, `DATABASE_URL`, `CORS_ORIGIN`),
+binds published ports to `127.0.0.1`, sets `restart: unless-stopped`, forces
+`NODE_ENV=production` on API/frontend, enables `SECURITY_TRUST_PROXY`, and gates
+API on healthy Loki as well as Postgres/Redis/MinIO/Keycloak.
+
+### Loki / monitoring
+
+- Ship API structured logs (`loki: true`) to Grafana Loki.
+- Alert on sustained `/api/v1/health` unhealthy, migration failures, and backup
+  job failures recorded in `backup_runs`.
+- Retain logs per organisational policy (see `data_retention_policies`).
+
+### Go-live rollback
+
+Same as the SP-08.02 rollback path: redeploy previous images, restore Postgres
+from the pre-migrate backup if needed, migrate forward only, verify health
+before opening traffic.
+
 ## Full stack containers
 
 ```bash
