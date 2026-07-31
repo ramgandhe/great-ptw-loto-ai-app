@@ -1,14 +1,32 @@
 import { Module } from '@nestjs/common';
+import { LoggingModule } from '../logging/logging.module';
 import { BillingCacheService } from './billing-cache.service';
+import { BillingController } from './billing.controller';
 import { BillingJobsService } from './billing-jobs.service';
 import { BillingLogService } from './billing-log.service';
+import { BillingService, UsageTrackingService } from './billing.service';
+import { PlanChangeService } from './plan-change.service';
+import { SubscriptionController } from './subscription.controller';
+import { SubscriptionService } from './subscription.service';
 
-/**
- * SP-08.01 INF: Redis plan/subscription/usage cache, Loki billing logs, BullMQ cycle/usage/renewal jobs.
- * Controllers and business services land in BE-SP-08.01 (PUS-211).
- */
 @Module({
-  providers: [BillingCacheService, BillingLogService, BillingJobsService],
-  exports: [BillingCacheService, BillingLogService],
+  imports: [LoggingModule],
+  controllers: [SubscriptionController, BillingController],
+  providers: [
+    BillingCacheService,
+    BillingLogService,
+    BillingJobsService,
+    SubscriptionService,
+    PlanChangeService,
+    BillingService,
+    UsageTrackingService,
+  ],
+  exports: [
+    BillingCacheService,
+    BillingLogService,
+    SubscriptionService,
+    BillingService,
+    UsageTrackingService,
+  ],
 })
 export class BillingModule {}

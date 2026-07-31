@@ -94,3 +94,16 @@ PTW permit/approval/execution/closure/SIMOPS routes remain under their existing 
 | GET | `/analytics` | Required | Analytics view (`scope` = permits\|incidents\|lototo\|simops\|operational) |
 | GET | `/analytics/trends` | Required | Historical analytics snapshots (`scope`, `limit`) |
 
+## Billing & Subscription (MS-08 / SP-08.01)
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| GET | `/subscriptions/plans` | Required | List active subscription plans |
+| GET | `/subscriptions/current` | Required | Current tenant subscription + plan |
+| POST | `/subscriptions` | Required | Create tenant subscription (`planId`) — org-admin |
+| POST | `/subscriptions/change-plan` | Required | Change plan (`planId`, `reason?`) — org-admin |
+| GET | `/subscriptions/plan-changes` | Required | Plan change history for tenant |
+| GET | `/billing/invoices` | Required | Billing history (`status` optional) |
+| GET | `/billing/usage` | Required | Usage records for tenant |
+| POST | `/billing/usage` | Required | Upsert usage metric — org-admin |
+
