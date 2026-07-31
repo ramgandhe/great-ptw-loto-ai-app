@@ -166,6 +166,25 @@ The Dashboards & Analytics module depends on:
   (wired in BE-SP-07.02).
 - **Grafana Loki** — structured dashboard/ops metric logging (`loki: true`).
 
+## Billing & Subscription infrastructure (SP-08.01)
+
+The Billing & Subscription module depends on:
+
+- **Redis** — caches plan catalogue, tenant subscription and usage lookups
+  (`billing:plan:*`, `billing:subscription:*`, `billing:usage:*`), TTL via
+  `BILLING_CACHE_TTL_SECONDS`.
+- **BullMQ** (`platform-queue`) — repeatable jobs:
+  - `billing.cycle-invoice` (`BILLING_CYCLE_INVOICE_CRON`) flags renewing
+    `tenant_subscriptions` for invoice drafting.
+  - `billing.usage-aggregate` (`BILLING_USAGE_AGGREGATE_CRON`) emits usage
+    aggregation sweeps into `usage_records`.
+  - `billing.renewal-notify` (`BILLING_RENEWAL_NOTIFY_CRON`) flags upcoming
+    renewals within `BILLING_RENEWAL_HORIZON_DAYS` (FR-BIL-005).
+- **Keycloak** — org-admin / platform-admin role validation for billing routes
+  (wired in BE-SP-08.01).
+- **Grafana Loki** — structured billing event logging (`loki: true`).
+- **Metabase** — optional usage/revenue reporting via `METABASE_URL`.
+
 ## Health checks
 
 `docker compose up` gates the `api` service on `postgres`, `redis` and `minio`
