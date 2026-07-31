@@ -65,6 +65,20 @@ The Restoration & History module depends on:
   `org-admin`, `platform-admin`) enforced server-side on every restoration/removal route.
 - **Grafana Loki** — structured restoration event logging (`loki: true` marker).
 
+## Multi-Day Daily Progress infrastructure (SP-05.01)
+
+The Daily Progress module depends on:
+
+- **Redis** — caches active multi-day permit lists and per-permit progress
+  (`mdp:active:*`, `mdp:progress:*`), invalidated on progress/handover writes.
+- **BullMQ** (`platform-queue`) — repeatable `mdp.daily-reminder` job
+  (`MDP_DAILY_REMINDER_CRON`) that flags active permits for daily progress.
+- **MinIO** — daily evidence under `MDP_EVIDENCE_PREFIX` (default
+  `mdp/daily-progress`) inside `MINIO_BUCKET`; presigned URL expiry via
+  `MDP_EVIDENCE_URL_EXPIRY_SECONDS`.
+- **Keycloak** — role validation for daily progress / handover routes.
+- **Grafana Loki** — structured MDP event logging (`loki: true` marker).
+
 ## Health checks
 
 `docker compose up` gates the `api` service on `postgres`, `redis` and `minio`
