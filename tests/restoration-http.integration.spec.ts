@@ -1,6 +1,7 @@
 import { ExecutionContext, INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'crypto';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
@@ -94,13 +95,17 @@ describe('Restoration & History HTTP integration (PUS-161)', () => {
     const [permit] = await db.insert(schema.permits).values({ tenantId, status: 'approved', permitTypeId: randomUUID(), title: 'R', reference: `PTW-${randomUUID().slice(0, 8)}`, createdBy: officerId }).returning();
     const [ws] = await db.insert(schema.workstationCatalogue).values({ tenantId, code: `WS-${randomUUID().slice(0, 6)}`, name: 'Bay', createdBy: officerId }).returning();
     const [mc] = await db.insert(schema.machineryCatalogue).values({ tenantId, code: `MC-${randomUUID().slice(0, 6)}`, name: 'C', workstationId: ws.id, createdBy: officerId }).returning();
-    const [plan] = await db.insert(schema.lototoPlans).values({ tenantId, permitId: permit.id, machineryId: mc.id, title: 'P', status: 'in_execution', createdBy: officerId }).returning();
+    // Plan starts 'ready' so isolation points/sequences can be configured; the
+    // SP-03.01 trigger locks configuration once the plan is in execution, so we
+    // only advance the plan status after the configuration is seeded.
+    const [plan] = await db.insert(schema.lototoPlans).values({ tenantId, permitId: permit.id, machineryId: mc.id, title: 'P', status: 'ready', createdBy: officerId }).returning();
     const [p1] = await db.insert(schema.isolationPoints).values({ planId: plan.id, machineryId: mc.id, isolationNumber: 'ISO-1', createdBy: officerId }).returning();
     const [p2] = await db.insert(schema.isolationPoints).values({ planId: plan.id, machineryId: mc.id, isolationNumber: 'ISO-2', createdBy: officerId }).returning();
     await db.insert(schema.isolationSequences).values([
       { planId: plan.id, isolationPointId: p1.id, sequenceOrder: 1, requiresVerification: true, createdBy: officerId },
       { planId: plan.id, isolationPointId: p2.id, sequenceOrder: 2, requiresVerification: true, createdBy: officerId },
     ]);
+    await db.update(schema.lototoPlans).set({ status: 'in_execution' }).where(eq(schema.lototoPlans.id, plan.id));
     const [exec] = await db.insert(schema.isolationExecution).values({ tenantId, planId: plan.id, status, startedBy: officerId, createdBy: officerId }).returning();
     const [lock1] = await db.insert(schema.appliedLocks).values({ tenantId, executionId: exec.id, isolationPointId: p1.id, lockTag: 'LK-1', lockMethod: 'padlock', appliedBy: officerId, createdBy: officerId }).returning();
     await db.insert(schema.appliedLocks).values({ tenantId, executionId: exec.id, isolationPointId: p2.id, lockTag: 'LK-2', lockMethod: 'padlock', appliedBy: officerId, createdBy: officerId });

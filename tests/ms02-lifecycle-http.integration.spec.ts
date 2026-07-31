@@ -9,6 +9,7 @@ import { AppModule } from '../app/src/app.module';
 import { JwtAuthGuard } from '../app/src/common/guards/jwt-auth.guard';
 import { AuthenticatedUser } from '../app/src/common/interfaces/authenticated-user.interface';
 import { QueueService } from '../app/src/infrastructure/queue/queue.service';
+import { StorageService } from '../app/src/infrastructure/storage/storage.service';
 import * as schema from '../app/src/database/schema';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 
@@ -33,6 +34,20 @@ async function createTestApp(user: AuthenticatedUser): Promise<INestApplication>
       onModuleDestroy: jest.fn().mockResolvedValue(undefined),
       isHealthy: jest.fn().mockResolvedValue(true),
       registerHandler: jest.fn(),
+    })
+    // MinIO is an external dependency (not available in CI); mock it like the
+    // queue so the evidence-upload step of the lifecycle exercises the API
+    // without a live object store.
+    .overrideProvider(StorageService)
+    .useValue({
+      onModuleInit: jest.fn(),
+      getBucket: () => 'ptw-documents',
+      ensureBucket: jest.fn().mockResolvedValue(undefined),
+      putObject: jest.fn().mockResolvedValue(undefined),
+      deleteObject: jest.fn().mockResolvedValue(undefined),
+      presignedGetObject: jest.fn().mockResolvedValue('https://minio.test/object'),
+      presignedPutObject: jest.fn().mockResolvedValue('https://minio.test/upload'),
+      isHealthy: jest.fn().mockResolvedValue(true),
     })
     .compile();
 
