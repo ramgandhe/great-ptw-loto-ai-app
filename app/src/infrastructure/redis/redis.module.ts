@@ -11,9 +11,11 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
       provide: REDIS_CLIENT,
       inject: [ConfigService],
       useFactory: (configService: ConfigService): Redis => {
+        const password = configService.get<string>('redis.password');
         return new Redis({
           host: configService.get<string>('redis.host'),
           port: configService.get<number>('redis.port'),
+          ...(password ? { password } : {}),
           maxRetriesPerRequest: null,
           lazyConnect: true,
           // Fail cache/health commands fast when Redis is unreachable instead of

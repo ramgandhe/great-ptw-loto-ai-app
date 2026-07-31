@@ -16,6 +16,18 @@ export default () => ({
   redis: {
     host: process.env.REDIS_HOST ?? 'localhost',
     port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
+    password: process.env.REDIS_PASSWORD || undefined,
+  },
+  bullmq: {
+    workerConcurrency: parseInt(process.env.BULLMQ_WORKER_CONCURRENCY ?? '5', 10),
+  },
+  rateLimit: {
+    ttlMs: parseInt(process.env.RATE_LIMIT_TTL_MS ?? '60000', 10),
+    limit: parseInt(process.env.RATE_LIMIT_LIMIT ?? '100', 10),
+  },
+  security: {
+    helmetEnabled: process.env.SECURITY_HELMET_ENABLED !== 'false',
+    trustProxy: process.env.SECURITY_TRUST_PROXY === 'true',
   },
   minio: {
     endPoint: process.env.MINIO_ENDPOINT ?? 'localhost',

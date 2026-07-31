@@ -51,6 +51,29 @@ API pool knobs (defaults shown):
 After deploy, run `ANALYZE` on hot tables during a maintenance window if
 query plans lag behind new indexes.
 
+## Infrastructure hardening (SP-08.02)
+
+Hardening controls for platform dependencies:
+
+- **Redis** — optional `REDIS_PASSWORD` (compose enables `--requirepass` when set);
+  API/BullMQ clients pass the password when configured.
+- **BullMQ** — `BULLMQ_WORKER_CONCURRENCY` controls worker parallelism (default 5).
+- **API throttling** — `RATE_LIMIT_TTL_MS` / `RATE_LIMIT_LIMIT` feed Nest Throttler.
+- **Keycloak** — compose waits on Keycloak health before starting `api`; production
+  should shorten access-token TTL, enable HTTPS, and restrict admin console exposure.
+- **MinIO** — inject `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` from secrets; never
+  commit production credentials.
+- **Loki** — retain structured `loki: true` logs for security/ops investigation.
+
+### Rollback path
+
+1. Redeploy previous known-good images/tags for `api` / `frontend`.
+2. If a migration shipped with the release, do **not** drop tables; restore from
+   the latest Postgres backup and re-run `npm run db:migrate` only forward.
+3. Clear Redis cache keys if stale config was cached (`FLUSHDB` only on dedicated
+   PTW Redis instances).
+4. Verify `/api/v1/health` is green before routing traffic back.
+
 ## Isolation Execution infrastructure (SP-03.02)
 
 The Isolation Execution module depends on:
