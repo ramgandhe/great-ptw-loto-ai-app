@@ -18,7 +18,20 @@ function fullEnv(): NodeJS.ProcessEnv {
 
 describe('Environment validation at startup (PUS-160)', () => {
   it('passes when all required variables are present', () => {
-    expect(validateEnv({ ...fullEnv(), NODE_ENV: 'production' }, silentLogger)).toEqual([]);
+    expect(
+      validateEnv(
+        {
+          ...fullEnv(),
+          NODE_ENV: 'production',
+          REDIS_PASSWORD: 'prod-redis-secret',
+          CORS_ORIGIN: 'https://ptw.example.com',
+          DATABASE_URL: 'postgresql://ptw:prod_secret@postgres:5432/ptw_platform',
+          MINIO_ACCESS_KEY: 'prod-minio-user',
+          MINIO_SECRET_KEY: 'prod-minio-secret',
+        },
+        silentLogger,
+      ),
+    ).toEqual([]);
   });
 
   it('aborts a production boot when a required variable is missing', () => {

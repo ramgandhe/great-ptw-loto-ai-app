@@ -1,4 +1,9 @@
-import { Controller, Get } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { Public } from '../../common/decorators/auth.decorators';
 import { HealthService } from './system.service';
 import { SystemService } from './system.service';
@@ -11,6 +16,24 @@ export class HealthController {
   @Get()
   check() {
     return this.healthService.check();
+  }
+
+  /** Kubernetes/compose liveness probe — process up only. */
+  @Public()
+  @Get('live')
+  live() {
+    return this.healthService.live();
+  }
+
+  /** Kubernetes/compose readiness probe — critical deps must be up. */
+  @Public()
+  @Get('ready')
+  async ready() {
+    const result = await this.healthService.ready();
+    if (result.status !== 'ready') {
+      throw new HttpException(result, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+    return result;
   }
 }
 
