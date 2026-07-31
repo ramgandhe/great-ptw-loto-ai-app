@@ -1,9 +1,11 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ModuleRef } from '@nestjs/core';
 import { inArray } from 'drizzle-orm';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { permits } from '../../database/schema';
 import { QueueService } from '../../infrastructure/queue/queue.service';
+import { ConflictDetectionService } from './conflict-detection.service';
 import {
   SIMOPS_ACTIVE_PERMIT_STATUSES,
   SIMOPS_CONFLICT_DETECTION_JOB,
@@ -35,6 +37,7 @@ export class SimopsJobsService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly simopsLogService: SimopsLogService,
     private readonly simopsCacheService: SimopsCacheService,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -96,6 +99,8 @@ export class SimopsJobsService implements OnModuleInit {
       byTenant.set(row.tenantId, list);
     }
 
+    const detection = this.moduleRef.get(ConflictDetectionService, { strict: false });
+
     for (const [tenantId, tenantPermits] of byTenant) {
       await this.simopsCacheService.setActivePermits(tenantId, tenantPermits);
       this.simopsLogService.logEvent({
@@ -103,6 +108,7 @@ export class SimopsJobsService implements OnModuleInit {
         tenantId,
         metadata: { permitCount: tenantPermits.length },
       });
+      await detection.analyseForTenant(tenantId);
     }
 
     if (rows.length > 0) {

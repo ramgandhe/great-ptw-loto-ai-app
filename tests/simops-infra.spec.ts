@@ -128,17 +128,21 @@ describe('SIMOPS infra services (PUS-170)', () => {
     };
     const logService = { logEvent: jest.fn() };
     const cacheService = { setActivePermits: jest.fn().mockResolvedValue(undefined) };
+    const detection = { analyseForTenant: jest.fn().mockResolvedValue({ created: 0, skipped: 0 }) };
+    const moduleRef = { get: jest.fn().mockReturnValue(detection) };
     const jobs = new SimopsJobsService(
       db as never,
       {} as never,
       { get: () => '*/5 * * * *' } as never,
       logService as never,
       cacheService as never,
+      moduleRef as never,
     );
 
     await jobs.runConflictDetectionSweep();
 
     expect(cacheService.setActivePermits).toHaveBeenCalledWith('t1', rows);
+    expect(detection.analyseForTenant).toHaveBeenCalledWith('t1');
     expect(logService.logEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'simops.conflict-detection.sweep',
