@@ -104,6 +104,18 @@ The Incident Recording module depends on:
 - **Keycloak** — role validation for incident reporting routes.
 - **Grafana Loki** — structured incident event logging (`loki: true` marker).
 
+## Investigation infrastructure (SP-06.02)
+
+The Investigation module depends on:
+
+- **Redis** — caches investigation detail views (`investigation:detail:*`),
+  invalidated on assignment / RCA / action writes.
+- **BullMQ** — repeatable `investigation.overdue-actions` job
+  (`INVESTIGATION_OVERDUE_ACTION_CRON`) that flags overdue corrective actions.
+- **MinIO** — investigation evidence continues under incident evidence prefix.
+- **Keycloak** — role validation for investigation / action routes.
+- **Grafana Loki** — structured investigation event logging (`loki: true` marker).
+
 ## Health checks
 
 `docker compose up` gates the `api` service on `postgres`, `redis` and `minio`
