@@ -11,7 +11,11 @@ import {
   submitIncident,
   uploadIncidentEvidence,
 } from "@/lib/incidents/api";
-import type { IncidentDetail, InvestigationDetail } from "@/lib/incidents/types";
+import type {
+  ClosureHistoryEntry,
+  IncidentDetail,
+  InvestigationDetail,
+} from "@/lib/incidents/types";
 import { IncidentClosureWorkflow } from "@/components/incidents/incident-closure-workflow";
 import { IncidentStatusBadge } from "@/components/incidents/incident-status-badge";
 import { InvestigationWorkflow } from "@/components/incidents/investigation-workflow";
@@ -21,7 +25,8 @@ export default function IncidentDetailPage() {
   const params = useParams<{ id: string }>();
   const [detail, setDetail] = useState<IncidentDetail | null>(null);
   const [investigation, setInvestigation] = useState<InvestigationDetail | null>(null);
-  const [history, setHistory] = useState<Array<{ id: string; action: string; createdAt: string }>>([]);
+  const [history, setHistory] = useState<ClosureHistoryEntry[]>([]);
+  const [hasVerification, setHasVerification] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -29,8 +34,9 @@ export default function IncidentDetailPage() {
     const incidentDetail = await getIncident(params.id);
     setDetail(incidentDetail);
 
-    const historyRows = await getIncidentHistory(params.id).catch(() => []);
-    setHistory(historyRows);
+    const historyPayload = await getIncidentHistory(params.id).catch(() => null);
+    setHistory(historyPayload?.history ?? []);
+    setHasVerification(Boolean(historyPayload?.verification));
 
     if (incidentDetail.incident.status !== "draft" && incidentDetail.incident.status !== "open") {
       const investigationDetail = await getInvestigation(params.id).catch(() => null);
@@ -121,11 +127,19 @@ export default function IncidentDetailPage() {
         )}
       </section>
 
-      {incident.status !== "draft" && incident.status !== "open" ? (
+      {incident.status !== "draft" &&
+      incident.status !== "open" &&
+      incident.status !== "verified" &&
+      incident.status !== "closed" ? (
         <InvestigationWorkflow incidentId={incident.id} detail={investigation} onUpdated={load} />
       ) : null}
 
-      <IncidentClosureWorkflow incidentId={incident.id} status={incident.status} onUpdated={load} />
+      <IncidentClosureWorkflow
+        incidentId={incident.id}
+        status={incident.status}
+        hasVerification={hasVerification}
+        onUpdated={load}
+      />
 
       {history.length > 0 ? (
         <section className="rounded-lg border border-border p-4">
@@ -133,7 +147,7 @@ export default function IncidentDetailPage() {
           <ul className="space-y-2 text-sm">
             {history.map((entry) => (
               <li key={entry.id}>
-                {entry.action.replace(/_/g, " ")} · {new Date(entry.createdAt).toLocaleString()}
+                {entry.eventType.replace(/_/g, " ")} · {new Date(entry.createdAt).toLocaleString()}
               </li>
             ))}
           </ul>

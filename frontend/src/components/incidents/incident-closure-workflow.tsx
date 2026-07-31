@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { closeIncident, verifyIncident } from "@/lib/incidents/api";
 import type { IncidentStatus } from "@/lib/incidents/types";
@@ -9,17 +9,31 @@ import { Button } from "@/components/ui/button";
 type IncidentClosureWorkflowProps = {
   incidentId: string;
   status: IncidentStatus;
-  onUpdated: () => void;
+  hasVerification?: boolean;
+  onUpdated: () => void | Promise<void>;
 };
 
 export function IncidentClosureWorkflow({
   incidentId,
   status,
+  hasVerification = false,
   onUpdated,
 }: IncidentClosureWorkflowProps) {
   const [comments, setComments] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verifiedLocally, setVerifiedLocally] = useState(false);
+
+  useEffect(() => {
+    setVerifiedLocally(false);
+  }, [incidentId, status, hasVerification]);
+
+  const isVerified =
+    status === "verified" || hasVerification || verifiedLocally;
+  const canVerify =
+    !isVerified &&
+    (status === "investigating" || status === "pending_verification");
+  const canClose = isVerified && status !== "closed";
 
   if (status === "closed") {
     return (
@@ -35,7 +49,7 @@ export function IncidentClosureWorkflow({
     setError(null);
     try {
       await action();
-      onUpdated();
+      await onUpdated();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Action failed");
     } finally {
@@ -46,39 +60,58 @@ export function IncidentClosureWorkflow({
   return (
     <section className="space-y-3 rounded-lg border border-border p-4">
       <h2 className="text-lg font-medium">Verification & closure</h2>
+
+      {isVerified ? (
+        <p className="text-sm text-muted-foreground">
+          Investigation verified. Close the incident to archive the record.
+        </p>
+      ) : canVerify ? (
+        <p className="text-sm text-muted-foreground">
+          Confirm corrective and preventive actions are complete, then verify before closing.
+        </p>
+      ) : null}
+
       {error ? (
-        <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
           {error}
         </div>
       ) : null}
+
       <textarea
         className="min-h-20 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
         value={comments}
         onChange={(e) => setComments(e.target.value)}
         placeholder="Comments"
       />
-      {status === "investigating" || status === "pending_verification" ? (
+
+      {canVerify ? (
         <Button
           disabled={isSubmitting}
           onClick={() =>
-            runAction(() =>
-              verifyIncident(incidentId, {
+            runAction(async () => {
+              await verifyIncident(incidentId, {
                 correctiveActionsConfirmed: true,
                 preventiveActionsReviewed: true,
                 comments: comments.trim() || undefined,
-              }),
-            )
+              });
+              setVerifiedLocally(true);
+            })
           }
         >
           Verify incident
         </Button>
       ) : null}
-      {status === "verified" || status === "pending_verification" ? (
+
+      {canClose ? (
         <Button
-          variant="outline"
           disabled={isSubmitting}
           onClick={() =>
-            runAction(() => closeIncident(incidentId, { comments: comments.trim() || undefined }))
+            runAction(() =>
+              closeIncident(incidentId, { comments: comments.trim() || undefined }),
+            )
           }
         >
           Close incident

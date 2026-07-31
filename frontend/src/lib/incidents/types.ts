@@ -99,9 +99,15 @@ export type InvestigationDetail = {
 
 export type ClosureHistoryEntry = {
   id: string;
-  action: string;
-  actorUserId: string | null;
+  eventType: string;
+  actorId: string | null;
   createdAt: string;
+};
+
+export type IncidentHistoryResponse = {
+  history: ClosureHistoryEntry[];
+  verification: { id: string; incidentId: string } | null;
+  closure: { id: string; incidentId: string } | null;
 };
 
 export type ArchivedIncident = {
