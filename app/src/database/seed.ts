@@ -35,7 +35,71 @@ export const DEMO_IDS = {
   machineryPump: '00000000-0000-4000-8000-000000000112',
   employeeSupervisor: '00000000-0000-4000-8000-000000000113',
   employeeIssuer: '00000000-0000-4000-8000-000000000114',
+  permitTypeConfinedSpace: '00000000-0000-4000-8000-000000000120',
+  permitTypeWorkingAtHeight: '00000000-0000-4000-8000-000000000121',
+  permitTypeElectrical: '00000000-0000-4000-8000-000000000122',
+  permitTypeExcavation: '00000000-0000-4000-8000-000000000123',
+  permitTypeLifting: '00000000-0000-4000-8000-000000000124',
+  permitTypeBreakingContainment: '00000000-0000-4000-8000-000000000125',
+  permitTypeGeneralWork: '00000000-0000-4000-8000-000000000126',
 } as const;
+
+const DEMO_PERMIT_TYPES = [
+  {
+    id: DEMO_IDS.permitTypeHotWork,
+    code: 'HOT-WORK',
+    name: 'Hot Work',
+    description: 'Welding, grinding, and other ignition-source work',
+  },
+  {
+    id: DEMO_IDS.permitTypeColdWork,
+    code: 'COLD-WORK',
+    name: 'Cold Work',
+    description: 'General maintenance without ignition sources',
+  },
+  {
+    id: DEMO_IDS.permitTypeConfinedSpace,
+    code: 'CONFINED-SPACE',
+    name: 'Confined Space',
+    description: 'Entry into tanks, vessels, pits, and other confined spaces',
+  },
+  {
+    id: DEMO_IDS.permitTypeWorkingAtHeight,
+    code: 'WORKING-AT-HEIGHT',
+    name: 'Working at Height',
+    description: 'Work above ground level requiring fall protection',
+  },
+  {
+    id: DEMO_IDS.permitTypeElectrical,
+    code: 'ELECTRICAL',
+    name: 'Electrical',
+    description: 'Electrical installation, maintenance, and isolation work',
+  },
+  {
+    id: DEMO_IDS.permitTypeExcavation,
+    code: 'EXCAVATION',
+    name: 'Excavation',
+    description: 'Digging, trenching, and ground disturbance',
+  },
+  {
+    id: DEMO_IDS.permitTypeLifting,
+    code: 'LIFTING',
+    name: 'Lifting Operations',
+    description: 'Crane, hoist, and critical lift activities',
+  },
+  {
+    id: DEMO_IDS.permitTypeBreakingContainment,
+    code: 'BREAKING-CONTAINMENT',
+    name: 'Breaking Containment',
+    description: 'Opening process lines, vessels, or equipment under residual hazard',
+  },
+  {
+    id: DEMO_IDS.permitTypeGeneralWork,
+    code: 'GENERAL-WORK',
+    name: 'General Work',
+    description: 'Routine non-hazardous work requiring permit control',
+  },
+] as const;
 
 async function seed(): Promise<void> {
   const connectionString =
@@ -70,26 +134,17 @@ async function seed(): Promise<void> {
   console.log('Seeding demo master data...');
   await db
     .insert(permitTypes)
-    .values([
-      {
-        id: DEMO_IDS.permitTypeHotWork,
+    .values(
+      DEMO_PERMIT_TYPES.map((permitType) => ({
+        id: permitType.id,
         tenantId: DEMO_TENANT_ID,
-        code: 'HOT-WORK',
-        name: 'Hot Work',
-        description: 'Welding, grinding, and other ignition-source work',
+        code: permitType.code,
+        name: permitType.name,
+        description: permitType.description,
         createdBy: SEED_ACTOR_ID,
         updatedBy: SEED_ACTOR_ID,
-      },
-      {
-        id: DEMO_IDS.permitTypeColdWork,
-        tenantId: DEMO_TENANT_ID,
-        code: 'COLD-WORK',
-        name: 'Cold Work',
-        description: 'General maintenance without ignition sources',
-        createdBy: SEED_ACTOR_ID,
-        updatedBy: SEED_ACTOR_ID,
-      },
-    ])
+      })),
+    )
     .onConflictDoNothing();
 
   await db

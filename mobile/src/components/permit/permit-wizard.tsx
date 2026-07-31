@@ -79,7 +79,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
       .then((options) => {
         setFormOptions(options);
         setForm((current) => {
-          if (current.executors.some((executor) => executor.workforceUserId.trim())) {
+          if (current.executors.some((executor) => (executor.workforceUserId ?? "").trim())) {
             return current;
           }
           return {
@@ -506,7 +506,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
             Hazards: {form.hazards.filter((h) => h.hazardCategoryId.trim()).length}
           </Text>
           <Text style={styles.summaryLine}>
-            Executors: {form.executors.filter((e) => e.workforceUserId.trim()).length}
+            Executors: {form.executors.filter((e) => (e.workforceUserId ?? "").trim()).length}
           </Text>
           <Text style={styles.sectionTitle}>Attachments</Text>
           {attachments.length === 0 ? (

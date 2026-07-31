@@ -65,7 +65,7 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
     executors:
       executors.length > 0
         ? executors.map((e) => ({
-            workforceUserId: e.workforceUserId,
+            workforceUserId: e.workforceUserId ?? "",
             isPrimary: e.isPrimary ?? false,
           }))
         : [{ workforceUserId: "", isPrimary: true }],
@@ -92,7 +92,7 @@ export function formToSavePayload(form: PermitFormState) {
     currentStep: form.currentStep,
     hazards: form.hazards.filter((h) => h.hazardCategoryId.trim()),
     ppe: form.ppe.filter((p) => p.ppeCatalogueId.trim()),
-    executors: form.executors.filter((e) => e.workforceUserId.trim()),
+    executors: form.executors.filter((e) => (e.workforceUserId ?? "").trim()),
   };
 }
 
@@ -123,7 +123,7 @@ export function validateStep(form: PermitFormState, step: number): string[] {
   }
 
   if (step === 3) {
-    if (!form.executors.some((e) => e.workforceUserId.trim())) {
+    if (!form.executors.some((e) => (e.workforceUserId ?? "").trim())) {
       errors.push("At least one executor is required");
     }
   }

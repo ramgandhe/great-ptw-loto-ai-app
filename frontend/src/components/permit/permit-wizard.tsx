@@ -109,8 +109,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         setExecutorOptions(Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name)));
 
         setForm((current) => {
-          if (current.executors.some((executor) => executor.workforceUserId.trim())) {
-            return current;
+          const executors = (current.executors ?? []).map((executor) => ({
+            workforceUserId: executor?.workforceUserId ?? "",
+            isPrimary: executor?.isPrimary ?? false,
+          }));
+          if (executors.some((executor) => executor.workforceUserId.trim())) {
+            return { ...current, executors };
           }
           return {
             ...current,
@@ -560,7 +564,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 <select
                   id={`executor-${index}`}
                   className={fieldClassName}
-                  value={executor.workforceUserId}
+                  value={executor.workforceUserId ?? ""}
                   disabled={isReadOnly || masterDataLoading}
                   onChange={(event) => {
                     const executors = [...form.executors];
