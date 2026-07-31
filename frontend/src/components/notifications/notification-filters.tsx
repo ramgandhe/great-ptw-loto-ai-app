@@ -27,13 +27,13 @@ const PRIORITY_OPTIONS: { value: NotificationFiltersState["priority"]; label: st
   { value: "all", label: "Any priority" },
   { value: "critical", label: "Critical" },
   { value: "high", label: "High" },
-  { value: "normal", label: "Normal" },
+  { value: "medium", label: "Medium" },
   { value: "low", label: "Low" },
 ];
 
 const CATEGORY_OPTIONS: { value: NotificationFiltersState["category"]; label: string }[] = [
   { value: "all", label: "All types" },
-  { value: "task", label: "Tasks" },
+  { value: "workflow", label: "Workflow" },
   { value: "reminder", label: "Reminders" },
   { value: "escalation", label: "Escalations" },
   { value: "system", label: "System" },

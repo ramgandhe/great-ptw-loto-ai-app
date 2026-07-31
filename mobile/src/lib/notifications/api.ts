@@ -1,35 +1,31 @@
 import { offlineFetch } from "@/lib/offline/client";
 import { fetchApi } from "@/lib/api";
-import type { Notification, NotificationListParams } from "./types";
+import { normalizeNotification } from "./normalize";
+import type { Notification, NotificationApiResponse, NotificationListParams } from "./types";
 
 function buildQuery(params?: NotificationListParams): string {
-  if (!params) {
+  if (!params?.unreadOnly) {
     return "";
   }
 
-  const search = new URLSearchParams();
-  if (params.unreadOnly) {
-    search.set("unreadOnly", "true");
-  }
-  if (params.priority) {
-    search.set("priority", params.priority);
-  }
-  if (params.category) {
-    search.set("category", params.category);
-  }
-
-  const query = search.toString();
-  return query ? `?${query}` : "";
+  return "?unreadOnly=true";
 }
 
-export function listNotifications(params?: NotificationListParams) {
-  return offlineFetch<Notification[]>(`/notifications${buildQuery(params)}`);
+export async function listNotifications(params?: NotificationListParams): Promise<Notification[]> {
+  const rows = await offlineFetch<NotificationApiResponse[]>(
+    `/notifications${buildQuery(params)}`,
+  );
+  return rows.map(normalizeNotification);
 }
 
-export function getNotification(id: string) {
-  return offlineFetch<Notification>(`/notifications/${id}`);
+export async function getNotification(id: string): Promise<Notification> {
+  const row = await offlineFetch<NotificationApiResponse>(`/notifications/${id}`);
+  return normalizeNotification(row);
 }
 
-export function markNotificationRead(id: string) {
-  return fetchApi<Notification>(`/notifications/${id}/read`, { method: "PATCH" });
+export async function markNotificationRead(id: string): Promise<Notification> {
+  const row = await fetchApi<NotificationApiResponse>(`/notifications/${id}/read`, {
+    method: "PATCH",
+  });
+  return normalizeNotification(row);
 }

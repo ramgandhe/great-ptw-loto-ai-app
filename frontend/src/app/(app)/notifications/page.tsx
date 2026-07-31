@@ -21,10 +21,33 @@ function parseReadFilter(value: string | null): ReadFilter {
 }
 
 function parseCategory(value: string | null): NotificationFiltersState["category"] {
-  if (value === "task" || value === "reminder" || value === "escalation" || value === "system") {
+  if (
+    value === "workflow" ||
+    value === "reminder" ||
+    value === "escalation" ||
+    value === "system"
+  ) {
     return value;
   }
   return "all";
+}
+
+function applyFilters(items: Notification[], filters: NotificationFiltersState): Notification[] {
+  return items.filter((item) => {
+    if (filters.readFilter === "read" && item.readAt === null) {
+      return false;
+    }
+    if (filters.readFilter === "unread" && item.readAt !== null) {
+      return false;
+    }
+    if (filters.priority !== "all" && item.priority !== filters.priority) {
+      return false;
+    }
+    if (filters.category !== "all" && item.category !== filters.category) {
+      return false;
+    }
+    return true;
+  });
 }
 
 export default function NotificationsPage() {
@@ -45,8 +68,6 @@ export default function NotificationsPage() {
 
     listNotifications({
       unreadOnly: filters.readFilter === "unread" ? true : undefined,
-      priority: filters.priority === "all" ? undefined : filters.priority,
-      category: filters.category === "all" ? undefined : filters.category,
     })
       .then(setNotifications)
       .catch((err) => {
@@ -54,18 +75,16 @@ export default function NotificationsPage() {
         setError(err instanceof ApiError ? err.message : "Failed to load notifications");
       })
       .finally(() => setIsLoading(false));
-  }, [filters]);
+  }, [filters.readFilter]);
 
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
 
-  const filteredNotifications = useMemo(() => {
-    if (filters.readFilter === "read") {
-      return notifications.filter((item) => item.readAt !== null);
-    }
-    return notifications;
-  }, [filters.readFilter, notifications]);
+  const filteredNotifications = useMemo(
+    () => applyFilters(notifications, filters),
+    [notifications, filters],
+  );
 
   const reminders = useMemo(
     () =>

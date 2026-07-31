@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 const LABELS: Record<NotificationPriority, string> = {
   low: "Low",
-  normal: "Normal",
+  medium: "Medium",
   high: "High",
   critical: "Critical",
 };

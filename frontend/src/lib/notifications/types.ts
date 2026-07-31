@@ -1,8 +1,30 @@
-export type NotificationPriority = "low" | "normal" | "high" | "critical";
+export type NotificationPriority = "low" | "medium" | "high" | "critical";
 
-export type NotificationCategory = "task" | "reminder" | "escalation" | "system";
+export type NotificationCategory = "workflow" | "reminder" | "escalation" | "system";
 
-export type NotificationDeliveryStatus = "pending" | "delivered" | "failed";
+export type NotificationDeliveryStatus = "pending" | "delivered" | "failed" | "suppressed";
+
+export interface NotificationRecipient {
+  id: string;
+  channel: string;
+  deliveryStatus: NotificationDeliveryStatus;
+  readAt: string | null;
+  deliveredAt: string | null;
+}
+
+export interface NotificationApiResponse {
+  id: string;
+  title: string;
+  body: string;
+  priority: NotificationPriority;
+  category: NotificationCategory;
+  eventType: string;
+  entityType: string | null;
+  entityId: string | null;
+  sourceModule: string | null;
+  createdAt: string;
+  recipient: NotificationRecipient;
+}
 
 export interface Notification {
   id: string;
@@ -10,17 +32,16 @@ export interface Notification {
   body: string;
   priority: NotificationPriority;
   category: NotificationCategory;
-  eventType?: string | null;
-  entityType?: string | null;
-  entityId?: string | null;
+  eventType: string;
+  entityType: string | null;
+  entityId: string | null;
+  sourceModule: string | null;
   readAt: string | null;
-  deliveryStatus?: NotificationDeliveryStatus;
+  deliveryStatus: NotificationDeliveryStatus;
   createdAt: string;
-  deliveredAt?: string | null;
+  deliveredAt: string | null;
 }
 
 export interface NotificationListParams {
   unreadOnly?: boolean;
-  priority?: NotificationPriority;
-  category?: NotificationCategory;
 }

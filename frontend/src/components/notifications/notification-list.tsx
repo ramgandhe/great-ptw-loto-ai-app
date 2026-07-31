@@ -12,7 +12,7 @@ interface NotificationListProps {
 }
 
 const CATEGORY_LABELS: Record<Notification["category"], string> = {
-  task: "Task",
+  workflow: "Workflow",
   reminder: "Reminder",
   escalation: "Escalation",
   system: "System",
