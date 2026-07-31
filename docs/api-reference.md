@@ -74,3 +74,12 @@ PTW permit/approval/execution/closure/SIMOPS routes remain under their existing 
 | GET | `/incidents/archive/{id}` | Required | View archived incident snapshot |
 | GET | `/incidents/{id}/history` | Required | Full investigation/closure history |
 
+## Notifications (MS-07 / SP-07.01)
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| GET | `/notifications` | Required | List current user's notifications (`unreadOnly` query optional) |
+| GET | `/notifications/{id}` | Required | View notification (recipient-scoped) |
+| PATCH | `/notifications/{id}/read` | Required | Mark notification as read |
+| POST | `/notifications/test` | Required | Test delivery (org-admin / platform-admin) |
+
