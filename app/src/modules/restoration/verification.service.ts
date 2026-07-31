@@ -11,6 +11,8 @@ import {
 import { IsolationExecutionService } from '../isolation-execution/isolation-execution.service';
 import { RestorationVerificationDto } from './dto/restoration-verification.dto';
 import { HistoryService } from './history.service';
+import { RestorationCacheService } from './restoration-cache.service';
+import { RestorationLogService } from './restoration-log.service';
 import { RESTORATION_PASS } from './restoration.constants';
 
 @Injectable()
@@ -20,6 +22,8 @@ export class VerificationService {
     private readonly executionService: IsolationExecutionService,
     private readonly historyService: HistoryService,
     private readonly auditService: AuditService,
+    private readonly cacheService: RestorationCacheService,
+    private readonly logService: RestorationLogService,
   ) {}
 
   async record(executionId: string, dto: RestorationVerificationDto, user: AuthenticatedUser) {
@@ -83,6 +87,15 @@ export class VerificationService {
       tenantId: execution.tenantId,
       metadata: { executionId, isolationPointId: dto.isolationPointId, result: dto.result },
     });
+    this.logService.logEvent({
+      action: 'restoration.verified',
+      executionId,
+      planId: execution.planId,
+      tenantId: execution.tenantId,
+      userId: user.id,
+      metadata: { isolationPointId: dto.isolationPointId, result: dto.result },
+    });
+    await this.cacheService.invalidate(execution.tenantId, executionId, execution.planId);
 
     return verification;
   }

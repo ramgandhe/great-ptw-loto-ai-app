@@ -77,4 +77,12 @@ export default () => ({
       10,
     ),
   },
+  restoration: {
+    cacheTtlSeconds: parseInt(process.env.RESTORATION_CACHE_TTL_SECONDS ?? '300', 10),
+    notificationCron: process.env.RESTORATION_NOTIFICATION_CRON ?? '0 */6 * * *',
+    evidenceUrlExpirySeconds: parseInt(
+      process.env.RESTORATION_EVIDENCE_URL_EXPIRY_SECONDS ?? '3600',
+      10,
+    ),
+  },
 });

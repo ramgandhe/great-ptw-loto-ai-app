@@ -2,6 +2,8 @@ import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/commo
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
+import { EvidenceDownloadUrlDto } from './dto/evidence-download-url.dto';
+import { EvidenceUploadUrlDto } from './dto/evidence-upload-url.dto';
 import { RemoveLockDto } from './dto/remove-lock.dto';
 import { RemoveTagDto } from './dto/remove-tag.dto';
 import { RestoreEquipmentDto } from './dto/restore-equipment.dto';
@@ -71,5 +73,25 @@ export class RestorationController {
   @Post('complete')
   complete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.restorationService.completeRestoration(id, user);
+  }
+
+  @Roles(...RESTORATION_ACTION_ROLES)
+  @Post('evidence/upload-url')
+  evidenceUploadUrl(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: EvidenceUploadUrlDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.restorationService.evidenceUploadUrl(id, dto, user);
+  }
+
+  @Roles(...RESTORATION_READ_ROLES)
+  @Post('evidence/download-url')
+  evidenceDownloadUrl(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: EvidenceDownloadUrlDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.restorationService.evidenceDownloadUrl(id, dto.storageKey, user);
   }
 }

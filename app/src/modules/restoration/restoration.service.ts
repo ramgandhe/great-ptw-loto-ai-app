@@ -1,6 +1,9 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
 import { and, asc, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
+import { StorageService } from '../../infrastructure/storage/storage.service';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   appliedLocks,
@@ -18,7 +21,10 @@ import {
 } from '../isolation-execution/isolation-execution.constants';
 import { IsolationExecutionService } from '../isolation-execution/isolation-execution.service';
 import { ArchiveService } from './archive.service';
+import { EvidenceUploadUrlDto } from './dto/evidence-upload-url.dto';
 import { HistoryService } from './history.service';
+import { RestorationCacheService } from './restoration-cache.service';
+import { RestorationLogService } from './restoration-log.service';
 import {
   LOCK_REMOVED,
   RESTORATION_STATUS_RESTORED,
@@ -32,6 +38,10 @@ export class RestorationService {
     private readonly historyService: HistoryService,
     private readonly archiveService: ArchiveService,
     private readonly auditService: AuditService,
+    private readonly cacheService: RestorationCacheService,
+    private readonly logService: RestorationLogService,
+    private readonly storageService: StorageService,
+    private readonly configService: ConfigService,
   ) {}
 
   async removeLock(executionId: string, appliedLockId: string, reason: string | undefined, user: AuthenticatedUser) {
@@ -82,7 +92,7 @@ export class RestorationService {
       return created;
     });
 
-    await this.audit('isolation.lock.removed', appliedLockId, execution.tenantId, user, { executionId });
+    await this.afterMutation('lock.removed', execution, user, { appliedLockId });
     return removal;
   }
 
@@ -134,7 +144,7 @@ export class RestorationService {
       return created;
     });
 
-    await this.audit('isolation.tag.removed', appliedTagId, execution.tenantId, user, { executionId });
+    await this.afterMutation('tag.removed', execution, user, { appliedTagId });
     return removal;
   }
 
@@ -192,8 +202,8 @@ export class RestorationService {
       return created;
     });
 
-    await this.audit('isolation.equipment.restored', restoration.id, execution.tenantId, user, {
-      executionId,
+    await this.afterMutation('equipment.restored', execution, user, {
+      restorationId: restoration.id,
       isolationPointId: dto.isolationPointId,
     });
     return restoration;
@@ -230,20 +240,56 @@ export class RestorationService {
     });
 
     await this.archiveService.archiveExecution({ ...execution, status: EXECUTION_RESTORED, restoredAt, restoredBy: user.id }, user);
-    await this.audit('isolation.execution.restored', executionId, execution.tenantId, user, {
-      planId: execution.planId,
-    });
+    await this.afterMutation('execution.restored', execution, user, { planId: execution.planId });
     return updated;
   }
 
   async getRestoration(executionId: string, user: AuthenticatedUser) {
     const execution = await this.executionService.getExecutionEntity(executionId, user);
+    const key = this.cacheService.restorationDetailKey(execution.tenantId, executionId);
+
+    const cached = await this.cacheService.getJson<
+      Awaited<ReturnType<RestorationService['loadRestorationDetail']>>
+    >(key);
+    if (cached) {
+      return cached;
+    }
+
+    const detail = await this.loadRestorationDetail(execution);
+    await this.cacheService.setJson(key, detail);
+    return detail;
+  }
+
+  private async loadRestorationDetail(execution: typeof isolationExecution.$inferSelect) {
     const [restorations, locks, tags] = await Promise.all([
-      this.db.select().from(equipmentRestorations).where(eq(equipmentRestorations.executionId, executionId)).orderBy(asc(equipmentRestorations.restoredAt)),
-      this.db.select().from(lockRemovals).where(eq(lockRemovals.executionId, executionId)),
-      this.db.select().from(tagRemovals).where(eq(tagRemovals.executionId, executionId)),
+      this.db.select().from(equipmentRestorations).where(eq(equipmentRestorations.executionId, execution.id)).orderBy(asc(equipmentRestorations.restoredAt)),
+      this.db.select().from(lockRemovals).where(eq(lockRemovals.executionId, execution.id)),
+      this.db.select().from(tagRemovals).where(eq(tagRemovals.executionId, execution.id)),
     ]);
     return { execution, restorations, lockRemovals: locks, tagRemovals: tags };
+  }
+
+  /**
+   * MinIO wiring for restoration evidence: presigned PUT URL for direct upload
+   * to object storage, keyed under the execution's restoration path.
+   */
+  async evidenceUploadUrl(executionId: string, dto: EvidenceUploadUrlDto, user: AuthenticatedUser) {
+    const execution = await this.executionService.getExecutionEntity(executionId, user);
+    const storageKey = `${execution.tenantId}/${execution.planId}/restoration/${executionId}/${randomUUID()}-${dto.fileName}`;
+    const expiry = this.configService.get<number>('restoration.evidenceUrlExpirySeconds') ?? 3600;
+    const uploadUrl = await this.storageService.presignedPutObject(storageKey, expiry);
+    return { storageBucket: this.storageService.getBucket(), storageKey, uploadUrl, expiresInSeconds: expiry };
+  }
+
+  async evidenceDownloadUrl(executionId: string, storageKey: string, user: AuthenticatedUser) {
+    const execution = await this.executionService.getExecutionEntity(executionId, user);
+    const prefix = `${execution.tenantId}/${execution.planId}/restoration/${executionId}/`;
+    if (!storageKey.startsWith(prefix)) {
+      throw new NotFoundException('Evidence object does not belong to this execution restoration');
+    }
+    const expiry = this.configService.get<number>('restoration.evidenceUrlExpirySeconds') ?? 3600;
+    const downloadUrl = await this.storageService.presignedGetObject(storageKey, expiry);
+    return { storageKey, downloadUrl, expiresInSeconds: expiry };
   }
 
   private async getRestorableExecution(executionId: string, user: AuthenticatedUser) {
@@ -284,20 +330,28 @@ export class RestorationService {
     }
   }
 
-  private async audit(
+  private async afterMutation(
     action: string,
-    entityId: string,
-    tenantId: string,
+    execution: typeof isolationExecution.$inferSelect,
     user: AuthenticatedUser,
     metadata: Record<string, unknown>,
   ) {
     await this.auditService.log({
-      action,
+      action: `isolation.restoration.${action}`,
       entityType: 'restoration',
-      entityId,
+      entityId: execution.id,
       userId: user.id,
-      tenantId,
+      tenantId: execution.tenantId,
+      metadata: { executionId: execution.id, ...metadata },
+    });
+    this.logService.logEvent({
+      action: `restoration.${action}`,
+      executionId: execution.id,
+      planId: execution.planId,
+      tenantId: execution.tenantId,
+      userId: user.id,
       metadata,
     });
+    await this.cacheService.invalidate(execution.tenantId, execution.id, execution.planId);
   }
 }
