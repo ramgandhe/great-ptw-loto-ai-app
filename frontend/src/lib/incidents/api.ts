@@ -9,6 +9,7 @@ import type {
   Incident,
   IncidentDetail,
   IncidentEvidence,
+  IncidentHistoryResponse,
   InvestigationDetail,
   PreventiveActionPayload,
   RootCausePayload,
@@ -131,7 +132,5 @@ export function listIncidentArchive(params?: { reference?: string; incidentType?
 }
 
 export function getIncidentHistory(incidentId: string) {
-  return fetchApi<Array<{ id: string; action: string; createdAt: string }>>(
-    `/incidents/${incidentId}/history`,
-  );
+  return fetchApi<IncidentHistoryResponse>(`/incidents/${incidentId}/history`);
 }
