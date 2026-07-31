@@ -1,3 +1,4 @@
+import { ConnectivityBanner } from "@/components/offline/connectivity-banner";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
@@ -27,7 +28,9 @@ export default function HomeScreen() {
   }, []);
 
   return (
-    <View style={[styles.container, { backgroundColor: tokens.colors.background, padding: tokens.spacing.lg }]}>
+    <View style={{ flex: 1, backgroundColor: tokens.colors.background }}>
+      <ConnectivityBanner />
+      <View style={[styles.container, { padding: tokens.spacing.lg }]}>
       <Text style={[styles.title, { color: tokens.colors.foreground, fontSize: tokens.typography.title + 2 }]}>
         Permit-to-Work Platform
       </Text>
@@ -94,6 +97,7 @@ export default function HomeScreen() {
       >
         <Text style={{ color: tokens.colors.foreground, fontWeight: "500" }}>Workforce</Text>
       </Pressable>
+      </View>
     </View>
   );
 }

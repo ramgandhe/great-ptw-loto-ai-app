@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Building2, CreditCard, LogOut, Settings } from "lucide-react";
+import { Bell, Building2, CreditCard, LogOut, Server, Settings } from "lucide-react";
 import { ThemeSettings } from "@/components/theme/theme-settings";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/auth/keycloak";
@@ -24,6 +24,12 @@ const links = [
     label: "Billing & subscription",
     description: "Plans, usage and invoice history",
     icon: CreditCard,
+  },
+  {
+    href: "/platform",
+    label: "Platform status",
+    description: "Health probes and release information",
+    icon: Server,
   },
 ];
 

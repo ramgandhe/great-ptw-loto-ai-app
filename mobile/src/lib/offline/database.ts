@@ -1,7 +1,7 @@
 import * as SQLite from "expo-sqlite";
 
 export const DB_NAME = "ptw_offline.db";
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 let database: SQLite.SQLiteDatabase | null = null;
 
@@ -44,6 +44,16 @@ async function applyMigrations(db: SQLite.SQLiteDatabase, fromVersion: number): 
     if (!columnNames.has("status")) {
       await db.execAsync(
         "ALTER TABLE sync_queue ADD COLUMN status TEXT NOT NULL DEFAULT 'pending';",
+      );
+    }
+  }
+
+  if (fromVersion < 3) {
+    const columns = await db.getAllAsync<{ name: string }>("PRAGMA table_info(sync_queue)");
+    const columnNames = new Set(columns.map((column) => column.name));
+    if (!columnNames.has("attempts")) {
+      await db.execAsync(
+        "ALTER TABLE sync_queue ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;",
       );
     }
   }
