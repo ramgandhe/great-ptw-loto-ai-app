@@ -83,3 +83,14 @@ PTW permit/approval/execution/closure/SIMOPS routes remain under their existing 
 | PATCH | `/notifications/{id}/read` | Required | Mark notification as read |
 | POST | `/notifications/test` | Required | Test delivery (org-admin / platform-admin) |
 
+## Dashboards & Analytics (MS-07 / SP-07.02)
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| GET | `/dashboard` | Required | Role-based dashboard (`kind` = personal\|supervisor\|safety\|management) |
+| GET | `/dashboard/kpis` | Required | KPI widgets (`kind`, `periodLabel` optional) |
+| GET | `/reports` | Required | List report exports for current user (`status` optional) |
+| POST | `/reports/generate` | Required | Request report export (`reportType`, `format`, filters/period) |
+| GET | `/analytics` | Required | Analytics view (`scope` = permits\|incidents\|lototo\|simops\|operational) |
+| GET | `/analytics/trends` | Required | Historical analytics snapshots (`scope`, `limit`) |
+

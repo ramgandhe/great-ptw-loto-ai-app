@@ -1,19 +1,21 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { eq, isNull, lt, or } from 'drizzle-orm';
+import { isNull, lt, or } from 'drizzle-orm';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { kpiCache, reportExports } from '../../database/schema';
+import { kpiCache } from '../../database/schema';
 import { QueueService } from '../../infrastructure/queue/queue.service';
+import { AnalyticsService } from './analytics.service';
 import {
   DASHBOARD_ANALYTICS_SNAPSHOT_JOB,
   DASHBOARD_KPI_REFRESH_JOB,
   DASHBOARD_REPORT_GENERATE_JOB,
 } from './dashboards.constants';
 import { DashboardLogService } from './dashboard-log.service';
+import { KpiService } from './kpi.service';
+import { ReportingService } from './reporting.service';
 
 /**
  * BullMQ scheduled jobs for report generation, analytics snapshots and KPI refresh.
- * Actual aggregation/export work lands in BE-SP-07.02; this layer scans + logs.
  */
 @Injectable()
 export class DashboardJobsService implements OnModuleInit {
@@ -24,6 +26,9 @@ export class DashboardJobsService implements OnModuleInit {
     private readonly queueService: QueueService,
     private readonly configService: ConfigService,
     private readonly logService: DashboardLogService,
+    private readonly reportingService: ReportingService,
+    private readonly analyticsService: AnalyticsService,
+    private readonly kpiService: KpiService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -69,42 +74,26 @@ export class DashboardJobsService implements OnModuleInit {
   }
 
   async processPendingReports(): Promise<void> {
-    const pending = await this.db
-      .select({
-        id: reportExports.id,
-        tenantId: reportExports.tenantId,
-        reportType: reportExports.reportType,
-        format: reportExports.format,
-        requestedBy: reportExports.requestedBy,
-      })
-      .from(reportExports)
-      .where(eq(reportExports.status, 'pending'));
-
-    for (const report of pending) {
-      this.logService.logEvent({
-        action: 'dashboard.report-generate',
-        tenantId: report.tenantId,
-        userId: report.requestedBy,
-        reportId: report.id,
-        metadata: { reportType: report.reportType, format: report.format },
-      });
-    }
-
-    if (pending.length > 0) {
-      this.logger.log(`Pending report exports flagged: ${pending.length}`);
+    const processed = await this.reportingService.processPendingReports();
+    if (processed > 0) {
+      this.logger.log(`Pending report exports processed: ${processed}`);
     }
   }
 
   async captureAnalyticsSnapshots(): Promise<void> {
-    const scopes = ['permits', 'incidents', 'lototo', 'simops', 'operational'] as const;
-    for (const scope of scopes) {
+    const tenantIds = await this.analyticsService.listTenantIdsWithActivity();
+    let written = 0;
+    for (const tenantId of tenantIds) {
+      written += await this.analyticsService.captureSnapshotsForTenant(tenantId);
       this.logService.logEvent({
         action: 'dashboard.analytics-snapshot',
-        scope,
+        tenantId,
         metadata: { trigger: 'scheduled' },
       });
     }
-    this.logger.log(`Analytics snapshot sweep emitted for ${scopes.length} scope(s)`);
+    this.logger.log(
+      `Analytics snapshot sweep: ${tenantIds.length} tenant(s), ${written} row(s) written`,
+    );
   }
 
   async refreshExpiredKpis(): Promise<void> {
@@ -119,17 +108,18 @@ export class DashboardJobsService implements OnModuleInit {
       .from(kpiCache)
       .where(or(isNull(kpiCache.expiresAt), lt(kpiCache.expiresAt, now)));
 
-    for (const row of expired) {
+    const tenantIds = [...new Set(expired.map((row) => row.tenantId))];
+    for (const tenantId of tenantIds) {
+      await this.kpiService.refreshTenantKpis(tenantId);
       this.logService.logEvent({
         action: 'dashboard.kpi-refresh',
-        tenantId: row.tenantId,
-        kpiKey: row.kpiKey,
-        metadata: { periodLabel: row.periodLabel, kpiCacheId: row.id },
+        tenantId,
+        metadata: { trigger: 'scheduled' },
       });
     }
 
     if (expired.length > 0) {
-      this.logger.log(`Expired KPI cache rows flagged: ${expired.length}`);
+      this.logger.log(`Expired KPI cache refreshed for ${tenantIds.length} tenant(s)`);
     }
   }
 }
