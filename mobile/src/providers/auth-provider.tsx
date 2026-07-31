@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     {
       clientId: authConfig.clientId,
       redirectUri,
-      scopes: ["openid", "profile"],
+      scopes: ["openid", "tenant"],
       responseType: AuthSession.ResponseType.Code,
       usePKCE: true,
     },

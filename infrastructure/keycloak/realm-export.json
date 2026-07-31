@@ -176,6 +176,33 @@
   ],
   "clientScopes": [
     {
+      "name": "openid",
+      "description": "OpenID Connect scope",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "profile",
+      "description": "OpenID Connect built-in scope: profile",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "email",
+      "description": "OpenID Connect built-in scope: email",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
       "name": "tenant",
       "protocol": "openid-connect",
       "protocolMappers": [
@@ -197,6 +224,9 @@
     }
   ],
   "defaultDefaultClientScopes": [
+    "openid",
+    "profile",
+    "email",
     "tenant"
   ]
 }
