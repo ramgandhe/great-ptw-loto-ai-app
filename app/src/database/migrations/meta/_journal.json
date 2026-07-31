@@ -71,6 +71,13 @@
       "when": 1753723200000,
       "tag": "0009_lototo_restoration",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1753726800000,
+      "tag": "0010_simops_conflict_detection",
+      "breakpoints": true
     }
   ]
 }
