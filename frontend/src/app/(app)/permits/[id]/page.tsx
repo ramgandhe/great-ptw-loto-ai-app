@@ -69,6 +69,9 @@ export default function PermitDetailPage() {
                   {detail.permit.status === "approved" ? "Start execution" : "Open execution"}
                 </Button>
               </Link>
+              <Link href={`/permits/${detail.permit.id}/multi-day`}>
+                <Button variant="outline">Multi-day</Button>
+              </Link>
               <Link href={`/lototo/plans/new?permitId=${detail.permit.id}`}>
                 <Button variant="outline">Configure LOTOTO</Button>
               </Link>

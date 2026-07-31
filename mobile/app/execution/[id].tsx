@@ -192,6 +192,11 @@ export default function ExecutePermitScreen() {
             <Text style={styles.primaryButtonText}>{submitting ? "Resuming..." : "Resume work"}</Text>
           </Pressable>
         ) : null}
+        {isActive || isSuspended ? (
+          <Pressable style={styles.secondaryButton} onPress={() => router.push(`/multi-day/${permitId}`)}>
+            <Text style={styles.secondaryButtonText}>Multi-day operations</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {isActive ? (

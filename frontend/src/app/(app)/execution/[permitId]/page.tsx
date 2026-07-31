@@ -186,6 +186,11 @@ export default function PermitExecutionPage() {
           <Link href={`/execution/${permit.id}/evidence`}>
             <Button variant="outline">Evidence gallery</Button>
           </Link>
+          {(isActive || isSuspended) ? (
+            <Link href={`/permits/${permit.id}/multi-day`}>
+              <Button variant="outline">Multi-day</Button>
+            </Link>
+          ) : null}
           <Link href="/execution">
             <Button variant="ghost">Back to list</Button>
           </Link>
