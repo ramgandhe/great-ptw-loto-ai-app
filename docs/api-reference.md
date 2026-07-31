@@ -64,3 +64,13 @@ PTW permit/approval/execution/closure/SIMOPS routes remain under their existing 
 | GET | `/incidents/{id}/investigation` | Required | View investigation detail |
 | PATCH | `/corrective-actions/{id}` | Required | Update corrective action status |
 
+## Incident Closure (MS-06 / SP-06.03)
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| POST | `/incidents/{id}/verify` | Required | Verify investigation complete |
+| POST | `/incidents/{id}/close` | Required | Close verified incident + archive |
+| GET | `/incidents/archive` | Required | List archived incidents |
+| GET | `/incidents/archive/{id}` | Required | View archived incident snapshot |
+| GET | `/incidents/{id}/history` | Required | Full investigation/closure history |
+
