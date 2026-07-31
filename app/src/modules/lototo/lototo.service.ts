@@ -1,8 +1,13 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { lototoAssignments, lototoPlans } from '../../database/schema';
+import {
+  isolationPoints,
+  isolationSequences,
+  lototoAssignments,
+  lototoPlans,
+} from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { PermitService } from '../permit/permit.service';
 import { AssignPersonnelDto } from './dto/assign-personnel.dto';
@@ -115,6 +120,43 @@ export class LototoService {
 
     await this.lototoCacheService.setPlanList(tenantId, permitId, plans);
     return plans;
+  }
+
+  async findOne(planId: string, user: AuthenticatedUser) {
+    const tenantId = this.validationService.requireTenant(user);
+
+    const cached = await this.lototoCacheService.getPlanDetail<{
+      plan: typeof lototoPlans.$inferSelect;
+      isolationPoints: (typeof isolationPoints.$inferSelect)[];
+      assignments: (typeof lototoAssignments.$inferSelect)[];
+      sequence: (typeof isolationSequences.$inferSelect)[];
+    }>(tenantId, planId);
+    if (cached) {
+      return cached;
+    }
+
+    const plan = await this.validationService.getPlan(planId, tenantId);
+    const [points, assignments, sequence] = await Promise.all([
+      this.db
+        .select()
+        .from(isolationPoints)
+        .where(eq(isolationPoints.planId, planId))
+        .orderBy(asc(isolationPoints.isolationNumber)),
+      this.db
+        .select()
+        .from(lototoAssignments)
+        .where(eq(lototoAssignments.planId, planId))
+        .orderBy(desc(lototoAssignments.assignedAt)),
+      this.db
+        .select()
+        .from(isolationSequences)
+        .where(eq(isolationSequences.planId, planId))
+        .orderBy(asc(isolationSequences.sequenceOrder)),
+    ]);
+
+    const detail = { plan, isolationPoints: points, assignments, sequence };
+    await this.lototoCacheService.setPlanDetail(tenantId, planId, detail);
+    return detail;
   }
 
   async assignPersonnel(planId: string, dto: AssignPersonnelDto, user: AuthenticatedUser) {

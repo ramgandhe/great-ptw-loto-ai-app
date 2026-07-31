@@ -26,6 +26,12 @@ export class LototoController {
     return this.lototoService.findAll(user, permitId);
   }
 
+  @Roles(...LOTOTO_READ_ROLES)
+  @Get(':id')
+  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.lototoService.findOne(id, user);
+  }
+
   @Roles(...LOTOTO_WRITE_ROLES)
   @Post(':id/assignments')
   assignPersonnel(

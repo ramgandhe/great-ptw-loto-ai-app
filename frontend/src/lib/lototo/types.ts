@@ -79,3 +79,18 @@ export type SequenceStepPayload = {
 export type ConfigureSequencePayload = {
   steps: SequenceStepPayload[];
 };
+
+export type IsolationSequenceStep = {
+  id: string;
+  planId: string;
+  isolationPointId: string;
+  sequenceOrder: number;
+  requiresVerification: boolean;
+};
+
+export type LototoPlanDetail = {
+  plan: LototoPlan;
+  isolationPoints: IsolationPoint[];
+  assignments: LototoAssignment[];
+  sequence: IsolationSequenceStep[];
+};

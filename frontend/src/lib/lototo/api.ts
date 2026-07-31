@@ -7,11 +7,16 @@ import type {
   IsolationPoint,
   LototoAssignment,
   LototoPlan,
+  LototoPlanDetail,
 } from "./types";
 
 export function listLototoPlans(permitId?: string) {
   const query = permitId ? `?permitId=${encodeURIComponent(permitId)}` : "";
   return fetchApi<LototoPlan[]>(`/lototo/plans${query}`);
+}
+
+export function getLototoPlan(planId: string) {
+  return fetchApi<LototoPlanDetail>(`/lototo/plans/${planId}`);
 }
 
 export function createLototoPlan(payload: CreateLototoPlanPayload) {
@@ -36,7 +41,7 @@ export function addIsolationPoint(planId: string, payload: AddIsolationPointPayl
 }
 
 export function configureIsolationSequence(planId: string, payload: ConfigureSequencePayload) {
-  return fetchApi<{ configured: number }>(`/lototo/plans/${planId}/sequence`, {
+  return fetchApi<{ configured: number } | IsolationPoint[]>(`/lototo/plans/${planId}/sequence`, {
     method: "POST",
     body: JSON.stringify(payload),
   });

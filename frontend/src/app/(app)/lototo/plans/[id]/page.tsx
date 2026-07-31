@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { machineryApi } from "@/lib/organisation/api";
@@ -10,10 +10,11 @@ import {
   addIsolationPoint,
   assignLototoPersonnel,
   configureIsolationSequence,
-  listLototoPlans,
+  getLototoPlan,
 } from "@/lib/lototo/api";
 import type {
   IsolationPoint,
+  IsolationSequenceStep,
   LototoAssignment,
   LototoAssignmentRole,
   LototoPlan,
@@ -23,8 +24,6 @@ import type { WorkforceRecord } from "@/lib/workforce/types";
 import { PlanStatusBadge } from "@/components/lototo/plan-status-badge";
 import { Button } from "@/components/ui/button";
 
-type LocalIsolationPoint = IsolationPoint & { localKey: string };
-
 export default function LototoPlanDetailPage() {
   const params = useParams<{ id: string }>();
   const planId = params.id;
@@ -32,8 +31,9 @@ export default function LototoPlanDetailPage() {
   const [plan, setPlan] = useState<LototoPlan | null>(null);
   const [machinery, setMachinery] = useState<OrgRecord[]>([]);
   const [workforce, setWorkforce] = useState<WorkforceRecord[]>([]);
-  const [isolationPoints, setIsolationPoints] = useState<LocalIsolationPoint[]>([]);
+  const [isolationPoints, setIsolationPoints] = useState<IsolationPoint[]>([]);
   const [assignments, setAssignments] = useState<LototoAssignment[]>([]);
+  const [sequence, setSequence] = useState<IsolationSequenceStep[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -46,17 +46,16 @@ export default function LototoPlanDetailPage() {
   const [workforceUserId, setWorkforceUserId] = useState("");
   const [assignmentRole, setAssignmentRole] = useState<LototoAssignmentRole>("isolation_officer");
 
-  async function loadPlan() {
-    const plans = await listLototoPlans();
-    const match = plans.find((item) => item.id === planId) ?? null;
-    setPlan(match);
-    if (!match) {
-      throw new ApiError("LOTOTO plan not found");
-    }
-  }
+  const loadDetail = useCallback(async () => {
+    const detail = await getLototoPlan(planId);
+    setPlan(detail.plan);
+    setIsolationPoints(detail.isolationPoints);
+    setAssignments(detail.assignments);
+    setSequence(detail.sequence);
+  }, [planId]);
 
   useEffect(() => {
-    Promise.all([loadPlan(), machineryApi.list(), listWorkforceDirectory()])
+    Promise.all([loadDetail(), machineryApi.list(), listWorkforceDirectory()])
       .then(([, mc, directory]) => {
         setMachinery(mc);
         setWorkforce(directory);
@@ -64,7 +63,7 @@ export default function LototoPlanDetailPage() {
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : "Failed to load plan");
       });
-  }, [planId]);
+  }, [loadDetail]);
 
   async function handleAddIsolationPoint(event: React.FormEvent) {
     event.preventDefault();
@@ -77,7 +76,7 @@ export default function LototoPlanDetailPage() {
     setActionError(null);
     setMessage(null);
     try {
-      const point = await addIsolationPoint(planId, {
+      await addIsolationPoint(planId, {
         machineryId,
         isolationNumber: isolationNumber.trim(),
         description: isolationDescription.trim() || undefined,
@@ -86,9 +85,9 @@ export default function LototoPlanDetailPage() {
           energySourceType,
         },
       });
-      setIsolationPoints((current) => [...current, { ...point, localKey: point.id }]);
       setIsolationNumber("");
       setIsolationDescription("");
+      await loadDetail();
       setMessage("Isolation point added.");
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Failed to add isolation point");
@@ -108,11 +107,11 @@ export default function LototoPlanDetailPage() {
     setActionError(null);
     setMessage(null);
     try {
-      const assignment = await assignLototoPersonnel(planId, {
+      await assignLototoPersonnel(planId, {
         workforceUserId,
         role: assignmentRole,
       });
-      setAssignments((current) => [...current, assignment]);
+      await loadDetail();
       setMessage("Personnel assigned.");
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Failed to assign personnel");
@@ -127,6 +126,13 @@ export default function LototoPlanDetailPage() {
       return;
     }
 
+    const confirmed = window.confirm(
+      "Save this isolation sequence? The plan will move to Ready and should be verified before field execution.",
+    );
+    if (!confirmed) {
+      return;
+    }
+
     setIsSubmitting(true);
     setActionError(null);
     setMessage(null);
@@ -138,7 +144,8 @@ export default function LototoPlanDetailPage() {
           requiresVerification: point.verificationRequired,
         })),
       });
-      setMessage("Isolation sequence saved.");
+      await loadDetail();
+      setMessage("Isolation sequence saved. Plan is ready for execution.");
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Failed to save sequence");
     } finally {
@@ -159,6 +166,14 @@ export default function LototoPlanDetailPage() {
   }
 
   const editable = plan.status === "draft" || plan.status === "ready";
+  const orderedPoints =
+    sequence.length > 0
+      ? [...isolationPoints].sort((a, b) => {
+          const aOrder = sequence.find((step) => step.isolationPointId === a.id)?.sequenceOrder ?? 999;
+          const bOrder = sequence.find((step) => step.isolationPointId === b.id)?.sequenceOrder ?? 999;
+          return aOrder - bOrder;
+        })
+      : isolationPoints;
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-8">
@@ -179,7 +194,10 @@ export default function LototoPlanDetailPage() {
       </div>
 
       {actionError ? (
-        <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
           {actionError}
         </div>
       ) : null}
@@ -194,12 +212,15 @@ export default function LototoPlanDetailPage() {
           <h2 className="text-lg font-medium">Isolation points</h2>
           <p className="mb-4 text-sm text-muted-foreground">Define energy sources and isolation points.</p>
 
-          {isolationPoints.length > 0 ? (
+          {orderedPoints.length > 0 ? (
             <ol className="mb-4 list-decimal space-y-2 pl-5 text-sm">
-              {isolationPoints.map((point) => (
-                <li key={point.localKey}>
+              {orderedPoints.map((point) => (
+                <li key={point.id}>
                   <span className="font-medium">{point.isolationNumber}</span>
                   {point.description ? ` — ${point.description}` : null}
+                  {point.verificationRequired ? (
+                    <span className="ml-2 text-xs text-muted-foreground">(verification required)</span>
+                  ) : null}
                 </li>
               ))}
             </ol>
@@ -209,39 +230,48 @@ export default function LototoPlanDetailPage() {
 
           {editable ? (
             <form onSubmit={handleAddIsolationPoint} className="flex flex-col gap-3">
-              <input
-                required
-                value={isolationNumber}
-                onChange={(e) => setIsolationNumber(e.target.value)}
-                placeholder="Isolation number"
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <select
-                required
-                value={machineryId}
-                onChange={(e) => setMachineryId(e.target.value)}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select machinery</option>
-                {machinery.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                value={energySourceType}
-                onChange={(e) => setEnergySourceType(e.target.value)}
-                placeholder="Energy source type"
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <textarea
-                value={isolationDescription}
-                onChange={(e) => setIsolationDescription(e.target.value)}
-                placeholder="Description (optional)"
-                rows={2}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Isolation number</span>
+                <input
+                  required
+                  value={isolationNumber}
+                  onChange={(e) => setIsolationNumber(e.target.value)}
+                  className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Machinery</span>
+                <select
+                  required
+                  value={machineryId}
+                  onChange={(e) => setMachineryId(e.target.value)}
+                  className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select machinery</option>
+                  {machinery.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Energy source type</span>
+                <input
+                  value={energySourceType}
+                  onChange={(e) => setEnergySourceType(e.target.value)}
+                  className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Description (optional)</span>
+                <textarea
+                  value={isolationDescription}
+                  onChange={(e) => setIsolationDescription(e.target.value)}
+                  rows={2}
+                  className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </label>
               <Button type="submit" size="sm" disabled={isSubmitting}>
                 Add isolation point
               </Button>
@@ -255,11 +285,16 @@ export default function LototoPlanDetailPage() {
 
           {assignments.length > 0 ? (
             <ul className="mb-4 space-y-2 text-sm">
-              {assignments.map((item) => (
-                <li key={item.id} className="rounded-md bg-muted/50 px-3 py-2">
-                  {item.role.replace("_", " ")} · {item.workforceUserId.slice(0, 8)}…
-                </li>
-              ))}
+              {assignments.map((item) => {
+                const person = workforce.find((entry) => entry.id === item.workforceUserId);
+                return (
+                  <li key={item.id} className="rounded-md bg-muted/50 px-3 py-2">
+                    <span className="font-medium">{item.role.replaceAll("_", " ")}</span>
+                    {" · "}
+                    {person?.name ?? `${item.workforceUserId.slice(0, 8)}…`}
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="mb-4 text-sm text-muted-foreground">No personnel assigned yet.</p>
@@ -267,28 +302,34 @@ export default function LototoPlanDetailPage() {
 
           {editable ? (
             <form onSubmit={handleAssignPersonnel} className="flex flex-col gap-3">
-              <select
-                required
-                value={workforceUserId}
-                onChange={(e) => setWorkforceUserId(e.target.value)}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select workforce member</option>
-                {workforce.map((person) => (
-                  <option key={person.id} value={person.id}>
-                    {person.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={assignmentRole}
-                onChange={(e) => setAssignmentRole(e.target.value as LototoAssignmentRole)}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="isolation_officer">Isolation officer</option>
-                <option value="verifier">Verifier</option>
-                <option value="supervisor">Supervisor</option>
-              </select>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Workforce member</span>
+                <select
+                  required
+                  value={workforceUserId}
+                  onChange={(e) => setWorkforceUserId(e.target.value)}
+                  className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select workforce member</option>
+                  {workforce.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Role</span>
+                <select
+                  value={assignmentRole}
+                  onChange={(e) => setAssignmentRole(e.target.value as LototoAssignmentRole)}
+                  className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="isolation_officer">Isolation officer</option>
+                  <option value="verifier">Verifier</option>
+                  <option value="supervisor">Supervisor</option>
+                </select>
+              </label>
               <Button type="submit" size="sm" disabled={isSubmitting}>
                 Assign personnel
               </Button>
@@ -300,7 +341,9 @@ export default function LototoPlanDetailPage() {
       <section className="rounded-lg border border-border p-4">
         <h2 className="text-lg font-medium">Isolation sequence</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          Order follows the list above. Reorder by adding points in the desired sequence.
+          {sequence.length > 0
+            ? `${sequence.length} step(s) configured. Order follows the isolation points list.`
+            : "Order follows the isolation points list. Saving marks the plan Ready."}
         </p>
         {editable ? (
           <Button onClick={handleSaveSequence} disabled={isSubmitting || isolationPoints.length === 0}>
@@ -318,9 +361,7 @@ export default function LototoPlanDetailPage() {
             Execute the configured isolation sequence in the field.
           </p>
           <Link href={`/lototo/execute/${plan.id}`}>
-            <Button>
-              {plan.status === "ready" ? "Start isolation" : "Continue execution"}
-            </Button>
+            <Button>{plan.status === "ready" ? "Start isolation" : "Continue execution"}</Button>
           </Link>
         </section>
       ) : null}

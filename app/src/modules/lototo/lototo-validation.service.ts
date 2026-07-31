@@ -28,7 +28,7 @@ export class LototoValidationService {
     return user.tenantId;
   }
 
-  async getEditablePlan(planId: string, tenantId: string) {
+  async getPlan(planId: string, tenantId: string) {
     const [plan] = await this.db
       .select()
       .from(lototoPlans)
@@ -37,6 +37,12 @@ export class LototoValidationService {
     if (!plan) {
       throw new NotFoundException('LOTOTO plan not found');
     }
+
+    return plan;
+  }
+
+  async getEditablePlan(planId: string, tenantId: string) {
+    const plan = await this.getPlan(planId, tenantId);
 
     if (!LOTOTO_EDITABLE_STATUSES.includes(plan.status as (typeof LOTOTO_EDITABLE_STATUSES)[number])) {
       throw new ConflictException('LOTOTO plan configuration is locked once execution has begun');

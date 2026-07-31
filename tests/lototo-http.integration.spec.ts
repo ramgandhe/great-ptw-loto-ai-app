@@ -243,6 +243,17 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
 
     expect(sequenceRes.body.data).toHaveLength(1);
     expect(sequenceRes.body.data[0].sequenceOrder).toBe(1);
+
+    const detailRes = await request(app.getHttpServer())
+      .get(`/api/v1/lototo/plans/${planId}`)
+      .expect(200);
+
+    expect(detailRes.body.success).toBe(true);
+    expect(detailRes.body.data.plan.id).toBe(planId);
+    expect(detailRes.body.data.plan.status).toBe('ready');
+    expect(detailRes.body.data.isolationPoints).toHaveLength(1);
+    expect(detailRes.body.data.assignments.length).toBeGreaterThanOrEqual(2);
+    expect(detailRes.body.data.sequence).toHaveLength(1);
   });
 
   httpTest('rejects LOTOTO plan for non-existent permit', async () => {
