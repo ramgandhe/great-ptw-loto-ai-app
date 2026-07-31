@@ -19,8 +19,17 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    # Optional AUTH: set REDIS_PASSWORD in the environment for hardened deployments.
+    command: >
+      sh -c 'if [ -n "$$REDIS_PASSWORD" ]; then redis-server --requirepass "$$REDIS_PASSWORD"; else redis-server; fi'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        [
+          "CMD-SHELL",
+          'if [ -n "$$REDIS_PASSWORD" ]; then redis-cli -a "$$REDIS_PASSWORD" ping | grep PONG; else redis-cli ping | grep PONG; fi',
+        ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -60,6 +69,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
 
   loki:
     image: grafana/loki:3.0.0
@@ -93,6 +108,10 @@ services:
       DATABASE_URL: postgresql://ptw:ptw_dev_password@postgres:5432/ptw_platform
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      BULLMQ_WORKER_CONCURRENCY: ${BULLMQ_WORKER_CONCURRENCY:-5}
+      RATE_LIMIT_TTL_MS: ${RATE_LIMIT_TTL_MS:-60000}
+      RATE_LIMIT_LIMIT: ${RATE_LIMIT_LIMIT:-100}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       # Credentials come from the environment (see .env.example); dev fallbacks
@@ -112,7 +131,7 @@ services:
       minio:
         condition: service_healthy
       keycloak:
-        condition: service_started
+        condition: service_healthy
       loki:
         condition: service_started
     healthcheck:

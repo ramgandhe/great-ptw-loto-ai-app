@@ -26,9 +26,11 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit(): Promise<void> {
+    const password = this.configService.get<string>('redis.password');
     const connection = {
       host: this.configService.get<string>('redis.host'),
       port: this.configService.get<number>('redis.port'),
+      ...(password ? { password } : {}),
     };
 
     this.queue = new Queue(PLATFORM_QUEUE, {
@@ -41,6 +43,8 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
+    const concurrency = this.configService.get<number>('bullmq.workerConcurrency') ?? 5;
+
     this.worker = new Worker(
       PLATFORM_QUEUE,
       async (job) => {
@@ -51,7 +55,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
         }
         this.logger.debug(`No handler registered for job ${job.id}: ${job.name}`);
       },
-      { connection },
+      { connection, concurrency },
     );
 
     this.worker.on('failed', (job, error) => {

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
@@ -54,12 +54,16 @@ import { AiModule } from './modules/ai/ai.module';
         customProps: () => ({ service: 'ptw-api' }),
       },
     }),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 100,
-      },
-    ]),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          ttl: config.get<number>('rateLimit.ttlMs') ?? 60000,
+          limit: config.get<number>('rateLimit.limit') ?? 100,
+        },
+      ],
+    }),
     DatabaseModule,
     RedisInfrastructureModule,
     StorageModule,
