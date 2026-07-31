@@ -116,6 +116,18 @@ The Investigation module depends on:
 - **Keycloak** — role validation for investigation / action routes.
 - **Grafana Loki** — structured investigation event logging (`loki: true` marker).
 
+## Incident Closure infrastructure (SP-06.03)
+
+The Incident Closure module depends on:
+
+- **Redis** — caches archive list/detail views (`incident:archive:*`),
+  invalidated on verify/close writes.
+- **BullMQ** — repeatable `incident.closure-notify` job
+  (`INCIDENT_CLOSURE_NOTIFY_CRON`) for verified incidents pending closure.
+- **MinIO** — historical evidence remains under incident evidence prefix.
+- **Keycloak** — role validation for verify / close / archive routes.
+- **Grafana Loki** — structured closure event logging (`loki: true` marker).
+
 ## Health checks
 
 `docker compose up` gates the `api` service on `postgres`, `redis` and `minio`

@@ -117,4 +117,8 @@ export default () => ({
     cacheTtlSeconds: parseInt(process.env.INVESTIGATION_CACHE_TTL_SECONDS ?? '300', 10),
     overdueActionCron: process.env.INVESTIGATION_OVERDUE_ACTION_CRON ?? '0 9 * * *',
   },
+  incidentClosure: {
+    cacheTtlSeconds: parseInt(process.env.INCIDENT_CLOSURE_CACHE_TTL_SECONDS ?? '300', 10),
+    closureNotifyCron: process.env.INCIDENT_CLOSURE_NOTIFY_CRON ?? '0 10 * * *',
+  },
 });
