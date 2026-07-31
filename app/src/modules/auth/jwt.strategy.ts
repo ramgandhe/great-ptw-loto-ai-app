@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -6,7 +6,7 @@ import { passportJwtSecret } from 'jwks-rsa';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 
 interface KeycloakJwtPayload {
-  sub: string;
+  sub?: string;
   preferred_username?: string;
   email?: string;
   given_name?: string;
@@ -36,6 +36,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   validate(payload: KeycloakJwtPayload): AuthenticatedUser {
+    if (!payload.sub?.trim()) {
+      throw new UnauthorizedException('Token is missing subject (sub) claim');
+    }
+
     const defaultTenantId = this.configService.get<string>('auth.defaultTenantId');
 
     return {
