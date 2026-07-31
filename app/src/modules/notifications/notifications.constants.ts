@@ -14,3 +14,5 @@ export const NOTIFICATION_READ_ROLES = [
   'platform-admin',
   'viewer',
 ] as const;
+
+export const NOTIFICATION_TEST_ROLES = ['org-admin', 'platform-admin'] as const;
