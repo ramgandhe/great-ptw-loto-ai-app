@@ -28,6 +28,7 @@ import { DailyProgressModule } from './modules/daily-progress/daily-progress.mod
 import { RevalidationModule } from './modules/revalidation/revalidation.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { InvestigationModule } from './modules/investigation/investigation.module';
+import { IncidentClosureModule } from './modules/incident-closure/incident-closure.module';
 import { ClosureModule } from './modules/closure/closure.module';
 import { LoggingModule } from './modules/logging/logging.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -78,6 +79,7 @@ import { AiModule } from './modules/ai/ai.module';
     RevalidationModule,
     IncidentsModule,
     InvestigationModule,
+    IncidentClosureModule,
     AiModule,
   ],
   providers: [
