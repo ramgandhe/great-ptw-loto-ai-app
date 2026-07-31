@@ -43,6 +43,16 @@ export default function LototoPlansScreen() {
         <Text style={styles.primaryButtonText}>New plan</Text>
       </Pressable>
 
+      <Pressable
+        style={[styles.card, { borderColor: tokens.colors.border }]}
+        onPress={() => router.push("/lototo/active")}
+      >
+        <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>Active LOTOTO</Text>
+        <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12 }}>
+          Execute isolation in the field
+        </Text>
+      </Pressable>
+
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {plans.length === 0 ? (

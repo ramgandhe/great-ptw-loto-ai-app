@@ -310,6 +310,20 @@ export default function LototoPlanDetailPage() {
           <p className="text-sm text-muted-foreground">Plan is locked for editing.</p>
         )}
       </section>
+
+      {plan.status === "ready" || plan.status === "in_execution" ? (
+        <section className="rounded-lg border border-border p-4">
+          <h2 className="text-lg font-medium">Isolation execution</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Execute the configured isolation sequence in the field.
+          </p>
+          <Link href={`/lototo/execute/${plan.id}`}>
+            <Button>
+              {plan.status === "ready" ? "Start isolation" : "Continue execution"}
+            </Button>
+          </Link>
+        </section>
+      ) : null}
     </main>
   );
 }

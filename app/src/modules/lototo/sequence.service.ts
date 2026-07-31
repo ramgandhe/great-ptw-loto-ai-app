@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, Inject, Injectable } from '@nes
 import { and, eq, inArray } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { isolationPoints, isolationSequences } from '../../database/schema';
+import { isolationPoints, isolationSequences, lototoPlans } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { ConfigureSequenceDto } from './dto/configure-sequence.dto';
 import { LototoLogService } from './lototo-log.service';
@@ -50,6 +50,11 @@ export class SequenceService {
             })),
           )
           .returning();
+
+        await tx
+          .update(lototoPlans)
+          .set({ status: 'ready', updatedBy: user.id })
+          .where(eq(lototoPlans.id, planId));
 
         await this.auditService.log({
           action: 'lototo.sequence.configured',

@@ -15,6 +15,7 @@ import {
   isolationEvidence,
   isolationExecution,
   isolationPoints,
+  isolationSequences,
   isolationVerifications,
   lototoPlans,
 } from '../../database/schema';
@@ -371,7 +372,12 @@ export class IsolationExecutionService {
   }
 
   private async assembleDetail(execution: typeof isolationExecution.$inferSelect) {
-    const [locks, tags, verifications, evidence] = await Promise.all([
+    const [plan, locks, tags, verifications, evidence, sequence] = await Promise.all([
+      this.db
+        .select()
+        .from(lototoPlans)
+        .where(eq(lototoPlans.id, execution.planId))
+        .then((rows) => rows[0] ?? null),
       this.db
         .select()
         .from(appliedLocks)
@@ -392,9 +398,24 @@ export class IsolationExecutionService {
         .from(isolationEvidence)
         .where(eq(isolationEvidence.executionId, execution.id))
         .orderBy(asc(isolationEvidence.capturedAt)),
+      this.db
+        .select({
+          sequenceOrder: isolationSequences.sequenceOrder,
+          requiresVerification: isolationSequences.requiresVerification,
+          isolationPointId: isolationSequences.isolationPointId,
+          isolationNumber: isolationPoints.isolationNumber,
+          description: isolationPoints.description,
+        })
+        .from(isolationSequences)
+        .innerJoin(
+          isolationPoints,
+          eq(isolationSequences.isolationPointId, isolationPoints.id),
+        )
+        .where(eq(isolationSequences.planId, execution.planId))
+        .orderBy(asc(isolationSequences.sequenceOrder)),
     ]);
 
-    return { execution, locks, tags, verifications, evidence };
+    return { execution, plan, sequence, locks, tags, verifications, evidence };
   }
 
   private async getPlan(planId: string, tenantId: string) {

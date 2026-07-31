@@ -8,16 +8,18 @@ import type { LototoPlan } from "@/lib/lototo/types";
 import { PlanStatusBadge } from "@/components/lototo/plan-status-badge";
 import { Button } from "@/components/ui/button";
 
-export default function LototoPlansPage() {
+const ACTIVE_STATUSES = new Set<LototoPlan["status"]>(["ready", "in_execution"]);
+
+export default function ActiveLototoPage() {
   const [plans, setPlans] = useState<LototoPlan[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     listLototoPlans()
-      .then(setPlans)
+      .then((items) => setPlans(items.filter((plan) => ACTIVE_STATUSES.has(plan.status))))
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : "Failed to load LOTOTO plans");
+        setError(err instanceof ApiError ? err.message : "Failed to load active LOTOTO plans");
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -26,50 +28,56 @@ export default function LototoPlansPage() {
     <main className="flex flex-1 flex-col gap-6 p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">LOTOTO plans</h1>
+          <Link href="/lototo" className="text-sm text-muted-foreground hover:text-foreground">
+            ← LOTOTO plans
+          </Link>
+          <h1 className="mt-2 text-2xl font-semibold">Active LOTOTO</h1>
           <p className="text-sm text-muted-foreground">
-            Configure hazardous energy isolation before permit execution.
+            Plans ready for isolation execution or currently in progress.
           </p>
         </div>
-        <Link href="/lototo/plans/new">
-          <Button>New LOTOTO plan</Button>
-        </Link>
-        <Link href="/lototo/active">
-          <Button variant="outline">Active LOTOTO</Button>
-        </Link>
       </div>
 
       {error ? (
-        <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
           {error}
         </div>
       ) : null}
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading plans…</p>
+        <p className="text-sm text-muted-foreground">Loading active plans…</p>
       ) : plans.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center">
-          <p className="text-sm text-muted-foreground">No LOTOTO plans yet.</p>
-          <Link href="/lototo/plans/new" className="mt-4 inline-block">
-            <Button variant="outline">Create first plan</Button>
+          <p className="text-sm text-muted-foreground">
+            No plans are ready for isolation execution yet.
+          </p>
+          <Link href="/lototo" className="mt-4 inline-block">
+            <Button variant="outline">View all plans</Button>
           </Link>
         </div>
       ) : (
         <ul className="divide-y divide-border rounded-lg border border-border">
           {plans.map((plan) => (
             <li key={plan.id}>
-              <Link
-                href={`/lototo/plans/${plan.id}`}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-accent/50"
-              >
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <div>
                   <p className="font-medium">{plan.title}</p>
                   <p className="text-xs text-muted-foreground">
                     {plan.reference ?? "No reference"} · Permit {plan.permitId.slice(0, 8)}…
                   </p>
                 </div>
-                <PlanStatusBadge status={plan.status} />
-              </Link>
+                <div className="flex items-center gap-2">
+                  <PlanStatusBadge status={plan.status} />
+                  <Link href={`/lototo/execute/${plan.id}`}>
+                    <Button size="sm">
+                      {plan.status === "ready" ? "Start isolation" : "Continue"}
+                    </Button>
+                  </Link>
+                </div>
+              </div>
             </li>
           ))}
         </ul>
