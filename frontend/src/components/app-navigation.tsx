@@ -5,11 +5,13 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   AlertTriangle,
+  BarChart3,
   Bell,
   Building2,
   CheckSquare,
   ClipboardList,
   FileEdit,
+  FileText,
   Hammer,
   LayoutDashboard,
   ListChecks,
@@ -26,6 +28,8 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/reports", label: "Reports", icon: FileText },
   { href: "/organisation", label: "Organisation", icon: Building2 },
   { href: "/permits", label: "Permits", icon: ClipboardList },
   { href: "/active-permits", label: "Active work", icon: Activity },
