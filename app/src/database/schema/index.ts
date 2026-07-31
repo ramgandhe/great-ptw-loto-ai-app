@@ -18,6 +18,7 @@ export * from './multi-day-revalidation';
 export * from './incident';
 export * from './investigation';
 export * from './incident-closure';
+export * from './notifications';
 
 
 export const platformMetadata = pgTable('platform_metadata', {
