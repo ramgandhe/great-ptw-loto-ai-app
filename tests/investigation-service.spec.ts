@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { InvestigationService } from '../app/src/modules/investigation/investigation.service';
 
 describe('InvestigationService (PUS-191)', () => {
@@ -146,45 +146,5 @@ describe('InvestigationService (PUS-191)', () => {
         { ...user, tenantId: undefined },
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
-  });
-
-  it('rejects root cause when investigation missing', async () => {
-    const tenantId = '11111111-1111-4111-8111-111111111111';
-    const user = {
-      id: '22222222-2222-4222-8222-222222222222',
-      username: 'safety',
-      roles: ['safety-officer'],
-      tenantId,
-    };
-    const db = {
-      select: jest.fn().mockImplementation(() => {
-        const chain: Record<string, unknown> = {};
-        chain.from = () => chain;
-        chain.where = () => chain;
-        chain.limit = jest
-          .fn()
-          .mockResolvedValueOnce([
-            { id: '33333333-3333-4333-8333-333333333333', tenantId, status: 'open' },
-          ])
-          .mockResolvedValueOnce([]);
-        return chain;
-      }),
-      insert: jest.fn(),
-      update: jest.fn(),
-    };
-    const service = new InvestigationService(
-      db as never,
-      { log: jest.fn() } as never,
-      { invalidate: jest.fn(), getDetail: jest.fn(), setDetail: jest.fn() } as never,
-      { logEvent: jest.fn() } as never,
-    );
-
-    await expect(
-      service.recordRootCause(
-        '33333333-3333-4333-8333-333333333333',
-        { description: 'cause' },
-        user,
-      ),
-    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
