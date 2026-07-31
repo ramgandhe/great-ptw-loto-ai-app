@@ -308,6 +308,13 @@ Always prefer the existing project stack over introducing new dependencies.
 
 This repository contains a multi-tenant enterprise Permit-to-Work platform for industrial safety operations.
 
+Layout (NestJS + Next.js mapped to the production AI skeleton):
+
+- `app/` — NestJS API, PTW modules, AI RAG layer
+- `frontend/` — Next.js web UI
+- `mobile/` — React Native offline client
+- `tests/`, `evaluation/`, `observability/`, `data/`, `scripts/`
+
 Core modules include:
 
 - Organisation Management

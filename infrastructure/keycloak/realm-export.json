@@ -27,7 +27,7 @@
       },
       {
         "name": "job-issuer",
-        "description": "Job Issuer — creates and submits permits"
+        "description": "Job Issuer \u2014 creates and submits permits"
       },
       {
         "name": "viewer",
@@ -43,8 +43,12 @@
       "publicClient": true,
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
-      "redirectUris": ["http://localhost:3000/*"],
-      "webOrigins": ["http://localhost:3000"],
+      "redirectUris": [
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000"
+      ],
       "protocol": "openid-connect"
     },
     {
@@ -65,8 +69,13 @@
       "publicClient": true,
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
-      "redirectUris": ["ptw://callback/*", "exp://localhost:8081/*"],
-      "webOrigins": ["*"],
+      "redirectUris": [
+        "ptw://callback/*",
+        "exp://localhost:8081/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
       "protocol": "openid-connect"
     }
   ],
@@ -78,6 +87,11 @@
       "firstName": "Platform",
       "lastName": "Admin",
       "email": "admin@ptw.local",
+      "attributes": {
+        "tenant_id": [
+          "00000000-0000-4000-8000-000000000001"
+        ]
+      },
       "credentials": [
         {
           "type": "password",
@@ -85,7 +99,9 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["platform-admin"]
+      "realmRoles": [
+        "platform-admin"
+      ]
     },
     {
       "username": "orgadmin",
@@ -95,7 +111,9 @@
       "lastName": "Admin",
       "email": "orgadmin@ptw.local",
       "attributes": {
-        "tenant_id": ["00000000-0000-4000-8000-000000000001"]
+        "tenant_id": [
+          "00000000-0000-4000-8000-000000000001"
+        ]
       },
       "credentials": [
         {
@@ -104,7 +122,56 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["org-admin"]
+      "realmRoles": [
+        "org-admin"
+      ]
+    },
+    {
+      "username": "issuer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Job",
+      "lastName": "Issuer",
+      "email": "issuer@ptw.local",
+      "attributes": {
+        "tenant_id": [
+          "00000000-0000-4000-8000-000000000001"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "job-issuer"
+      ]
+    },
+    {
+      "username": "supervisor",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Safety",
+      "lastName": "Supervisor",
+      "email": "supervisor@ptw.local",
+      "attributes": {
+        "tenant_id": [
+          "00000000-0000-4000-8000-000000000001"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "supervisor",
+        "org-admin"
+      ]
     }
   ],
   "clientScopes": [
@@ -129,5 +196,7 @@
       ]
     }
   ],
-  "defaultDefaultClientScopes": ["tenant"]
+  "defaultDefaultClientScopes": [
+    "tenant"
+  ]
 }
