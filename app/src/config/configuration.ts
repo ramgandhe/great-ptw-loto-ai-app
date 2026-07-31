@@ -89,4 +89,17 @@ export default () => ({
       10,
     ),
   },
+  simops: {
+    cacheTtlSeconds: parseInt(process.env.SIMOPS_CACHE_TTL_SECONDS ?? '300', 10),
+    conflictDetectionCron: process.env.SIMOPS_CONFLICT_DETECTION_CRON ?? '*/5 * * * *',
+    escalationCron: process.env.SIMOPS_ESCALATION_CRON ?? '0 * * * *',
+    escalationTimeoutHoursHigh: parseInt(
+      process.env.SIMOPS_ESCALATION_TIMEOUT_HOURS_HIGH ?? '4',
+      10,
+    ),
+    evidenceUrlExpirySeconds: parseInt(
+      process.env.SIMOPS_EVIDENCE_URL_EXPIRY_SECONDS ?? '3600',
+      10,
+    ),
+  },
 });
