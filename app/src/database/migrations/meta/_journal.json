@@ -85,6 +85,20 @@
       "when": 1753730400000,
       "tag": "0011_simops_resolution",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1753734000000,
+      "tag": "0012_daily_progress",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1753737600000,
+      "tag": "0013_daily_revalidation",
+      "breakpoints": true
     }
   ]
 }

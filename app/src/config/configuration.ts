@@ -89,4 +89,19 @@ export default () => ({
       10,
     ),
   },
+  mdp: {
+    cacheTtlSeconds: parseInt(process.env.MDP_CACHE_TTL_SECONDS ?? '300', 10),
+    dailyReminderCron: process.env.MDP_DAILY_REMINDER_CRON ?? '0 7 * * *',
+    evidenceUrlExpirySeconds: parseInt(
+      process.env.MDP_EVIDENCE_URL_EXPIRY_SECONDS ?? '3600',
+      10,
+    ),
+    evidencePrefix: process.env.MDP_EVIDENCE_PREFIX ?? 'mdp/daily-progress',
+    revalidationCacheTtlSeconds: parseInt(
+      process.env.MDP_REVALIDATION_CACHE_TTL_SECONDS ?? '300',
+      10,
+    ),
+    revalidationReminderCron: process.env.MDP_REVALIDATION_REMINDER_CRON ?? '0 6 * * *',
+    extensionExpiryCron: process.env.MDP_EXTENSION_EXPIRY_CRON ?? '0 5 * * *',
+  },
 });
