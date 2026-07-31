@@ -148,8 +148,12 @@ export class SimopsService {
 
   async analyse(user: AuthenticatedUser, permitId?: string) {
     const tenantId = this.requireTenant(user);
-    const analysablePermits = await this.loadAnalysablePermits(tenantId, permitId);
-    const detected = detectConflicts(analysablePermits);
+    // Always load the full analysable set for pair-wise detection.
+    // Optional permitId only filters which detected conflicts are persisted.
+    const analysablePermits = await this.loadAnalysablePermits(tenantId);
+    const detected = detectConflicts(analysablePermits).filter((item) =>
+      permitId ? item.permitIds.includes(permitId) : true,
+    );
 
     let created = 0;
     let skipped = 0;
@@ -184,19 +188,7 @@ export class SimopsService {
     };
   }
 
-  private async loadAnalysablePermits(
-    tenantId: string,
-    permitId?: string,
-  ): Promise<PermitForAnalysis[]> {
-    const conditions = [
-      eq(permits.tenantId, tenantId),
-      inArray(permits.status, [...ANALYSABLE_PERMIT_STATUSES]),
-    ];
-
-    if (permitId) {
-      conditions.push(eq(permits.id, permitId));
-    }
-
+  private async loadAnalysablePermits(tenantId: string): Promise<PermitForAnalysis[]> {
     const rows = await this.db
       .select({
         id: permits.id,
@@ -211,7 +203,12 @@ export class SimopsService {
         status: permits.status,
       })
       .from(permits)
-      .where(and(...conditions));
+      .where(
+        and(
+          eq(permits.tenantId, tenantId),
+          inArray(permits.status, [...ANALYSABLE_PERMIT_STATUSES]),
+        ),
+      );
 
     return rows;
   }
@@ -228,11 +225,11 @@ export class SimopsService {
         and(
           eq(simopsConflicts.tenantId, tenantId),
           eq(simopsConflicts.fingerprint, item.fingerprint),
-          eq(simopsConflicts.status, 'open'),
         ),
       )
       .limit(1);
 
+    // Unique (tenant, fingerprint) — never insert again for a resolved/open pair.
     if (existing.length > 0) {
       return false;
     }

@@ -135,6 +135,12 @@ export class RevalidationService {
         .limit(1);
 
       if (openSuspension[0] && !openSuspension[0].resumedAt) {
+        if (openSuspension[0].reason.startsWith('SIMOPS conflict rejected:')) {
+          throw new ConflictException(
+            'Permit suspended by SIMOPS rejection cannot be continued via daily revalidation',
+          );
+        }
+
         await this.db
           .update(permitSuspensions)
           .set({ resumedAt: new Date(), resumedBy: actorId, updatedBy: actorId })
