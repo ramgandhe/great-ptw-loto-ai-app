@@ -134,6 +134,13 @@
       "when": 1753755600000,
       "tag": "0018_dashboards_analytics",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1753759200000,
+      "tag": "0019_billing_subscription",
+      "breakpoints": true
     }
   ]
 }
