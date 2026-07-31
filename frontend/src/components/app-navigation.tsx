@@ -16,6 +16,7 @@ import {
   Settings,
   Shield,
   Sparkles,
+  TriangleAlert,
   Users,
 } from "lucide-react";
 import { Icon } from "@/components/icons";
@@ -31,6 +32,7 @@ const navItems = [
   { href: "/approvals/deferred", label: "Deferred", icon: ListChecks },
   { href: "/execution", label: "Execution", icon: Hammer },
   { href: "/lototo", label: "LOTOTO", icon: LockKeyhole },
+  { href: "/simops", label: "SIMOPS", icon: TriangleAlert },
   { href: "/closure", label: "Closure", icon: Lock },
   { href: "/ai", label: "AI assistant", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: Settings },

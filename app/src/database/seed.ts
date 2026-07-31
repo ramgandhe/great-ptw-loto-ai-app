@@ -1,4 +1,5 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import * as schema from './schema';
 import {
@@ -145,7 +146,15 @@ async function seed(): Promise<void> {
         updatedBy: SEED_ACTOR_ID,
       })),
     )
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: [permitTypes.tenantId, permitTypes.code],
+      set: {
+        name: sql`excluded.name`,
+        description: sql`excluded.description`,
+        updatedBy: SEED_ACTOR_ID,
+        updatedAt: sql`now()`,
+      },
+    });
 
   await db
     .insert(plants)

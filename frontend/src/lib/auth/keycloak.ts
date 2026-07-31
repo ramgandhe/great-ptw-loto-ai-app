@@ -44,7 +44,7 @@ export async function startKeycloakLogin(redirectPath = "/"): Promise<void> {
     client_id: authConfig.clientId,
     redirect_uri: authConfig.redirectUri,
     response_type: "code",
-    scope: "openid tenant",
+    scope: "openid profile email",
     code_challenge: challenge,
     code_challenge_method: "S256",
   });
