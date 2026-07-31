@@ -128,6 +128,22 @@ The Incident Closure module depends on:
 - **Keycloak** — role validation for verify / close / archive routes.
 - **Grafana Loki** — structured closure event logging (`loki: true` marker).
 
+## Notifications infrastructure (SP-07.01)
+
+The Notifications module depends on:
+
+- **Redis** — caches per-user notification lists and unread counts
+  (`notification:list:*`, `notification:unread:*`), TTL via
+  `NOTIFICATION_CACHE_TTL_SECONDS`.
+- **BullMQ** (`platform-queue`) — repeatable jobs:
+  - `notification.delivery-retry` (`NOTIFICATION_DELIVERY_RETRY_CRON`) scans
+    failed `notification_recipients` whose `next_retry_at` is due.
+  - `notification.task-reminder` (`NOTIFICATION_TASK_REMINDER_CRON`) emits
+    reminder sweeps for recent `task_reminder` notifications.
+- **Keycloak** — recipient identity / role validation for notification routes
+  (wired in BE-SP-07.01).
+- **Grafana Loki** — structured delivery logging (`loki: true` marker).
+
 ## Health checks
 
 `docker compose up` gates the `api` service on `postgres`, `redis` and `minio`

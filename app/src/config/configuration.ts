@@ -121,4 +121,9 @@ export default () => ({
     cacheTtlSeconds: parseInt(process.env.INCIDENT_CLOSURE_CACHE_TTL_SECONDS ?? '300', 10),
     closureNotifyCron: process.env.INCIDENT_CLOSURE_NOTIFY_CRON ?? '0 10 * * *',
   },
+  notification: {
+    cacheTtlSeconds: parseInt(process.env.NOTIFICATION_CACHE_TTL_SECONDS ?? '300', 10),
+    deliveryRetryCron: process.env.NOTIFICATION_DELIVERY_RETRY_CRON ?? '*/5 * * * *',
+    taskReminderCron: process.env.NOTIFICATION_TASK_REMINDER_CRON ?? '0 7 * * *',
+  },
 });
