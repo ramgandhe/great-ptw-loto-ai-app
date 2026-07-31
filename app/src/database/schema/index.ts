@@ -16,6 +16,7 @@ export * from './simops';
 export * from './multi-day';
 export * from './multi-day-revalidation';
 export * from './incident';
+export * from './investigation';
 
 
 export const platformMetadata = pgTable('platform_metadata', {
