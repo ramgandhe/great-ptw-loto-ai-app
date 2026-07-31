@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   AlertTriangle,
+  Bell,
   Building2,
   CheckSquare,
   ClipboardList,
@@ -35,6 +36,7 @@ const navItems = [
   { href: "/lototo", label: "LOTOTO", icon: LockKeyhole },
   { href: "/simops", label: "SIMOPS", icon: TriangleAlert },
   { href: "/incidents", label: "Incidents", icon: AlertTriangle },
+  { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/closure", label: "Closure", icon: Lock },
   { href: "/ai", label: "AI assistant", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: Settings },

@@ -1,5 +1,6 @@
 "use client";
 
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ThemeSettings } from "@/components/theme/theme-settings";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/auth/keycloak";
@@ -10,6 +11,7 @@ export function AppHeader() {
     <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border px-6">
       <p className="text-sm text-muted-foreground">Platform Foundation</p>
       <div className="ml-auto flex items-center gap-2">
+        {isAuthenticated() ? <NotificationBell /> : null}
         {isAuthenticated() ? (
           <Button type="button" variant="outline" size="sm" onClick={signOut}>
             Sign out

@@ -78,6 +78,12 @@ export default function HomeScreen() {
       </Pressable>
       <Pressable
         style={[styles.linkButton, { borderColor: tokens.colors.border }]}
+        onPress={() => router.push("/notifications")}
+      >
+        <Text style={{ color: tokens.colors.foreground, fontWeight: "500" }}>Notifications</Text>
+      </Pressable>
+      <Pressable
+        style={[styles.linkButton, { borderColor: tokens.colors.border }]}
         onPress={() => router.push("/workforce")}
       >
         <Text style={{ color: tokens.colors.foreground, fontWeight: "500" }}>Workforce</Text>
