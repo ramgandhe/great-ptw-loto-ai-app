@@ -51,6 +51,20 @@ The Isolation Execution module depends on:
   verification route.
 - **Grafana Loki** — structured isolation event logging (`loki: true` marker).
 
+## Restoration & History infrastructure (SP-03.03)
+
+The Restoration & History module depends on:
+
+- **Redis** — historical cache (`restoration:detail:*`, `restoration:history:exec:*`,
+  `restoration:history:plan:*`), invalidated on every restoration mutation.
+- **BullMQ** (`platform-queue`) — repeatable `restoration.notification` job
+  (`RESTORATION_NOTIFICATION_CRON`) flagging verified executions pending restoration.
+- **MinIO** — restoration-evidence storage via presigned upload/download URLs
+  (`RESTORATION_EVIDENCE_URL_EXPIRY_SECONDS`), keyed under the execution path.
+- **Keycloak** — role validation (`isolation-officer`, `verifier`, `supervisor`,
+  `org-admin`, `platform-admin`) enforced server-side on every restoration/removal route.
+- **Grafana Loki** — structured restoration event logging (`loki: true` marker).
+
 ## Health checks
 
 `docker compose up` gates the `api` service on `postgres`, `redis` and `minio`
