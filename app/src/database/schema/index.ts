@@ -15,6 +15,8 @@ export * from './lototo-restoration';
 export * from './simops';
 export * from './multi-day';
 export * from './multi-day-revalidation';
+export * from './incident';
+
 
 export const platformMetadata = pgTable('platform_metadata', {
   ...auditColumns,

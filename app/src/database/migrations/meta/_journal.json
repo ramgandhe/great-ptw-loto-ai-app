@@ -99,6 +99,14 @@
       "when": 1753737600000,
       "tag": "0013_daily_revalidation",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1753741200000,
+      "tag": "0014_incident_recording",
+      "breakpoints": true
     }
   ]
 }
+
