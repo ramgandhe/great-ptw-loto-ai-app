@@ -126,4 +126,12 @@ export default () => ({
     deliveryRetryCron: process.env.NOTIFICATION_DELIVERY_RETRY_CRON ?? '*/5 * * * *',
     taskReminderCron: process.env.NOTIFICATION_TASK_REMINDER_CRON ?? '0 7 * * *',
   },
+  dashboard: {
+    cacheTtlSeconds: parseInt(process.env.DASHBOARD_CACHE_TTL_SECONDS ?? '120', 10),
+    reportGenerateCron: process.env.DASHBOARD_REPORT_GENERATE_CRON ?? '*/10 * * * *',
+    analyticsSnapshotCron: process.env.DASHBOARD_ANALYTICS_SNAPSHOT_CRON ?? '0 1 * * *',
+    kpiRefreshCron: process.env.DASHBOARD_KPI_REFRESH_CRON ?? '*/15 * * * *',
+    reportPrefix: process.env.DASHBOARD_REPORT_PREFIX ?? 'dashboards/reports',
+    metabaseUrl: process.env.METABASE_URL ?? '',
+  },
 });

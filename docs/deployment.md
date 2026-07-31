@@ -144,6 +144,28 @@ The Notifications module depends on:
   (wired in BE-SP-07.01).
 - **Grafana Loki** — structured delivery logging (`loki: true` marker).
 
+## Dashboards & Analytics infrastructure (SP-07.02)
+
+The Dashboards & Analytics module depends on:
+
+- **Redis** — caches dashboard payloads, KPI widgets and analytics views
+  (`dashboard:*`, `dashboard:kpi:*`, `dashboard:analytics:*`), TTL via
+  `DASHBOARD_CACHE_TTL_SECONDS`.
+- **BullMQ** (`platform-queue`) — repeatable jobs:
+  - `dashboard.report-generate` (`DASHBOARD_REPORT_GENERATE_CRON`) flags
+    pending `report_exports` for generation.
+  - `dashboard.analytics-snapshot` (`DASHBOARD_ANALYTICS_SNAPSHOT_CRON`)
+    triggers nightly analytics snapshot sweeps.
+  - `dashboard.kpi-refresh` (`DASHBOARD_KPI_REFRESH_CRON`) flags expired
+    `kpi_cache` rows for recomputation.
+- **MinIO** — generated report files under `DASHBOARD_REPORT_PREFIX`
+  (default `dashboards/reports`) inside `MINIO_BUCKET`.
+- **Metabase** — optional embedded analytics via `METABASE_URL`
+  (leave empty when not configured).
+- **Keycloak** — role validation for dashboard / report routes
+  (wired in BE-SP-07.02).
+- **Grafana Loki** — structured dashboard/ops metric logging (`loki: true`).
+
 ## Health checks
 
 `docker compose up` gates the `api` service on `postgres`, `redis` and `minio`
