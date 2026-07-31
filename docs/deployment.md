@@ -65,6 +65,22 @@ The Restoration & History module depends on:
   `org-admin`, `platform-admin`) enforced server-side on every restoration/removal route.
 - **Grafana Loki** — structured restoration event logging (`loki: true` marker).
 
+## Conflict Detection infrastructure (SP-04.01)
+
+The SIMOPS Conflict Detection module depends on:
+
+- **Redis** — active-permit and conflict caches (`simops:active-permits:*`,
+  `simops:conflicts:list:*`, `simops:conflict:*`), invalidated when conflicts change.
+- **BullMQ** (`platform-queue`) — repeatable `simops.conflict-detection` job
+  (`SIMOPS_CONFLICT_DETECTION_CRON`) that snapshots active/approved permits for
+  analysis, plus `simops.notification` for alert delivery logging.
+- **Keycloak** — role validation for upcoming SIMOPS APIs (`job-issuer`,
+  `supervisor`, `org-admin`, `platform-admin`, `viewer`).
+- **Grafana Loki** — structured SIMOPS event logging (`loki: true`,
+  `domain: simultaneous-operations`).
+- **Metabase** — SIMOPS analytics dashboards against PostgreSQL conflict tables
+  (compose service on port 3001; no Nest client required).
+
 ## Health checks
 
 `docker compose up` gates the `api` service on `postgres`, `redis` and `minio`
