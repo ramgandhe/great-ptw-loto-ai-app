@@ -18,6 +18,10 @@ export type Database = NodePgDatabase<typeof schema>;
       useFactory: (configService: ConfigService): Pool => {
         return new Pool({
           connectionString: configService.get<string>('database.url'),
+          max: configService.get<number>('database.poolMax') ?? 20,
+          idleTimeoutMillis: configService.get<number>('database.poolIdleTimeoutMs') ?? 30000,
+          connectionTimeoutMillis:
+            configService.get<number>('database.poolConnectionTimeoutMs') ?? 5000,
         });
       },
     },

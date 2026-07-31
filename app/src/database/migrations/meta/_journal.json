@@ -141,6 +141,13 @@
       "when": 1753759200000,
       "tag": "0019_billing_subscription",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1753762800000,
+      "tag": "0020_database_performance_hardening",
+      "breakpoints": true
     }
   ]
 }
