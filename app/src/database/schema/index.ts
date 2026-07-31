@@ -13,6 +13,7 @@ export * from './lototo';
 export * from './lototo-execution';
 export * from './lototo-restoration';
 export * from './simops';
+export * from './multi-day';
 
 export const platformMetadata = pgTable('platform_metadata', {
   ...auditColumns,

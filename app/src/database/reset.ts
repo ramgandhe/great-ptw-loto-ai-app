@@ -6,6 +6,9 @@ const connectionString =
 
 const PTW_TABLES = [
   'audit_history',
+  'daily_activity_history',
+  'shift_handovers',
+  'permit_daily_progress',
   'permit_archive',
   'permit_closures',
   'permit_verifications',
