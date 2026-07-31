@@ -131,3 +131,142 @@ export const conflictAlerts = pgTable(
     index('conflict_alerts_recipient_user_id_idx').on(table.recipientUserId),
   ],
 );
+
+/** SP-04.02 — Conflict Resolution */
+
+export const SIMOPS_ASSESSMENT_STATUSES = ['draft', 'completed'] as const;
+export type SimopsAssessmentStatus = (typeof SIMOPS_ASSESSMENT_STATUSES)[number];
+
+export const SIMOPS_MITIGATION_STATUSES = [
+  'draft',
+  'active',
+  'completed',
+  'cancelled',
+] as const;
+export type SimopsMitigationStatus = (typeof SIMOPS_MITIGATION_STATUSES)[number];
+
+export const SIMOPS_RESOLUTION_DECISIONS = ['approved', 'rejected'] as const;
+export type SimopsResolutionDecision = (typeof SIMOPS_RESOLUTION_DECISIONS)[number];
+
+export const SIMOPS_HISTORY_ACTIONS = [
+  'detected',
+  'assessed',
+  'mitigation_created',
+  'mitigation_updated',
+  'approved',
+  'rejected',
+  'escalated',
+  'notification_sent',
+] as const;
+export type SimopsHistoryAction = (typeof SIMOPS_HISTORY_ACTIONS)[number];
+
+export type MitigationMeasure = {
+  action: string;
+  ownerUserId?: string;
+  dueAt?: string;
+  completed?: boolean;
+};
+
+export const conflictAssessments = pgTable(
+  'conflict_assessments',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    conflictId: uuid('conflict_id')
+      .notNull()
+      .references(() => simopsConflicts.id, { onDelete: 'cascade' }),
+    assessedSeverity: varchar('assessed_severity', { length: 16 }).notNull(),
+    riskSummary: text('risk_summary'),
+    findings: jsonb('findings').$type<Record<string, unknown>>(),
+    assessedBy: uuid('assessed_by').notNull(),
+    assessedAt: timestamp('assessed_at', { withTimezone: true }).notNull().defaultNow(),
+    status: varchar('status', { length: 32 }).notNull().default('draft'),
+  },
+  (table) => [
+    index('conflict_assessments_tenant_id_idx').on(table.tenantId),
+    index('conflict_assessments_conflict_id_idx').on(table.conflictId),
+    index('conflict_assessments_conflict_assessed_at_idx').on(
+      table.conflictId,
+      table.assessedAt,
+    ),
+  ],
+);
+
+export const mitigationPlans = pgTable(
+  'mitigation_plans',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    conflictId: uuid('conflict_id')
+      .notNull()
+      .references(() => simopsConflicts.id, { onDelete: 'cascade' }),
+    assessmentId: uuid('assessment_id').references(() => conflictAssessments.id, {
+      onDelete: 'set null',
+    }),
+    title: varchar('title', { length: 255 }).notNull(),
+    description: text('description'),
+    measures: jsonb('measures').$type<MitigationMeasure[]>().notNull().default([]),
+    responsibleUserId: uuid('responsible_user_id'),
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    status: varchar('status', { length: 32 }).notNull().default('draft'),
+    evidenceStorageBucket: varchar('evidence_storage_bucket', { length: 128 }),
+    evidenceStorageKey: varchar('evidence_storage_key', { length: 512 }),
+  },
+  (table) => [
+    index('mitigation_plans_tenant_id_idx').on(table.tenantId),
+    index('mitigation_plans_conflict_id_idx').on(table.conflictId),
+    index('mitigation_plans_assessment_id_idx').on(table.assessmentId),
+    index('mitigation_plans_tenant_status_idx').on(table.tenantId, table.status),
+  ],
+);
+
+export const conflictResolutions = pgTable(
+  'conflict_resolutions',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    conflictId: uuid('conflict_id')
+      .notNull()
+      .references(() => simopsConflicts.id, { onDelete: 'restrict' }),
+    decision: varchar('decision', { length: 16 }).notNull(),
+    comments: text('comments').notNull(),
+    decidedBy: uuid('decided_by').notNull(),
+    decidedAt: timestamp('decided_at', { withTimezone: true }).notNull().defaultNow(),
+    mitigationPlanId: uuid('mitigation_plan_id').references(() => mitigationPlans.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    uniqueIndex('conflict_resolutions_conflict_id_unique').on(table.conflictId),
+    index('conflict_resolutions_tenant_id_idx').on(table.tenantId),
+    index('conflict_resolutions_tenant_decision_idx').on(table.tenantId, table.decision),
+    index('conflict_resolutions_decided_at_idx').on(table.decidedAt),
+  ],
+);
+
+/** FR-SIM-010 / BR-SIM-011 — append-only conflict workflow history. */
+export const conflictHistory = pgTable(
+  'conflict_history',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    createdBy: uuid('created_by'),
+    tenantId: uuid('tenant_id').notNull(),
+    conflictId: uuid('conflict_id')
+      .notNull()
+      .references(() => simopsConflicts.id, { onDelete: 'restrict' }),
+    action: varchar('action', { length: 64 }).notNull(),
+    entityType: varchar('entity_type', { length: 64 }).notNull(),
+    entityId: uuid('entity_id'),
+    actorId: uuid('actor_id').notNull(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  },
+  (table) => [
+    index('conflict_history_tenant_id_idx').on(table.tenantId),
+    index('conflict_history_conflict_id_idx').on(table.conflictId),
+    index('conflict_history_tenant_occurred_at_idx').on(table.tenantId, table.occurredAt),
+    index('conflict_history_conflict_occurred_at_idx').on(table.conflictId, table.occurredAt),
+    index('conflict_history_action_idx').on(table.action),
+  ],
+);
