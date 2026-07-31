@@ -5,6 +5,7 @@ const sections = [
   { href: "/permits", label: "Permits", description: "Create, edit and track permit-to-work requests" },
   { href: "/approvals", label: "Approvals", description: "Review and approve pending permit workflows" },
   { href: "/execution", label: "Execution", description: "Active permit execution, progress and evidence" },
+  { href: "/incidents", label: "Incidents", description: "Report incidents, near misses and unsafe conditions" },
   { href: "/closure", label: "Closure", description: "Close permits and browse the archive" },
 ];
 

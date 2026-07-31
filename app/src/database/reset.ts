@@ -5,6 +5,18 @@ const connectionString =
   'postgresql://ptw:ptw_dev_password@localhost:5432/ptw_platform';
 
 const PTW_TABLES = [
+  'incident_archive',
+  'incident_closures',
+  'incident_verifications',
+  'investigation_history',
+  'preventive_actions',
+  'corrective_actions',
+  'root_causes',
+  'investigations',
+  'incident_permits',
+  'incident_equipment',
+  'incident_evidence',
+  'incidents',
   'audit_history',
   'revalidation_history',
   'permit_suspensions',

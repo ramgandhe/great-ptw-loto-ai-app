@@ -90,6 +90,44 @@ The Daily Revalidation module depends on:
 - **Keycloak** — role validation for revalidation / continuation / extension routes.
 - **Grafana Loki** — structured revalidation event logging (`loki: true` marker).
 
+## Incident Recording infrastructure (SP-06.01)
+
+The Incident Recording module depends on:
+
+- **Redis** — caches tenant incident lists and detail views
+  (`incident:list:*`, `incident:detail:*`), invalidated on writes.
+- **BullMQ** (`platform-queue`) — repeatable `incident.open-reminder` job
+  (`INCIDENT_OPEN_REMINDER_CRON`) that flags open incidents for Safety Officers.
+- **MinIO** — incident evidence under `INCIDENT_EVIDENCE_PREFIX` (default
+  `incidents/evidence`) inside `MINIO_BUCKET`; presigned URL expiry via
+  `INCIDENT_EVIDENCE_URL_EXPIRY_SECONDS`.
+- **Keycloak** — role validation for incident reporting routes.
+- **Grafana Loki** — structured incident event logging (`loki: true` marker).
+
+## Investigation infrastructure (SP-06.02)
+
+The Investigation module depends on:
+
+- **Redis** — caches investigation detail views (`investigation:detail:*`),
+  invalidated on assignment / RCA / action writes.
+- **BullMQ** — repeatable `investigation.overdue-actions` job
+  (`INVESTIGATION_OVERDUE_ACTION_CRON`) that flags overdue corrective actions.
+- **MinIO** — investigation evidence continues under incident evidence prefix.
+- **Keycloak** — role validation for investigation / action routes.
+- **Grafana Loki** — structured investigation event logging (`loki: true` marker).
+
+## Incident Closure infrastructure (SP-06.03)
+
+The Incident Closure module depends on:
+
+- **Redis** — caches archive list/detail views (`incident:archive:*`),
+  invalidated on verify/close writes.
+- **BullMQ** — repeatable `incident.closure-notify` job
+  (`INCIDENT_CLOSURE_NOTIFY_CRON`) for verified incidents pending closure.
+- **MinIO** — historical evidence remains under incident evidence prefix.
+- **Keycloak** — role validation for verify / close / archive routes.
+- **Grafana Loki** — structured closure event logging (`loki: true` marker).
+
 ## Health checks
 
 `docker compose up` gates the `api` service on `postgres`, `redis` and `minio`

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
+  AlertTriangle,
   Building2,
   CheckSquare,
   ClipboardList,
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/execution", label: "Execution", icon: Hammer },
   { href: "/lototo", label: "LOTOTO", icon: LockKeyhole },
   { href: "/simops", label: "SIMOPS", icon: TriangleAlert },
+  { href: "/incidents", label: "Incidents", icon: AlertTriangle },
   { href: "/closure", label: "Closure", icon: Lock },
   { href: "/ai", label: "AI assistant", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: Settings },
