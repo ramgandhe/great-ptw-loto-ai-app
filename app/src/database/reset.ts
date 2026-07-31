@@ -5,6 +5,10 @@ const connectionString =
   'postgresql://ptw:ptw_dev_password@localhost:5432/ptw_platform';
 
 const PTW_TABLES = [
+  'kpi_cache',
+  'analytics_snapshots',
+  'report_exports',
+  'dashboard_preferences',
   'notification_history',
   'notification_recipients',
   'notifications',
