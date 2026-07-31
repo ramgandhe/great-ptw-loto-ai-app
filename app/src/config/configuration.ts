@@ -104,4 +104,13 @@ export default () => ({
     revalidationReminderCron: process.env.MDP_REVALIDATION_REMINDER_CRON ?? '0 6 * * *',
     extensionExpiryCron: process.env.MDP_EXTENSION_EXPIRY_CRON ?? '0 5 * * *',
   },
+  incident: {
+    cacheTtlSeconds: parseInt(process.env.INCIDENT_CACHE_TTL_SECONDS ?? '300', 10),
+    openReminderCron: process.env.INCIDENT_OPEN_REMINDER_CRON ?? '0 8 * * *',
+    evidenceUrlExpirySeconds: parseInt(
+      process.env.INCIDENT_EVIDENCE_URL_EXPIRY_SECONDS ?? '3600',
+      10,
+    ),
+    evidencePrefix: process.env.INCIDENT_EVIDENCE_PREFIX ?? 'incidents/evidence',
+  },
 });

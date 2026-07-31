@@ -90,6 +90,20 @@ The Daily Revalidation module depends on:
 - **Keycloak** — role validation for revalidation / continuation / extension routes.
 - **Grafana Loki** — structured revalidation event logging (`loki: true` marker).
 
+## Incident Recording infrastructure (SP-06.01)
+
+The Incident Recording module depends on:
+
+- **Redis** — caches tenant incident lists and detail views
+  (`incident:list:*`, `incident:detail:*`), invalidated on writes.
+- **BullMQ** (`platform-queue`) — repeatable `incident.open-reminder` job
+  (`INCIDENT_OPEN_REMINDER_CRON`) that flags open incidents for Safety Officers.
+- **MinIO** — incident evidence under `INCIDENT_EVIDENCE_PREFIX` (default
+  `incidents/evidence`) inside `MINIO_BUCKET`; presigned URL expiry via
+  `INCIDENT_EVIDENCE_URL_EXPIRY_SECONDS`.
+- **Keycloak** — role validation for incident reporting routes.
+- **Grafana Loki** — structured incident event logging (`loki: true` marker).
+
 ## Health checks
 
 `docker compose up` gates the `api` service on `postgres`, `redis` and `minio`
