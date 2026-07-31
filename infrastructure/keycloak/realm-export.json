@@ -49,7 +49,18 @@
       "webOrigins": [
         "http://localhost:3000"
       ],
-      "protocol": "openid-connect"
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "basic",
+        "openid",
+        "profile",
+        "email",
+        "tenant",
+        "roles"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
+      ]
     },
     {
       "clientId": "ptw-api",
@@ -60,7 +71,15 @@
       "serviceAccountsEnabled": true,
       "directAccessGrantsEnabled": false,
       "standardFlowEnabled": false,
-      "protocol": "openid-connect"
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "basic",
+        "openid",
+        "profile",
+        "email",
+        "tenant",
+        "roles"
+      ]
     },
     {
       "clientId": "ptw-mobile",
@@ -76,7 +95,18 @@
       "webOrigins": [
         "*"
       ],
-      "protocol": "openid-connect"
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "basic",
+        "openid",
+        "profile",
+        "email",
+        "tenant",
+        "roles"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
+      ]
     }
   ],
   "users": [
@@ -176,6 +206,28 @@
   ],
   "clientScopes": [
     {
+      "name": "basic",
+      "description": "OpenID Connect scope for basic claims (sub)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
       "name": "openid",
       "description": "OpenID Connect scope",
       "protocol": "openid-connect",
@@ -191,7 +243,23 @@
       "attributes": {
         "include.in.token.scope": "true",
         "display.on.consent.screen": "true"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "email",
@@ -249,6 +317,7 @@
     }
   ],
   "defaultDefaultClientScopes": [
+    "basic",
     "openid",
     "profile",
     "email",

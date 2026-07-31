@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { and, asc, eq, isNull } from 'drizzle-orm';
+import { requireActorId } from '../../common/helpers/require-actor-id';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   workflowAssignments,
@@ -60,6 +61,11 @@ export class WorkflowEngineService {
     submittedBy: string,
     db?: DbClient,
   ) {
+    const assigneeId = requireActorId(
+      submittedBy,
+      'Cannot create workflow assignments without a submitter user id',
+    );
+
     await this.resetWorkflow(permitId, db);
 
     const steps = await this.resolveSteps(tenantId, permitTypeId);
@@ -73,10 +79,10 @@ export class WorkflowEngineService {
         steps.map((step, index) => ({
           permitId,
           workflowStepId: step.id,
-          assigneeId: submittedBy,
+          assigneeId,
           status: (index === 0 ? 'active' : 'pending') satisfies AssignmentStatus,
-          createdBy: submittedBy,
-          updatedBy: submittedBy,
+          createdBy: assigneeId,
+          updatedBy: assigneeId,
         })),
       )
       .returning();

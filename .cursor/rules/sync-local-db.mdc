@@ -1,0 +1,15 @@
+---
+description: Always apply DB migrations when schema/migration files change
+alwaysApply: true
+---
+
+# Local database stays in sync
+
+Whenever you change Drizzle schema, add/edit SQL under `app/src/database/migrations/`, or pull work that includes those changes:
+
+1. Run `npm run db:migrate` (with `DATABASE_URL` matching local Postgres from `.env.example` / `docker-compose.yml` if needed).
+2. Confirm the migration applied (or report failure).
+3. If a migration was already marked applied but SQL/schema changed (column-missing errors like `conflict_type`), do not stop at migrate — repair local DB (drop affected tables / remove those drizzle journal rows / remigrate, or `db:reset` in local dev) so schema matches code.
+4. After successful migrate on schema changes, mention that the local DB was updated.
+
+Do not assume git pull updates the database. Code and local Postgres are separate.

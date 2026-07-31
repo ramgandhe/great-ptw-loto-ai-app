@@ -7,6 +7,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { and, desc, eq } from 'drizzle-orm';
+import { requireActorId } from '../../common/helpers/require-actor-id';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { generatePermitReference } from '../../database/permit-reference';
@@ -247,6 +248,7 @@ export class PermitService {
 
   async submit(id: string, user: AuthenticatedUser): Promise<PermitDetail> {
     const tenantId = this.requireTenant(user);
+    const actorId = requireActorId(user);
     const detail = await this.loadDetail(this.db, id, tenantId);
 
     if (!isSubmittablePermitStatus(detail.permit.status)) {
@@ -268,8 +270,8 @@ export class PermitService {
           status: 'pending_approval',
           reference,
           submittedAt,
-          submittedBy: user.id,
-          updatedBy: user.id,
+          submittedBy: actorId,
+          updatedBy: actorId,
         })
         .where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
 
@@ -280,8 +282,8 @@ export class PermitService {
             action: 'resubmitted',
             fromStatus,
             toStatus: 'pending_approval',
-            actorId: user.id,
-            createdBy: user.id,
+            actorId,
+            createdBy: actorId,
           },
           tx,
         );
@@ -291,7 +293,7 @@ export class PermitService {
         id,
         tenantId,
         detail.permit.permitTypeId,
-        user.id,
+        actorId,
         tx,
       );
     });
@@ -300,7 +302,7 @@ export class PermitService {
       action: isResubmit ? 'permit.resubmitted' : 'permit.submitted',
       entityType: 'permit',
       entityId: id,
-      userId: user.id,
+      userId: actorId,
       tenantId,
       metadata: { reference, status: 'pending_approval', fromStatus },
     });
@@ -309,7 +311,7 @@ export class PermitService {
       action: isResubmit ? 'permit.resubmitted' : 'permit.submitted',
       permitId: id,
       tenantId,
-      userId: user.id,
+      userId: actorId,
       metadata: { reference, status: 'pending_approval', fromStatus },
     });
 
