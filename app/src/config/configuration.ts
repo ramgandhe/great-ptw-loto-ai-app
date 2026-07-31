@@ -113,4 +113,8 @@ export default () => ({
     ),
     evidencePrefix: process.env.INCIDENT_EVIDENCE_PREFIX ?? 'incidents/evidence',
   },
+  investigation: {
+    cacheTtlSeconds: parseInt(process.env.INVESTIGATION_CACHE_TTL_SECONDS ?? '300', 10),
+    overdueActionCron: process.env.INVESTIGATION_OVERDUE_ACTION_CRON ?? '0 9 * * *',
+  },
 });
