@@ -31,6 +31,7 @@ import { InvestigationModule } from './modules/investigation/investigation.modul
 import { IncidentClosureModule } from './modules/incident-closure/incident-closure.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DashboardsModule } from './modules/dashboards/dashboards.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { ClosureModule } from './modules/closure/closure.module';
 import { LoggingModule } from './modules/logging/logging.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -84,6 +85,7 @@ import { AiModule } from './modules/ai/ai.module';
     InvestigationModule,
     NotificationsModule,
     DashboardsModule,
+    BillingModule,
     AiModule,
   ],
   providers: [
