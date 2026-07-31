@@ -68,6 +68,7 @@ import { AiModule } from './modules/ai/ai.module';
     OrganisationModule,
     WorkforceModule,
     ClosureModule,
+    IncidentClosureModule,
     PermitModule,
     ApprovalModule,
     ExecutionModule,
@@ -79,7 +80,6 @@ import { AiModule } from './modules/ai/ai.module';
     RevalidationModule,
     IncidentsModule,
     InvestigationModule,
-    IncidentClosureModule,
     AiModule,
   ],
   providers: [
