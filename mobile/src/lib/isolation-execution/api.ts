@@ -21,6 +21,10 @@ export function getIsolationExecutionForPlan(planId: string) {
   return fetchApi<IsolationExecutionDetail>(`/lototo-plans/${planId}/isolation-execution`);
 }
 
+export function getIsolationExecutionDetail(executionId: string) {
+  return fetchApi<IsolationExecutionDetail>(`/isolation-executions/${executionId}`);
+}
+
 export function markIsolationComplete(executionId: string) {
   return fetchApi<IsolationExecution>(`/isolation-executions/${executionId}/isolate`, {
     method: "POST",

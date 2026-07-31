@@ -37,6 +37,9 @@ export default function LototoPlansPage() {
         <Link href="/lototo/active">
           <Button variant="outline">Active LOTOTO</Button>
         </Link>
+        <Link href="/lototo/restoration">
+          <Button variant="outline">Restoration</Button>
+        </Link>
       </div>
 
       {error ? (

@@ -52,6 +52,15 @@ export default function LototoPlansScreen() {
           Execute isolation in the field
         </Text>
       </Pressable>
+      <Pressable
+        style={[styles.card, { borderColor: tokens.colors.border }]}
+        onPress={() => router.push("/lototo/restoration")}
+      >
+        <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>Restoration</Text>
+        <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12 }}>
+          Remove locks and restore equipment
+        </Text>
+      </Pressable>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 

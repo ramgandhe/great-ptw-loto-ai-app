@@ -365,6 +365,15 @@ export default function IsolationExecutionScreen() {
       {execution.status === "verified" && detail.plan ? (
         <Pressable
           style={[styles.button, { backgroundColor: tokens.colors.primary }]}
+          onPress={() => router.push(`/lototo/restoration/${execution.id}`)}
+        >
+          <Text style={styles.buttonText}>Start restoration</Text>
+        </Pressable>
+      ) : null}
+
+      {execution.status === "verified" && detail.plan ? (
+        <Pressable
+          style={[styles.button, { backgroundColor: tokens.colors.primary }]}
           onPress={() => router.push(`/execution/${detail.plan!.permitId}`)}
         >
           <Text style={styles.buttonText}>Open permit execution</Text>
