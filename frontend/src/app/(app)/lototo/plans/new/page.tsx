@@ -2,21 +2,26 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/lib/api";
-import { machineryApi, workstationsApi } from "@/lib/organisation/api";
-import type { OrgRecord } from "@/lib/organisation/types";
 import { createLototoPlan } from "@/lib/lototo/api";
-import { listPermits } from "@/lib/permit/api";
-import type { PermitRecord } from "@/lib/permit/types";
+import {
+  filterMachineryByWorkstation,
+  loadLototoFormOptions,
+} from "@/lib/lototo/form-options";
+import {
+  formatOrgOptionLabel,
+  SelectField,
+} from "@/components/lototo/select-field";
+import { fieldClassName, FormField } from "@/components/permit/form-field";
 import { Button } from "@/components/ui/button";
 
 function NewLototoPlanForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [permits, setPermits] = useState<PermitRecord[]>([]);
-  const [workstations, setWorkstations] = useState<OrgRecord[]>([]);
-  const [machinery, setMachinery] = useState<OrgRecord[]>([]);
+  const [permits, setPermits] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>>["permits"]>([]);
+  const [workstations, setWorkstations] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>>["workstations"]>([]);
+  const [machinery, setMachinery] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>>["machinery"]>([]);
   const [permitId, setPermitId] = useState(searchParams.get("permitId") ?? "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -25,21 +30,34 @@ function NewLototoPlanForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const filteredMachinery = useMemo(
+    () => filterMachineryByWorkstation(machinery, workstationId),
+    [machinery, workstationId],
+  );
+
   useEffect(() => {
-    Promise.all([
-      listPermits("approved"),
-      workstationsApi.list(),
-      machineryApi.list(),
-    ])
-      .then(([approved, ws, mc]) => {
-        setPermits(approved);
-        setWorkstations(ws);
-        setMachinery(mc);
-      })
-      .catch((err) => {
-        setError(err instanceof ApiError ? err.message : "Failed to load form data");
-      });
+    function loadFormData() {
+      loadLototoFormOptions()
+        .then((options) => {
+          setPermits(options.permits);
+          setWorkstations(options.workstations);
+          setMachinery(options.machinery);
+        })
+        .catch((err) => {
+          setError(err instanceof ApiError ? err.message : "Failed to load form data");
+        });
+    }
+
+    loadFormData();
+    window.addEventListener("focus", loadFormData);
+    return () => window.removeEventListener("focus", loadFormData);
   }, []);
+
+  useEffect(() => {
+    if (machineryId && !filteredMachinery.some((item) => item.id === machineryId)) {
+      setMachineryId("");
+    }
+  }, [filteredMachinery, machineryId]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -72,7 +90,9 @@ function NewLototoPlanForm() {
           ← Back to LOTOTO plans
         </Link>
         <h1 className="mt-2 text-2xl font-semibold">New LOTOTO plan</h1>
-        <p className="text-sm text-muted-foreground">Link a plan to an approved permit.</p>
+        <p className="text-sm text-muted-foreground">
+          Link a plan to an approved, active, or suspended permit.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="mx-auto flex w-full max-w-xl flex-col gap-4">
@@ -82,75 +102,80 @@ function NewLototoPlanForm() {
           </div>
         ) : null}
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Permit</span>
-          <select
-            required
-            value={permitId}
-            onChange={(e) => setPermitId(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-2"
-          >
-            <option value="">Select approved permit</option>
-            {permits.map((permit) => (
-              <option key={permit.id} value={permit.id}>
-                {permit.title} {permit.reference ? `(${permit.reference})` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SelectField
+          id="lototo-permit"
+          label="Permit"
+          required
+          value={permitId}
+          onChange={setPermitId}
+          placeholder={permits.length === 0 ? "No eligible permits" : "Select permit"}
+          hint={
+            permits.length === 0
+              ? "Complete permit approval before creating a LOTOTO plan."
+              : undefined
+          }
+          options={permits.map((permit) => ({
+            value: permit.id,
+            label: `${permit.title}${permit.reference ? ` (${permit.reference})` : ""} · ${permit.status.replace(/_/g, " ")}`,
+          }))}
+        />
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Title</span>
+        <FormField label="Title" htmlFor="lototo-title">
           <input
+            id="lototo-title"
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-2"
+            className={fieldClassName}
             placeholder="Compressor isolation plan"
           />
-        </label>
+        </FormField>
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Description</span>
+        <FormField label="Description" htmlFor="lototo-description">
           <textarea
+            id="lototo-description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="rounded-md border border-input bg-background px-3 py-2"
+            className={fieldClassName}
           />
-        </label>
+        </FormField>
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Workstation (optional)</span>
-          <select
-            value={workstationId}
-            onChange={(e) => setWorkstationId(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-2"
-          >
-            <option value="">None</option>
-            {workstations.map((ws) => (
-              <option key={ws.id} value={ws.id}>
-                {ws.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SelectField
+          id="lototo-workstation"
+          label="Workstation"
+          value={workstationId}
+          onChange={setWorkstationId}
+          placeholder="None"
+          hint={
+            workstations.length === 0
+              ? "Add workstations under Organisation → Workstations."
+              : "Optional — filters machinery below."
+          }
+          options={workstations.map((ws) => ({
+            value: ws.id,
+            label: formatOrgOptionLabel(ws),
+          }))}
+        />
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Machinery (optional)</span>
-          <select
-            value={machineryId}
-            onChange={(e) => setMachineryId(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-2"
-          >
-            <option value="">None</option>
-            {machinery.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SelectField
+          id="lototo-machinery"
+          label="Machinery"
+          value={machineryId}
+          onChange={setMachineryId}
+          placeholder={filteredMachinery.length === 0 ? "No machinery available" : "None"}
+          hint={
+            filteredMachinery.length === 0
+              ? "Add machinery under Organisation → Machinery."
+              : workstationId
+                ? "Showing machinery for the selected workstation."
+                : "Optional — select a workstation to narrow the list."
+          }
+          options={filteredMachinery.map((item) => ({
+            value: item.id,
+            label: formatOrgOptionLabel(item),
+          }))}
+        />
 
         <div className="flex gap-2 pt-2">
           <Button type="submit" disabled={isSubmitting}>

@@ -1,5 +1,5 @@
 import { fetchApi } from "@/lib/api";
-import type { NotificationPreference, Organisation, OrgRecord } from "./types";
+import type { MachineryRecord, NotificationPreference, Organisation, OrgRecord } from "./types";
 
 function crud<T extends OrgRecord>(basePath: string) {
   return {
@@ -30,7 +30,10 @@ export const plantsApi = crud<OrgRecord>("/plants");
 export const departmentsApi = crud<OrgRecord>("/departments");
 export const locationsApi = crud<OrgRecord>("/locations");
 export const workstationsApi = crud<OrgRecord>("/workstations");
-export const machineryApi = crud<OrgRecord>("/machinery");
+export const machineryApi = {
+  ...crud<MachineryRecord>("/machinery"),
+  list: () => fetchApi<MachineryRecord[]>("/machinery"),
+};
 export const approvalWorkflowsApi = crud<OrgRecord>("/approval-workflows");
 export const permitTemplatesApi = crud<OrgRecord>("/permit-templates");
 export const safetyChecklistsApi = crud<OrgRecord>("/safety-checklists");

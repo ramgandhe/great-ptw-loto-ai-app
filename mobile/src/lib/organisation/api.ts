@@ -1,5 +1,5 @@
 import { fetchApi } from "@/lib/api/client";
-import type { Organisation, OrgRecord } from "./types";
+import type { MachineryRecord, Organisation, OrgRecord } from "./types";
 
 export function listOrganisations() {
   return fetchApi<Organisation[]>("/organisations");
@@ -15,4 +15,12 @@ export function listDepartments() {
 
 export function listLocations() {
   return fetchApi<OrgRecord[]>("/locations");
+}
+
+export function listWorkstations() {
+  return fetchApi<OrgRecord[]>("/workstations");
+}
+
+export function listMachinery() {
+  return fetchApi<MachineryRecord[]>("/machinery");
 }

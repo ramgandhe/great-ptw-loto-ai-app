@@ -278,7 +278,7 @@ export default function IsolationExecutionScreen() {
       <TextInput
         value={lockTag}
         onChangeText={setLockTag}
-        placeholder="Lock tag ID"
+        placeholder="Lock tag number"
         style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
       />
       <TextInput

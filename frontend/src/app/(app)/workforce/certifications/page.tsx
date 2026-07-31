@@ -1,8 +1,9 @@
 import { WorkforceCrudPage } from "@/components/workforce/workforce-crud-page";
+import type { EntityField } from "@/lib/workforce/types";
 
-const fields = [
+const fields: EntityField[] = [
   { key: "name", label: "Certification name", required: true },
-  { key: "workforceUserId", label: "Workforce user ID", required: true },
+  { key: "workforceUserId", label: "Workforce member", select: "workforce", required: true },
   { key: "expiryDate", label: "Expiry date (YYYY-MM-DD)" },
   { key: "description", label: "Notes" },
 ];

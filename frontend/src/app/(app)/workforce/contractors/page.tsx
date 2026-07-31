@@ -1,10 +1,11 @@
 import { WorkforceCrudPage } from "@/components/workforce/workforce-crud-page";
+import type { EntityField } from "@/lib/workforce/types";
 
-const fields = [
+const fields: EntityField[] = [
   { key: "name", label: "Contractor name", required: true },
   { key: "email", label: "Email" },
-  { key: "agencyId", label: "Agency ID" },
-  { key: "departmentId", label: "Department ID" },
+  { key: "agencyId", label: "Agency", select: "agency" },
+  { key: "departmentId", label: "Department", select: "department" },
 ];
 
 export default function ContractorsPage() {

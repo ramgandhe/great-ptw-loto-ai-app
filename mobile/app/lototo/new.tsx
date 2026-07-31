@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -9,16 +9,18 @@ import {
   View,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { SelectField } from "@/components/ui/select-field";
 import { ApiError } from "@/lib/api";
 import { createLototoPlan } from "@/lib/lototo/api";
-import { listPermits } from "@/lib/permit/api";
-import type { PermitRecord } from "@/lib/permit/types";
+import { loadLototoFormOptions } from "@/lib/lototo/form-options";
 import { useTheme } from "@/providers/theme-provider";
 
 export default function NewLototoPlanScreen() {
   const { permitId: initialPermitId } = useLocalSearchParams<{ permitId?: string }>();
   const { tokens } = useTheme();
-  const [permits, setPermits] = useState<PermitRecord[]>([]);
+  const [options, setOptions] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>> | null>(
+    null,
+  );
   const [permitId, setPermitId] = useState(initialPermitId ?? "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -26,9 +28,18 @@ export default function NewLototoPlanScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const permitOptions = useMemo(
+    () =>
+      (options?.permits ?? []).map((permit) => ({
+        value: permit.id,
+        label: permit.reference ? `${permit.title} (${permit.reference})` : permit.title,
+      })),
+    [options?.permits],
+  );
+
   useEffect(() => {
-    listPermits("approved")
-      .then(setPermits)
+    loadLototoFormOptions()
+      .then(setOptions)
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : "Failed to load permits");
       })
@@ -70,18 +81,19 @@ export default function NewLototoPlanScreen() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Text style={styles.label}>Permit ID</Text>
-      <TextInput
+      <SelectField
+        label="Permit"
         value={permitId}
-        onChangeText={setPermitId}
-        placeholder="Approved permit ID"
-        style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
+        options={permitOptions}
+        placeholder="Select approved permit"
+        required
+        hint={
+          permitOptions.length === 0
+            ? "No approved permits found. Approve a permit first."
+            : undefined
+        }
+        onChange={setPermitId}
       />
-      {permits.length > 0 ? (
-        <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12 }}>
-          Approved: {permits.map((p) => p.title).join(", ")}
-        </Text>
-      ) : null}
 
       <Text style={styles.label}>Title</Text>
       <TextInput

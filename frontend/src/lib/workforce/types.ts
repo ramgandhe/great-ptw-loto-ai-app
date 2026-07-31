@@ -26,4 +26,5 @@ export type EntityField = {
   label: string;
   required?: boolean;
   multiline?: boolean;
+  select?: import("@/lib/form-options").EntitySelectResource;
 };

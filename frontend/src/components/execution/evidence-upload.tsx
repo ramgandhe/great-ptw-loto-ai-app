@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { FileUploadField } from "@/components/ui/file-upload-field";
 
 type EvidenceUploadProps = {
   disabled?: boolean;
@@ -16,13 +17,8 @@ export function EvidenceUpload({
   error,
   onUpload,
 }: EvidenceUploadProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const [comment, setComment] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
-  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    setSelectedFile(event.target.files?.[0] ?? null);
-  }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -30,28 +26,21 @@ export function EvidenceUpload({
       onUpload(selectedFile, comment);
       setSelectedFile(null);
       setComment("");
-      if (inputRef.current) {
-        inputRef.current.value = "";
-      }
     }
   }
 
   return (
-    <form className="grid gap-3 rounded-lg border border-border p-4" onSubmit={handleSubmit}>
-      <div>
-        <label htmlFor="evidence-file" className="text-sm font-medium">
-          Evidence file
-        </label>
-        <input
-          ref={inputRef}
-          id="evidence-file"
-          type="file"
-          accept="image/*,application/pdf"
-          disabled={disabled || isUploading}
-          onChange={handleFileChange}
-          className="mt-1 block w-full text-sm"
-        />
-      </div>
+    <form className="grid gap-4 rounded-lg border border-border bg-card p-4" onSubmit={handleSubmit}>
+      <FileUploadField
+        id="evidence-file"
+        label="Evidence file"
+        hint="Photos or PDF documents"
+        accept="image/*,application/pdf"
+        disabled={disabled || isUploading}
+        value={selectedFile}
+        onChange={setSelectedFile}
+      />
+
       <div>
         <label htmlFor="evidence-comment" className="text-sm font-medium">
           Comment (optional)
@@ -65,14 +54,16 @@ export function EvidenceUpload({
           className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
         />
       </div>
+
       {error ? (
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       ) : null}
-      <div>
+
+      <div className="flex justify-end">
         <Button type="submit" disabled={disabled || isUploading || !selectedFile}>
-          {isUploading ? "Uploading..." : "Upload evidence"}
+          {isUploading ? "Uploading…" : "Upload evidence"}
         </Button>
       </div>
     </form>

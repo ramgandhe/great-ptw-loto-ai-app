@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { SelectField } from "@/components/ui/select-field";
 import { ApiError } from "@/lib/api";
 import {
   addIsolationPoint,
@@ -16,27 +17,73 @@ import {
   configureIsolationSequence,
   listLototoPlans,
 } from "@/lib/lototo/api";
+import {
+  ASSIGNMENT_ROLE_OPTIONS,
+  ENERGY_SOURCE_OPTIONS,
+  filterMachineryByWorkstation,
+  loadLototoFormOptions,
+} from "@/lib/lototo/form-options";
 import type { IsolationPoint, LototoPlan } from "@/lib/lototo/types";
+import {
+  formatOrgOptionLabel,
+  formatWorkforceOptionLabel,
+} from "@/lib/permit/form-options";
 import { useTheme } from "@/providers/theme-provider";
 
 export default function LototoPlanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { tokens } = useTheme();
   const [plan, setPlan] = useState<LototoPlan | null>(null);
+  const [options, setOptions] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>> | null>(
+    null,
+  );
   const [points, setPoints] = useState<IsolationPoint[]>([]);
   const [isolationNumber, setIsolationNumber] = useState("");
+  const [workstationId, setWorkstationId] = useState("");
   const [machineryId, setMachineryId] = useState("");
+  const [energySourceType, setEnergySourceType] = useState("electrical");
   const [workforceUserId, setWorkforceUserId] = useState("");
+  const [assignmentRole, setAssignmentRole] = useState("isolation_officer");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  const filteredMachinery = useMemo(
+    () => filterMachineryByWorkstation(options?.machinery ?? [], workstationId),
+    [options?.machinery, workstationId],
+  );
+
+  const machineryOptions = useMemo(
+    () =>
+      filteredMachinery.map((item) => ({
+        value: item.id,
+        label: formatOrgOptionLabel(item),
+      })),
+    [filteredMachinery],
+  );
+
+  const personnelOptions = useMemo(
+    () =>
+      (options?.personnel ?? []).map((person) => ({
+        value: person.id,
+        label: formatWorkforceOptionLabel(person),
+      })),
+    [options?.personnel],
+  );
+
   useEffect(() => {
-    listLototoPlans()
-      .then((plans) => {
+    Promise.all([listLototoPlans(), loadLototoFormOptions()])
+      .then(([plans, formOptions]) => {
         const match = plans.find((item) => item.id === id) ?? null;
         setPlan(match);
+        setOptions(formOptions);
+        if (match?.workstationId) {
+          setWorkstationId(match.workstationId);
+        }
+        if (match?.machineryId) {
+          setMachineryId(match.machineryId);
+        }
         if (!match) {
           setError("LOTOTO plan not found");
         }
@@ -47,9 +94,15 @@ export default function LototoPlanDetailScreen() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  useEffect(() => {
+    if (machineryId && !filteredMachinery.some((item) => item.id === machineryId)) {
+      setMachineryId("");
+    }
+  }, [filteredMachinery, machineryId]);
+
   async function handleAddPoint() {
-    if (!id || !isolationNumber.trim() || !machineryId.trim()) {
-      setError("Isolation number and machinery ID are required.");
+    if (!id || !isolationNumber.trim() || !machineryId) {
+      setError("Isolation number and machinery are required.");
       return;
     }
 
@@ -57,9 +110,9 @@ export default function LototoPlanDetailScreen() {
     setError(null);
     try {
       const point = await addIsolationPoint(id, {
-        machineryId: machineryId.trim(),
+        machineryId,
         isolationNumber: isolationNumber.trim(),
-        energySource: { energySourceType: "electrical" },
+        energySource: { energySourceType },
       });
       setPoints((current) => [...current, point]);
       setIsolationNumber("");
@@ -72,8 +125,8 @@ export default function LototoPlanDetailScreen() {
   }
 
   async function handleAssign() {
-    if (!id || !workforceUserId.trim()) {
-      setError("Workforce user ID is required.");
+    if (!id || !workforceUserId) {
+      setError("Personnel is required.");
       return;
     }
 
@@ -81,8 +134,8 @@ export default function LototoPlanDetailScreen() {
     setError(null);
     try {
       await assignLototoPersonnel(id, {
-        workforceUserId: workforceUserId.trim(),
-        role: "isolation_officer",
+        workforceUserId,
+        role: assignmentRole as "isolation_officer" | "verifier" | "supervisor",
       });
       setMessage("Personnel assigned.");
     } catch (err) {
@@ -153,11 +206,29 @@ export default function LototoPlanDetailScreen() {
         placeholder="Isolation number"
         style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
       />
-      <TextInput
+      <SelectField
+        label="Workstation"
+        value={workstationId}
+        options={(options?.workstations ?? []).map((item) => ({
+          value: item.id,
+          label: formatOrgOptionLabel(item),
+        }))}
+        placeholder="Select workstation (optional)"
+        onChange={setWorkstationId}
+      />
+      <SelectField
+        label="Machinery"
         value={machineryId}
-        onChangeText={setMachineryId}
-        placeholder="Machinery ID"
-        style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
+        options={machineryOptions}
+        placeholder="Select machinery"
+        required
+        onChange={setMachineryId}
+      />
+      <SelectField
+        label="Energy source"
+        value={energySourceType}
+        options={ENERGY_SOURCE_OPTIONS.map((item) => ({ value: item.value, label: item.label }))}
+        onChange={setEnergySourceType}
       />
       <Pressable
         style={[styles.button, { backgroundColor: tokens.colors.primary, opacity: submitting ? 0.6 : 1 }]}
@@ -167,12 +238,20 @@ export default function LototoPlanDetailScreen() {
         <Text style={styles.buttonText}>Add point</Text>
       </Pressable>
 
-      <Text style={styles.section}>Assign officer</Text>
-      <TextInput
+      <Text style={styles.section}>Assign personnel</Text>
+      <SelectField
+        label="Person"
         value={workforceUserId}
-        onChangeText={setWorkforceUserId}
-        placeholder="Workforce user ID"
-        style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
+        options={personnelOptions}
+        placeholder="Select person"
+        required
+        onChange={setWorkforceUserId}
+      />
+      <SelectField
+        label="Role"
+        value={assignmentRole}
+        options={ASSIGNMENT_ROLE_OPTIONS.map((item) => ({ value: item.value, label: item.label }))}
+        onChange={setAssignmentRole}
       />
       <Pressable
         style={[styles.button, { backgroundColor: tokens.colors.primary, opacity: submitting ? 0.6 : 1 }]}
