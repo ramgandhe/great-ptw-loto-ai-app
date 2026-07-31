@@ -25,6 +25,7 @@ import { LototoModule } from './modules/lototo/lototo.module';
 import { RestorationModule } from './modules/restoration/restoration.module';
 import { SimopsModule } from './modules/simops/simops.module';
 import { DailyProgressModule } from './modules/daily-progress/daily-progress.module';
+import { RevalidationModule } from './modules/revalidation/revalidation.module';
 import { ClosureModule } from './modules/closure/closure.module';
 import { LoggingModule } from './modules/logging/logging.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -72,6 +73,7 @@ import { AiModule } from './modules/ai/ai.module';
     RestorationModule,
     SimopsModule,
     DailyProgressModule,
+    RevalidationModule,
     AiModule,
   ],
   providers: [

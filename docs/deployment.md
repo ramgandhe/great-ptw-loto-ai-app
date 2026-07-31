@@ -79,6 +79,17 @@ The Daily Progress module depends on:
 - **Keycloak** — role validation for daily progress / handover routes.
 - **Grafana Loki** — structured MDP event logging (`loki: true` marker).
 
+## Multi-Day Daily Revalidation infrastructure (SP-05.02)
+
+The Daily Revalidation module depends on:
+
+- **Redis** — caches revalidation views (`mdp:revalidation:*`,
+  `mdp:extensions:pending:*`), invalidated on revalidation/extension/suspend writes.
+- **BullMQ** — `mdp.revalidation-reminder` (`MDP_REVALIDATION_REMINDER_CRON`) and
+  `mdp.extension-expiry` (`MDP_EXTENSION_EXPIRY_CRON`) repeatable jobs.
+- **Keycloak** — role validation for revalidation / continuation / extension routes.
+- **Grafana Loki** — structured revalidation event logging (`loki: true` marker).
+
 ## Health checks
 
 `docker compose up` gates the `api` service on `postgres`, `redis` and `minio`
