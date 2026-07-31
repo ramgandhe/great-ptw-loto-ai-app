@@ -35,6 +35,22 @@ supplied via `${MINIO_ACCESS_KEY}` / `${MINIO_SECRET_KEY}` interpolation with
 local-dev fallbacks, so production credentials are injected from the environment
 rather than committed.
 
+## Database performance hardening (SP-08.02)
+
+Migration `0020_database_performance_hardening.sql` adds composite indexes for
+high-traffic tenant-scoped queries (permits by creator/status, incidents by
+occurred_at, notification recipients by user/read, audit logs, report exports,
+billing invoices/subscriptions).
+
+API pool knobs (defaults shown):
+
+- `DATABASE_POOL_MAX=20`
+- `DATABASE_POOL_IDLE_TIMEOUT_MS=30000`
+- `DATABASE_POOL_CONNECTION_TIMEOUT_MS=5000`
+
+After deploy, run `ANALYZE` on hot tables during a maintenance window if
+query plans lag behind new indexes.
+
 ## Isolation Execution infrastructure (SP-03.02)
 
 The Isolation Execution module depends on:

@@ -6,6 +6,12 @@ export default () => ({
     url:
       process.env.DATABASE_URL ??
       'postgresql://ptw:ptw_dev_password@localhost:5432/ptw_platform',
+    poolMax: parseInt(process.env.DATABASE_POOL_MAX ?? '20', 10),
+    poolIdleTimeoutMs: parseInt(process.env.DATABASE_POOL_IDLE_TIMEOUT_MS ?? '30000', 10),
+    poolConnectionTimeoutMs: parseInt(
+      process.env.DATABASE_POOL_CONNECTION_TIMEOUT_MS ?? '5000',
+      10,
+    ),
   },
   redis: {
     host: process.env.REDIS_HOST ?? 'localhost',
