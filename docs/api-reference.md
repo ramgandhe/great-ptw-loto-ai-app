@@ -6,13 +6,18 @@ Base path: `/api/v1`
 
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
-| GET | `/health` | Public | Service health |
+| GET | `/health` | Public | Aggregated dependency health |
+| GET | `/health/live` | Public | Liveness probe (process up) |
+| GET | `/health/ready` | Public | Readiness probe (DB+Redis); `503` when not ready |
 | GET | `/system/config` | Public | Client config |
 | GET | `/system/version` | Public | Version |
 
 Security notes (SP-08.02): JWT required on all non-public routes; Helmet +
 `SecurityHeadersInterceptor` apply `X-Content-Type-Options`, `X-Frame-Options`,
 `Referrer-Policy`, `Cache-Control: no-store`. Body size limited via `API_BODY_LIMIT`.
+
+Production boot guards (SP-08.03): `NODE_ENV=production` requires
+`REDIS_PASSWORD` + `CORS_ORIGIN` and rejects known local/dev secret defaults.
 
 ## AI
 

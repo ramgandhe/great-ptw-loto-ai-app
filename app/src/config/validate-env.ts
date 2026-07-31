@@ -20,16 +20,50 @@ export const REQUIRED_ENV_VARS = [
   'LOKI_URL',
 ] as const;
 
+/** Extra vars required only when NODE_ENV=production (SP-08.03). */
+export const PRODUCTION_REQUIRED_ENV_VARS = ['REDIS_PASSWORD', 'CORS_ORIGIN'] as const;
+
+/** Reject known local/dev secrets in production boots. */
+const INSECURE_PRODUCTION_PATTERNS: ReadonlyArray<{
+  key: string;
+  pattern: RegExp;
+  hint: string;
+}> = [
+  {
+    key: 'DATABASE_URL',
+    pattern: /ptw_dev_password|CHANGE_ME/i,
+    hint: 'replace local Postgres credentials',
+  },
+  {
+    key: 'REDIS_PASSWORD',
+    pattern: /CHANGE_ME|^$/i,
+    hint: 'set a non-placeholder Redis password',
+  },
+  {
+    key: 'MINIO_ACCESS_KEY',
+    pattern: /CHANGE_ME|ptw_minio$/i,
+    hint: 'replace local MinIO access key',
+  },
+  {
+    key: 'MINIO_SECRET_KEY',
+    pattern: /CHANGE_ME|ptw_minio_password/i,
+    hint: 'replace local MinIO secret key',
+  },
+];
+
 export function validateEnv(
   env: NodeJS.ProcessEnv = process.env,
   logger: Pick<Logger, 'warn' | 'log'> = new Logger('EnvValidation'),
 ): string[] {
-  const missing = REQUIRED_ENV_VARS.filter((key) => {
+  const isProduction = env.NODE_ENV === 'production';
+  const required = isProduction
+    ? [...REQUIRED_ENV_VARS, ...PRODUCTION_REQUIRED_ENV_VARS]
+    : [...REQUIRED_ENV_VARS];
+
+  const missing = required.filter((key) => {
     const value = env[key];
     return value === undefined || value === '';
   });
-
-  const isProduction = env.NODE_ENV === 'production';
 
   if (missing.length > 0) {
     const message = `Missing required environment variables: ${missing.join(', ')}`;
@@ -37,7 +71,23 @@ export function validateEnv(
       throw new Error(message);
     }
     logger.warn(`${message} — using development defaults from configuration.ts`);
-  } else {
+  }
+
+  if (isProduction) {
+    const insecure = INSECURE_PRODUCTION_PATTERNS.filter(({ key, pattern }) => {
+      const value = env[key] ?? '';
+      return pattern.test(value);
+    });
+    if (insecure.length > 0) {
+      throw new Error(
+        `Insecure production configuration: ${insecure
+          .map((item) => `${item.key} (${item.hint})`)
+          .join('; ')}`,
+      );
+    }
+  }
+
+  if (missing.length === 0) {
     logger.log('Environment validation passed');
   }
 

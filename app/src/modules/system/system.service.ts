@@ -15,6 +15,19 @@ export interface HealthStatus {
   services: Record<string, { status: 'up' | 'down'; message?: string }>;
 }
 
+export interface LivenessStatus {
+  status: 'alive';
+  version: string;
+  timestamp: string;
+}
+
+export interface ReadinessStatus {
+  status: 'ready' | 'not_ready';
+  version: string;
+  timestamp: string;
+  services: Record<string, { status: 'up' | 'down'; message?: string }>;
+}
+
 @Injectable()
 export class HealthService {
   constructor(
@@ -25,14 +38,34 @@ export class HealthService {
     private readonly queueService: QueueService,
   ) {}
 
-  async check(): Promise<HealthStatus> {
-    const services: HealthStatus['services'] = {};
+  /** Process liveness — does not probe dependencies (SP-08.03). */
+  live(): LivenessStatus {
+    return {
+      status: 'alive',
+      version: PLATFORM_VERSION,
+      timestamp: new Date().toISOString(),
+    };
+  }
 
-    services.database = await this.checkDatabase();
-    services.redis = await this.checkRedis();
-    services.minio = await this.checkMinio();
-    services.bullmq = await this.checkBullmq();
-    services.keycloak = this.checkKeycloak();
+  /**
+   * Readiness for load balancers / compose — requires database + Redis.
+   * Other deps are reported but do not block readiness alone.
+   */
+  async ready(): Promise<ReadinessStatus> {
+    const services = await this.probeServices();
+    const criticalUp =
+      services.database.status === 'up' && services.redis.status === 'up';
+
+    return {
+      status: criticalUp ? 'ready' : 'not_ready',
+      version: PLATFORM_VERSION,
+      timestamp: new Date().toISOString(),
+      services,
+    };
+  }
+
+  async check(): Promise<HealthStatus> {
+    const services = await this.probeServices();
 
     const downCount = Object.values(services).filter((s) => s.status === 'down').length;
     const status =
@@ -43,6 +76,16 @@ export class HealthService {
       version: PLATFORM_VERSION,
       timestamp: new Date().toISOString(),
       services,
+    };
+  }
+
+  private async probeServices(): Promise<HealthStatus['services']> {
+    return {
+      database: await this.checkDatabase(),
+      redis: await this.checkRedis(),
+      minio: await this.checkMinio(),
+      bullmq: await this.checkBullmq(),
+      keycloak: this.checkKeycloak(),
     };
   }
 

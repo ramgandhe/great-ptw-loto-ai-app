@@ -301,14 +301,17 @@ The Billing & Subscription module depends on:
 ## Health checks
 
 `docker compose up` gates the `api` service on `postgres`, `redis` and `minio`
-being healthy, and the `api` container has its own healthcheck against
-`/api/v1/health`. That endpoint aggregates the status of Postgres, Redis,
-MinIO, BullMQ and Keycloak — use it to confirm all dependent services are green:
+being healthy, and the `api` container healthcheck probes
+`/api/v1/health/ready` (DB + Redis). Aggregated status remains available at
+`/api/v1/health`; process liveness at `/api/v1/health/live`:
 
 ```bash
-curl -fsS http://localhost:4000/api/v1/health | jq
+curl -fsS http://localhost:4000/api/v1/health/ready | jq
+curl -fsS http://localhost:4000/api/v1/health/live | jq
 ```
 
+Production boots (`NODE_ENV=production`) also require `REDIS_PASSWORD` and
+`CORS_ORIGIN`, and refuse known local/dev secret defaults.
 ## Rollback
 
 Deployments are rolled back by reverting the merge and, where a migration was
