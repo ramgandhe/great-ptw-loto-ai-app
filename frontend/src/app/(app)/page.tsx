@@ -16,6 +16,7 @@ import { listPendingApprovals } from "@/lib/approval/api";
 import { listArchivedPermits } from "@/lib/closure/api";
 import { listLototoPlans } from "@/lib/lototo/api";
 import { listPermits } from "@/lib/permit/api";
+import { listSimopsConflicts } from "@/lib/simops/api";
 import type { PermitRecord } from "@/lib/permit/types";
 import { Icon } from "@/components/icons";
 import { FadeIn } from "@/components/motion/fade-in";
@@ -40,6 +41,7 @@ export default function DashboardPage() {
   const [lototoPlans, setLototoPlans] = useState(0);
   const [lototoInExecution, setLototoInExecution] = useState(0);
   const [archived, setArchived] = useState(0);
+  const [openConflicts, setOpenConflicts] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -52,13 +54,18 @@ export default function DashboardPage() {
       listPendingApprovals(),
       listLototoPlans(),
       listArchivedPermits(),
+      listSimopsConflicts().catch(() => []),
     ])
-      .then(([permitRows, approvals, plans, archiveRows]) => {
+      .then(([permitRows, approvals, plans, archiveRows, conflicts]) => {
         setPermits(permitRows);
         setPendingApprovals(approvals.length);
         setLototoPlans(plans.length);
         setLototoInExecution(plans.filter((plan) => plan.status === "in_execution").length);
         setArchived(archiveRows.length);
+        setOpenConflicts(
+          conflicts.filter((item) => item.status !== "approved" && item.status !== "rejected")
+            .length,
+        );
       })
       .catch((err: unknown) => {
         setError(err instanceof ApiError ? err.message : "Failed to load dashboard analytics");
@@ -137,10 +144,10 @@ export default function DashboardPage() {
     },
     {
       label: "SIMOPS conflicts",
-      value: "N/A",
-      description: "SIMOPS analytics arrive in MS-04",
-      available: false,
-      tone: "text-muted-foreground",
+      value: isLoading ? "—" : openConflicts,
+      description: "Open simultaneous operations conflicts",
+      href: "/simops",
+      tone: "text-rose-700 dark:text-rose-300",
     },
   ];
 
