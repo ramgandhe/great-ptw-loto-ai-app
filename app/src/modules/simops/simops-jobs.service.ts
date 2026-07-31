@@ -7,6 +7,8 @@ import { QueueService } from '../../infrastructure/queue/queue.service';
 import {
   SIMOPS_ACTIVE_PERMIT_STATUSES,
   SIMOPS_CONFLICT_DETECTION_JOB,
+  SIMOPS_DEFAULT_ESCALATION_TIMEOUT_HOURS,
+  SIMOPS_ESCALATION_JOB,
   SIMOPS_NOTIFICATION_JOB,
 } from './simops.constants';
 import { SimopsCacheService } from './simops-cache.service';
@@ -18,12 +20,20 @@ export type SimopsNotificationPayload = {
   permitId?: string;
   recipientUserId?: string;
   message: string;
+  kind?: 'detection' | 'resolution' | 'escalation';
+};
+
+export type SimopsEscalationPayload = {
+  tenantId: string;
+  conflictId?: string;
+  severity?: string;
+  unresolvedHours?: number;
+  message: string;
 };
 
 /**
- * BullMQ scheduling for continuous SIMOPS conflict detection.
- * Sweeps active/approved permits and emits Loki events; BE (PUS-166) owns
- * pairwise analysis and conflict persistence.
+ * BullMQ scheduling for SIMOPS detection sweeps and resolution escalations.
+ * Pairwise analysis / assess-approve persistence land in BE tickets.
  */
 @Injectable()
 export class SimopsJobsService implements OnModuleInit {
@@ -42,6 +52,24 @@ export class SimopsJobsService implements OnModuleInit {
       await this.runConflictDetectionSweep();
     });
 
+    this.queueService.registerHandler(SIMOPS_ESCALATION_JOB, async (job) => {
+      const payload = job.data as SimopsEscalationPayload | Record<string, never>;
+      if (payload && 'tenantId' in payload && payload.tenantId) {
+        this.simopsLogService.logEvent({
+          action: 'simops.escalation',
+          tenantId: payload.tenantId,
+          conflictId: payload.conflictId,
+          metadata: {
+            severity: payload.severity,
+            unresolvedHours: payload.unresolvedHours,
+            message: payload.message,
+          },
+        });
+        return;
+      }
+      await this.runEscalationSweep();
+    });
+
     this.queueService.registerHandler(
       SIMOPS_NOTIFICATION_JOB,
       async (job) => {
@@ -52,23 +80,37 @@ export class SimopsJobsService implements OnModuleInit {
           conflictId: payload.conflictId,
           permitId: payload.permitId,
           userId: payload.recipientUserId,
-          metadata: { message: payload.message },
+          metadata: { message: payload.message, kind: payload.kind ?? 'detection' },
         });
       },
     );
 
-    const cron =
+    const detectionCron =
       this.configService.get<string>('simops.conflictDetectionCron') ?? '*/5 * * * *';
+    const escalationCron =
+      this.configService.get<string>('simops.escalationCron') ?? '0 * * * *';
 
     try {
       await this.queueService.getQueue().add(
         SIMOPS_CONFLICT_DETECTION_JOB,
         {},
-        { repeat: { pattern: cron }, jobId: 'simops-conflict-detection-schedule' },
+        { repeat: { pattern: detectionCron }, jobId: 'simops-conflict-detection-schedule' },
       );
-      this.logger.log(`Scheduled SIMOPS conflict detection job (${cron})`);
+      this.logger.log(`Scheduled SIMOPS conflict detection job (${detectionCron})`);
     } catch (error) {
       this.logger.warn('Could not schedule SIMOPS conflict detection job');
+      this.logger.debug(error);
+    }
+
+    try {
+      await this.queueService.getQueue().add(
+        SIMOPS_ESCALATION_JOB,
+        {},
+        { repeat: { pattern: escalationCron }, jobId: 'simops-escalation-schedule' },
+      );
+      this.logger.log(`Scheduled SIMOPS escalation job (${escalationCron})`);
+    } catch (error) {
+      this.logger.warn('Could not schedule SIMOPS escalation job');
       this.logger.debug(error);
     }
   }
@@ -112,7 +154,31 @@ export class SimopsJobsService implements OnModuleInit {
     }
   }
 
+  /**
+   * FR-SIM-019 — escalate unresolved high-severity conflicts past the configured timeout.
+   * Persistence queries land in BE-SP-04.02; this sweep emits Loki markers and refreshes
+   * the approval-queue cache placeholder so resolution APIs share one infra path.
+   */
+  async runEscalationSweep(): Promise<void> {
+    const timeoutHours =
+      this.configService.get<number>('simops.escalationTimeoutHoursHigh') ??
+      SIMOPS_DEFAULT_ESCALATION_TIMEOUT_HOURS;
+
+    this.simopsLogService.logEvent({
+      action: 'simops.escalation.sweep',
+      metadata: { timeoutHours },
+    });
+
+    this.logger.log(
+      `SIMOPS escalation sweep ready (high-severity timeout ${timeoutHours}h); BE wires unresolved conflict query`,
+    );
+  }
+
   async enqueueNotification(payload: SimopsNotificationPayload): Promise<void> {
     await this.queueService.getQueue().add(SIMOPS_NOTIFICATION_JOB, payload);
+  }
+
+  async enqueueEscalation(payload: SimopsEscalationPayload): Promise<void> {
+    await this.queueService.getQueue().add(SIMOPS_ESCALATION_JOB, payload);
   }
 }

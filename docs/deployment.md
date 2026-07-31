@@ -81,6 +81,23 @@ The SIMOPS Conflict Detection module depends on:
 - **Metabase** — SIMOPS analytics dashboards against PostgreSQL conflict tables
   (compose service on port 3001; no Nest client required).
 
+## Conflict Resolution infrastructure (SP-04.02)
+
+The SIMOPS Conflict Resolution module depends on:
+
+- **Redis** — approval-queue and history caches (`simops:approval-queue:*`,
+  `simops:history:list:*`, `simops:history:*`), cleared with conflict detail when
+  assessments, mitigations or resolutions change.
+- **BullMQ** (`platform-queue`) — repeatable `simops.escalation` job
+  (`SIMOPS_ESCALATION_CRON`) for unresolved high-severity conflicts past
+  `SIMOPS_ESCALATION_TIMEOUT_HOURS_HIGH` (default 4h, FR-SIM-019), plus
+  resolution/escalation notification payloads on `simops.notification`.
+- **MinIO** — mitigation evidence under `simops/{tenant}/conflicts/{id}/mitigation/...`
+  via presigned URLs (`SIMOPS_EVIDENCE_URL_EXPIRY_SECONDS`); metadata in PostgreSQL.
+- **Keycloak** — resolve roles (`supervisor`, `org-admin`, `platform-admin`) for
+  assess / mitigate / approve / reject routes (BE-SP-04.02).
+- **Grafana Loki** — structured escalation and resolution events (`loki: true`).
+
 ## Health checks
 
 `docker compose up` gates the `api` service on `postgres`, `redis` and `minio`
@@ -113,5 +130,10 @@ forward-only; there is no destructive down-migration).
    application can run against the migrated schema without a down-migration. If
    the tables must be removed, apply a new forward migration that drops them
    (never edit or delete an applied migration file).
+
+   SIMOPS Conflict Resolution tables (`conflict_assessments`, `mitigation_plans`,
+   `conflict_resolutions`, `conflict_history` in migration `0011`) follow the same
+   additive pattern: reverting the application leaves the schema in place safely;
+   remove only via a new forward migration if required.
 3. **Verify:** `curl /api/v1/health` returns `healthy` and CI is green on the
    reverting PR.
