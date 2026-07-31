@@ -32,18 +32,31 @@ export default function IncidentDetailPage() {
 
   const load = useCallback(async () => {
     const incidentDetail = await getIncident(params.id);
-    setDetail(incidentDetail);
 
     const historyPayload = await getIncidentHistory(params.id).catch(() => null);
+    const verification = historyPayload?.verification ?? null;
     setHistory(historyPayload?.history ?? []);
-    setHasVerification(Boolean(historyPayload?.verification));
+    setHasVerification(Boolean(verification));
 
-    if (incidentDetail.incident.status !== "draft" && incidentDetail.incident.status !== "open") {
-      const investigationDetail = await getInvestigation(params.id).catch(() => null);
+    let investigationDetail: InvestigationDetail | null = null;
+    if (incidentDetail.incident.status !== "draft") {
+      investigationDetail = await getInvestigation(params.id).catch(() => null);
       setInvestigation(investigationDetail);
     } else {
       setInvestigation(null);
     }
+
+    const investigationCompleted =
+      investigationDetail?.investigation.status === "completed";
+    if (
+      (verification || investigationCompleted) &&
+      incidentDetail.incident.status !== "closed" &&
+      incidentDetail.incident.status !== "verified"
+    ) {
+      incidentDetail.incident.status = "verified";
+    }
+
+    setDetail(incidentDetail);
   }, [params.id]);
 
   useEffect(() => {
@@ -80,6 +93,11 @@ export default function IncidentDetailPage() {
   }
 
   const { incident } = detail;
+  const investigationCompleted = investigation?.investigation.status === "completed";
+  const showInvestigation =
+    incident.status !== "draft" &&
+    incident.status !== "verified" &&
+    incident.status !== "closed";
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-8">
@@ -127,10 +145,7 @@ export default function IncidentDetailPage() {
         )}
       </section>
 
-      {incident.status !== "draft" &&
-      incident.status !== "open" &&
-      incident.status !== "verified" &&
-      incident.status !== "closed" ? (
+      {showInvestigation ? (
         <InvestigationWorkflow incidentId={incident.id} detail={investigation} onUpdated={load} />
       ) : null}
 
@@ -138,6 +153,7 @@ export default function IncidentDetailPage() {
         incidentId={incident.id}
         status={incident.status}
         hasVerification={hasVerification}
+        investigationCompleted={investigationCompleted}
         onUpdated={load}
       />
 

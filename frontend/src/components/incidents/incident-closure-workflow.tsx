@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ApiError } from "@/lib/api";
 import { closeIncident, verifyIncident } from "@/lib/incidents/api";
 import type { IncidentStatus } from "@/lib/incidents/types";
@@ -10,6 +10,7 @@ type IncidentClosureWorkflowProps = {
   incidentId: string;
   status: IncidentStatus;
   hasVerification?: boolean;
+  investigationCompleted?: boolean;
   onUpdated: () => void | Promise<void>;
 };
 
@@ -17,6 +18,7 @@ export function IncidentClosureWorkflow({
   incidentId,
   status,
   hasVerification = false,
+  investigationCompleted = false,
   onUpdated,
 }: IncidentClosureWorkflowProps) {
   const [comments, setComments] = useState("");
@@ -24,12 +26,11 @@ export function IncidentClosureWorkflow({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verifiedLocally, setVerifiedLocally] = useState(false);
 
-  useEffect(() => {
-    setVerifiedLocally(false);
-  }, [incidentId, status, hasVerification]);
-
   const isVerified =
-    status === "verified" || hasVerification || verifiedLocally;
+    status === "verified" ||
+    hasVerification ||
+    investigationCompleted ||
+    verifiedLocally;
   const canVerify =
     !isVerified &&
     (status === "investigating" || status === "pending_verification");
@@ -61,6 +62,12 @@ export function IncidentClosureWorkflow({
     <section className="space-y-3 rounded-lg border border-border p-4">
       <h2 className="text-lg font-medium">Verification & closure</h2>
 
+      {status === "open" ? (
+        <p className="text-sm text-muted-foreground">
+          Assign an investigation above before this incident can be verified and closed.
+        </p>
+      ) : null}
+
       {isVerified ? (
         <p className="text-sm text-muted-foreground">
           Investigation verified. Close the incident to archive the record.
@@ -80,12 +87,14 @@ export function IncidentClosureWorkflow({
         </div>
       ) : null}
 
-      <textarea
-        className="min-h-20 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-        value={comments}
-        onChange={(e) => setComments(e.target.value)}
-        placeholder="Comments"
-      />
+      {(canVerify || canClose) && (
+        <textarea
+          className="min-h-20 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+          value={comments}
+          onChange={(e) => setComments(e.target.value)}
+          placeholder="Comments"
+        />
+      )}
 
       {canVerify ? (
         <Button
