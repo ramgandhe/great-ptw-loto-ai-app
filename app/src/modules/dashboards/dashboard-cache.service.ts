@@ -70,6 +70,14 @@ export class DashboardCacheService {
     await this.cacheService.del(this.kpiKey(tenantId, kpiKey, periodLabel));
   }
 
+  async getAnalytics<T>(tenantId: string, scope: string): Promise<T | null> {
+    return this.cacheService.getJson<T>(this.analyticsKey(tenantId, scope));
+  }
+
+  async setAnalytics<T>(tenantId: string, scope: string, value: T): Promise<void> {
+    await this.cacheService.setJson(this.analyticsKey(tenantId, scope), value, this.ttlSeconds());
+  }
+
   async invalidateAnalytics(tenantId: string, scope: string): Promise<void> {
     await this.cacheService.del(this.analyticsKey(tenantId, scope));
   }

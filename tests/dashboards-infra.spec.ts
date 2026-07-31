@@ -34,53 +34,46 @@ describe('Dashboards infra services (PUS-210)', () => {
     );
   });
 
-  it('DashboardJobsService flags pending report exports', async () => {
-    const pending = [
-      {
-        id: 'r1',
-        tenantId: 't1',
-        reportType: 'permit_summary',
-        format: 'pdf',
-        requestedBy: 'u1',
-      },
-    ];
-    const db = {
-      select: () => ({ from: () => ({ where: () => Promise.resolve(pending) }) }),
-    };
-    const logService = { logEvent: jest.fn() };
-    const jobs = new DashboardJobsService(
-      db as never,
-      {} as never,
-      { get: () => '*/10 * * * *' } as never,
-      logService as never,
-    );
-
-    await jobs.processPendingReports();
-    expect(logService.logEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'dashboard.report-generate',
-        reportId: 'r1',
-      }),
-    );
-  });
-
-  it('DashboardJobsService emits analytics snapshot sweep', async () => {
-    const logService = { logEvent: jest.fn() };
+  it('DashboardJobsService delegates pending reports to ReportingService', async () => {
+    const reportingService = { processPendingReports: jest.fn().mockResolvedValue(1) };
     const jobs = new DashboardJobsService(
       { select: () => ({ from: () => ({ where: () => Promise.resolve([]) }) }) } as never,
       {} as never,
+      { get: () => '*/10 * * * *' } as never,
+      { logEvent: jest.fn() } as never,
+      reportingService as never,
+      {} as never,
+      {} as never,
+    );
+
+    await jobs.processPendingReports();
+    expect(reportingService.processPendingReports).toHaveBeenCalled();
+  });
+
+  it('DashboardJobsService captures analytics snapshots per tenant', async () => {
+    const logService = { logEvent: jest.fn() };
+    const analyticsService = {
+      listTenantIdsWithActivity: jest.fn().mockResolvedValue(['t1']),
+      captureSnapshotsForTenant: jest.fn().mockResolvedValue(5),
+    };
+    const jobs = new DashboardJobsService(
+      {} as never,
+      {} as never,
       { get: () => '0 1 * * *' } as never,
       logService as never,
+      {} as never,
+      analyticsService as never,
+      {} as never,
     );
 
     await jobs.captureAnalyticsSnapshots();
-    expect(logService.logEvent).toHaveBeenCalledTimes(5);
+    expect(analyticsService.captureSnapshotsForTenant).toHaveBeenCalledWith('t1');
     expect(logService.logEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'dashboard.analytics-snapshot', scope: 'permits' }),
+      expect.objectContaining({ action: 'dashboard.analytics-snapshot', tenantId: 't1' }),
     );
   });
 
-  it('DashboardJobsService flags expired KPI cache rows', async () => {
+  it('DashboardJobsService refreshes expired KPI tenants', async () => {
     const expired = [
       { id: 'k1', tenantId: 't1', kpiKey: 'active_permits', periodLabel: 'current' },
     ];
@@ -88,16 +81,21 @@ describe('Dashboards infra services (PUS-210)', () => {
       select: () => ({ from: () => ({ where: () => Promise.resolve(expired) }) }),
     };
     const logService = { logEvent: jest.fn() };
+    const kpiService = { refreshTenantKpis: jest.fn().mockResolvedValue(undefined) };
     const jobs = new DashboardJobsService(
       db as never,
       {} as never,
       { get: () => '*/15 * * * *' } as never,
       logService as never,
+      {} as never,
+      {} as never,
+      kpiService as never,
     );
 
     await jobs.refreshExpiredKpis();
+    expect(kpiService.refreshTenantKpis).toHaveBeenCalledWith('t1');
     expect(logService.logEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'dashboard.kpi-refresh', kpiKey: 'active_permits' }),
+      expect.objectContaining({ action: 'dashboard.kpi-refresh', tenantId: 't1' }),
     );
   });
 
