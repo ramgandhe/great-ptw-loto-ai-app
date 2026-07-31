@@ -41,3 +41,15 @@ PTW permit/approval/execution/closure/SIMOPS routes remain under their existing 
 | POST | `/extensions/{id}/approve` | Required | Approve extension |
 | POST | `/extensions/{id}/reject` | Required | Reject extension |
 
+## Incident Recording (MS-06 / SP-06.01)
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| POST | `/incidents` | Required | Create incident / near miss / unsafe condition |
+| GET | `/incidents` | Required | List tenant incidents |
+| GET | `/incidents/{id}` | Required | View incident with evidence and links |
+| PATCH | `/incidents/{id}` | Required | Update draft incident |
+| POST | `/incidents/{id}/submit` | Required | Submit draft → open (notifies Safety Officer) |
+| POST | `/incidents/{id}/evidence` | Required | Upload evidence (multipart `file`) |
+| GET | `/incidents/{id}/evidence` | Required | List evidence metadata |
+
