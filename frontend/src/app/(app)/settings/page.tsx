@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Building2, LogOut, Settings } from "lucide-react";
+import { Bell, Building2, CreditCard, LogOut, Settings } from "lucide-react";
 import { ThemeSettings } from "@/components/theme/theme-settings";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/auth/keycloak";
@@ -18,6 +18,12 @@ const links = [
     label: "Notification preferences",
     description: "Channel and event notification settings",
     icon: Bell,
+  },
+  {
+    href: "/billing",
+    label: "Billing & subscription",
+    description: "Plans, usage and invoice history",
+    icon: CreditCard,
   },
 ];
 
