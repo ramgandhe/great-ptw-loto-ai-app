@@ -1,17 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ApiError } from "@/lib/api";
 import { assignUserRole } from "@/lib/workforce/api";
+import { ASSIGNABLE_ROLES, loadEntitySelectOptions } from "@/lib/form-options";
 import { Button } from "@/components/ui/button";
 
 export default function UserRolesPage() {
   const [userId, setUserId] = useState("");
   const [role, setRole] = useState("");
+  const [userOptions, setUserOptions] = useState<{ value: string; label: string }[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    loadEntitySelectOptions(["workforce"])
+      .then((options) => setUserOptions(options.workforce ?? []))
+      .catch(() => setUserOptions([]));
+  }, []);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -41,12 +49,36 @@ export default function UserRolesPage() {
       </div>
       <form onSubmit={handleSubmit} className="grid max-w-md gap-4 rounded-lg border border-border bg-card p-4">
         <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">User ID *</span>
-          <input required value={userId} className="h-9 rounded-lg border border-border px-3" onChange={(e) => setUserId(e.target.value)} />
+          <span className="font-medium">User *</span>
+          <select
+            required
+            value={userId}
+            className="h-9 rounded-lg border border-border bg-background px-3"
+            onChange={(e) => setUserId(e.target.value)}
+          >
+            <option value="">Select user</option>
+            {userOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="grid gap-1.5 text-sm">
           <span className="font-medium">Role *</span>
-          <input required value={role} className="h-9 rounded-lg border border-border px-3" onChange={(e) => setRole(e.target.value)} />
+          <select
+            required
+            value={role}
+            className="h-9 rounded-lg border border-border bg-background px-3"
+            onChange={(e) => setRole(e.target.value)}
+          >
+            <option value="">Select role</option>
+            {ASSIGNABLE_ROLES.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </label>
         <Button type="submit" disabled={submitting}>{submitting ? "Assigning..." : "Assign role"}</Button>
       </form>

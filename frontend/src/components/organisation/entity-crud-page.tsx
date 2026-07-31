@@ -15,6 +15,7 @@ import {
   workstationsApi,
 } from "@/lib/organisation/api";
 import type { EntityField, OrgRecord } from "@/lib/organisation/types";
+import { loadEntitySelectOptions, type EntitySelectResource } from "@/lib/form-options";
 import { OrgStatusBadge } from "./org-status-badge";
 import { Button } from "@/components/ui/button";
 
@@ -61,6 +62,12 @@ export function EntityCrudPage({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const selectResources = fields
+    .map((field) => field.select)
+    .filter((resource): resource is EntitySelectResource => Boolean(resource));
+  const [selectOptions, setSelectOptions] = useState<
+    Partial<Record<EntitySelectResource, { value: string; label: string }[]>>
+  >({});
 
   const load = useCallback(() => {
     setLoading(true);
@@ -75,6 +82,15 @@ export function EntityCrudPage({
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (selectResources.length === 0) {
+      return;
+    }
+    loadEntitySelectOptions(selectResources)
+      .then(setSelectOptions)
+      .catch(() => setSelectOptions({}));
+  }, [selectResources.join(",")]);
 
   function resetForm() {
     setForm(emptyForm(fields));
@@ -151,6 +167,20 @@ export function EntityCrudPage({
                 className="rounded-lg border border-border bg-background px-3 py-2 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
               />
+            ) : field.select ? (
+              <select
+                required={field.required}
+                value={form[field.key] ?? ""}
+                className="h-9 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
+              >
+                <option value="">Select {field.label.toLowerCase()}</option>
+                {(selectOptions[field.select] ?? []).map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             ) : (
               <input
                 required={field.required}

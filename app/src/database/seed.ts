@@ -3,13 +3,17 @@ import { Pool } from 'pg';
 import * as schema from './schema';
 import {
   departments,
+  employees,
   hazardCategories,
   locations,
+  machineryCatalogue,
   organisations,
   permitTypes,
   plants,
   platformMetadata,
   ppeCatalogue,
+  workflowSteps,
+  workstationCatalogue,
 } from './schema';
 
 const DEMO_TENANT_ID = '00000000-0000-4000-8000-000000000001';
@@ -24,6 +28,13 @@ export const DEMO_IDS = {
   location: '00000000-0000-4000-8000-000000000105',
   hazardFire: '00000000-0000-4000-8000-000000000106',
   ppeHelmet: '00000000-0000-4000-8000-000000000107',
+  workflowSupervisorStep: '00000000-0000-4000-8000-000000000108',
+  workflowOrgAdminStep: '00000000-0000-4000-8000-000000000109',
+  workstation: '00000000-0000-4000-8000-000000000110',
+  machineryCompressor: '00000000-0000-4000-8000-000000000111',
+  machineryPump: '00000000-0000-4000-8000-000000000112',
+  employeeSupervisor: '00000000-0000-4000-8000-000000000113',
+  employeeIssuer: '00000000-0000-4000-8000-000000000114',
 } as const;
 
 async function seed(): Promise<void> {
@@ -144,6 +155,98 @@ async function seed(): Promise<void> {
       createdBy: SEED_ACTOR_ID,
       updatedBy: SEED_ACTOR_ID,
     })
+    .onConflictDoNothing();
+
+  console.log('Seeding demo workstations and machinery...');
+  await db
+    .insert(workstationCatalogue)
+    .values({
+      id: DEMO_IDS.workstation,
+      tenantId: DEMO_TENANT_ID,
+      code: 'WS-BAY-01',
+      name: 'Compressor Bay',
+      description: 'Primary LOTOTO demonstration workstation',
+      createdBy: SEED_ACTOR_ID,
+      updatedBy: SEED_ACTOR_ID,
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(machineryCatalogue)
+    .values([
+      {
+        id: DEMO_IDS.machineryCompressor,
+        tenantId: DEMO_TENANT_ID,
+        workstationId: DEMO_IDS.workstation,
+        code: 'MC-COMP-01',
+        name: 'Main compressor',
+        description: 'High-pressure air compressor',
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+      {
+        id: DEMO_IDS.machineryPump,
+        tenantId: DEMO_TENANT_ID,
+        workstationId: DEMO_IDS.workstation,
+        code: 'MC-PUMP-01',
+        name: 'Cooling water pump',
+        description: 'Ancillary cooling pump',
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+    ])
+    .onConflictDoNothing();
+
+  console.log('Seeding demo workforce...');
+  await db
+    .insert(employees)
+    .values([
+      {
+        id: DEMO_IDS.employeeSupervisor,
+        tenantId: DEMO_TENANT_ID,
+        name: 'Safety Supervisor',
+        email: 'supervisor@ptw.local',
+        departmentId: DEMO_IDS.department,
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+      {
+        id: DEMO_IDS.employeeIssuer,
+        tenantId: DEMO_TENANT_ID,
+        name: 'Job Issuer',
+        email: 'issuer@ptw.local',
+        departmentId: DEMO_IDS.department,
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+    ])
+    .onConflictDoNothing();
+
+  console.log('Seeding demo approval workflow...');
+  await db
+    .insert(workflowSteps)
+    .values([
+      {
+        id: DEMO_IDS.workflowSupervisorStep,
+        tenantId: DEMO_TENANT_ID,
+        permitTypeId: null,
+        stepSequence: 1,
+        name: 'Supervisor review',
+        approverRole: 'supervisor',
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+      {
+        id: DEMO_IDS.workflowOrgAdminStep,
+        tenantId: DEMO_TENANT_ID,
+        permitTypeId: null,
+        stepSequence: 2,
+        name: 'Organisation admin approval',
+        approverRole: 'org-admin',
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+    ])
     .onConflictDoNothing();
 
   console.log('Seed completed.');

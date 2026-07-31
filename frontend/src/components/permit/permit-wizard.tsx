@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { getProfile } from "@/lib/auth/api";
 import { masterDataApi, type MasterDataRecord } from "@/lib/master-data/api";
-import { departmentsApi, locationsApi, plantsApi } from "@/lib/organisation/api";
+import { departmentsApi, locationsApi, machineryApi, plantsApi, workstationsApi } from "@/lib/organisation/api";
+import type { MachineryRecord } from "@/lib/organisation/types";
 import {
   createPermit,
   removePermitAttachment,
@@ -22,11 +23,15 @@ import {
 } from "@/lib/permit/form";
 import type { PermitAttachment, PermitDetail, PermitFormState } from "@/lib/permit/types";
 import { isEditablePermitStatus } from "@/lib/permit/status";
+import { listWorkforceDirectory } from "@/lib/workforce/api";
+import type { WorkforceRecord } from "@/lib/workforce/types";
 import { ensureEndAfterStart } from "@/lib/datetime";
 import { Button } from "@/components/ui/button";
+import { FileUploadField } from "@/components/ui/file-upload-field";
 import { DraftBanner } from "./draft-banner";
 import { fieldClassName, FormField } from "./form-field";
 import { MasterDataSelect } from "./master-data-select";
+import { formatWorkforceOptionLabel } from "@/components/lototo/select-field";
 import { PlannedDateTimeField } from "./planned-datetime-field";
 import { PermitStepNav } from "./permit-step-nav";
 import { PermitSummary } from "./permit-summary";
@@ -52,13 +57,17 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [permitTypes, setPermitTypes] = useState<MasterDataRecord[]>([]);
   const [plants, setPlants] = useState<MasterDataRecord[]>([]);
   const [departments, setDepartments] = useState<MasterDataRecord[]>([]);
   const [locations, setLocations] = useState<MasterDataRecord[]>([]);
+  const [workstations, setWorkstations] = useState<MasterDataRecord[]>([]);
+  const [machinery, setMachinery] = useState<MachineryRecord[]>([]);
   const [hazards, setHazards] = useState<MasterDataRecord[]>([]);
   const [ppeItems, setPpeItems] = useState<MasterDataRecord[]>([]);
-  const [executorOptions, setExecutorOptions] = useState<MasterDataRecord[]>([]);
+  const [executorOptions, setExecutorOptions] = useState<WorkforceRecord[]>([]);
   const [masterDataLoading, setMasterDataLoading] = useState(true);
 
   useEffect(() => {
@@ -68,21 +77,36 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       plantsApi.list(),
       departmentsApi.list(),
       locationsApi.list(),
+      workstationsApi.list(),
+      machineryApi.list(),
       masterDataApi.hazards(),
       masterDataApi.ppe(),
+      listWorkforceDirectory().catch(() => [] as WorkforceRecord[]),
       getProfile(),
     ])
-      .then(([permitTypeRows, plantRows, departmentRows, locationRows, hazardRows, ppeRows, profile]) => {
+      .then(([permitTypeRows, plantRows, departmentRows, locationRows, workstationRows, machineryRows, hazardRows, ppeRows, workforceRows, profile]) => {
         setPermitTypes(permitTypeRows);
         setPlants(plantRows);
         setDepartments(departmentRows);
         setLocations(locationRows);
+        setWorkstations(workstationRows);
+        setMachinery(machineryRows);
         setHazards(hazardRows);
         setPpeItems(ppeRows);
 
         const displayName =
           [profile.firstName, profile.lastName].filter(Boolean).join(" ") || profile.username;
-        setExecutorOptions([{ id: profile.id, name: `${displayName} (you)` }]);
+        const byId = new Map<string, WorkforceRecord>();
+        byId.set(profile.id, {
+          id: profile.id,
+          name: `${displayName} (you)`,
+          email: profile.email ?? null,
+          role: profile.roles[0] ?? "signed-in user",
+        });
+        for (const person of workforceRows) {
+          byId.set(person.id, person);
+        }
+        setExecutorOptions(Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name)));
 
         setForm((current) => {
           if (current.executors.some((executor) => executor.workforceUserId.trim())) {
@@ -330,22 +354,41 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               onChange={(locationId) => setForm({ ...form, locationId })}
             />
           </FormField>
-          <FormField label="Workstation ID" htmlFor="workstationId" hint="Optional — enter UUID if required">
-            <input
+          <FormField label="Workstation" htmlFor="workstationId">
+            <MasterDataSelect
               id="workstationId"
-              className={fieldClassName}
               value={form.workstationId}
-              disabled={isReadOnly}
-              onChange={(e) => setForm({ ...form, workstationId: e.target.value })}
+              options={workstations}
+              disabled={isReadOnly || masterDataLoading}
+              placeholder="Select workstation (optional)"
+              onChange={(workstationId) =>
+                setForm((current) => ({
+                  ...current,
+                  workstationId,
+                  machineryId:
+                    current.machineryId &&
+                    machinery.some(
+                      (item) =>
+                        item.id === current.machineryId && item.workstationId !== workstationId,
+                    )
+                      ? ""
+                      : current.machineryId,
+                }))
+              }
             />
           </FormField>
-          <FormField label="Machinery ID" htmlFor="machineryId" hint="Optional — enter UUID if required">
-            <input
+          <FormField label="Machinery" htmlFor="machineryId">
+            <MasterDataSelect
               id="machineryId"
-              className={fieldClassName}
               value={form.machineryId}
-              disabled={isReadOnly}
-              onChange={(e) => setForm({ ...form, machineryId: e.target.value })}
+              options={
+                form.workstationId
+                  ? machinery.filter((item) => item.workstationId === form.workstationId)
+                  : machinery
+              }
+              disabled={isReadOnly || masterDataLoading}
+              placeholder="Select machinery (optional)"
+              onChange={(machineryId) => setForm({ ...form, machineryId })}
             />
           </FormField>
           <FormField label="Planned start" htmlFor="plannedStartAt">
@@ -512,20 +555,26 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               <FormField
                 label="Executor"
                 htmlFor={`executor-${index}`}
-                hint="Must be a platform user ID. Defaults to you so execution works later."
+                hint="Defaults to you so execution works later."
               >
-                <MasterDataSelect
+                <select
                   id={`executor-${index}`}
+                  className={fieldClassName}
                   value={executor.workforceUserId}
-                  options={executorOptions}
                   disabled={isReadOnly || masterDataLoading}
-                  placeholder="Select executor"
-                  onChange={(workforceUserId) => {
+                  onChange={(event) => {
                     const executors = [...form.executors];
-                    executors[index] = { ...executor, workforceUserId };
+                    executors[index] = { ...executor, workforceUserId: event.target.value };
                     setForm({ ...form, executors });
                   }}
-                />
+                >
+                  <option value="">Select executor</option>
+                  {executorOptions.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {formatWorkforceOptionLabel(person)}
+                    </option>
+                  ))}
+                </select>
               </FormField>
               <label className="flex items-end gap-2 pb-2 text-sm">
                 <input
@@ -550,13 +599,25 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           <PermitSummary form={form} status={status} reference={reference} />
           <div className="grid gap-3">
             <h2 className="text-sm font-semibold">Attachments</h2>
-            <input
-              type="file"
-              disabled={isReadOnly}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
+            <FileUploadField
+              id="permit-attachment"
+              label="Add attachment"
+              hint="Supporting documents, photos, or drawings"
+              disabled={isReadOnly || isUploadingAttachment}
+              value={pendingAttachment}
+              onChange={(file) => {
+                setPendingAttachment(file);
                 if (file) {
-                  void handleUpload(file);
+                  void (async () => {
+                    setIsUploadingAttachment(true);
+                    setApiError(null);
+                    try {
+                      await handleUpload(file);
+                      setPendingAttachment(null);
+                    } finally {
+                      setIsUploadingAttachment(false);
+                    }
+                  })();
                 }
               }}
             />

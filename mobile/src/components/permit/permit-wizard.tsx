@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -26,6 +26,13 @@ import {
 import type { PermitDetail, PermitFormState } from "@/lib/permit/types";
 import { isEditablePermitStatus } from "@/lib/permit/status";
 import * as DocumentPicker from "expo-document-picker";
+import { SelectField } from "@/components/ui/select-field";
+import {
+  filterMachineryByWorkstation,
+  formatOrgOptionLabel,
+  formatWorkforceOptionLabel,
+  loadPermitFormOptions,
+} from "@/lib/permit/form-options";
 
 type PermitWizardProps = {
   mode: "create" | "edit";
@@ -57,6 +64,44 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   const [isBusy, setIsBusy] = useState(false);
   const [queuedOffline, setQueuedOffline] = useState(false);
   const [attachments, setAttachments] = useState(initialDetail?.attachments ?? []);
+  const [formOptions, setFormOptions] = useState<Awaited<ReturnType<typeof loadPermitFormOptions>> | null>(
+    null,
+  );
+  const [optionsLoading, setOptionsLoading] = useState(true);
+
+  const filteredMachinery = useMemo(
+    () => filterMachineryByWorkstation(formOptions?.machinery ?? [], form.workstationId),
+    [formOptions?.machinery, form.workstationId],
+  );
+
+  useEffect(() => {
+    loadPermitFormOptions()
+      .then((options) => {
+        setFormOptions(options);
+        setForm((current) => {
+          if (current.executors.some((executor) => executor.workforceUserId.trim())) {
+            return current;
+          }
+          return {
+            ...current,
+            executors: [{ workforceUserId: options.executors[0]?.id ?? "", isPrimary: true }],
+          };
+        });
+      })
+      .catch(() => {
+        setMessage("Failed to load form options");
+      })
+      .finally(() => setOptionsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (
+      form.machineryId &&
+      !filteredMachinery.some((item) => item.id === form.machineryId)
+    ) {
+      setForm((current) => ({ ...current, machineryId: "" }));
+    }
+  }, [filteredMachinery, form.machineryId]);
 
   const permitStatus = initialDetail?.permit.status ?? "draft";
   const isReadOnly = !isEditablePermitStatus(permitStatus);
@@ -241,12 +286,17 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
 
       {step === 0 ? (
         <View style={styles.section}>
-          <Text style={styles.label}>Permit type ID</Text>
-          <TextInput
-            style={inputStyle}
+          <SelectField
+            label="Permit type"
             value={form.permitTypeId}
-            onChangeText={(value) => setForm({ ...form, permitTypeId: value })}
-            autoCapitalize="none"
+            options={(formOptions?.permitTypes ?? []).map((item) => ({
+              value: item.id,
+              label: formatOrgOptionLabel(item),
+            }))}
+            placeholder="Select permit type"
+            required
+            disabled={isReadOnly || optionsLoading}
+            onChange={(permitTypeId) => setForm({ ...form, permitTypeId })}
           />
           <Text style={styles.label}>Title</Text>
           <TextInput
@@ -266,17 +316,61 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
 
       {step === 1 ? (
         <View style={styles.section}>
-          {(["locationId", "plantId", "departmentId", "workstationId", "machineryId"] as const).map((field) => (
-            <View key={field}>
-              <Text style={styles.label}>{field}</Text>
-              <TextInput
-                style={inputStyle}
-                value={form[field]}
-                onChangeText={(value) => setForm({ ...form, [field]: value })}
-                autoCapitalize="none"
-              />
-            </View>
-          ))}
+          <SelectField
+            label="Plant"
+            value={form.plantId}
+            options={(formOptions?.plants ?? []).map((item) => ({
+              value: item.id,
+              label: formatOrgOptionLabel(item),
+            }))}
+            placeholder="Select plant"
+            disabled={isReadOnly || optionsLoading}
+            onChange={(plantId) => setForm({ ...form, plantId })}
+          />
+          <SelectField
+            label="Department"
+            value={form.departmentId}
+            options={(formOptions?.departments ?? []).map((item) => ({
+              value: item.id,
+              label: formatOrgOptionLabel(item),
+            }))}
+            placeholder="Select department"
+            disabled={isReadOnly || optionsLoading}
+            onChange={(departmentId) => setForm({ ...form, departmentId })}
+          />
+          <SelectField
+            label="Location"
+            value={form.locationId}
+            options={(formOptions?.locations ?? []).map((item) => ({
+              value: item.id,
+              label: formatOrgOptionLabel(item),
+            }))}
+            placeholder="Select location"
+            disabled={isReadOnly || optionsLoading}
+            onChange={(locationId) => setForm({ ...form, locationId })}
+          />
+          <SelectField
+            label="Workstation"
+            value={form.workstationId}
+            options={(formOptions?.workstations ?? []).map((item) => ({
+              value: item.id,
+              label: formatOrgOptionLabel(item),
+            }))}
+            placeholder="Select workstation (optional)"
+            disabled={isReadOnly || optionsLoading}
+            onChange={(workstationId) => setForm({ ...form, workstationId })}
+          />
+          <SelectField
+            label="Machinery"
+            value={form.machineryId}
+            options={filteredMachinery.map((item) => ({
+              value: item.id,
+              label: formatOrgOptionLabel(item),
+            }))}
+            placeholder="Select machinery (optional)"
+            disabled={isReadOnly || optionsLoading}
+            onChange={(machineryId) => setForm({ ...form, machineryId })}
+          />
           <Text style={styles.label}>Planned start (ISO datetime)</Text>
           <TextInput
             style={inputStyle}
@@ -299,13 +393,18 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
           <Text style={styles.sectionTitle}>Hazards</Text>
           {form.hazards.map((hazard, index) => (
             <View key={`hazard-${index}`} style={styles.card}>
-              <TextInput
-                style={inputStyle}
-                placeholder="Hazard category ID"
+              <SelectField
+                label="Hazard category"
                 value={hazard.hazardCategoryId}
-                onChangeText={(value) => {
+                options={(formOptions?.hazards ?? []).map((item) => ({
+                  value: item.id,
+                  label: formatOrgOptionLabel(item),
+                }))}
+                placeholder="Select hazard"
+                disabled={isReadOnly || optionsLoading}
+                onChange={(hazardCategoryId) => {
                   const hazards = [...form.hazards];
-                  hazards[index] = { ...hazard, hazardCategoryId: value };
+                  hazards[index] = { ...hazard, hazardCategoryId };
                   setForm({ ...form, hazards });
                 }}
               />
@@ -337,13 +436,18 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
           <Text style={styles.sectionTitle}>PPE</Text>
           {form.ppe.map((item, index) => (
             <View key={`ppe-${index}`} style={styles.card}>
-              <TextInput
-                style={inputStyle}
-                placeholder="PPE catalogue ID"
+              <SelectField
+                label="PPE item"
                 value={item.ppeCatalogueId}
-                onChangeText={(value) => {
+                options={(formOptions?.ppe ?? []).map((ppeItem) => ({
+                  value: ppeItem.id,
+                  label: formatOrgOptionLabel(ppeItem),
+                }))}
+                placeholder="Select PPE"
+                disabled={isReadOnly || optionsLoading}
+                onChange={(ppeCatalogueId) => {
                   const ppe = [...form.ppe];
-                  ppe[index] = { ...item, ppeCatalogueId: value };
+                  ppe[index] = { ...item, ppeCatalogueId };
                   setForm({ ...form, ppe });
                 }}
               />
@@ -362,13 +466,18 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
         <View style={styles.section}>
           {form.executors.map((executor, index) => (
             <View key={`executor-${index}`} style={styles.card}>
-              <TextInput
-                style={inputStyle}
-                placeholder="Workforce user ID"
+              <SelectField
+                label="Executor"
                 value={executor.workforceUserId}
-                onChangeText={(value) => {
+                options={(formOptions?.executors ?? []).map((person) => ({
+                  value: person.id,
+                  label: formatWorkforceOptionLabel(person),
+                }))}
+                placeholder="Select executor"
+                disabled={isReadOnly || optionsLoading}
+                onChange={(workforceUserId) => {
                   const executors = [...form.executors];
-                  executors[index] = { ...executor, workforceUserId: value };
+                  executors[index] = { ...executor, workforceUserId };
                   setForm({ ...form, executors });
                 }}
               />

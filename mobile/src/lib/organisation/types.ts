@@ -11,6 +11,10 @@ export type OrgRecord = {
   updatedAt?: string;
 };
 
+export type MachineryRecord = OrgRecord & {
+  workstationId: string;
+};
+
 export type Organisation = OrgRecord & {
   legalName?: string | null;
   registrationNumber?: string | null;
