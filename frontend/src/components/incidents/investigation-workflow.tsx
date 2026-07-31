@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/lib/api";
 import {
   assignInvestigation,
@@ -10,6 +10,10 @@ import {
   updateCorrectiveAction,
 } from "@/lib/incidents/api";
 import type { InvestigationDetail } from "@/lib/incidents/types";
+import { formatWorkforceOptionLabel } from "@/lib/form-options";
+import { listWorkforceDirectory } from "@/lib/workforce/api";
+import type { WorkforceRecord } from "@/lib/workforce/types";
+import { SelectField } from "@/components/lototo/select-field";
 import { Button } from "@/components/ui/button";
 
 type InvestigationWorkflowProps = {
@@ -19,6 +23,7 @@ type InvestigationWorkflowProps = {
 };
 
 export function InvestigationWorkflow({ incidentId, detail, onUpdated }: InvestigationWorkflowProps) {
+  const [directory, setDirectory] = useState<WorkforceRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [investigatorId, setInvestigatorId] = useState("");
@@ -28,6 +33,31 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Investi
   const [correctiveDueDate, setCorrectiveDueDate] = useState("");
   const [preventiveTitle, setPreventiveTitle] = useState("");
   const [preventiveOwnerId, setPreventiveOwnerId] = useState("");
+
+  useEffect(() => {
+    listWorkforceDirectory()
+      .then(setDirectory)
+      .catch(() => setDirectory([]));
+  }, []);
+
+  const personOptions = useMemo(
+    () =>
+      directory.map((person) => ({
+        value: person.id,
+        label: formatWorkforceOptionLabel(person),
+      })),
+    [directory],
+  );
+
+  const personById = useMemo(
+    () => new Map(directory.map((person) => [person.id, person])),
+    [directory],
+  );
+
+  function personLabel(id: string) {
+    const person = personById.get(id);
+    return person ? formatWorkforceOptionLabel(person) : id;
+  }
 
   async function runAction(action: () => Promise<unknown>) {
     setIsSubmitting(true);
@@ -53,17 +83,29 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Investi
 
       {!detail ? (
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">Assign an investigator to begin.</p>
-          <input
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            placeholder="Investigator user ID"
-            value={investigatorId}
-            onChange={(e) => setInvestigatorId(e.target.value)}
-          />
+          <p className="text-sm text-muted-foreground">
+            Choose a workforce member to lead the investigation.
+          </p>
+          {directory.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No workforce members found. Add employees or contractors under Workforce first.
+            </p>
+          ) : (
+            <SelectField
+              id="incident-investigator"
+              label="Investigator"
+              hint="Workforce member responsible for the investigation."
+              value={investigatorId}
+              options={personOptions}
+              placeholder="Select investigator"
+              required
+              onChange={setInvestigatorId}
+            />
+          )}
           <Button
-            disabled={isSubmitting || !investigatorId.trim()}
+            disabled={isSubmitting || !investigatorId}
             onClick={() =>
-              runAction(() => assignInvestigation(incidentId, { investigatorId: investigatorId.trim() }))
+              runAction(() => assignInvestigation(incidentId, { investigatorId }))
             }
           >
             Assign investigation
@@ -72,7 +114,8 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Investi
       ) : (
         <>
           <p className="text-sm text-muted-foreground">
-            Investigator {detail.investigation.investigatorId} · {detail.investigation.status}
+            Investigator {personLabel(detail.investigation.investigatorId)} ·{" "}
+            {detail.investigation.status.replace(/_/g, " ")}
           </p>
 
           <div className="space-y-2">
@@ -104,11 +147,13 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Investi
               value={correctiveTitle}
               onChange={(e) => setCorrectiveTitle(e.target.value)}
             />
-            <input
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              placeholder="Owner user ID"
+            <SelectField
+              id="corrective-action-owner"
+              label="Owner"
               value={correctiveOwnerId}
-              onChange={(e) => setCorrectiveOwnerId(e.target.value)}
+              options={personOptions}
+              placeholder="Select owner"
+              onChange={setCorrectiveOwnerId}
             />
             <input
               type="date"
@@ -123,7 +168,7 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Investi
                 runAction(() =>
                   createCorrectiveAction(incidentId, {
                     title: correctiveTitle.trim(),
-                    ownerId: correctiveOwnerId.trim(),
+                    ownerId: correctiveOwnerId,
                     dueDate: new Date(correctiveDueDate).toISOString(),
                   }),
                 )
@@ -141,11 +186,13 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Investi
               value={preventiveTitle}
               onChange={(e) => setPreventiveTitle(e.target.value)}
             />
-            <input
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              placeholder="Owner user ID"
+            <SelectField
+              id="preventive-action-owner"
+              label="Owner"
               value={preventiveOwnerId}
-              onChange={(e) => setPreventiveOwnerId(e.target.value)}
+              options={personOptions}
+              placeholder="Select owner"
+              onChange={setPreventiveOwnerId}
             />
             <Button
               variant="outline"
@@ -154,7 +201,7 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Investi
                 runAction(() =>
                   createPreventiveAction(incidentId, {
                     title: preventiveTitle.trim(),
-                    ownerId: preventiveOwnerId.trim(),
+                    ownerId: preventiveOwnerId,
                   }),
                 )
               }
@@ -167,7 +214,12 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Investi
             <ul className="space-y-2 text-sm">
               {detail.correctiveActions.map((action) => (
                 <li key={action.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-border px-3 py-2">
-                  <span>{action.title}</span>
+                  <span>
+                    {action.title}
+                    <span className="block text-xs text-muted-foreground">
+                      Owner: {personLabel(action.ownerId)}
+                    </span>
+                  </span>
                   <Button
                     size="sm"
                     variant="outline"
