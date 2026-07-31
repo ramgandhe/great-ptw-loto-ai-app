@@ -20,6 +20,7 @@ export * from './investigation';
 export * from './incident-closure';
 export * from './notifications';
 export * from './analytics';
+export * from './billing';
 
 
 export const platformMetadata = pgTable('platform_metadata', {
