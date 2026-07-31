@@ -75,28 +75,41 @@ export async function completeKeycloakLogin(code: string): Promise<void> {
   });
 }
 
+/** Single-flight refresh so parallel 401s don't burn a rotated refresh token. */
+let refreshInFlight: Promise<boolean> | null = null;
+
 export async function refreshAccessToken(): Promise<boolean> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    return false;
+  if (refreshInFlight) {
+    return refreshInFlight;
   }
 
-  try {
-    const body = new URLSearchParams({
-      grant_type: "refresh_token",
-      client_id: authConfig.clientId,
-      refresh_token: refreshToken,
-    });
-    const payload = await exchangeToken(body);
-    saveTokens({
-      accessToken: payload.access_token,
-      refreshToken: payload.refresh_token ?? refreshToken,
-    });
-    return true;
-  } catch {
-    clearTokens();
-    return false;
-  }
+  refreshInFlight = (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      return false;
+    }
+
+    try {
+      const body = new URLSearchParams({
+        grant_type: "refresh_token",
+        client_id: authConfig.clientId,
+        refresh_token: refreshToken,
+      });
+      const payload = await exchangeToken(body);
+      saveTokens({
+        accessToken: payload.access_token,
+        refreshToken: payload.refresh_token ?? refreshToken,
+      });
+      return true;
+    } catch {
+      clearTokens();
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
 }
 
 export function signOut() {
