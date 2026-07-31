@@ -215,7 +215,7 @@ export default function SimopsConflictDetailScreen() {
 
           {!isResolved ? (
             <View style={[styles.card, { borderColor: tokens.colors.border }]}>
-              <Text style={{ color: tokens.colors.destructive ?? "#b91c1c", fontWeight: "600" }}>Reject</Text>
+              <Text style={{ color: "#b91c1c", fontWeight: "600" }}>Reject</Text>
               <TextInput
                 style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
                 multiline
