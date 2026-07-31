@@ -32,13 +32,18 @@ docker-compose.yml   Local infrastructure + app containers
 docker compose up -d postgres redis minio keycloak
 ```
 
-2. Install and migrate:
+2. Configure environment and install/migrate:
 
 ```bash
+cp .env.example .env   # adjust as needed; .env is gitignored
 npm install
 npm run db:migrate
 npm run db:seed
 ```
+
+Required environment variables are validated at API startup; see
+`.env.example` and `docs/deployment.md` for the full list and the isolation
+execution (SP-03.02) infrastructure configuration.
 
 3. Run apps:
 

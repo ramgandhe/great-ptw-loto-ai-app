@@ -9,6 +9,9 @@ export * from './permit';
 export * from './approval';
 export * from './execution';
 export * from './closure';
+export * from './lototo';
+export * from './lototo-execution';
+export * from './lototo-restoration';
 
 export const platformMetadata = pgTable('platform_metadata', {
   ...auditColumns,
