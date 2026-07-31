@@ -29,3 +29,15 @@ PTW permit/approval/execution/closure/SIMOPS routes remain under their existing 
 | GET | `/permits/{id}/handover` | Required | List handover history |
 | GET | `/permits/{id}/daily-history` | Required | Append-only activity history |
 
+## Multi-Day Daily Revalidation (MS-05 / SP-05.02)
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| POST | `/permits/{id}/revalidate` | Required | Complete daily revalidation |
+| POST | `/permits/{id}/continue` | Required | Continue after passed revalidation |
+| POST | `/permits/{id}/suspend` | Required | Suspend permit (reason required) |
+| POST | `/permits/{id}/extensions` | Required | Request permit extension |
+| GET | `/permits/{id}/revalidation-history` | Required | Revalidation/continuation history |
+| POST | `/extensions/{id}/approve` | Required | Approve extension |
+| POST | `/extensions/{id}/reject` | Required | Reject extension |
+
