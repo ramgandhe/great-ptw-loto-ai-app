@@ -10,6 +10,10 @@ Base path: `/api/v1`
 | GET | `/system/config` | Public | Client config |
 | GET | `/system/version` | Public | Version |
 
+Security notes (SP-08.02): JWT required on all non-public routes; Helmet +
+`SecurityHeadersInterceptor` apply `X-Content-Type-Options`, `X-Frame-Options`,
+`Referrer-Policy`, `Cache-Control: no-store`. Body size limited via `API_BODY_LIMIT`.
+
 ## AI
 
 | Method | Path | Auth | Notes |

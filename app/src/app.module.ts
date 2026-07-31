@@ -6,6 +6,7 @@ import { LoggerModule } from 'nestjs-pino';
 import configuration from './config/configuration';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { SecurityHeadersInterceptor } from './common/interceptors/security-headers.interceptor';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { DatabaseModule } from './database/database.module';
@@ -97,6 +98,7 @@ import { AiModule } from './modules/ai/ai.module';
     RolesGuard,
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: SecurityHeadersInterceptor },
     { provide: APP_GUARD, useExisting: JwtAuthGuard },
     { provide: APP_GUARD, useExisting: RolesGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
