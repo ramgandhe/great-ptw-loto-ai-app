@@ -35,6 +35,37 @@ supplied via `${MINIO_ACCESS_KEY}` / `${MINIO_SECRET_KEY}` interpolation with
 local-dev fallbacks, so production credentials are injected from the environment
 rather than committed.
 
+## Production readiness database (SP-08.03)
+
+Migration `0021_production_readiness.sql` adds operational tables used for
+go-live validation (not tenant business workflows):
+
+| Table | Purpose |
+| --- | --- |
+| `backup_runs` | Metadata for Postgres / MinIO / config / Keycloak backups and restore verification |
+| `data_retention_policies` | Platform defaults (`tenant_id` null) and per-tenant retention overrides |
+| `migration_run_log` | Append-oriented record of dry-run / production migration sequencing |
+
+### Go-live migration sequence
+
+1. Take a verified Postgres backup; record a `backup_runs` row (`trigger=pre_migrate`).
+2. Dry-run migrations against a restored staging copy; log each tag in `migration_run_log`.
+3. Apply migrations forward only on production (`npm run db:migrate`).
+4. Run `ANALYZE` on hot tables after index-heavy releases.
+5. Confirm seed/reference catalogues (permit types, PPE, etc.) for each tenant.
+
+Do **not** roll back migrations by dropping tables. Restore from the verified
+backup and re-apply forward if a release must be reverted.
+
+### Backup schedule (minimum)
+
+- **Postgres** — daily full + continuous WAL if available; verify restore weekly.
+- **MinIO** — bucket replication or periodic sync of evidence buckets.
+- **Config / Keycloak** — export realm and env templates with each release.
+
+Retention defaults should keep audit history at least as long as organisational
+policy requires; use `data_retention_policies` to document enforced windows.
+
 ## Database performance hardening (SP-08.02)
 
 Migration `0020_database_performance_hardening.sql` adds composite indexes for
