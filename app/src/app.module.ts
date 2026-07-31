@@ -26,6 +26,9 @@ import { RestorationModule } from './modules/restoration/restoration.module';
 import { SimopsModule } from './modules/simops/simops.module';
 import { DailyProgressModule } from './modules/daily-progress/daily-progress.module';
 import { RevalidationModule } from './modules/revalidation/revalidation.module';
+import { IncidentsModule } from './modules/incidents/incidents.module';
+import { InvestigationModule } from './modules/investigation/investigation.module';
+import { IncidentClosureModule } from './modules/incident-closure/incident-closure.module';
 import { ClosureModule } from './modules/closure/closure.module';
 import { LoggingModule } from './modules/logging/logging.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -65,6 +68,7 @@ import { AiModule } from './modules/ai/ai.module';
     OrganisationModule,
     WorkforceModule,
     ClosureModule,
+    IncidentClosureModule,
     PermitModule,
     ApprovalModule,
     ExecutionModule,
@@ -74,6 +78,8 @@ import { AiModule } from './modules/ai/ai.module';
     SimopsModule,
     DailyProgressModule,
     RevalidationModule,
+    IncidentsModule,
+    InvestigationModule,
     AiModule,
   ],
   providers: [

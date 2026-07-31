@@ -41,3 +41,36 @@ PTW permit/approval/execution/closure/SIMOPS routes remain under their existing 
 | POST | `/extensions/{id}/approve` | Required | Approve extension |
 | POST | `/extensions/{id}/reject` | Required | Reject extension |
 
+## Incident Recording (MS-06 / SP-06.01)
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| POST | `/incidents` | Required | Create incident / near miss / unsafe condition |
+| GET | `/incidents` | Required | List tenant incidents |
+| GET | `/incidents/{id}` | Required | View incident with evidence and links |
+| PATCH | `/incidents/{id}` | Required | Update draft incident |
+| POST | `/incidents/{id}/submit` | Required | Submit draft → open (notifies Safety Officer) |
+| POST | `/incidents/{id}/evidence` | Required | Upload evidence (multipart `file`) |
+| GET | `/incidents/{id}/evidence` | Required | List evidence metadata |
+
+## Investigation (MS-06 / SP-06.02)
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| POST | `/incidents/{id}/assign` | Required | Assign investigator |
+| POST | `/incidents/{id}/root-cause` | Required | Record root cause analysis |
+| POST | `/incidents/{id}/corrective-actions` | Required | Create corrective action |
+| POST | `/incidents/{id}/preventive-actions` | Required | Create preventive action |
+| GET | `/incidents/{id}/investigation` | Required | View investigation detail |
+| PATCH | `/corrective-actions/{id}` | Required | Update corrective action status |
+
+## Incident Closure (MS-06 / SP-06.03)
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| POST | `/incidents/{id}/verify` | Required | Verify investigation complete |
+| POST | `/incidents/{id}/close` | Required | Close verified incident + archive |
+| GET | `/incidents/archive` | Required | List archived incidents |
+| GET | `/incidents/archive/{id}` | Required | View archived incident snapshot |
+| GET | `/incidents/{id}/history` | Required | Full investigation/closure history |
+
