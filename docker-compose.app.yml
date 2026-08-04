@@ -1,0 +1,64 @@
+# Run API + frontend against an existing infrastructure stack
+# (e.g. docker compose project "infrastructure" on infrastructure_default).
+#
+#   npm run db:migrate
+#   docker compose -f docker-compose.app.yml up -d --build
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: development
+      API_PORT: 4000
+      DATABASE_URL: postgresql://ptw:ptw_dev_password@postgres:5432/ptw_platform
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      BULLMQ_WORKER_CONCURRENCY: ${BULLMQ_WORKER_CONCURRENCY:-5}
+      RATE_LIMIT_TTL_MS: ${RATE_LIMIT_TTL_MS:-60000}
+      RATE_LIMIT_LIMIT: ${RATE_LIMIT_LIMIT:-100}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-ptw_minio}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-ptw_minio_password}
+      MINIO_BUCKET: ptw-documents
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ptw-platform
+      LOKI_URL: http://loki:3100
+      CORS_ORIGIN: http://localhost:3000
+    networks:
+      - infrastructure_default
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4000/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - infrastructure_default
+
+networks:
+  infrastructure_default:
+    external: true
