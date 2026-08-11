@@ -53,6 +53,7 @@ const PTW_TABLES = [
   'approval_history',
   'workflow_assignments',
   'workflow_steps',
+  'approval_workflow_templates',
   'permit_executors',
   'permit_ppe',
   'permit_hazards',

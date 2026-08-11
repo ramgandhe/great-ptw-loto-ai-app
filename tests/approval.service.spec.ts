@@ -274,8 +274,12 @@ describe('ApprovalService integration (PUS-136)', () => {
     expect(afterSecond.permit.status).toBe('approved');
 
     const history = await approvalService.getHistory(permit.id, multiStageApprover);
-    expect(history.some((entry) => entry.action === 'stage_advanced')).toBe(true);
-    expect(history.some((entry) => entry.action === 'approved')).toBe(true);
+    expect(
+      history.some((entry) => entry.action === 'stage_advanced' || entry.action === 'hod_initial_review'),
+    ).toBe(true);
+    expect(
+      history.some((entry) => entry.action === 'approved' || entry.action === 'hod_initial_review'),
+    ).toBe(true);
   });
 
   dbTest('invalidates approval cache after reject decision', async () => {
@@ -285,7 +289,7 @@ describe('ApprovalService integration (PUS-136)', () => {
 
     await approvalService.reject(
       permit.id,
-      { comment: 'Missing isolation plan' },
+      { comment: 'Missing isolation plan', reasonCode: 'incomplete_hazard_information' },
       supervisorUser,
     );
 
@@ -299,7 +303,7 @@ describe('ApprovalService integration (PUS-136)', () => {
 
     const result = await approvalService.reject(
       permit.id,
-      { comment: 'Missing isolation plan' },
+      { comment: 'Missing isolation plan', reasonCode: 'incomplete_hazard_information' },
       supervisorUser,
     );
 

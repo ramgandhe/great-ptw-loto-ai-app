@@ -46,6 +46,8 @@ export const permits = pgTable(
     plannedEndAt: timestamp('planned_end_at', { withTimezone: true }),
     submittedAt: timestamp('submitted_at', { withTimezone: true }),
     submittedBy: uuid('submitted_by'),
+    /** FR-PTW-017 — derived/stored risk level for branching. */
+    riskLevel: varchar('risk_level', { length: 16 }),
   },
   (table) => [
     uniqueIndex('permits_tenant_reference_unique').on(table.tenantId, table.reference),

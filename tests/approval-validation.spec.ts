@@ -23,9 +23,18 @@ describe('Approval DTO validation (PUS-136)', () => {
   it('accepts valid rejection reason', async () => {
     const dto = new RejectPermitDto();
     dto.comment = 'Insufficient hazard controls documented';
+    dto.reasonCode = 'insufficient_controls';
 
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
+  });
+
+  it('requires structured reason code (FR-PTW-024)', async () => {
+    const dto = new RejectPermitDto();
+    dto.comment = 'Missing docs';
+
+    const errors = await validate(dto);
+    expect(errors.some((error) => error.property === 'reasonCode')).toBe(true);
   });
 
   it('rejects whitespace-only deferral comment at service layer', async () => {
