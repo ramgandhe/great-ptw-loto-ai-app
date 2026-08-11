@@ -146,6 +146,7 @@ export const workflowAssignments = pgTable(
     slaPausedAt: timestamp('sla_paused_at', { withTimezone: true }),
     escalationLevel: integer('escalation_level').notNull().default(0),
     parallelGroup: varchar('parallel_group', { length: 64 }),
+    escalatedToRole: varchar('escalated_to_role', { length: 64 }),
   },
   (table) => [
     uniqueIndex('workflow_assignments_permit_step_unique').on(
@@ -213,5 +214,32 @@ export const approvalHistory = pgTable(
     index('approval_history_permit_id_idx').on(table.permitId),
     index('approval_history_permit_created_at_idx').on(table.permitId, table.createdAt),
     index('approval_history_actor_id_idx').on(table.actorId),
+  ],
+);
+
+/** FR-PTW-023 — date-bounded temporary delegate. */
+export const approvalDelegations = pgTable(
+  'approval_delegations',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    delegatorId: uuid('delegator_id').notNull(),
+    delegateId: uuid('delegate_id').notNull(),
+    coversRole: varchar('covers_role', { length: 64 }).notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    comment: text('comment'),
+  },
+  (table) => [
+    index('approval_delegations_tenant_delegate_idx').on(table.tenantId, table.delegateId),
+    index('approval_delegations_tenant_delegator_idx').on(table.tenantId, table.delegatorId),
+    index('approval_delegations_active_window_idx').on(
+      table.tenantId,
+      table.delegateId,
+      table.coversRole,
+      table.startsAt,
+      table.endsAt,
+    ),
   ],
 );

@@ -6,11 +6,13 @@ import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { permits, workflowAssignments } from '../../database/schema';
 import { QueueService } from '../../infrastructure/queue/queue.service';
 import {
+  APPROVAL_ESCALATION_JOB,
   APPROVAL_NOTIFICATION_JOB,
   APPROVAL_REMINDER_JOB,
   PENDING_APPROVAL_STATUS,
 } from './approval.constants';
 import { ApprovalCacheService } from './approval-cache.service';
+import { ApprovalEscalationService } from './approval-escalation.service';
 import { ApprovalLogService } from './approval-log.service';
 import type { ApprovalNotificationPayload } from './notification.service';
 
@@ -24,6 +26,7 @@ export class ApprovalJobsService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly approvalLogService: ApprovalLogService,
     private readonly approvalCacheService: ApprovalCacheService,
+    private readonly approvalEscalationService: ApprovalEscalationService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -35,20 +38,42 @@ export class ApprovalJobsService implements OnModuleInit {
       await this.sendReminders();
     });
 
-    const cron = this.configService.get<string>('approval.reminderCron') ?? '0 8 * * *';
+    this.queueService.registerHandler(APPROVAL_ESCALATION_JOB, async () => {
+      await this.approvalEscalationService.processDueEscalations();
+    });
+
+    const reminderCron = this.configService.get<string>('approval.reminderCron') ?? '0 8 * * *';
+    // Ambiguity: PRD does not specify poll interval; default every 15 minutes.
+    const escalationCron =
+      this.configService.get<string>('approval.escalationCron') ?? '*/15 * * * *';
 
     try {
       await this.queueService.getQueue().add(
         APPROVAL_REMINDER_JOB,
         {},
         {
-          repeat: { pattern: cron },
+          repeat: { pattern: reminderCron },
           jobId: 'approval-reminder-schedule',
         },
       );
-      this.logger.log(`Scheduled approval reminder job (${cron})`);
+      this.logger.log(`Scheduled approval reminder job (${reminderCron})`);
     } catch (error) {
       this.logger.warn('Could not schedule approval reminder job');
+      this.logger.debug(error);
+    }
+
+    try {
+      await this.queueService.getQueue().add(
+        APPROVAL_ESCALATION_JOB,
+        {},
+        {
+          repeat: { pattern: escalationCron },
+          jobId: 'approval-escalation-schedule',
+        },
+      );
+      this.logger.log(`Scheduled approval escalation job (${escalationCron})`);
+    } catch (error) {
+      this.logger.warn('Could not schedule approval escalation job');
       this.logger.debug(error);
     }
   }

@@ -54,6 +54,7 @@ const PTW_TABLES = [
   'workflow_assignments',
   'workflow_steps',
   'approval_workflow_templates',
+  'approval_delegations',
   'permit_executors',
   'permit_ppe',
   'permit_hazards',

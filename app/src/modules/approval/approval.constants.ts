@@ -1,5 +1,6 @@
 export const APPROVAL_NOTIFICATION_JOB = 'approval.notification';
 export const APPROVAL_REMINDER_JOB = 'approval.reminder';
+export const APPROVAL_ESCALATION_JOB = 'approval.escalation';
 
 /** Operational approvers only — platform-admin is excluded (FR-ROL-003). */
 export const APPROVER_ROLES = ['supervisor', 'org-admin'] as const;

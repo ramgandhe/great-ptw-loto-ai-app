@@ -103,6 +103,9 @@ describe('ApprovalService integration (PUS-136)', () => {
       approvalCacheService,
       approvalLogService,
       new PermitLifecycleService(),
+      {
+        findActiveForDelegate: jest.fn().mockResolvedValue(null),
+      } as never,
     );
   });
 

@@ -28,6 +28,7 @@ import { SafetyOfficerVetoDto } from './dto/safety-officer-veto.dto';
 import { NotificationService } from './notification.service';
 import { WorkflowEngineService } from './workflow-engine.service';
 import { PermitLifecycleService } from '../permit/permit-lifecycle.service';
+import { DelegationService } from './delegation.service';
 
 @Injectable()
 export class ApprovalService {
@@ -42,6 +43,7 @@ export class ApprovalService {
     private readonly approvalCacheService: ApprovalCacheService,
     private readonly approvalLogService: ApprovalLogService,
     private readonly permitLifecycleService: PermitLifecycleService,
+    private readonly delegationService: DelegationService,
   ) {}
 
   async listPending(user: AuthenticatedUser) {
@@ -116,7 +118,7 @@ export class ApprovalService {
 
   async approve(permitId: string, dto: ApprovePermitDto, user: AuthenticatedUser) {
     const context = await this.prepareDecision(permitId, user, 'approve');
-    const { permit, assignment, step } = context;
+    const { permit, assignment, step, onBehalfOf } = context;
 
     if (step.commentRequiredOnApprove && !dto.comment?.trim()) {
       throw new BadRequestException('Approval comment is required for this workflow step');
@@ -131,6 +133,7 @@ export class ApprovalService {
           workflowAssignmentId: assignment.id,
           decision: 'approve',
           comment: dto.comment,
+          onBehalfOf,
           decidedBy: user.id,
           createdBy: user.id,
           updatedBy: user.id,
@@ -145,22 +148,30 @@ export class ApprovalService {
         user.id,
         tx,
       );
-      const isHod = userHasHodRole(user.roles);
+      const isHod = userHasHodRole(user.roles) || Boolean(onBehalfOf);
 
       if (resolution.advanced) {
         await this.approvalHistoryService.record(
           {
             permitId,
-            action: isHod ? HOD_INITIAL_REVIEW_ACTION : 'stage_advanced',
+            action: isHod && !onBehalfOf ? HOD_INITIAL_REVIEW_ACTION : 'stage_advanced',
             fromStatus: permit.status,
             toStatus: PENDING_APPROVAL_STATUS,
             actorId: user.id,
             comment: dto.comment,
             workflowStepId: step.id,
             permitApprovalId: approval.id,
-            metadata: isHod
-              ? { decisionKind: HOD_INITIAL_REVIEW_ACTION, stageAdvanced: true }
-              : { stageComplete: resolution.stageComplete },
+            metadata: {
+              ...(isHod && !onBehalfOf ? { decisionKind: HOD_INITIAL_REVIEW_ACTION } : {}),
+              stageAdvanced: true,
+              ...(onBehalfOf
+                ? {
+                    onBehalfOf,
+                    approvedByXOnBehalfOfY: true,
+                    actorLabel: `approved by ${user.id} on behalf of ${onBehalfOf}`,
+                  }
+                : {}),
+            },
             createdBy: user.id,
           },
           tx,
@@ -176,31 +187,51 @@ export class ApprovalService {
         await this.approvalHistoryService.record(
           {
             permitId,
-            action: isHod ? HOD_INITIAL_REVIEW_ACTION : 'approved',
+            action: isHod && !onBehalfOf ? HOD_INITIAL_REVIEW_ACTION : 'approved',
             fromStatus: permit.status,
             toStatus: 'approved',
             actorId: user.id,
             comment: dto.comment,
             workflowStepId: step.id,
             permitApprovalId: approval.id,
-            metadata: isHod ? { decisionKind: HOD_INITIAL_REVIEW_ACTION, final: true } : undefined,
+            metadata: {
+              ...(isHod && !onBehalfOf
+                ? { decisionKind: HOD_INITIAL_REVIEW_ACTION, final: true }
+                : { final: true }),
+              ...(onBehalfOf
+                ? {
+                    onBehalfOf,
+                    approvedByXOnBehalfOfY: true,
+                    actorLabel: `approved by ${user.id} on behalf of ${onBehalfOf}`,
+                  }
+                : {}),
+            },
             createdBy: user.id,
           },
           tx,
         );
       } else {
-        // Parallel stage partially complete — wait for remaining approvers (FR-PTW-016/028).
         await this.approvalHistoryService.record(
           {
             permitId,
-            action: isHod ? HOD_INITIAL_REVIEW_ACTION : 'stage_advanced',
+            action: 'stage_advanced',
             fromStatus: permit.status,
             toStatus: PENDING_APPROVAL_STATUS,
             actorId: user.id,
             comment: dto.comment,
             workflowStepId: step.id,
             permitApprovalId: approval.id,
-            metadata: { parallelPending: true, stageComplete: false },
+            metadata: {
+              parallelPending: true,
+              stageComplete: false,
+              ...(onBehalfOf
+                ? {
+                    onBehalfOf,
+                    approvedByXOnBehalfOfY: true,
+                    actorLabel: `approved by ${user.id} on behalf of ${onBehalfOf}`,
+                  }
+                : {}),
+            },
             createdBy: user.id,
           },
           tx,
@@ -211,7 +242,8 @@ export class ApprovalService {
       const finalized = resolution.final && resolution.stageComplete;
 
       await this.auditService.log({
-        action: isHod ? `permit.${HOD_INITIAL_REVIEW_ACTION}` : 'permit.approved',
+        action:
+          isHod && !onBehalfOf ? `permit.${HOD_INITIAL_REVIEW_ACTION}` : 'permit.approved',
         entityType: 'permit',
         entityId: permitId,
         userId: user.id,
@@ -219,8 +251,10 @@ export class ApprovalService {
         metadata: {
           workflowStepId: step.id,
           final: finalized,
-          decisionKind: isHod ? HOD_INITIAL_REVIEW_ACTION : 'approval',
-          stageComplete: resolution.stageComplete,
+          onBehalfOf,
+          ...(onBehalfOf
+            ? { actorLabel: `approved by ${user.id} on behalf of ${onBehalfOf}` }
+            : {}),
         },
       });
 
@@ -229,7 +263,7 @@ export class ApprovalService {
         tenantId: permit.tenantId,
         action: finalized ? 'approved' : 'stage_advanced',
         actorId: user.id,
-        metadata: { workflowStepId: step.id },
+        metadata: { workflowStepId: step.id, onBehalfOf },
       });
 
       await this.permitCacheService.invalidatePermit(permit.tenantId, permitId);
@@ -244,7 +278,7 @@ export class ApprovalService {
         permitId,
         tenantId: permit.tenantId,
         userId: user.id,
-        metadata: { workflowStepId: step.id, final: finalized },
+        metadata: { workflowStepId: step.id, final: finalized, onBehalfOf },
       });
     });
 
@@ -272,6 +306,7 @@ export class ApprovalService {
       reasonCode: dto.reasonCode,
       auditAction: 'permit.rejected',
       notificationAction: 'rejected',
+      onBehalfOf: context.onBehalfOf,
     });
   }
 
@@ -296,6 +331,7 @@ export class ApprovalService {
       auditAction: 'permit.deferred',
       notificationAction: 'deferred',
       pauseSla: true,
+      onBehalfOf: context.onBehalfOf,
     });
   }
 
@@ -387,6 +423,12 @@ export class ApprovalService {
       throw new ConflictException(`Cannot ${decision} a permit that is not pending approval`);
     }
 
+    if (permit.approvalBlockedAt) {
+      throw new ConflictException(
+        'Permit approval is blocked after maximum SLA escalations; Administrator intervention required',
+      );
+    }
+
     const existingAssignments = await this.workflowEngine.listAssignmentsForPermit(permitId);
     if (existingAssignments.length === 0) {
       await this.workflowEngine.initializeAtSubmit(
@@ -404,8 +446,21 @@ export class ApprovalService {
 
     const { assignment, step } = active;
 
-    if (!this.workflowEngine.userHasApproverRole(user.roles, step.approverRole)) {
-      throw new ForbiddenException('You do not have permission to act on this approval step');
+    let onBehalfOf: string | null = null;
+    const hasRole = this.workflowEngine.userHasApproverRole(user.roles, step.approverRole);
+
+    if (!hasRole) {
+      const delegation = await this.delegationService.findActiveForDelegate(
+        permit.tenantId,
+        user.id,
+        step.approverRole,
+      );
+      if (!delegation) {
+        throw new ForbiddenException(
+          `You do not have permission to act on this approval step. Required role: ${step.approverRole}`,
+        );
+      }
+      onBehalfOf = delegation.delegatorId;
     }
 
     const [existing] = await this.db
@@ -419,7 +474,7 @@ export class ApprovalService {
       throw new ConflictException('This approval step has already been decided');
     }
 
-    return { permit, assignment, step };
+    return { permit, assignment, step, onBehalfOf };
   }
 
   private async recordTerminalDecision(params: {
@@ -436,6 +491,7 @@ export class ApprovalService {
     auditAction: string;
     notificationAction: string;
     pauseSla?: boolean;
+    onBehalfOf?: string | null;
   }) {
     const {
       permitId,
@@ -451,6 +507,7 @@ export class ApprovalService {
       auditAction,
       notificationAction,
       pauseSla,
+      onBehalfOf,
     } = params;
 
     this.permitLifecycleService.assertTransition(permit.status, toStatus);
@@ -465,6 +522,7 @@ export class ApprovalService {
           decision,
           comment,
           reasonCode: reasonCode ?? null,
+          onBehalfOf: onBehalfOf ?? null,
           decidedBy: user.id,
           createdBy: user.id,
           updatedBy: user.id,

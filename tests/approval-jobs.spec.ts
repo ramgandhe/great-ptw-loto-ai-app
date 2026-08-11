@@ -34,6 +34,9 @@ describe('ApprovalJobsService (PUS-140)', () => {
     configService as never,
     approvalLogService,
     approvalCacheService,
+    {
+      processDueEscalations: jest.fn().mockResolvedValue({ escalated: 0, blocked: 0, skipped: 0 }),
+    } as never,
   );
 
   beforeEach(() => {
@@ -52,6 +55,11 @@ describe('ApprovalJobsService (PUS-140)', () => {
       'approval.reminder',
       {},
       expect.objectContaining({ jobId: 'approval-reminder-schedule' }),
+    );
+    expect(queueAdd).toHaveBeenCalledWith(
+      'approval.escalation',
+      {},
+      expect.objectContaining({ jobId: 'approval-escalation-schedule' }),
     );
   });
 
