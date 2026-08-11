@@ -116,3 +116,10 @@ export class UploadIncidentEvidenceDto {
   @MaxLength(1000)
   comment?: string;
 }
+
+export class HodNearMissDecisionDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  comments?: string;
+}

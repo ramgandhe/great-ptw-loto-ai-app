@@ -5,9 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import {
+  continueNearMiss,
   getIncident,
   getIncidentHistory,
   getInvestigation,
+  stopNearMiss,
   submitIncident,
   uploadIncidentEvidence,
 } from "@/lib/incidents/api";
@@ -126,6 +128,55 @@ export default function IncidentDetailPage() {
 
       {incident.status === "draft" ? (
         <Button onClick={handleSubmit}>Submit incident</Button>
+      ) : null}
+
+      {detail.severityLifecycle ? (
+        <section className="rounded-lg border border-border p-4 space-y-3">
+          <h2 className="text-lg font-medium">Severity lifecycle (FR-INC-011)</h2>
+          <p className="text-sm text-muted-foreground">
+            Path: {detail.severityLifecycle.severityPath.replace(/_/g, " ")} · Status:{" "}
+            {detail.severityLifecycle.lifecycleStatus.replace(/_/g, " ")}
+          </p>
+          {detail.severityLifecycle.lifecycleStatus === "awaiting_hod" ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={async () => {
+                  try {
+                    await continueNearMiss(incident.id, "HOD continue");
+                    await load();
+                  } catch (err) {
+                    setError(err instanceof ApiError ? err.message : "Continue failed");
+                  }
+                }}
+              >
+                HOD Continue
+              </Button>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    await stopNearMiss(incident.id, "HOD stop");
+                    await load();
+                  } catch (err) {
+                    setError(err instanceof ApiError ? err.message : "Stop failed");
+                  }
+                }}
+              >
+                HOD Stop
+              </Button>
+            </div>
+          ) : null}
+          {detail.severityHistory && detail.severityHistory.length > 0 ? (
+            <ul className="text-sm space-y-1">
+              {detail.severityHistory.map((entry) => (
+                <li key={entry.id}>
+                  {entry.eventType.replace(/_/g, " ")} ·{" "}
+                  {new Date(entry.createdAt).toLocaleString()}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
       ) : null}
 
       <section className="rounded-lg border border-border p-4 space-y-3">

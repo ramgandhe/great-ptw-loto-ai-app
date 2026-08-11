@@ -35,6 +35,20 @@ export function submitIncident(id: string) {
   return fetchApi<Incident>(`/incidents/${id}/submit`, { method: "POST" });
 }
 
+export function continueNearMiss(id: string, comments?: string) {
+  return fetchApi(`/incidents/${id}/severity/continue`, {
+    method: "POST",
+    body: JSON.stringify({ comments }),
+  });
+}
+
+export function stopNearMiss(id: string, comments?: string) {
+  return fetchApi(`/incidents/${id}/severity/stop`, {
+    method: "POST",
+    body: JSON.stringify({ comments }),
+  });
+}
+
 export function listIncidentEvidence(id: string) {
   return fetchApi<IncidentEvidence[]>(`/incidents/${id}/evidence`);
 }

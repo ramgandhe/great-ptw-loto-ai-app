@@ -3,6 +3,7 @@ import { LoggingModule } from '../logging/logging.module';
 import { IncidentCacheService } from './incident-cache.service';
 import { IncidentJobsService } from './incident-jobs.service';
 import { IncidentLogService } from './incident-log.service';
+import { IncidentSeverityLifecycleService } from './incident-severity-lifecycle.service';
 import { IncidentsController } from './incidents.controller';
 import { IncidentsService } from './incidents.service';
 
@@ -14,7 +15,13 @@ import { IncidentsService } from './incidents.service';
     IncidentCacheService,
     IncidentLogService,
     IncidentJobsService,
+    IncidentSeverityLifecycleService,
   ],
-  exports: [IncidentsService, IncidentCacheService, IncidentLogService],
+  exports: [
+    IncidentsService,
+    IncidentCacheService,
+    IncidentLogService,
+    IncidentSeverityLifecycleService,
+  ],
 })
 export class IncidentsModule {}

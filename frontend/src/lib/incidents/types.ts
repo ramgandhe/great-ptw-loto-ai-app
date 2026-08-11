@@ -52,6 +52,33 @@ export type IncidentDetail = {
   evidence: IncidentEvidence[];
   equipment: Array<{ machineryId: string; machinery: { id: string; name: string; code: string } }>;
   permits: IncidentPermitLink[];
+  severityLifecycle?: IncidentSeverityLifecycle | null;
+  severityHistory?: IncidentSeverityHistoryEntry[];
+};
+
+export type IncidentLifecycleStatus =
+  | "awaiting_hod"
+  | "continued"
+  | "stopped"
+  | "auto_terminated";
+
+export type IncidentSeverityLifecycle = {
+  id: string;
+  incidentId: string;
+  severityPath: IncidentSeverityPath;
+  lifecycleStatus: IncidentLifecycleStatus;
+  hodDecision: "continue" | "stop" | null;
+  hodDecidedAt: string | null;
+  hodDecisionComments: string | null;
+  permitsCancelledAt: string | null;
+};
+
+export type IncidentSeverityHistoryEntry = {
+  id: string;
+  eventType: string;
+  actorId: string;
+  permitId: string | null;
+  createdAt: string;
 };
 
 export type Investigation = {

@@ -5,9 +5,11 @@ import { ApiError } from "@/lib/api";
 import {
   assignInvestigation,
   closeIncident,
+  continueNearMiss,
   createCorrectiveAction,
   getIncident,
   recordRootCause,
+  stopNearMiss,
   submitIncident,
   verifyIncident,
 } from "@/lib/incidents/api";
@@ -95,6 +97,27 @@ export default function IncidentDetailScreen() {
         >
           <Text style={styles.primaryButtonText}>Submit incident</Text>
         </Pressable>
+      ) : null}
+
+      {(detail as { severityLifecycle?: { lifecycleStatus: string; severityPath: string } })
+        .severityLifecycle?.lifecycleStatus === "awaiting_hod" ? (
+        <View style={[styles.card, { borderColor: tokens.colors.border }]}>
+          <Text style={{ fontWeight: "600", color: tokens.colors.foreground }}>
+            Near-miss HOD decision
+          </Text>
+          <Pressable
+            style={[styles.primaryButton, { backgroundColor: tokens.colors.primary }]}
+            onPress={() => runAction(() => continueNearMiss(incident.id, "continue"))}
+          >
+            <Text style={styles.primaryButtonText}>Continue</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.secondaryButton, { borderColor: tokens.colors.border }]}
+            onPress={() => runAction(() => stopNearMiss(incident.id, "stop"))}
+          >
+            <Text style={{ color: tokens.colors.foreground }}>Stop</Text>
+          </Pressable>
+        </View>
       ) : null}
 
       {incident.status !== "draft" && incident.status !== "closed" ? (
