@@ -4,6 +4,7 @@ import type {
   DailyActivityEvent,
   DailyProgressRecord,
   DecideExtensionPayload,
+  DecideRenewalPayload,
   PermitExtension,
   PermitRevalidation,
   RecordDailyProgressPayload,
@@ -11,6 +12,7 @@ import type {
   RevalidatePermitPayload,
   RevalidationHistoryEvent,
   ShiftHandoverRecord,
+  PermitRenewal,
 } from "./types";
 
 export function listDailyProgress(permitId: string) {
@@ -80,6 +82,34 @@ export function approveExtension(extensionId: string, payload: DecideExtensionPa
 
 export function rejectExtension(extensionId: string, payload: DecideExtensionPayload = {}) {
   return fetchApi<PermitExtension>(`/extensions/${extensionId}/reject`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createRenewal(permitId: string) {
+  return fetchApi<{ renewal: PermitRenewal; renewalPermit: { id: string; status: string } }>(
+    `/permits/${permitId}/renewals`,
+    { method: "POST", body: JSON.stringify({}) },
+  );
+}
+
+export function submitRenewal(renewalId: string) {
+  return fetchApi<PermitRenewal>(`/renewals/${renewalId}/submit`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export function acceptRenewal(renewalId: string, payload: DecideRenewalPayload = {}) {
+  return fetchApi<PermitRenewal>(`/renewals/${renewalId}/accept`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function rejectRenewal(renewalId: string, payload: DecideRenewalPayload = {}) {
+  return fetchApi<PermitRenewal>(`/renewals/${renewalId}/reject`, {
     method: "POST",
     body: JSON.stringify(payload),
   });

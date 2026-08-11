@@ -7,8 +7,10 @@ import { QueueService } from '../../infrastructure/queue/queue.service';
 import {
   MDP_EXTENSION_EXPIRY_JOB,
   MDP_REVALIDATION_REMINDER_JOB,
+  MDP_VALIDITY_TRANSITION_JOB,
 } from './revalidation.constants';
 import { RevalidationLogService } from './revalidation-log.service';
+import { ValidityTransitionService } from './validity-transition.service';
 
 @Injectable()
 export class RevalidationJobsService implements OnModuleInit {
@@ -19,6 +21,7 @@ export class RevalidationJobsService implements OnModuleInit {
     private readonly queueService: QueueService,
     private readonly configService: ConfigService,
     private readonly logService: RevalidationLogService,
+    private readonly validityTransitionService: ValidityTransitionService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -28,10 +31,15 @@ export class RevalidationJobsService implements OnModuleInit {
     this.queueService.registerHandler(MDP_EXTENSION_EXPIRY_JOB, async () => {
       await this.flagExpiringExtensions();
     });
+    this.queueService.registerHandler(MDP_VALIDITY_TRANSITION_JOB, async () => {
+      await this.validityTransitionService.runDayTransition();
+    });
 
     const reminderCron =
       this.configService.get<string>('mdp.revalidationReminderCron') ?? '0 6 * * *';
     const expiryCron = this.configService.get<string>('mdp.extensionExpiryCron') ?? '0 5 * * *';
+    const validityCron =
+      this.configService.get<string>('mdp.validityTransitionCron') ?? '5 0 * * *';
 
     try {
       await this.queueService.getQueue().add(
@@ -44,8 +52,13 @@ export class RevalidationJobsService implements OnModuleInit {
         {},
         { repeat: { pattern: expiryCron }, jobId: 'mdp-extension-expiry-schedule' },
       );
+      await this.queueService.getQueue().add(
+        MDP_VALIDITY_TRANSITION_JOB,
+        {},
+        { repeat: { pattern: validityCron }, jobId: 'mdp-validity-transition-schedule' },
+      );
       this.logger.log(
-        `Scheduled MDP revalidation (${reminderCron}) and extension expiry (${expiryCron}) jobs`,
+        `Scheduled MDP revalidation (${reminderCron}), extension expiry (${expiryCron}), validity transition (${validityCron}) jobs`,
       );
     } catch (error) {
       this.logger.warn('Could not schedule MDP revalidation jobs');

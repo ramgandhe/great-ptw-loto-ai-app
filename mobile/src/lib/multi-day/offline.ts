@@ -53,3 +53,12 @@ export async function queueOfflineExtensionRequest(
     payload,
   });
 }
+
+export async function queueOfflineRenewalCreate(permitId: string): Promise<void> {
+  await enqueueSyncItem({
+    entityType: "mdp_renewal",
+    method: "POST",
+    path: `/permits/${permitId}/renewals`,
+    payload: {},
+  });
+}

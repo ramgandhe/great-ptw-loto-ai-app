@@ -21,6 +21,8 @@ export const organisations = pgTable(
     name: varchar('name', { length: 255 }).notNull(),
     legalName: varchar('legal_name', { length: 255 }),
     registrationNumber: varchar('registration_number', { length: 128 }),
+    /** FR-MDP-009 — explicit tenant operational timezone (IANA). Default UTC until configured. */
+    timezone: varchar('timezone', { length: 64 }).notNull().default('UTC'),
     status: varchar('status', { length: 32 }).notNull().default('active'),
   },
   (table) => [

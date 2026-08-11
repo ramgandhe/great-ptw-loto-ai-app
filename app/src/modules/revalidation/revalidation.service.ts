@@ -11,6 +11,7 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   permitExtensions,
+  permitRenewals,
   permitRevalidations,
   permits,
   permitSuspensions,
@@ -19,12 +20,19 @@ import {
 import { AuditService } from '../logging/audit.service';
 import {
   DecideExtensionDto,
+  DecideRenewalDto,
   RequestExtensionDto,
   RevalidatePermitDto,
   SuspendPermitDto,
 } from './dto/revalidation.dto';
 import { RevalidationCacheService } from './revalidation-cache.service';
 import { RevalidationLogService } from './revalidation-log.service';
+import {
+  evaluateValidityDecision,
+  isExpiredOrOutOfRange,
+  operationalDateInTimezone,
+} from './validity-rules';
+import { ValidityTransitionService } from './validity-transition.service';
 
 @Injectable()
 export class RevalidationService {
@@ -33,13 +41,22 @@ export class RevalidationService {
     private readonly auditService: AuditService,
     private readonly cacheService: RevalidationCacheService,
     private readonly logService: RevalidationLogService,
+    private readonly validityTransitionService: ValidityTransitionService,
   ) {}
 
   async revalidate(permitId: string, dto: RevalidatePermitDto, user: AuthenticatedUser) {
     const tenantId = this.requireTenant(user);
     const actorId = requireActorId(user);
     const permit = await this.requirePermit(permitId, tenantId, ['active', 'suspended']);
+    // FR-MDP-009 — server operational date (tenant TZ); reject client clock spoofing.
+    const timezone = await this.validityTransitionService.resolveTenantTimezone(tenantId);
+    const serverOperationalDate = operationalDateInTimezone(new Date(), timezone);
     const operationalDate = dto.operationalDate.slice(0, 10);
+    if (operationalDate !== serverOperationalDate) {
+      throw new ConflictException(
+        `Operational date must match server date ${serverOperationalDate} (${timezone})`,
+      );
+    }
 
     const existing = await this.db
       .select({ id: permitRevalidations.id })
@@ -108,17 +125,34 @@ export class RevalidationService {
     const actorId = requireActorId(user);
     const permit = await this.requirePermit(permitId, tenantId, ['active', 'suspended']);
 
+    const now = new Date();
+    const validity = evaluateValidityDecision(permit.plannedStartAt, permit.plannedEndAt, now);
+    if (isExpiredOrOutOfRange(validity.decision)) {
+      throw new ConflictException(
+        `Permit cannot continue: validity decision '${validity.decision}'`,
+      );
+    }
+
+    const timezone = await this.validityTransitionService.resolveTenantTimezone(tenantId);
+    const operationalDate = operationalDateInTimezone(now, timezone);
+
     const [latest] = await this.db
       .select()
       .from(permitRevalidations)
       .where(
-        and(eq(permitRevalidations.tenantId, tenantId), eq(permitRevalidations.permitId, permitId)),
+        and(
+          eq(permitRevalidations.tenantId, tenantId),
+          eq(permitRevalidations.permitId, permitId),
+          eq(permitRevalidations.operationalDate, operationalDate),
+        ),
       )
       .orderBy(desc(permitRevalidations.revalidatedAt))
       .limit(1);
 
     if (!latest || latest.outcome !== 'passed') {
-      throw new ConflictException('Permit continuation requires a passed daily revalidation');
+      throw new ConflictException(
+        `Permit continuation requires a passed daily revalidation for ${operationalDate}`,
+      );
     }
 
     if (permit.status === 'suspended') {
@@ -228,6 +262,64 @@ export class RevalidationService {
     return this.decideExtension(extensionId, 'rejected', dto, user);
   }
 
+  /** Issuer starts renewal from a source permit (≤48h notify or expired). */
+  async createRenewal(permitId: string, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const actorId = requireActorId(user);
+    await this.requirePermit(permitId, tenantId, ['active', 'suspended', 'expired']);
+    const result = await this.validityTransitionService.createRenewalDraft(
+      permitId,
+      tenantId,
+      actorId,
+    );
+    await this.cacheService.invalidatePermit(tenantId, permitId);
+    return result;
+  }
+
+  async submitRenewal(renewalId: string, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const actorId = requireActorId(user);
+    const renewal = await this.requireRenewal(renewalId, tenantId);
+    if (renewal.status !== 'draft') {
+      throw new ConflictException('Only draft renewals can be submitted for HOD approval');
+    }
+
+    const [updated] = await this.db
+      .update(permitRenewals)
+      .set({ status: 'pending_approval', updatedBy: actorId })
+      .where(eq(permitRenewals.id, renewalId))
+      .returning();
+
+    await this.db
+      .update(permits)
+      .set({ status: 'pending_approval', updatedBy: actorId })
+      .where(and(eq(permits.id, renewal.renewalPermitId), eq(permits.tenantId, tenantId)));
+
+    await this.appendHistory(tenantId, renewal.sourcePermitId, 'renewal_created', actorId, {
+      renewalId,
+      status: 'pending_approval',
+    });
+
+    await this.auditService.log({
+      action: 'mdp.renewal_submitted',
+      entityType: 'permit_renewal',
+      entityId: renewalId,
+      userId: actorId,
+      tenantId,
+    });
+
+    await this.cacheService.invalidatePermit(tenantId, renewal.sourcePermitId);
+    return updated;
+  }
+
+  async acceptRenewal(renewalId: string, dto: DecideRenewalDto, user: AuthenticatedUser) {
+    return this.decideRenewal(renewalId, 'accepted', dto, user);
+  }
+
+  async rejectRenewal(renewalId: string, dto: DecideRenewalDto, user: AuthenticatedUser) {
+    return this.decideRenewal(renewalId, 'rejected', dto, user);
+  }
+
   async listHistory(permitId: string, user: AuthenticatedUser) {
     const tenantId = this.requireTenant(user);
     await this.requirePermit(permitId, tenantId, ['active', 'suspended', 'closed', 'approved']);
@@ -239,6 +331,77 @@ export class RevalidationService {
         and(eq(revalidationHistory.tenantId, tenantId), eq(revalidationHistory.permitId, permitId)),
       )
       .orderBy(desc(revalidationHistory.createdAt));
+  }
+
+  private async decideRenewal(
+    renewalId: string,
+    status: 'accepted' | 'rejected',
+    dto: DecideRenewalDto,
+    user: AuthenticatedUser,
+  ) {
+    const tenantId = this.requireTenant(user);
+    const actorId = requireActorId(user);
+    const renewal = await this.requireRenewal(renewalId, tenantId);
+
+    if (renewal.status !== 'pending_approval') {
+      throw new ConflictException('Renewal has already been decided or is not pending');
+    }
+
+    const now = new Date();
+    const [updated] = await this.db
+      .update(permitRenewals)
+      .set({
+        status,
+        decidedBy: actorId,
+        decidedAt: now,
+        decisionComments: dto.comments ?? null,
+        updatedBy: actorId,
+      })
+      .where(eq(permitRenewals.id, renewalId))
+      .returning();
+
+    if (status === 'accepted') {
+      await this.db
+        .update(permits)
+        .set({ status: 'active', updatedBy: actorId })
+        .where(and(eq(permits.id, renewal.renewalPermitId), eq(permits.tenantId, tenantId)));
+    } else {
+      await this.db
+        .update(permits)
+        .set({ status: 'rejected', updatedBy: actorId })
+        .where(and(eq(permits.id, renewal.renewalPermitId), eq(permits.tenantId, tenantId)));
+    }
+
+    const eventType = status === 'accepted' ? 'renewal_accepted' : 'renewal_rejected';
+    await this.appendHistory(tenantId, renewal.sourcePermitId, eventType, actorId, {
+      renewalId,
+      renewalPermitId: renewal.renewalPermitId,
+    });
+
+    await this.auditService.log({
+      action: `mdp.${eventType}`,
+      entityType: 'permit_renewal',
+      entityId: renewalId,
+      userId: actorId,
+      tenantId,
+    });
+
+    await this.cacheService.invalidatePermit(tenantId, renewal.sourcePermitId);
+    await this.cacheService.invalidatePermit(tenantId, renewal.renewalPermitId);
+    return updated;
+  }
+
+  private async requireRenewal(renewalId: string, tenantId: string) {
+    const [renewal] = await this.db
+      .select()
+      .from(permitRenewals)
+      .where(and(eq(permitRenewals.id, renewalId), eq(permitRenewals.tenantId, tenantId)))
+      .limit(1);
+
+    if (!renewal) {
+      throw new NotFoundException('Renewal not found');
+    }
+    return renewal;
   }
 
   private async decideExtension(

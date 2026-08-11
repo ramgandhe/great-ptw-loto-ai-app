@@ -64,6 +64,20 @@ export function requestExtension(permitId: string, payload: RequestExtensionPayl
   });
 }
 
+export function createRenewal(permitId: string) {
+  return fetchApi(`/permits/${permitId}/renewals`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export function submitRenewal(renewalId: string) {
+  return fetchApi(`/renewals/${renewalId}/submit`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
 export function listRevalidationHistory(permitId: string) {
   return fetchApi<RevalidationHistoryEvent[]>(`/permits/${permitId}/revalidation-history`);
 }

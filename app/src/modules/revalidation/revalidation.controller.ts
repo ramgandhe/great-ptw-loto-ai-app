@@ -4,6 +4,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import {
   DecideExtensionDto,
+  DecideRenewalDto,
   RequestExtensionDto,
   RevalidatePermitDto,
   SuspendPermitDto,
@@ -11,6 +12,8 @@ import {
 import {
   EXTENSION_APPROVE_ROLES,
   EXTENSION_REQUEST_ROLES,
+  RENEWAL_APPROVE_ROLES,
+  RENEWAL_REQUEST_ROLES,
   REVALIDATION_READ_ROLES,
   REVALIDATION_WRITE_ROLES,
 } from './revalidation.constants';
@@ -56,6 +59,12 @@ export class RevalidationController {
     return this.revalidationService.requestExtension(id, dto, user);
   }
 
+  @Roles(...RENEWAL_REQUEST_ROLES)
+  @Post('permits/:id/renewals')
+  createRenewal(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.revalidationService.createRenewal(id, user);
+  }
+
   @Roles(...REVALIDATION_READ_ROLES)
   @Get('permits/:id/revalidation-history')
   listHistory(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
@@ -80,5 +89,31 @@ export class RevalidationController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.revalidationService.rejectExtension(id, dto, user);
+  }
+
+  @Roles(...RENEWAL_REQUEST_ROLES)
+  @Post('renewals/:id/submit')
+  submitRenewal(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.revalidationService.submitRenewal(id, user);
+  }
+
+  @Roles(...RENEWAL_APPROVE_ROLES)
+  @Post('renewals/:id/accept')
+  acceptRenewal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DecideRenewalDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.revalidationService.acceptRenewal(id, dto, user);
+  }
+
+  @Roles(...RENEWAL_APPROVE_ROLES)
+  @Post('renewals/:id/reject')
+  rejectRenewal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DecideRenewalDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.revalidationService.rejectRenewal(id, dto, user);
   }
 }

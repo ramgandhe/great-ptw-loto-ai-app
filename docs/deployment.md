@@ -198,8 +198,9 @@ The Daily Revalidation module depends on:
 
 - **Redis** — caches revalidation views (`mdp:revalidation:*`,
   `mdp:extensions:pending:*`), invalidated on revalidation/extension/suspend writes.
-- **BullMQ** — `mdp.revalidation-reminder` (`MDP_REVALIDATION_REMINDER_CRON`) and
-  `mdp.extension-expiry` (`MDP_EXTENSION_EXPIRY_CRON`) repeatable jobs.
+- **BullMQ** — `mdp.revalidation-reminder` (`MDP_REVALIDATION_REMINDER_CRON`),
+  `mdp.extension-expiry` (`MDP_EXTENSION_EXPIRY_CRON`), and
+  `mdp.validity-transition` (`MDP_VALIDITY_TRANSITION_CRON`, FR-MDP-009) repeatable jobs.
 - **Keycloak** — role validation for revalidation / continuation / extension routes.
 - **Grafana Loki** — structured revalidation event logging (`loki: true` marker).
 
