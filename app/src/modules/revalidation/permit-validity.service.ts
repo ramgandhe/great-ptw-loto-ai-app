@@ -34,3 +34,13 @@ export function hoursRemaining(
 
   return (plannedEndAt.getTime() - now.getTime()) / (60 * 60 * 1000);
 }
+
+/** Operational date key for tenant-local day-transition idempotency (YYYY-MM-DD). */
+export function operationalDateKey(now: Date, timezone = 'UTC'): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+}

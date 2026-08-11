@@ -70,13 +70,40 @@ describe('Daily Revalidation infra services (PUS-185)', () => {
       },
     ];
 
-    const update = jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue(undefined) });
+    const updateReturning = jest
+      .fn()
+      .mockResolvedValueOnce([{ id: 'p-expired' }])
+      .mockResolvedValue([]);
+    const update = jest.fn().mockReturnValue({
+      where: jest.fn().mockReturnValue({ returning: updateReturning }),
+    });
     const insert = jest.fn().mockReturnValue({ values: jest.fn().mockResolvedValue(undefined) });
+
+    let selectCall = 0;
     const db = {
-      select: () => ({
-        from: () => ({
-          where: () => Promise.resolve(candidates),
-        }),
+      select: jest.fn(() => {
+        selectCall += 1;
+        if (selectCall === 1) {
+          return {
+            from: () => ({
+              where: () => Promise.resolve(candidates),
+            }),
+          };
+        }
+        if (selectCall === 2) {
+          return {
+            from: () => ({
+              where: () => Promise.resolve([{ tenantId: 't1', timezone: 'UTC' }]),
+            }),
+          };
+        }
+        return {
+          from: () => ({
+            where: () => ({
+              limit: () => Promise.resolve([]),
+            }),
+          }),
+        };
       }),
       update: () => ({ set: () => update() }),
       insert: () => insert(),

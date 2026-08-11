@@ -17,11 +17,13 @@ import {
   permitHazards,
   permitPpe,
   permits,
+  revalidationHistory,
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { ApprovalHistoryService } from '../approval/approval-history.service';
 import { WorkflowEngineService } from '../approval/workflow-engine.service';
 import { CreatePermitDto } from './dto/create-permit.dto';
+import { RenewPermitDto } from './dto/renew-permit.dto';
 import { UpdatePermitDto } from './dto/update-permit.dto';
 import { isEditablePermitStatus, isSubmittablePermitStatus } from './permit.constants';
 import { PermitCacheService } from './permit-cache.service';
@@ -316,6 +318,130 @@ export class PermitService {
     await this.permitCacheService.invalidatePermit(tenantId, id);
 
     return this.loadDetail(this.db, id, tenantId);
+  }
+
+  /** FR-MDP-009: copy an expired permit into a new draft for issuer-led renewal. */
+  async renewFromExpired(
+    sourceId: string,
+    dto: RenewPermitDto,
+    user: AuthenticatedUser,
+  ): Promise<PermitDetail> {
+    const tenantId = this.requireTenant(user);
+    const source = await this.loadDetail(this.db, sourceId, tenantId);
+
+    if (source.permit.status !== 'expired') {
+      throw new ConflictException('Only expired permits can be renewed');
+    }
+
+    if (!user.roles.includes('job-issuer') && source.permit.submittedBy !== user.id) {
+      throw new ForbiddenException('Only the original issuer can renew this permit');
+    }
+
+    return this.db.transaction(async (tx) => {
+      const [renewal] = await tx
+        .insert(permits)
+        .values({
+          tenantId,
+          status: 'draft',
+          permitTypeId: source.permit.permitTypeId,
+          title: source.permit.title,
+          workScope: source.permit.workScope,
+          plantId: source.permit.plantId,
+          departmentId: source.permit.departmentId,
+          locationId: source.permit.locationId,
+          workstationId: source.permit.workstationId,
+          machineryId: source.permit.machineryId,
+          plannedStartAt: dto.plannedStartAt
+            ? new Date(dto.plannedStartAt)
+            : source.permit.plannedStartAt,
+          plannedEndAt: dto.plannedEndAt
+            ? new Date(dto.plannedEndAt)
+            : source.permit.plannedEndAt,
+          renewedFromPermitId: source.permit.id,
+          createdBy: user.id,
+          updatedBy: user.id,
+        })
+        .returning();
+
+      if (source.draft) {
+        await tx.insert(permitDrafts).values({
+          permitId: renewal.id,
+          currentStep: source.draft.currentStep,
+          formSnapshot: source.draft.formSnapshot,
+          createdBy: user.id,
+          updatedBy: user.id,
+        });
+      }
+
+      if (source.hazards.length > 0) {
+        await tx.insert(permitHazards).values(
+          source.hazards.map((hazard) => ({
+            permitId: renewal.id,
+            hazardCategoryId: hazard.hazardCategoryId,
+            description: hazard.description,
+            createdBy: user.id,
+            updatedBy: user.id,
+          })),
+        );
+      }
+
+      if (source.ppe.length > 0) {
+        await tx.insert(permitPpe).values(
+          source.ppe.map((item) => ({
+            permitId: renewal.id,
+            ppeCatalogueId: item.ppeCatalogueId,
+            quantity: item.quantity,
+            createdBy: user.id,
+            updatedBy: user.id,
+          })),
+        );
+      }
+
+      if (source.executors.length > 0) {
+        await tx.insert(permitExecutors).values(
+          source.executors.map((executor) => ({
+            permitId: renewal.id,
+            workforceUserId: executor.workforceUserId,
+            isPrimary: executor.isPrimary,
+            createdBy: user.id,
+            updatedBy: user.id,
+          })),
+        );
+      }
+
+      await tx.insert(revalidationHistory).values({
+        tenantId,
+        permitId: source.permit.id,
+        eventType: 'renewal_initiated',
+        actorId: user.id,
+        payload: {
+          renewalPermitId: renewal.id,
+          reference: source.permit.reference,
+        },
+        createdBy: user.id,
+      });
+
+      await this.auditService.log({
+        action: 'permit.renewal_initiated',
+        entityType: 'permit',
+        entityId: renewal.id,
+        userId: user.id,
+        tenantId,
+        metadata: { sourcePermitId: source.permit.id },
+      });
+
+      this.permitLogService.logEvent({
+        action: 'permit.renewal_initiated',
+        permitId: renewal.id,
+        tenantId,
+        userId: user.id,
+        metadata: { sourcePermitId: source.permit.id },
+      });
+
+      await this.permitCacheService.invalidateTenant(tenantId);
+
+      return this.loadDetail(tx, renewal.id, tenantId);
+    });
   }
 
   private async loadDetail(

@@ -45,6 +45,7 @@ export const permits = pgTable(
     machineryId: uuid('machinery_id'),
     plannedStartAt: timestamp('planned_start_at', { withTimezone: true }),
     plannedEndAt: timestamp('planned_end_at', { withTimezone: true }),
+    renewedFromPermitId: uuid('renewed_from_permit_id'),
     submittedAt: timestamp('submitted_at', { withTimezone: true }),
     submittedBy: uuid('submitted_by'),
   },

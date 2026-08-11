@@ -11,6 +11,7 @@ import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { CreatePermitDto } from './dto/create-permit.dto';
+import { RenewPermitDto } from './dto/renew-permit.dto';
 import { PERMIT_READ_ROLES, PERMIT_WRITE_ROLES } from './permit.constants';
 import { PermitService } from './permit.service';
 
@@ -40,6 +41,16 @@ export class PermitController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.permitService.findOne(id, user);
+  }
+
+  @Roles(...PERMIT_WRITE_ROLES)
+  @Post(':id/renew')
+  renew(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RenewPermitDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.permitService.renewFromExpired(id, dto, user);
   }
 
   @Roles(...PERMIT_WRITE_ROLES)

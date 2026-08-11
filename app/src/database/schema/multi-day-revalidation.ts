@@ -26,6 +26,9 @@ export const REVALIDATION_HISTORY_EVENT_TYPES = [
   'extension_requested',
   'extension_approved',
   'extension_rejected',
+  'validity_expired',
+  'renewal_due_notified',
+  'renewal_initiated',
 ] as const;
 export type RevalidationHistoryEventType = (typeof REVALIDATION_HISTORY_EVENT_TYPES)[number];
 

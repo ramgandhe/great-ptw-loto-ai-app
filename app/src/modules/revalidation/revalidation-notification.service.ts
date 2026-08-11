@@ -10,6 +10,7 @@ export interface ValidityNotificationPayload {
   validityState: 'renewal_due' | 'expired';
   plannedEndAt: string;
   hoursRemaining: number | null;
+  operationalDate: string;
 }
 
 @Injectable()
@@ -20,7 +21,9 @@ export class RevalidationNotificationService {
 
   async enqueueValidityNotification(payload: ValidityNotificationPayload): Promise<void> {
     try {
-      await this.queueService.getQueue().add(MDP_VALIDITY_NOTIFICATION_JOB, payload);
+      await this.queueService.getQueue().add(MDP_VALIDITY_NOTIFICATION_JOB, payload, {
+        jobId: `${payload.tenantId}:${payload.permitId}:${payload.validityState}:${payload.operationalDate}`,
+      });
     } catch (error) {
       this.logger.warn(`Failed to enqueue validity notification for permit ${payload.permitId}`);
       this.logger.debug(error);

@@ -1,12 +1,18 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, eq, inArray, lt } from 'drizzle-orm';
+import { and, eq, inArray, lt, sql } from 'drizzle-orm';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { permitExtensions, permits, revalidationHistory } from '../../database/schema';
+import {
+  organisations,
+  permitExtensions,
+  permits,
+  revalidationHistory,
+} from '../../database/schema';
 import { QueueService } from '../../infrastructure/queue/queue.service';
 import {
   classifyPermitValidity,
   hoursRemaining,
+  operationalDateKey,
 } from './permit-validity.service';
 import {
   MDP_DAY_TRANSITION_VALIDITY_JOB,
@@ -123,10 +129,26 @@ export class RevalidationJobsService implements OnModuleInit {
       .from(permits)
       .where(inArray(permits.status, ['active', 'suspended']));
 
+    if (candidates.length === 0) {
+      return;
+    }
+
+    const tenantIds = [...new Set(candidates.map((row) => row.tenantId))];
+    const orgRows = await this.db
+      .select({ tenantId: organisations.tenantId, timezone: organisations.timezone })
+      .from(organisations)
+      .where(inArray(organisations.tenantId, tenantIds));
+
+    const timezoneByTenant = new Map(
+      orgRows.map((row) => [row.tenantId, row.timezone ?? 'UTC']),
+    );
+
     let renewalDueCount = 0;
     let expiredCount = 0;
 
     for (const permit of candidates) {
+      const timezone = timezoneByTenant.get(permit.tenantId) ?? 'UTC';
+      const operationalDate = operationalDateKey(now, timezone);
       const validityState = classifyPermitValidity(permit.plannedEndAt, now);
       const remainingHours = hoursRemaining(permit.plannedEndAt, now);
 
@@ -135,7 +157,32 @@ export class RevalidationJobsService implements OnModuleInit {
       }
 
       if (validityState === 'renewal_due') {
+        const alreadyNotified = await this.hasValidityEvent(
+          permit.id,
+          'renewal_due_notified',
+          operationalDate,
+        );
+        if (alreadyNotified) {
+          continue;
+        }
+
         renewalDueCount += 1;
+
+        await this.db.insert(revalidationHistory).values({
+          tenantId: permit.tenantId,
+          permitId: permit.id,
+          eventType: 'renewal_due_notified',
+          actorId: permit.submittedBy ?? permit.tenantId,
+          payload: {
+            reference: permit.reference,
+            plannedEndAt: permit.plannedEndAt?.toISOString(),
+            hoursRemaining: remainingHours,
+            operationalDate,
+            timezone,
+          },
+          createdBy: permit.submittedBy ?? permit.tenantId,
+        });
+
         this.logService.logEvent({
           action: 'mdp.validity-renewal-due',
           permitId: permit.id,
@@ -144,6 +191,7 @@ export class RevalidationJobsService implements OnModuleInit {
             reference: permit.reference,
             plannedEndAt: permit.plannedEndAt?.toISOString(),
             hoursRemaining: remainingHours,
+            operationalDate,
           },
         });
 
@@ -155,16 +203,28 @@ export class RevalidationJobsService implements OnModuleInit {
           validityState: 'renewal_due',
           plannedEndAt: permit.plannedEndAt!.toISOString(),
           hoursRemaining: remainingHours,
+          operationalDate,
         });
         continue;
       }
 
-      expiredCount += 1;
-
-      await this.db
+      const [updated] = await this.db
         .update(permits)
         .set({ status: 'expired', updatedBy: permit.submittedBy ?? permit.tenantId })
-        .where(and(eq(permits.id, permit.id), eq(permits.tenantId, permit.tenantId)));
+        .where(
+          and(
+            eq(permits.id, permit.id),
+            eq(permits.tenantId, permit.tenantId),
+            inArray(permits.status, ['active', 'suspended']),
+          ),
+        )
+        .returning({ id: permits.id });
+
+      if (!updated) {
+        continue;
+      }
+
+      expiredCount += 1;
 
       await this.db.insert(revalidationHistory).values({
         tenantId: permit.tenantId,
@@ -175,6 +235,8 @@ export class RevalidationJobsService implements OnModuleInit {
           reference: permit.reference,
           plannedEndAt: permit.plannedEndAt?.toISOString(),
           previousStatus: permit.status,
+          operationalDate,
+          timezone,
         },
         createdBy: permit.submittedBy ?? permit.tenantId,
       });
@@ -187,6 +249,7 @@ export class RevalidationJobsService implements OnModuleInit {
           reference: permit.reference,
           plannedEndAt: permit.plannedEndAt?.toISOString(),
           previousStatus: permit.status,
+          operationalDate,
         },
       });
 
@@ -198,6 +261,7 @@ export class RevalidationJobsService implements OnModuleInit {
         validityState: 'expired',
         plannedEndAt: permit.plannedEndAt!.toISOString(),
         hoursRemaining: remainingHours,
+        operationalDate,
       });
     }
 
@@ -206,5 +270,25 @@ export class RevalidationJobsService implements OnModuleInit {
         `Day-transition validity: ${renewalDueCount} renewal due, ${expiredCount} expired`,
       );
     }
+  }
+
+  private async hasValidityEvent(
+    permitId: string,
+    eventType: 'renewal_due_notified' | 'validity_expired',
+    operationalDate: string,
+  ): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: revalidationHistory.id })
+      .from(revalidationHistory)
+      .where(
+        and(
+          eq(revalidationHistory.permitId, permitId),
+          eq(revalidationHistory.eventType, eventType),
+          sql`${revalidationHistory.payload}->>'operationalDate' = ${operationalDate}`,
+        ),
+      )
+      .limit(1);
+
+    return Boolean(row);
   }
 }

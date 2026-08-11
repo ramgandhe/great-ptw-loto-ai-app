@@ -1,6 +1,7 @@
 import {
   classifyPermitValidity,
   hoursRemaining,
+  operationalDateKey,
   PERMIT_RENEWAL_THRESHOLD_MS,
 } from '../app/src/modules/revalidation/permit-validity.service';
 
@@ -28,5 +29,11 @@ describe('Permit validity classification (FR-MDP-009)', () => {
   it('treats missing end date as within validity', () => {
     expect(classifyPermitValidity(null)).toBe('within_validity');
     expect(hoursRemaining(null)).toBeNull();
+  });
+
+  it('formats operational date in tenant timezone', () => {
+    const utcMidnight = new Date('2026-08-01T00:30:00.000Z');
+    expect(operationalDateKey(utcMidnight, 'UTC')).toBe('2026-08-01');
+    expect(operationalDateKey(utcMidnight, 'Asia/Kolkata')).toBe('2026-08-01');
   });
 });
