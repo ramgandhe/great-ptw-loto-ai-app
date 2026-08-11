@@ -72,6 +72,8 @@ export const locations = pgTable(
     name: varchar('name', { length: 255 }).notNull(),
     code: varchar('code', { length: 64 }),
     description: text('description'),
+    /** FR-SIM-012 — optional zone key; locations sharing a zone are operationally adjacent. */
+    adjacencyZone: varchar('adjacency_zone', { length: 64 }),
     status: varchar('status', { length: 32 }).notNull().default('active'),
   },
   (table) => [

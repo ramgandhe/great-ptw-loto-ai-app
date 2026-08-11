@@ -1,5 +1,6 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { ApprovalModule } from '../approval/approval.module';
+import { SimopsModule } from '../simops/simops.module';
 import { AttachmentController } from './attachment.controller';
 import { AttachmentService } from './attachment.service';
 import { DraftController } from './draft.controller';
@@ -12,7 +13,7 @@ import { PermitJobsService } from './permit-jobs.service';
 import { PermitLogService } from './permit-log.service';
 
 @Module({
-  imports: [forwardRef(() => ApprovalModule)],
+  imports: [forwardRef(() => ApprovalModule), forwardRef(() => SimopsModule)],
   controllers: [PermitController, DraftController, AttachmentController],
   providers: [
     PermitService,

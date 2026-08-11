@@ -21,6 +21,7 @@ import {
 import { AuditService } from '../logging/audit.service';
 import { ApprovalHistoryService } from '../approval/approval-history.service';
 import { WorkflowEngineService } from '../approval/workflow-engine.service';
+import { SimopsService } from '../simops/simops.service';
 import { CreatePermitDto } from './dto/create-permit.dto';
 import { UpdatePermitDto } from './dto/update-permit.dto';
 import { isEditablePermitStatus, isSubmittablePermitStatus } from './permit.constants';
@@ -49,6 +50,8 @@ export class PermitService {
     private readonly workflowEngine: WorkflowEngineService,
     @Inject(forwardRef(() => ApprovalHistoryService))
     private readonly approvalHistoryService: ApprovalHistoryService,
+    @Inject(forwardRef(() => SimopsService))
+    private readonly simopsService: SimopsService,
   ) {}
 
   async create(dto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -314,6 +317,13 @@ export class PermitService {
     });
 
     await this.permitCacheService.invalidatePermit(tenantId, id);
+
+    // FR-SIM-016 — conflict evaluation on permit submission.
+    try {
+      await this.simopsService.analyseForTenant(tenantId, user.id, id);
+    } catch {
+      // Detection must not block submission; failures remain visible via analyse API/jobs.
+    }
 
     return this.loadDetail(this.db, id, tenantId);
   }

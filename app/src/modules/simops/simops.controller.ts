@@ -11,7 +11,12 @@ import {
   MitigationPlanDto,
   RejectConflictDto,
 } from './dto/simops.dto';
-import { SIMOPS_READ_ROLES, SIMOPS_RESOLVE_ROLES, SIMOPS_WRITE_ROLES } from './simops.constants';
+import {
+  SIMOPS_LOW_ACK_ROLES,
+  SIMOPS_READ_ROLES,
+  SIMOPS_RESOLVE_ROLES,
+  SIMOPS_WRITE_ROLES,
+} from './simops.constants';
 import { SimopsService } from './simops.service';
 
 @Controller('simops')
@@ -95,5 +100,24 @@ export class SimopsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.resolutionService.reject(id, dto, user);
+  }
+
+  @Roles(...SIMOPS_LOW_ACK_ROLES)
+  @Post('conflicts/:id/acknowledge-low')
+  acknowledgeLow(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ApproveConflictDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.resolutionService.acknowledgeLow(id, dto.comments, user);
+  }
+
+  @Roles(...SIMOPS_RESOLVE_ROLES)
+  @Post('conflicts/:id/acknowledge-department')
+  acknowledgeDepartment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.resolutionService.acknowledgeDepartment(id, user);
   }
 }

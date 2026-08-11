@@ -46,6 +46,9 @@ export const permits = pgTable(
     plannedEndAt: timestamp('planned_end_at', { withTimezone: true }),
     submittedAt: timestamp('submitted_at', { withTimezone: true }),
     submittedBy: uuid('submitted_by'),
+    /** FR-SIM-017 — newer permit frozen until SIMOPS conflict is resolved. */
+    simopsHoldAt: timestamp('simops_hold_at', { withTimezone: true }),
+    simopsHoldConflictId: uuid('simops_hold_conflict_id'),
   },
   (table) => [
     uniqueIndex('permits_tenant_reference_unique').on(table.tenantId, table.reference),
@@ -53,6 +56,7 @@ export const permits = pgTable(
     index('permits_status_idx').on(table.status),
     index('permits_tenant_status_idx').on(table.tenantId, table.status),
     index('permits_permit_type_id_idx').on(table.permitTypeId),
+    index('permits_simops_hold_conflict_id_idx').on(table.simopsHoldConflictId),
   ],
 );
 

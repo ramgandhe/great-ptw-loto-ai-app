@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { LoggingModule } from '../logging/logging.module';
+import { SimopsModule } from '../simops/simops.module';
 import { RevalidationCacheService } from './revalidation-cache.service';
 import { RevalidationController } from './revalidation.controller';
 import { RevalidationJobsService } from './revalidation-jobs.service';
@@ -7,7 +8,7 @@ import { RevalidationLogService } from './revalidation-log.service';
 import { RevalidationService } from './revalidation.service';
 
 @Module({
-  imports: [LoggingModule],
+  imports: [LoggingModule, SimopsModule],
   controllers: [RevalidationController],
   providers: [
     RevalidationService,

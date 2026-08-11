@@ -17,6 +17,7 @@ import {
   revalidationHistory,
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
+import { SimopsService } from '../simops/simops.service';
 import {
   DecideExtensionDto,
   RequestExtensionDto,
@@ -33,6 +34,7 @@ export class RevalidationService {
     private readonly auditService: AuditService,
     private readonly cacheService: RevalidationCacheService,
     private readonly logService: RevalidationLogService,
+    private readonly simopsService: SimopsService,
   ) {}
 
   async revalidate(permitId: string, dto: RevalidatePermitDto, user: AuthenticatedUser) {
@@ -281,6 +283,13 @@ export class RevalidationService {
         .update(permits)
         .set({ plannedEndAt: extension.requestedEndAt, updatedBy: actorId })
         .where(and(eq(permits.id, extension.permitId), eq(permits.tenantId, tenantId)));
+
+      // FR-SIM-016 — re-evaluate conflicts on permit extension.
+      try {
+        await this.simopsService.analyseForTenant(tenantId, actorId, extension.permitId);
+      } catch {
+        // Extension must not fail closed on SIMOPS errors.
+      }
     }
 
     const eventType = status === 'approved' ? 'extension_approved' : 'extension_rejected';

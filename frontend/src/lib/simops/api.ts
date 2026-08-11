@@ -72,6 +72,20 @@ export function rejectSimopsConflict(conflictId: string, payload: RejectConflict
   });
 }
 
+export function acknowledgeLowSimopsConflict(conflictId: string, comments: string) {
+  return fetchApi<ConflictResolution>(`/simops/conflicts/${conflictId}/acknowledge-low`, {
+    method: "POST",
+    body: JSON.stringify({ comments }),
+  });
+}
+
+export function acknowledgeDepartmentSimopsConflict(conflictId: string) {
+  return fetchApi<SimopsConflict>(`/simops/conflicts/${conflictId}/acknowledge-department`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
 export function listSimopsHistory() {
   return fetchApi<HistoryListItem[]>("/simops/history");
 }
