@@ -6,6 +6,8 @@ const KPI_LABELS: Record<string, string> = {
   suspended_permits: "Suspended permits",
   open_incidents: "Open incidents",
   closed_incidents: "Closed incidents",
+  open_simops_conflicts: "Open SIMOPS conflicts",
+  active_lototo_executions: "Active LOTOTO executions",
 };
 
 export function kpiLabel(item: KpiItem): string {

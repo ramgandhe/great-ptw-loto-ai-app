@@ -8,13 +8,21 @@ import { REPORT_TYPE_LABELS } from "@/lib/dashboards/labels";
 import type { GenerateReportPayload, ReportExport, ReportFormat, ReportType } from "@/lib/dashboards/types";
 import { Button } from "@/components/ui/button";
 
-const REPORT_TYPES: ReportType[] = ["operational_kpis", "permit_summary", "incident_summary"];
+const REPORT_TYPES: ReportType[] = [
+  "operational_kpis",
+  "permit_summary",
+  "incident_summary",
+  "simops_summary",
+  "lototo_summary",
+];
 const FORMATS: ReportFormat[] = ["csv", "pdf", "xlsx"];
 
 export default function ReportsPage() {
   const [reports, setReports] = useState<ReportExport[]>([]);
   const [reportType, setReportType] = useState<ReportType>("operational_kpis");
   const [format, setFormat] = useState<ReportFormat>("csv");
+  const [periodStart, setPeriodStart] = useState("");
+  const [periodEnd, setPeriodEnd] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,7 +51,12 @@ export default function ReportsPage() {
     setError(null);
     setSuccess(null);
 
-    const payload: GenerateReportPayload = { reportType, format };
+    const payload: GenerateReportPayload = {
+      reportType,
+      format,
+      ...(periodStart ? { periodStart: new Date(periodStart).toISOString() } : {}),
+      ...(periodEnd ? { periodEnd: new Date(periodEnd).toISOString() } : {}),
+    };
 
     try {
       const created = await generateReport(payload);
@@ -106,6 +119,26 @@ export default function ReportsPage() {
               </option>
             ))}
           </select>
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm">
+          Period start (optional)
+          <input
+            type="date"
+            className="rounded-md border border-border bg-background px-3 py-2"
+            value={periodStart}
+            onChange={(event) => setPeriodStart(event.target.value)}
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm">
+          Period end (optional)
+          <input
+            type="date"
+            className="rounded-md border border-border bg-background px-3 py-2"
+            value={periodEnd}
+            onChange={(event) => setPeriodEnd(event.target.value)}
+          />
         </label>
 
         <Button type="submit" disabled={isGenerating}>

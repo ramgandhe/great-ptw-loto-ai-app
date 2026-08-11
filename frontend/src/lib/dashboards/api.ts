@@ -27,9 +27,20 @@ export function getDashboardKpis(kind?: DashboardKind, periodLabel = "current") 
   return fetchApi<KpiBundle>(`/dashboard/kpis${query ? `?${query}` : ""}`);
 }
 
-export function getAnalytics(scope?: AnalyticsScope) {
-  const query = scope ? `?scope=${scope}` : "";
-  return fetchApi<AnalyticsPayload>(`/analytics${query}`);
+export function getAnalytics(
+  scope?: AnalyticsScope,
+  filters?: { status?: string; plantId?: string; periodStart?: string; periodEnd?: string },
+) {
+  const search = new URLSearchParams();
+  if (scope) {
+    search.set("scope", scope);
+  }
+  if (filters?.status) search.set("status", filters.status);
+  if (filters?.plantId) search.set("plantId", filters.plantId);
+  if (filters?.periodStart) search.set("periodStart", filters.periodStart);
+  if (filters?.periodEnd) search.set("periodEnd", filters.periodEnd);
+  const query = search.toString();
+  return fetchApi<AnalyticsPayload>(`/analytics${query ? `?${query}` : ""}`);
 }
 
 export function getAnalyticsTrends(scope?: AnalyticsScope, limit = 14) {
