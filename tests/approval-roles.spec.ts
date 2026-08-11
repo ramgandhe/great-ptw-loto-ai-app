@@ -42,9 +42,11 @@ describe('Approval role enforcement (PUS-140)', () => {
     ).toThrow(ForbiddenException);
   });
 
-  it('denies unauthenticated requests', () => {
+  it('denies platform-admin from approval actions (FR-ROL-003)', () => {
     getAllAndOverride.mockReturnValue([...APPROVAL_ACTION_ROLES]);
 
-    expect(() => guard.canActivate(buildContext(undefined))).toThrow(ForbiddenException);
+    expect(() =>
+      guard.canActivate(buildContext({ roles: ['platform-admin'] })),
+    ).toThrow(ForbiddenException);
   });
 });

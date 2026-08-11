@@ -19,13 +19,16 @@ import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
 import { ApprovalCacheService } from './approval-cache.service';
 import { ApprovalLogService } from './approval-log.service';
-import { PENDING_APPROVAL_STATUS } from './approval.constants';
+import { PENDING_APPROVAL_STATUS, HOD_INITIAL_REVIEW_ACTION, userHasHodRole } from './approval.constants';
 import { ApprovalHistoryService } from './approval-history.service';
 import { ApprovePermitDto } from './dto/approve-permit.dto';
 import { DeferPermitDto } from './dto/defer-permit.dto';
 import { RejectPermitDto } from './dto/reject-permit.dto';
+import { SafetyOfficerVetoDto } from './dto/safety-officer-veto.dto';
 import { NotificationService } from './notification.service';
 import { WorkflowEngineService } from './workflow-engine.service';
+import { PermitLifecycleService } from '../permit/permit-lifecycle.service';
+import { DelegationService } from './delegation.service';
 
 @Injectable()
 export class ApprovalService {
@@ -39,6 +42,8 @@ export class ApprovalService {
     private readonly permitCacheService: PermitCacheService,
     private readonly approvalCacheService: ApprovalCacheService,
     private readonly approvalLogService: ApprovalLogService,
+    private readonly permitLifecycleService: PermitLifecycleService,
+    private readonly delegationService: DelegationService,
   ) {}
 
   async listPending(user: AuthenticatedUser) {
@@ -113,7 +118,7 @@ export class ApprovalService {
 
   async approve(permitId: string, dto: ApprovePermitDto, user: AuthenticatedUser) {
     const context = await this.prepareDecision(permitId, user, 'approve');
-    const { permit, assignment, step } = context;
+    const { permit, assignment, step, onBehalfOf } = context;
 
     if (step.commentRequiredOnApprove && !dto.comment?.trim()) {
       throw new BadRequestException('Approval comment is required for this workflow step');
@@ -128,6 +133,7 @@ export class ApprovalService {
           workflowAssignmentId: assignment.id,
           decision: 'approve',
           comment: dto.comment,
+          onBehalfOf,
           decidedBy: user.id,
           createdBy: user.id,
           updatedBy: user.id,
@@ -136,10 +142,75 @@ export class ApprovalService {
 
       await this.workflowEngine.completeAssignment(assignment.id, user.id, tx);
 
-      const hasNext = await this.workflowEngine.hasNextStep(permitId, step.stepSequence, tx);
+      const resolution = await this.workflowEngine.resolveAfterApprove(
+        permitId,
+        step,
+        user.id,
+        tx,
+      );
+      const isHod = userHasHodRole(user.roles) || Boolean(onBehalfOf);
 
-      if (hasNext) {
-        await this.workflowEngine.activateNextStep(permitId, step.stepSequence, user.id, tx);
+      if (resolution.advanced) {
+        await this.approvalHistoryService.record(
+          {
+            permitId,
+            action: isHod && !onBehalfOf ? HOD_INITIAL_REVIEW_ACTION : 'stage_advanced',
+            fromStatus: permit.status,
+            toStatus: PENDING_APPROVAL_STATUS,
+            actorId: user.id,
+            comment: dto.comment,
+            workflowStepId: step.id,
+            permitApprovalId: approval.id,
+            metadata: {
+              ...(isHod && !onBehalfOf ? { decisionKind: HOD_INITIAL_REVIEW_ACTION } : {}),
+              stageAdvanced: true,
+              ...(onBehalfOf
+                ? {
+                    onBehalfOf,
+                    approvedByXOnBehalfOfY: true,
+                    actorLabel: `approved by ${user.id} on behalf of ${onBehalfOf}`,
+                  }
+                : {}),
+            },
+            createdBy: user.id,
+          },
+          tx,
+        );
+      } else if (resolution.final && resolution.stageComplete) {
+        this.permitLifecycleService.assertTransition(permit.status, 'approved');
+
+        await tx
+          .update(permits)
+          .set({ status: 'approved', updatedBy: user.id })
+          .where(and(eq(permits.id, permitId), eq(permits.tenantId, permit.tenantId)));
+
+        await this.approvalHistoryService.record(
+          {
+            permitId,
+            action: isHod && !onBehalfOf ? HOD_INITIAL_REVIEW_ACTION : 'approved',
+            fromStatus: permit.status,
+            toStatus: 'approved',
+            actorId: user.id,
+            comment: dto.comment,
+            workflowStepId: step.id,
+            permitApprovalId: approval.id,
+            metadata: {
+              ...(isHod && !onBehalfOf
+                ? { decisionKind: HOD_INITIAL_REVIEW_ACTION, final: true }
+                : { final: true }),
+              ...(onBehalfOf
+                ? {
+                    onBehalfOf,
+                    approvedByXOnBehalfOfY: true,
+                    actorLabel: `approved by ${user.id} on behalf of ${onBehalfOf}`,
+                  }
+                : {}),
+            },
+            createdBy: user.id,
+          },
+          tx,
+        );
+      } else {
         await this.approvalHistoryService.record(
           {
             permitId,
@@ -150,58 +221,64 @@ export class ApprovalService {
             comment: dto.comment,
             workflowStepId: step.id,
             permitApprovalId: approval.id,
-            createdBy: user.id,
-          },
-          tx,
-        );
-      } else {
-        await tx
-          .update(permits)
-          .set({ status: 'approved', updatedBy: user.id })
-          .where(and(eq(permits.id, permitId), eq(permits.tenantId, permit.tenantId)));
-
-        await this.approvalHistoryService.record(
-          {
-            permitId,
-            action: 'approved',
-            fromStatus: permit.status,
-            toStatus: 'approved',
-            actorId: user.id,
-            comment: dto.comment,
-            workflowStepId: step.id,
-            permitApprovalId: approval.id,
+            metadata: {
+              parallelPending: true,
+              stageComplete: false,
+              ...(onBehalfOf
+                ? {
+                    onBehalfOf,
+                    approvedByXOnBehalfOfY: true,
+                    actorLabel: `approved by ${user.id} on behalf of ${onBehalfOf}`,
+                  }
+                : {}),
+            },
             createdBy: user.id,
           },
           tx,
         );
       }
 
+      const advancedOrPartial = resolution.advanced || !resolution.stageComplete;
+      const finalized = resolution.final && resolution.stageComplete;
+
       await this.auditService.log({
-        action: 'permit.approved',
+        action:
+          isHod && !onBehalfOf ? `permit.${HOD_INITIAL_REVIEW_ACTION}` : 'permit.approved',
         entityType: 'permit',
         entityId: permitId,
         userId: user.id,
         tenantId: permit.tenantId,
-        metadata: { workflowStepId: step.id, final: !hasNext },
+        metadata: {
+          workflowStepId: step.id,
+          final: finalized,
+          onBehalfOf,
+          ...(onBehalfOf
+            ? { actorLabel: `approved by ${user.id} on behalf of ${onBehalfOf}` }
+            : {}),
+        },
       });
 
       await this.notificationService.enqueueApprovalNotification({
         permitId,
         tenantId: permit.tenantId,
-        action: hasNext ? 'stage_advanced' : 'approved',
+        action: finalized ? 'approved' : 'stage_advanced',
         actorId: user.id,
-        metadata: { workflowStepId: step.id },
+        metadata: { workflowStepId: step.id, onBehalfOf },
       });
 
       await this.permitCacheService.invalidatePermit(permit.tenantId, permitId);
       await this.approvalCacheService.invalidateTenant(permit.tenantId);
 
       this.approvalLogService.logEvent({
-        action: hasNext ? 'approval.stage_advanced' : 'approval.approved',
+        action: finalized
+          ? 'approval.approved'
+          : advancedOrPartial
+            ? 'approval.stage_advanced'
+            : 'approval.approved',
         permitId,
         tenantId: permit.tenantId,
         userId: user.id,
-        metadata: { workflowStepId: step.id, final: !hasNext },
+        metadata: { workflowStepId: step.id, final: finalized, onBehalfOf },
       });
     });
 
@@ -226,8 +303,10 @@ export class ApprovalService {
       historyAction: 'rejected',
       toStatus: 'rejected',
       comment: dto.comment,
+      reasonCode: dto.reasonCode,
       auditAction: 'permit.rejected',
       notificationAction: 'rejected',
+      onBehalfOf: context.onBehalfOf,
     });
   }
 
@@ -251,7 +330,79 @@ export class ApprovalService {
       comment: dto.comment,
       auditAction: 'permit.deferred',
       notificationAction: 'deferred',
+      pauseSla: true,
+      onBehalfOf: context.onBehalfOf,
     });
+  }
+
+  /** FR-ROL-002: Safety Officer hard override — cancels permit before closure. */
+  async safetyOfficerVeto(permitId: string, dto: SafetyOfficerVetoDto, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const detail = await this.permitService.findOne(permitId, user);
+    const { permit } = detail;
+
+    if (permit.status === 'closed') {
+      throw new ConflictException('Cannot veto a closed permit');
+    }
+
+    if (permit.status === 'rejected') {
+      throw new ConflictException('Permit is already rejected');
+    }
+
+    this.permitLifecycleService.assertTransition(permit.status, 'rejected');
+
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(permits)
+        .set({ status: 'rejected', updatedBy: user.id })
+        .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
+
+      await this.workflowEngine.resetWorkflow(permitId, tx);
+
+      await this.approvalHistoryService.record(
+        {
+          permitId,
+          action: 'rejected',
+          fromStatus: permit.status,
+          toStatus: 'rejected',
+          actorId: user.id,
+          comment: dto.comment,
+          metadata: { safetyOfficerVeto: true, hardOverride: true },
+          createdBy: user.id,
+        },
+        tx,
+      );
+
+      await this.auditService.log({
+        action: 'permit.safety_officer_veto',
+        entityType: 'permit',
+        entityId: permitId,
+        userId: user.id,
+        tenantId,
+        metadata: { fromStatus: permit.status },
+      });
+
+      await this.notificationService.enqueueApprovalNotification({
+        permitId,
+        tenantId,
+        action: 'rejected',
+        actorId: user.id,
+        metadata: { safetyOfficerVeto: true },
+      });
+
+      await this.permitCacheService.invalidatePermit(tenantId, permitId);
+      await this.approvalCacheService.invalidateTenant(tenantId);
+
+      this.approvalLogService.logEvent({
+        action: 'approval.safety_officer_veto',
+        permitId,
+        tenantId,
+        userId: user.id,
+        metadata: { fromStatus: permit.status },
+      });
+    });
+
+    return this.review(permitId, user);
   }
 
   async getHistory(permitId: string, user: AuthenticatedUser) {
@@ -272,6 +423,12 @@ export class ApprovalService {
       throw new ConflictException(`Cannot ${decision} a permit that is not pending approval`);
     }
 
+    if (permit.approvalBlockedAt) {
+      throw new ConflictException(
+        'Permit approval is blocked after maximum SLA escalations; Administrator intervention required',
+      );
+    }
+
     const existingAssignments = await this.workflowEngine.listAssignmentsForPermit(permitId);
     if (existingAssignments.length === 0) {
       await this.workflowEngine.initializeAtSubmit(
@@ -282,16 +439,44 @@ export class ApprovalService {
       );
     }
 
-    const active = await this.workflowEngine.getActiveAssignmentWithStep(permitId);
-    if (!active) {
+    const actives = await this.workflowEngine.getActiveAssignments(permitId);
+    if (actives.length === 0) {
       throw new ConflictException('No active workflow step for this permit');
     }
 
-    const { assignment, step } = active;
+    let onBehalfOf: string | null = null;
+    let selected: (typeof actives)[number] | null = null;
 
-    if (!this.workflowEngine.userHasApproverRole(user.roles, step.approverRole)) {
-      throw new ForbiddenException('You do not have permission to act on this approval step');
+    for (const candidate of actives) {
+      const hasRole = this.workflowEngine.userHasApproverRole(
+        user.roles,
+        candidate.step.approverRole,
+      );
+      if (hasRole) {
+        selected = candidate;
+        break;
+      }
+
+      const delegation = await this.delegationService.findActiveForDelegate(
+        permit.tenantId,
+        user.id,
+        candidate.step.approverRole,
+      );
+      if (delegation) {
+        selected = candidate;
+        onBehalfOf = delegation.delegatorId;
+        break;
+      }
     }
+
+    if (!selected) {
+      const required = [...new Set(actives.map((row) => row.step.approverRole))].join(', ');
+      throw new ForbiddenException(
+        `You do not have permission to act on this approval step. Required role: ${required}`,
+      );
+    }
+
+    const { assignment, step } = selected;
 
     const [existing] = await this.db
       .select()
@@ -304,7 +489,7 @@ export class ApprovalService {
       throw new ConflictException('This approval step has already been decided');
     }
 
-    return { permit, assignment, step };
+    return { permit, assignment, step, onBehalfOf };
   }
 
   private async recordTerminalDecision(params: {
@@ -317,8 +502,11 @@ export class ApprovalService {
     historyAction: 'rejected' | 'deferred';
     toStatus: 'rejected' | 'deferred';
     comment: string;
+    reasonCode?: string;
     auditAction: string;
     notificationAction: string;
+    pauseSla?: boolean;
+    onBehalfOf?: string | null;
   }) {
     const {
       permitId,
@@ -330,9 +518,14 @@ export class ApprovalService {
       historyAction,
       toStatus,
       comment,
+      reasonCode,
       auditAction,
       notificationAction,
+      pauseSla,
+      onBehalfOf,
     } = params;
+
+    this.permitLifecycleService.assertTransition(permit.status, toStatus);
 
     await this.db.transaction(async (tx) => {
       const [approval] = await tx
@@ -343,6 +536,8 @@ export class ApprovalService {
           workflowAssignmentId: assignment.id,
           decision,
           comment,
+          reasonCode: reasonCode ?? null,
+          onBehalfOf: onBehalfOf ?? null,
           decidedBy: user.id,
           createdBy: user.id,
           updatedBy: user.id,
@@ -350,6 +545,32 @@ export class ApprovalService {
         .returning();
 
       await this.workflowEngine.completeAssignment(assignment.id, user.id, tx);
+
+      if (pauseSla) {
+        await this.workflowEngine.pauseSla(assignment.id, user.id, tx);
+      }
+
+      // FR-PTW-028: any reject in a parallel group rejects the whole stage.
+      if (decision === 'reject' && step.parallelGroup) {
+        const peers = await tx
+          .select({ id: workflowAssignments.id })
+          .from(workflowAssignments)
+          .innerJoin(workflowSteps, eq(workflowAssignments.workflowStepId, workflowSteps.id))
+          .where(
+            and(
+              eq(workflowAssignments.permitId, permitId),
+              eq(workflowSteps.parallelGroup, step.parallelGroup),
+              eq(workflowAssignments.status, 'active'),
+            ),
+          );
+
+        for (const peer of peers) {
+          await tx
+            .update(workflowAssignments)
+            .set({ status: 'skipped', completedAt: new Date(), updatedBy: user.id })
+            .where(eq(workflowAssignments.id, peer.id));
+        }
+      }
 
       await tx
         .update(permits)
@@ -366,6 +587,7 @@ export class ApprovalService {
           comment,
           workflowStepId: step.id,
           permitApprovalId: approval.id,
+          metadata: reasonCode ? { reasonCode, slaPaused: Boolean(pauseSla) } : { slaPaused: Boolean(pauseSla) },
           createdBy: user.id,
         },
         tx,
@@ -377,7 +599,7 @@ export class ApprovalService {
         entityId: permitId,
         userId: user.id,
         tenantId: permit.tenantId,
-        metadata: { workflowStepId: step.id },
+        metadata: { workflowStepId: step.id, reasonCode },
       });
 
       await this.notificationService.enqueueApprovalNotification({
@@ -385,7 +607,7 @@ export class ApprovalService {
         tenantId: permit.tenantId,
         action: notificationAction,
         actorId: user.id,
-        metadata: { workflowStepId: step.id },
+        metadata: { workflowStepId: step.id, reasonCode },
       });
 
       await this.permitCacheService.invalidatePermit(permit.tenantId, permitId);
@@ -396,7 +618,7 @@ export class ApprovalService {
         permitId,
         tenantId: permit.tenantId,
         userId: user.id,
-        metadata: { workflowStepId: step.id },
+        metadata: { workflowStepId: step.id, reasonCode },
       });
     });
 

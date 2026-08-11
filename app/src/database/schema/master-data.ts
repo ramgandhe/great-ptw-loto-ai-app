@@ -14,6 +14,9 @@ import { auditColumns } from './base';
 export const CHECKLIST_STATUSES = ['draft', 'published'] as const;
 export type ChecklistStatus = (typeof CHECKLIST_STATUSES)[number];
 
+export const RISK_LEVELS = ['low', 'medium', 'high'] as const;
+export type RiskLevel = (typeof RISK_LEVELS)[number];
+
 export const IMPORT_JOB_STATUSES = [
   'pending',
   'validating',
@@ -32,6 +35,8 @@ export const permitTypes = pgTable(
     name: varchar('name', { length: 255 }).notNull(),
     description: text('description'),
     defaultAttributes: jsonb('default_attributes').$type<Record<string, unknown>>(),
+    /** FR-PTW-017 — configurable risk classification per permit type. */
+    riskClassification: varchar('risk_classification', { length: 16 }).notNull().default('medium'),
     isActive: boolean('is_active').notNull().default(true),
   },
   (table) => [

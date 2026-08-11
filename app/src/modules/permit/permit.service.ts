@@ -166,6 +166,15 @@ export class PermitService {
       throw new ConflictException('Only draft, deferred or rejected permits can be updated');
     }
 
+    const coreFieldTouched =
+      dto.locationId !== undefined ||
+      dto.machineryId !== undefined ||
+      dto.hazards !== undefined ||
+      dto.ppe !== undefined;
+
+    const hadPriorApprovals =
+      existing.permit.status === 'deferred' || existing.permit.status === 'rejected';
+
     return this.db.transaction(async (tx) => {
       const permitUpdates: Partial<typeof permits.$inferInsert> = {
         updatedBy: user.id,
@@ -222,13 +231,37 @@ export class PermitService {
         }
       }
 
+      // FR-PTW-027 — core scope edits invalidate prior approvals / restart workflow on resubmit.
+      if (coreFieldTouched && hadPriorApprovals) {
+        await this.workflowEngine.resetWorkflow(id, tx);
+        await this.approvalHistoryService.record(
+          {
+            permitId: id,
+            action: 'workflow_restarted_core_edit',
+            fromStatus: existing.permit.status,
+            toStatus: existing.permit.status,
+            actorId: user.id,
+            metadata: {
+              coreFields: true,
+              invalidatedDownstreamApprovals: true,
+            },
+            createdBy: user.id,
+          },
+          tx,
+        );
+      }
+
       await this.auditService.log({
         action: 'permit.updated',
         entityType: 'permit',
         entityId: id,
         userId: user.id,
         tenantId,
-        metadata: { status: 'draft' },
+        metadata: {
+          status: existing.permit.status,
+          coreFieldEdit: coreFieldTouched,
+          workflowInvalidated: coreFieldTouched && hadPriorApprovals,
+        },
       });
 
       this.permitLogService.logEvent({
@@ -236,7 +269,10 @@ export class PermitService {
         permitId: id,
         tenantId,
         userId: user.id,
-        metadata: { status: 'draft' },
+        metadata: {
+          status: existing.permit.status,
+          coreFieldEdit: coreFieldTouched,
+        },
       });
 
       await this.permitCacheService.invalidatePermit(tenantId, id);
@@ -273,6 +309,15 @@ export class PermitService {
         })
         .where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
 
+      const init = await this.workflowEngine.initializeAtSubmit(
+        id,
+        tenantId,
+        detail.permit.permitTypeId,
+        user.id,
+        tx,
+        { isResubmit, fromStatus },
+      );
+
       if (isResubmit) {
         await this.approvalHistoryService.record(
           {
@@ -282,18 +327,14 @@ export class PermitService {
             toStatus: 'pending_approval',
             actorId: user.id,
             createdBy: user.id,
+            metadata: {
+              resubmitMode: init.resubmitMode,
+              resumeFromSequence: init.resumeFromSequence,
+            },
           },
           tx,
         );
       }
-
-      await this.workflowEngine.initializeAtSubmit(
-        id,
-        tenantId,
-        detail.permit.permitTypeId,
-        user.id,
-        tx,
-      );
     });
 
     await this.auditService.log({
