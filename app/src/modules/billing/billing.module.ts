@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { LoggingModule } from '../logging/logging.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { BillingCacheService } from './billing-cache.service';
 import { BillingController } from './billing.controller';
 import { BillingJobsService } from './billing-jobs.service';
@@ -10,7 +11,7 @@ import { SubscriptionController } from './subscription.controller';
 import { SubscriptionService } from './subscription.service';
 
 @Module({
-  imports: [LoggingModule],
+  imports: [LoggingModule, NotificationsModule],
   controllers: [SubscriptionController, BillingController],
   providers: [
     BillingCacheService,

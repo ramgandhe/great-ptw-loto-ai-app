@@ -17,7 +17,11 @@ import {
 import { AuditService } from '../logging/audit.service';
 import { BillingCacheService } from './billing-cache.service';
 import { BillingLogService } from './billing-log.service';
-import { CreateSubscriptionDto, PlanChangeDto } from './dto/billing.dto';
+import {
+  CreateSubscriptionDto,
+  PlanChangeDto,
+  UpdatePlanModulesDto,
+} from './dto/billing.dto';
 
 @Injectable()
 export class SubscriptionService {
@@ -64,6 +68,73 @@ export class SubscriptionService {
 
     await this.cache.setSubscription(tenantId, payload);
     return payload;
+  }
+
+  /** FR-BIL-002 — whether the tenant plan enables a platform module. */
+  async isModuleEnabled(tenantId: string, moduleKey: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ enabledModules: subscriptionPlans.enabledModules })
+      .from(tenantSubscriptions)
+      .innerJoin(subscriptionPlans, eq(tenantSubscriptions.planId, subscriptionPlans.id))
+      .where(
+        and(
+          eq(tenantSubscriptions.tenantId, tenantId),
+          inArray(tenantSubscriptions.status, ['trial', 'active', 'past_due']),
+        ),
+      )
+      .limit(1);
+
+    if (!row) {
+      return false;
+    }
+    return Array.isArray(row.enabledModules) && row.enabledModules.includes(moduleKey);
+  }
+
+  async assertModuleEnabled(tenantId: string, moduleKey: string): Promise<void> {
+    const enabled = await this.isModuleEnabled(tenantId, moduleKey);
+    if (!enabled) {
+      throw new ForbiddenException(`Platform module "${moduleKey}" is not enabled for this tenant`);
+    }
+  }
+
+  /** Platform-admin manage surface for plan.enabled_modules (FR-BIL-002). */
+  async updatePlanModules(planId: string, dto: UpdatePlanModulesDto, user: AuthenticatedUser) {
+    const actorId = requireActorId(user);
+    const [plan] = await this.db
+      .select()
+      .from(subscriptionPlans)
+      .where(eq(subscriptionPlans.id, planId))
+      .limit(1);
+    if (!plan) {
+      throw new NotFoundException('Subscription plan not found');
+    }
+
+    const [updated] = await this.db
+      .update(subscriptionPlans)
+      .set({
+        enabledModules: dto.enabledModules,
+        updatedBy: actorId,
+        updatedAt: new Date(),
+      })
+      .where(eq(subscriptionPlans.id, planId))
+      .returning();
+
+    this.logService.logEvent({
+      action: 'billing.plan-modules-updated',
+      userId: actorId,
+      planCode: plan.code,
+      metadata: { planId, enabledModules: dto.enabledModules },
+    });
+    await this.auditService.log({
+      action: 'billing.plan-modules-updated',
+      entityType: 'subscription_plan',
+      entityId: planId,
+      userId: actorId,
+      tenantId: user.tenantId,
+      metadata: { enabledModules: dto.enabledModules },
+    });
+
+    return updated;
   }
 
   async create(dto: CreateSubscriptionDto, user: AuthenticatedUser) {

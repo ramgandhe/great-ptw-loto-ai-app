@@ -52,6 +52,18 @@ export function listInvoices(status?: InvoiceStatusFilter) {
   return fetchApi<BillingInvoice[]>(`/billing/invoices${buildInvoiceQuery(status)}`);
 }
 
+export function issueInvoice(invoiceId: string) {
+  return fetchApi<BillingInvoice>(`/billing/invoices/${invoiceId}/issue`, { method: "POST" });
+}
+
+export function payInvoice(invoiceId: string) {
+  return fetchApi<BillingInvoice>(`/billing/invoices/${invoiceId}/pay`, { method: "POST" });
+}
+
+export function voidInvoice(invoiceId: string) {
+  return fetchApi<BillingInvoice>(`/billing/invoices/${invoiceId}/void`, { method: "POST" });
+}
+
 export function listUsageRecords() {
   return fetchApi<UsageRecord[]>("/billing/usage");
 }

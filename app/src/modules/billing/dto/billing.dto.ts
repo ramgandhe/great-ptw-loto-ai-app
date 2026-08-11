@@ -1,5 +1,7 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayUnique,
+  IsArray,
   IsIn,
   IsInt,
   IsOptional,
@@ -9,6 +11,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { PLATFORM_MODULE_KEYS } from '../fr-bil.traceability';
 
 export class CreateSubscriptionDto {
   @IsUUID()
@@ -27,6 +30,13 @@ export class PlanChangeDto {
   @IsString()
   @MaxLength(500)
   reason?: string;
+}
+
+export class UpdatePlanModulesDto {
+  @IsArray()
+  @ArrayUnique()
+  @IsIn([...PLATFORM_MODULE_KEYS], { each: true })
+  enabledModules!: string[];
 }
 
 export class UsageRecordDto {
