@@ -14,11 +14,14 @@ import {
   changeSubscriptionPlan,
   createSubscription,
   getCurrentSubscription,
+  issueInvoice,
   listInvoices,
   listPlanChanges,
   listSubscriptionPlans,
   listUsageRecords,
+  payInvoice,
   recordUsage,
+  voidInvoice,
 } from "@/lib/billing/api";
 import {
   currentPeriodLabel,
@@ -54,6 +57,7 @@ export default function BillingPage() {
   const [usageQuantity, setUsageQuantity] = useState("0");
   const [usagePeriod, setUsagePeriod] = useState(currentPeriodLabel());
   const [usageSuccess, setUsageSuccess] = useState<string | null>(null);
+  const [invoiceBusyId, setInvoiceBusyId] = useState<string | null>(null);
 
   const loadBilling = useCallback(() => {
     setIsLoading(true);
@@ -300,7 +304,47 @@ export default function BillingPage() {
                 </select>
               </label>
             </div>
-            <InvoiceTable invoices={invoices} />
+            <InvoiceTable
+              invoices={invoices}
+              canManage={isAdmin}
+              busyId={invoiceBusyId}
+              onIssue={async (invoiceId) => {
+                setInvoiceBusyId(invoiceId);
+                setError(null);
+                try {
+                  await issueInvoice(invoiceId);
+                  loadBilling();
+                } catch (err) {
+                  setError(err instanceof ApiError ? err.message : "Failed to issue invoice");
+                } finally {
+                  setInvoiceBusyId(null);
+                }
+              }}
+              onPay={async (invoiceId) => {
+                setInvoiceBusyId(invoiceId);
+                setError(null);
+                try {
+                  await payInvoice(invoiceId);
+                  loadBilling();
+                } catch (err) {
+                  setError(err instanceof ApiError ? err.message : "Failed to mark invoice paid");
+                } finally {
+                  setInvoiceBusyId(null);
+                }
+              }}
+              onVoid={async (invoiceId) => {
+                setInvoiceBusyId(invoiceId);
+                setError(null);
+                try {
+                  await voidInvoice(invoiceId);
+                  loadBilling();
+                } catch (err) {
+                  setError(err instanceof ApiError ? err.message : "Failed to void invoice");
+                } finally {
+                  setInvoiceBusyId(null);
+                }
+              }}
+            />
           </section>
 
           {planChanges.length > 0 ? (

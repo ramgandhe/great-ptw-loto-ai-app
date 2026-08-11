@@ -43,42 +43,100 @@ describe('Billing infra services (PUS-214)', () => {
     ];
     const db = {
       select: () => ({ from: () => ({ where: () => Promise.resolve(due) }) }),
+      update: () => ({ set: () => ({ where: () => Promise.resolve(undefined) }) }),
     };
     const logService = { logEvent: jest.fn() };
+    const billingService = {
+      draftInvoiceForSubscription: jest.fn().mockResolvedValue({
+        invoice: { id: 'inv-1', status: 'draft' },
+        created: true,
+      }),
+    };
     const jobs = new BillingJobsService(
       db as never,
       {} as never,
       { get: () => '0 2 * * *' } as never,
       logService as never,
+      billingService as never,
+      {} as never,
+      {} as never,
     );
 
     await jobs.processBillingCycle();
+    expect(billingService.draftInvoiceForSubscription).toHaveBeenCalledWith('s1');
     expect(logService.logEvent).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'billing.cycle-invoice', subscriptionId: 's1' }),
     );
   });
 
   it('BillingJobsService emits usage aggregation sweep', async () => {
+    const db = {
+      selectDistinct: () => ({
+        from: () => ({ where: () => Promise.resolve([]) }),
+      }),
+      select: () => ({
+        from: () => ({ where: () => Promise.resolve([{ value: 0 }]) }),
+      }),
+    };
+    // drizzle selectDistinct may not exist — jobs use select().selectDistinct pattern
+    // Override with select that returns tenants via selectDistinct-like chain
+    const tenantsDb = {
+      selectDistinct: undefined,
+      select: jest
+        .fn()
+        .mockReturnValueOnce({
+          from: () => ({
+            where: () => Promise.resolve([{ tenantId: 't1' }]),
+          }),
+        })
+        .mockReturnValue({
+          from: () => ({
+            where: () => Promise.resolve([{ value: 0 }]),
+          }),
+        }),
+    };
+    // Patch aggregateUsage to use select for distinct — our implementation uses selectDistinct
+    Object.assign(tenantsDb, {
+      selectDistinct: () => ({
+        from: () => ({ where: () => Promise.resolve([{ tenantId: 't1' }]) }),
+      }),
+    });
+
     const logService = { logEvent: jest.fn() };
+    const usageTracking = { recordSystemUsage: jest.fn().mockResolvedValue({}) };
     const jobs = new BillingJobsService(
-      {} as never,
+      tenantsDb as never,
       {} as never,
       { get: () => '0 * * * *' } as never,
       logService as never,
+      {} as never,
+      usageTracking as never,
+      {} as never,
     );
 
     await jobs.aggregateUsage();
+    expect(usageTracking.recordSystemUsage).toHaveBeenCalled();
     expect(logService.logEvent).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'billing.usage-aggregate' }),
     );
+    void db;
   });
 
   it('BillingJobsService flags upcoming renewals', async () => {
-    const upcoming = [{ id: 's1', tenantId: 't1', renewAt: new Date() }];
+    const upcoming = [
+      {
+        id: 's1',
+        tenantId: 't1',
+        renewAt: new Date(),
+        createdBy: '00000000-0000-0000-0000-0000000000aa',
+        updatedBy: '00000000-0000-0000-0000-0000000000aa',
+      },
+    ];
     const db = {
       select: () => ({ from: () => ({ where: () => Promise.resolve(upcoming) }) }),
     };
     const logService = { logEvent: jest.fn() };
+    const notificationsService = { generate: jest.fn().mockResolvedValue({}) };
     const jobs = new BillingJobsService(
       db as never,
       {} as never,
@@ -86,9 +144,13 @@ describe('Billing infra services (PUS-214)', () => {
         get: (key: string) => (key === 'billing.renewalHorizonDays' ? 7 : '0 9 * * *'),
       } as never,
       logService as never,
+      {} as never,
+      {} as never,
+      notificationsService as never,
     );
 
     await jobs.notifyUpcomingRenewals();
+    expect(notificationsService.generate).toHaveBeenCalled();
     expect(logService.logEvent).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'billing.renewal-notify', tenantId: 't1' }),
     );

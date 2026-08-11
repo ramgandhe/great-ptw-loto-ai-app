@@ -1,9 +1,17 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
-import { BILLING_ADMIN_ROLES, BILLING_READ_ROLES } from './billing.constants';
-import { CreateSubscriptionDto, PlanChangeDto } from './dto/billing.dto';
+import {
+  BILLING_ADMIN_ROLES,
+  BILLING_PLATFORM_ROLES,
+  BILLING_READ_ROLES,
+} from './billing.constants';
+import {
+  CreateSubscriptionDto,
+  PlanChangeDto,
+  UpdatePlanModulesDto,
+} from './dto/billing.dto';
 import { PlanChangeService } from './plan-change.service';
 import { SubscriptionService } from './subscription.service';
 
@@ -18,6 +26,16 @@ export class SubscriptionController {
   @Get('plans')
   listPlans() {
     return this.subscriptions.listPlans();
+  }
+
+  @Roles(...BILLING_PLATFORM_ROLES)
+  @Patch('plans/:planId/modules')
+  updatePlanModules(
+    @Param('planId', ParseUUIDPipe) planId: string,
+    @Body() dto: UpdatePlanModulesDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.subscriptions.updatePlanModules(planId, dto, user);
   }
 
   @Roles(...BILLING_READ_ROLES)

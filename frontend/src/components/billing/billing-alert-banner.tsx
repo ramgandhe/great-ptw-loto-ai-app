@@ -78,5 +78,27 @@ export function BillingAlertBanner({ subscription }: BillingAlertBannerProps) {
     );
   }
 
+  if (subscription.renewAt) {
+    const renewAt = new Date(subscription.renewAt);
+    const horizonMs = 7 * 24 * 60 * 60 * 1000;
+    const msUntil = renewAt.getTime() - Date.now();
+    if (msUntil >= 0 && msUntil <= horizonMs) {
+      return (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm"
+        >
+          <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <div>
+            <p className="font-medium">Subscription renewal upcoming</p>
+            <p className="mt-1 text-muted-foreground">
+              Renews on {renewAt.toLocaleString()}. Review plan and invoices before the due date.
+            </p>
+          </div>
+        </div>
+      );
+    }
+  }
+
   return null;
 }

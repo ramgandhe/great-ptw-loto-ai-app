@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -17,6 +17,33 @@ export class BillingController {
   @Get('invoices')
   listInvoices(@Query() query: ListInvoicesQueryDto, @CurrentUser() user: AuthenticatedUser) {
     return this.billingService.listInvoices(user, query);
+  }
+
+  @Roles(...BILLING_ADMIN_ROLES)
+  @Post('invoices/:id/issue')
+  issueInvoice(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.billingService.transitionInvoice(id, 'issued', user);
+  }
+
+  @Roles(...BILLING_ADMIN_ROLES)
+  @Post('invoices/:id/pay')
+  payInvoice(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.billingService.transitionInvoice(id, 'paid', user);
+  }
+
+  @Roles(...BILLING_ADMIN_ROLES)
+  @Post('invoices/:id/void')
+  voidInvoice(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.billingService.transitionInvoice(id, 'void', user);
   }
 
   @Roles(...BILLING_READ_ROLES)
