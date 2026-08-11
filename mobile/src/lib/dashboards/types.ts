@@ -16,7 +16,10 @@ export interface DashboardSummary {
   activePermits?: number;
   pendingApprovals?: number;
   openIncidents?: number;
+  openSimopsConflicts?: number;
+  activeLototoExecutions?: number;
   myOpenPermits?: number;
+  requirementId?: string;
 }
 
 export interface DashboardPayload {

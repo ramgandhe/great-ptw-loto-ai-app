@@ -7,7 +7,6 @@ import {
   DASHBOARD_KINDS,
   DashboardKind,
   dashboardPreferences,
-  incidents,
   permits,
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
@@ -15,6 +14,7 @@ import { DashboardCacheService } from './dashboard-cache.service';
 import { DashboardLogService } from './dashboard-log.service';
 import { DASHBOARD_KIND_ROLES } from './dashboards.constants';
 import { KpiService } from './kpi.service';
+import { OperationalMetricsService } from './operational-metrics.service';
 
 @Injectable()
 export class DashboardService {
@@ -24,6 +24,7 @@ export class DashboardService {
     private readonly logService: DashboardLogService,
     private readonly auditService: AuditService,
     private readonly kpiService: KpiService,
+    private readonly metrics: OperationalMetricsService,
   ) {}
 
   async getDashboard(user: AuthenticatedUser, kind?: DashboardKind) {
@@ -130,13 +131,21 @@ export class DashboardService {
   }
 
   private async buildSummary(tenantId: string, actorId: string, kind: DashboardKind) {
-    const activePermits = await this.countPermits(tenantId, ['active', 'approved']);
-    const pendingApprovals = await this.countPermits(tenantId, ['pending_approval']);
-    const openIncidents = await this.countIncidents(tenantId, [
-      'open',
-      'investigating',
-      'pending_verification',
+    const [permitCounts, incidentCounts, simopsCounts, lototoCounts] = await Promise.all([
+      this.metrics.permitCounts(tenantId),
+      this.metrics.incidentCounts(tenantId),
+      this.metrics.simopsCounts(tenantId),
+      this.metrics.lototoCounts(tenantId),
     ]);
+
+    const base = {
+      activePermits: permitCounts.active,
+      pendingApprovals: permitCounts.pending,
+      openIncidents: incidentCounts.open,
+      openSimopsConflicts: simopsCounts.open,
+      activeLototoExecutions: lototoCounts.activeExecutions,
+      requirementId: 'FR-DAS-002',
+    };
 
     if (kind === 'personal') {
       const mine = await this.db
@@ -146,34 +155,22 @@ export class DashboardService {
           and(
             eq(permits.tenantId, tenantId),
             eq(permits.createdBy, actorId),
-            inArray(permits.status, ['draft', 'pending_approval', 'approved', 'active', 'suspended']),
+            inArray(permits.status, [
+              'draft',
+              'pending_approval',
+              'approved',
+              'active',
+              'suspended',
+            ]),
           ),
         );
       return {
+        ...base,
         myOpenPermits: Number(mine[0]?.value ?? 0),
-        activePermits,
-        pendingApprovals,
-        openIncidents,
       };
     }
 
-    return { activePermits, pendingApprovals, openIncidents };
-  }
-
-  private async countPermits(tenantId: string, statuses: string[]): Promise<number> {
-    const [row] = await this.db
-      .select({ value: count() })
-      .from(permits)
-      .where(and(eq(permits.tenantId, tenantId), inArray(permits.status, statuses)));
-    return Number(row?.value ?? 0);
-  }
-
-  private async countIncidents(tenantId: string, statuses: string[]): Promise<number> {
-    const [row] = await this.db
-      .select({ value: count() })
-      .from(incidents)
-      .where(and(eq(incidents.tenantId, tenantId), inArray(incidents.status, statuses)));
-    return Number(row?.value ?? 0);
+    return base;
   }
 
   requireTenant(user: AuthenticatedUser): string {

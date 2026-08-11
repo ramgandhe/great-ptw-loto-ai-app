@@ -91,7 +91,7 @@ export default function DashboardPage() {
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading summary…</p>
         ) : dashboard ? (
-          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {dashboard.summary.myOpenPermits !== undefined ? (
               <div className="rounded-lg border border-border bg-card p-4">
                 <dt className="text-xs text-muted-foreground">My open permits</dt>
@@ -109,6 +109,18 @@ export default function DashboardPage() {
             <div className="rounded-lg border border-border bg-card p-4">
               <dt className="text-xs text-muted-foreground">Open incidents</dt>
               <dd className="mt-1 text-2xl font-semibold">{dashboard.summary.openIncidents ?? 0}</dd>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <dt className="text-xs text-muted-foreground">Open SIMOPS conflicts</dt>
+              <dd className="mt-1 text-2xl font-semibold">
+                {dashboard.summary.openSimopsConflicts ?? 0}
+              </dd>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <dt className="text-xs text-muted-foreground">Active LOTOTO executions</dt>
+              <dd className="mt-1 text-2xl font-semibold">
+                {dashboard.summary.activeLototoExecutions ?? 0}
+              </dd>
             </div>
           </dl>
         ) : null}

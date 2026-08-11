@@ -1,5 +1,5 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { and, count, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { requireActorId } from '../../common/helpers/require-actor-id';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
@@ -13,6 +13,10 @@ import {
 import { DashboardCacheService } from './dashboard-cache.service';
 import { DashboardLogService } from './dashboard-log.service';
 import { AnalyticsQueryDto, AnalyticsTrendsQueryDto } from './dto/dashboard.dto';
+import {
+  OperationalFilters,
+  OperationalMetricsService,
+} from './operational-metrics.service';
 
 @Injectable()
 export class AnalyticsService {
@@ -20,41 +24,40 @@ export class AnalyticsService {
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly cache: DashboardCacheService,
     private readonly logService: DashboardLogService,
+    private readonly metrics: OperationalMetricsService,
   ) {}
 
   async getAnalytics(user: AuthenticatedUser, query: AnalyticsQueryDto) {
     const tenantId = this.requireTenant(user);
     const actorId = requireActorId(user);
     const scope = query.scope ?? 'operational';
+    const filters = this.toFilters(query);
+    this.metrics.validatePeriod(filters);
 
-    const cached = await this.cache.getAnalytics<unknown>(tenantId, scope);
-    if (cached) {
-      return cached;
+    // Live filtered reads skip snapshot cache so FR-DAS-008 filters apply.
+    const hasFilters = Boolean(filters.status || filters.plantId || filters.periodStart || filters.periodEnd);
+    if (!hasFilters) {
+      const cached = await this.cache.getAnalytics<unknown>(tenantId, scope);
+      if (cached) {
+        return cached;
+      }
     }
 
-    const [latest] = await this.db
-      .select()
-      .from(analyticsSnapshots)
-      .where(and(eq(analyticsSnapshots.tenantId, tenantId), eq(analyticsSnapshots.scope, scope)))
-      .orderBy(desc(analyticsSnapshots.capturedAt))
-      .limit(1);
-
-    const payload = latest
+    const payload = hasFilters
       ? {
-          scope,
-          source: 'snapshot' as const,
-          snapshot: latest,
-          capturedAt: latest.capturedAt,
-        }
-      : {
           scope,
           source: 'live' as const,
           snapshot: null,
-          payload: await this.computeLivePayload(tenantId, scope),
+          payload: await this.computeLivePayload(tenantId, scope, filters),
           capturedAt: new Date().toISOString(),
-        };
+          filters,
+          requirementId: 'FR-DAS-007',
+        }
+      : await this.readSnapshotOrLive(tenantId, scope);
 
-    await this.cache.setAnalytics(tenantId, scope, payload);
+    if (!hasFilters) {
+      await this.cache.setAnalytics(tenantId, scope, payload);
+    }
 
     this.logService.logEvent({
       action: 'dashboard.analytics-read',
@@ -90,6 +93,7 @@ export class AnalyticsService {
     return {
       scope,
       points: rows.reverse(),
+      empty: rows.length === 0,
     };
   }
 
@@ -158,53 +162,61 @@ export class AnalyticsService {
     return [...ids];
   }
 
-  private async computeLivePayload(
-    tenantId: string,
-    scope: AnalyticsSnapshotScope,
-  ): Promise<Record<string, unknown>> {
-    if (scope === 'permits' || scope === 'operational') {
-      const active = await this.countPermits(tenantId, ['active', 'approved']);
-      const pending = await this.countPermits(tenantId, ['pending_approval']);
-      const closed = await this.countPermits(tenantId, ['closed']);
-      if (scope === 'permits') {
-        return { active, pending, closed };
-      }
-      const openIncidents = await this.countIncidents(tenantId, [
-        'open',
-        'investigating',
-        'pending_verification',
-      ]);
-      return { activePermits: active, pendingApprovals: pending, openIncidents };
-    }
+  private async readSnapshotOrLive(tenantId: string, scope: AnalyticsSnapshotScope) {
+    const [latest] = await this.db
+      .select()
+      .from(analyticsSnapshots)
+      .where(and(eq(analyticsSnapshots.tenantId, tenantId), eq(analyticsSnapshots.scope, scope)))
+      .orderBy(desc(analyticsSnapshots.capturedAt))
+      .limit(1);
 
-    if (scope === 'incidents') {
+    if (latest) {
       return {
-        open: await this.countIncidents(tenantId, [
-          'open',
-          'investigating',
-          'pending_verification',
-        ]),
-        closed: await this.countIncidents(tenantId, ['closed']),
+        scope,
+        source: 'snapshot' as const,
+        snapshot: latest,
+        capturedAt: latest.capturedAt,
+        requirementId: 'FR-DAS-007',
       };
     }
 
-    return { scope, status: 'available', note: 'Aggregate pending dedicated module metrics' };
+    return {
+      scope,
+      source: 'live' as const,
+      snapshot: null,
+      payload: await this.computeLivePayload(tenantId, scope),
+      capturedAt: new Date().toISOString(),
+      requirementId: 'FR-DAS-007',
+    };
   }
 
-  private async countPermits(tenantId: string, statuses: string[]): Promise<number> {
-    const [row] = await this.db
-      .select({ value: count() })
-      .from(permits)
-      .where(and(eq(permits.tenantId, tenantId), inArray(permits.status, statuses)));
-    return Number(row?.value ?? 0);
+  private async computeLivePayload(
+    tenantId: string,
+    scope: AnalyticsSnapshotScope,
+    filters: OperationalFilters = {},
+  ): Promise<Record<string, unknown>> {
+    if (scope === 'permits') {
+      return this.metrics.permitCounts(tenantId, filters);
+    }
+    if (scope === 'incidents') {
+      return this.metrics.incidentCounts(tenantId, filters);
+    }
+    if (scope === 'simops') {
+      return this.metrics.simopsCounts(tenantId, filters);
+    }
+    if (scope === 'lototo') {
+      return this.metrics.lototoCounts(tenantId, filters);
+    }
+    return this.metrics.organizationalBundle(tenantId, filters);
   }
 
-  private async countIncidents(tenantId: string, statuses: string[]): Promise<number> {
-    const [row] = await this.db
-      .select({ value: count() })
-      .from(incidents)
-      .where(and(eq(incidents.tenantId, tenantId), inArray(incidents.status, statuses)));
-    return Number(row?.value ?? 0);
+  private toFilters(query: AnalyticsQueryDto): OperationalFilters {
+    return {
+      status: query.status,
+      plantId: query.plantId,
+      periodStart: query.periodStart,
+      periodEnd: query.periodEnd,
+    };
   }
 
   private requireTenant(user: AuthenticatedUser): string {

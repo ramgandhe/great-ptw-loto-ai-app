@@ -2,7 +2,12 @@ export type DashboardKind = "personal" | "supervisor" | "safety" | "management";
 
 export type AnalyticsScope = "permits" | "incidents" | "lototo" | "simops" | "operational";
 
-export type ReportType = "permit_summary" | "incident_summary" | "operational_kpis";
+export type ReportType =
+  | "permit_summary"
+  | "incident_summary"
+  | "simops_summary"
+  | "lototo_summary"
+  | "operational_kpis";
 
 export type ReportFormat = "pdf" | "xlsx" | "csv";
 
@@ -24,7 +29,10 @@ export interface DashboardSummary {
   activePermits?: number;
   pendingApprovals?: number;
   openIncidents?: number;
+  openSimopsConflicts?: number;
+  activeLototoExecutions?: number;
   myOpenPermits?: number;
+  requirementId?: string;
 }
 
 export interface DashboardPayload {

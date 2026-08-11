@@ -15,7 +15,10 @@ import { AuditService } from '../logging/audit.service';
 import { DashboardLogService } from './dashboard-log.service';
 import { DASHBOARD_REPORT_PREFIX } from './dashboards.constants';
 import { ListReportsQueryDto, ReportRequestDto } from './dto/dashboard.dto';
-import { KpiService } from './kpi.service';
+import {
+  OperationalFilters,
+  OperationalMetricsService,
+} from './operational-metrics.service';
 
 @Injectable()
 export class ReportingService {
@@ -25,7 +28,7 @@ export class ReportingService {
     private readonly configService: ConfigService,
     private readonly logService: DashboardLogService,
     private readonly auditService: AuditService,
-    private readonly kpiService: KpiService,
+    private readonly metrics: OperationalMetricsService,
   ) {}
 
   async list(user: AuthenticatedUser, query: ListReportsQueryDto) {
@@ -50,6 +53,9 @@ export class ReportingService {
     const tenantId = this.requireTenant(user);
     const actorId = requireActorId(user);
 
+    const filters = this.normalizeFilters(dto);
+    this.metrics.validatePeriod(filters);
+
     const [created] = await this.db
       .insert(reportExports)
       .values({
@@ -58,9 +64,13 @@ export class ReportingService {
         reportType: dto.reportType,
         format: dto.format,
         status: 'pending',
-        filters: dto.filters ?? {},
-        periodStart: dto.periodStart ? new Date(dto.periodStart) : null,
-        periodEnd: dto.periodEnd ? new Date(dto.periodEnd) : null,
+        filters: {
+          ...(dto.filters ?? {}),
+          status: filters.status,
+          plantId: filters.plantId,
+        },
+        periodStart: filters.periodStart ? new Date(filters.periodStart) : null,
+        periodEnd: filters.periodEnd ? new Date(filters.periodEnd) : null,
         createdBy: actorId,
         updatedBy: actorId,
       })
@@ -125,12 +135,7 @@ export class ReportingService {
       const storageKey = `${prefix}/${report.tenantId}/${fileName}`;
       const contentType = this.contentTypeFor(report.format);
 
-      await this.storageService.putObject(
-        storageKey,
-        body,
-        contentType,
-        body.byteLength,
-      );
+      await this.storageService.putObject(storageKey, body, contentType, body.byteLength);
 
       const [updated] = await this.db
         .update(reportExports)
@@ -182,40 +187,86 @@ export class ReportingService {
     }
   }
 
-  private async buildExportBody(report: typeof reportExports.$inferSelect): Promise<Buffer> {
-    const kpis = (await this.kpiService.getKpis(
-      {
-        id: report.requestedBy,
-        username: 'system',
-        roles: ['org-admin'],
-        tenantId: report.tenantId,
-      },
-      { kind: 'management', periodLabel: 'current' },
-    )) as {
-      items: Array<{ key: string; value: Record<string, unknown> }>;
+  private normalizeFilters(dto: ReportRequestDto): OperationalFilters {
+    const raw = dto.filters ?? {};
+    return {
+      status: typeof raw.status === 'string' ? raw.status : undefined,
+      plantId: typeof raw.plantId === 'string' ? raw.plantId : undefined,
+      periodStart: dto.periodStart ?? null,
+      periodEnd: dto.periodEnd ?? null,
     };
+  }
+
+  private async buildExportBody(report: typeof reportExports.$inferSelect): Promise<Buffer> {
+    const filters: OperationalFilters = {
+      status:
+        typeof report.filters?.status === 'string' ? (report.filters.status as string) : undefined,
+      plantId:
+        typeof report.filters?.plantId === 'string'
+          ? (report.filters.plantId as string)
+          : undefined,
+      periodStart: report.periodStart,
+      periodEnd: report.periodEnd,
+    };
+
+    let dataset: Record<string, unknown>;
+    switch (report.reportType) {
+      case 'permit_summary': {
+        const counts = await this.metrics.permitCounts(report.tenantId, filters);
+        const rows = await this.metrics.listPermits(report.tenantId, filters);
+        dataset = { requirementId: 'FR-DAS-003', counts, rows, empty: rows.length === 0 };
+        break;
+      }
+      case 'incident_summary': {
+        const counts = await this.metrics.incidentCounts(report.tenantId, filters);
+        const rows = await this.metrics.listIncidents(report.tenantId, filters);
+        dataset = { requirementId: 'FR-DAS-004', counts, rows, empty: rows.length === 0 };
+        break;
+      }
+      case 'simops_summary': {
+        const counts = await this.metrics.simopsCounts(report.tenantId, filters);
+        const rows = await this.metrics.listSimops(report.tenantId, filters);
+        dataset = { requirementId: 'FR-DAS-005', counts, rows, empty: rows.length === 0 };
+        break;
+      }
+      case 'lototo_summary': {
+        const counts = await this.metrics.lototoCounts(report.tenantId, filters);
+        const rows = await this.metrics.listLototoExecutions(report.tenantId, filters);
+        dataset = { requirementId: 'FR-DAS-006', counts, rows, empty: rows.length === 0 };
+        break;
+      }
+      default: {
+        const bundle = await this.metrics.organizationalBundle(report.tenantId, filters);
+        dataset = { requirementId: 'FR-DAS-007', ...bundle };
+      }
+    }
 
     const payload = {
       reportType: report.reportType,
       format: report.format,
-      filters: report.filters,
+      filters,
       periodStart: report.periodStart,
       periodEnd: report.periodEnd,
       generatedAt: new Date().toISOString(),
-      kpis,
+      tenantId: report.tenantId,
+      dataset,
     };
 
     if (report.format === 'csv') {
+      const counts =
+        (dataset.counts as Record<string, number> | undefined) ??
+        (dataset.permits as Record<string, number> | undefined) ??
+        {};
       const lines = ['key,count'];
-      for (const item of kpis.items) {
-        const countVal =
-          typeof item.value.count === 'number' ? item.value.count : JSON.stringify(item.value);
-        lines.push(`${item.key},${countVal}`);
+      for (const [key, value] of Object.entries(counts)) {
+        lines.push(`${key},${value}`);
+      }
+      if (lines.length === 1) {
+        lines.push('empty,0');
       }
       return Buffer.from(lines.join('\n'), 'utf8');
     }
 
-    // pdf/xlsx: store structured JSON payload; FE/Metabase can render later
     return Buffer.from(JSON.stringify(payload, null, 2), 'utf8');
   }
 

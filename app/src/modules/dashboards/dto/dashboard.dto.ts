@@ -6,6 +6,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -16,12 +17,9 @@ import {
   DASHBOARD_KINDS,
   REPORT_EXPORT_FORMATS,
 } from '../../../database/schema/analytics';
+import { REPORT_TYPES } from '../fr-das.traceability';
 
-export const REPORT_TYPES = [
-  'permit_summary',
-  'incident_summary',
-  'operational_kpis',
-] as const;
+export { REPORT_TYPES };
 
 export class DashboardFilterDto {
   @IsOptional()
@@ -38,6 +36,23 @@ export class KPIFilterDto {
   @IsString()
   @MaxLength(64)
   periodLabel?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  status?: string;
+
+  @IsOptional()
+  @IsUUID()
+  plantId?: string;
+
+  @IsOptional()
+  @IsDateString()
+  periodStart?: string;
+
+  @IsOptional()
+  @IsDateString()
+  periodEnd?: string;
 }
 
 export class ReportRequestDto {
@@ -64,6 +79,23 @@ export class AnalyticsQueryDto {
   @IsOptional()
   @IsIn([...ANALYTICS_SNAPSHOT_SCOPES])
   scope?: (typeof ANALYTICS_SNAPSHOT_SCOPES)[number];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  status?: string;
+
+  @IsOptional()
+  @IsUUID()
+  plantId?: string;
+
+  @IsOptional()
+  @IsDateString()
+  periodStart?: string;
+
+  @IsOptional()
+  @IsDateString()
+  periodEnd?: string;
 }
 
 export class AnalyticsTrendsQueryDto {
