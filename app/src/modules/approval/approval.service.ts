@@ -439,29 +439,44 @@ export class ApprovalService {
       );
     }
 
-    const active = await this.workflowEngine.getActiveAssignmentWithStep(permitId);
-    if (!active) {
+    const actives = await this.workflowEngine.getActiveAssignments(permitId);
+    if (actives.length === 0) {
       throw new ConflictException('No active workflow step for this permit');
     }
 
-    const { assignment, step } = active;
-
     let onBehalfOf: string | null = null;
-    const hasRole = this.workflowEngine.userHasApproverRole(user.roles, step.approverRole);
+    let selected: (typeof actives)[number] | null = null;
 
-    if (!hasRole) {
+    for (const candidate of actives) {
+      const hasRole = this.workflowEngine.userHasApproverRole(
+        user.roles,
+        candidate.step.approverRole,
+      );
+      if (hasRole) {
+        selected = candidate;
+        break;
+      }
+
       const delegation = await this.delegationService.findActiveForDelegate(
         permit.tenantId,
         user.id,
-        step.approverRole,
+        candidate.step.approverRole,
       );
-      if (!delegation) {
-        throw new ForbiddenException(
-          `You do not have permission to act on this approval step. Required role: ${step.approverRole}`,
-        );
+      if (delegation) {
+        selected = candidate;
+        onBehalfOf = delegation.delegatorId;
+        break;
       }
-      onBehalfOf = delegation.delegatorId;
     }
+
+    if (!selected) {
+      const required = [...new Set(actives.map((row) => row.step.approverRole))].join(', ');
+      throw new ForbiddenException(
+        `You do not have permission to act on this approval step. Required role: ${required}`,
+      );
+    }
+
+    const { assignment, step } = selected;
 
     const [existing] = await this.db
       .select()

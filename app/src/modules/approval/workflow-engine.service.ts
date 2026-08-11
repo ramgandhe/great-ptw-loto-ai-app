@@ -4,15 +4,18 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, lt } from 'drizzle-orm';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
+  approvalHistory,
+  approvalWorkflowTemplates,
   permitApprovals,
   permits,
   permitTypes,
   workflowAssignments,
   workflowSteps,
   type AssignmentStatus,
+  type WorkflowResubmitMode,
 } from '../../database/schema';
 import {
   parallelStageOutcome,
@@ -22,6 +25,11 @@ import {
 } from './workflow-rules';
 
 type DbClient = Pick<Database, 'insert' | 'update' | 'select' | 'delete'>;
+
+export type InitializeAtSubmitOptions = {
+  isResubmit?: boolean;
+  fromStatus?: string;
+};
 
 @Injectable()
 export class WorkflowEngineService {
@@ -117,13 +125,157 @@ export class WorkflowEngineService {
     return base.filter((step) => shouldIncludeStep(step, context));
   }
 
+  async resolveResubmitMode(
+    tenantId: string,
+    permitTypeId: string,
+    db?: DbClient,
+  ): Promise<WorkflowResubmitMode> {
+    const client = this.client(db);
+
+    const [typed] = await client
+      .select()
+      .from(approvalWorkflowTemplates)
+      .where(
+        and(
+          eq(approvalWorkflowTemplates.tenantId, tenantId),
+          eq(approvalWorkflowTemplates.permitTypeId, permitTypeId),
+          eq(approvalWorkflowTemplates.isActive, true),
+        ),
+      )
+      .limit(1);
+
+    if (typed?.resubmitMode) {
+      return typed.resubmitMode as WorkflowResubmitMode;
+    }
+
+    const [fallback] = await client
+      .select()
+      .from(approvalWorkflowTemplates)
+      .where(
+        and(
+          eq(approvalWorkflowTemplates.tenantId, tenantId),
+          isNull(approvalWorkflowTemplates.permitTypeId),
+          eq(approvalWorkflowTemplates.isActive, true),
+          eq(approvalWorkflowTemplates.isDefault, true),
+        ),
+      )
+      .limit(1);
+
+    return (fallback?.resubmitMode as WorkflowResubmitMode | undefined) ?? 'restart_from_stage_1';
+  }
+
+  /**
+   * FR-PTW-027 — core-field edit after the last reject forces Stage-1 restart
+   * even when the template is configured for resume.
+   */
+  private async coreEditForcesRestart(permitId: string, db?: DbClient): Promise<boolean> {
+    const client = this.client(db);
+
+    const [lastReject] = await client
+      .select()
+      .from(approvalHistory)
+      .where(and(eq(approvalHistory.permitId, permitId), eq(approvalHistory.action, 'rejected')))
+      .orderBy(desc(approvalHistory.createdAt))
+      .limit(1);
+
+    if (!lastReject) {
+      return false;
+    }
+
+    const [coreEdit] = await client
+      .select()
+      .from(approvalHistory)
+      .where(
+        and(
+          eq(approvalHistory.permitId, permitId),
+          eq(approvalHistory.action, 'workflow_restarted_core_edit'),
+        ),
+      )
+      .orderBy(desc(approvalHistory.createdAt))
+      .limit(1);
+
+    return Boolean(coreEdit && coreEdit.createdAt >= lastReject.createdAt);
+  }
+
+  private async findLastRejectingStep(permitId: string, db?: DbClient) {
+    const client = this.client(db);
+
+    const [reject] = await client
+      .select({
+        history: approvalHistory,
+        step: workflowSteps,
+      })
+      .from(approvalHistory)
+      .innerJoin(workflowSteps, eq(approvalHistory.workflowStepId, workflowSteps.id))
+      .where(and(eq(approvalHistory.permitId, permitId), eq(approvalHistory.action, 'rejected')))
+      .orderBy(desc(approvalHistory.createdAt))
+      .limit(1);
+
+    return reject?.step ?? null;
+  }
+
   async initializeAtSubmit(
     permitId: string,
     tenantId: string,
     permitTypeId: string,
     submittedBy: string,
     db?: DbClient,
+    options?: InitializeAtSubmitOptions,
   ) {
+    const client = this.client(db);
+
+    let resumeFromSequence: number | null = null;
+    let resumeWaveMinSequence: number | null = null;
+    let resumeParallelGroupHint: string | null = null;
+    let preservedApprovals: Array<typeof permitApprovals.$inferSelect> = [];
+    let resubmitMode: WorkflowResubmitMode = 'restart_from_stage_1';
+
+    // FR-PTW-026 — after rejection, optionally resume from the rejecting stage.
+    if (options?.isResubmit && options.fromStatus === 'rejected') {
+      resubmitMode = await this.resolveResubmitMode(tenantId, permitTypeId, db);
+      if (await this.coreEditForcesRestart(permitId, db)) {
+        resubmitMode = 'restart_from_stage_1';
+      }
+
+      if (resubmitMode === 'resume_from_rejecting_stage') {
+        const rejectingStep = await this.findLastRejectingStep(permitId, db);
+        if (rejectingStep) {
+          resumeFromSequence = rejectingStep.stepSequence;
+          resumeParallelGroupHint = rejectingStep.parallelGroup ?? null;
+          resumeWaveMinSequence = rejectingStep.stepSequence;
+
+          if (rejectingStep.parallelGroup) {
+            const peers = await client
+              .select({ stepSequence: workflowSteps.stepSequence })
+              .from(workflowSteps)
+              .where(
+                and(
+                  eq(workflowSteps.tenantId, tenantId),
+                  eq(workflowSteps.parallelGroup, rejectingStep.parallelGroup),
+                  eq(workflowSteps.isActive, true),
+                ),
+              );
+            if (peers.length > 0) {
+              resumeWaveMinSequence = Math.min(...peers.map((peer) => peer.stepSequence));
+            }
+          }
+
+          preservedApprovals = await client
+            .select({ approval: permitApprovals })
+            .from(permitApprovals)
+            .innerJoin(workflowSteps, eq(permitApprovals.workflowStepId, workflowSteps.id))
+            .where(
+              and(
+                eq(permitApprovals.permitId, permitId),
+                eq(permitApprovals.decision, 'approve'),
+                lt(workflowSteps.stepSequence, resumeWaveMinSequence),
+              ),
+            )
+            .then((rows) => rows.map((row) => row.approval));
+        }
+      }
+    }
+
     await this.resetWorkflow(permitId, db);
 
     const context = await this.buildPermitContext(tenantId, permitId, permitTypeId, db);
@@ -133,27 +285,41 @@ export class WorkflowEngineService {
     }
 
     // Persist derived risk on the permit for auditability (FR-PTW-017).
-    await this.client(db)
+    await client
       .update(permits)
       .set({ riskLevel: context.riskLevel, updatedBy: submittedBy })
       .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
 
-    const firstSequence = steps[0].stepSequence;
-    const firstParallelGroup = steps[0].parallelGroup;
+    const firstStep = steps[0];
+    const firstParallelGroup = firstStep.parallelGroup;
+    const resumeStep =
+      resumeFromSequence != null
+        ? steps.find((step) => step.stepSequence === resumeFromSequence) ?? firstStep
+        : firstStep;
+    const resumeParallelGroup = resumeParallelGroupHint ?? resumeStep.parallelGroup;
+    const waveMin = resumeWaveMinSequence ?? resumeFromSequence;
 
-    return this.client(db)
+    const assignments = await client
       .insert(workflowAssignments)
       .values(
         steps.map((step) => {
-          const isFirstWave =
-            step.stepSequence === firstSequence ||
-            (firstParallelGroup != null &&
-              step.parallelGroup != null &&
-              step.parallelGroup === firstParallelGroup &&
-              step.stepSequence === firstSequence);
+          const beforeResume = waveMin != null && step.stepSequence < waveMin;
+          const inResumeWave = resumeParallelGroup
+            ? step.parallelGroup === resumeParallelGroup
+            : step.stepSequence === resumeStep.stepSequence;
+          const inFirstWave = firstParallelGroup
+            ? step.parallelGroup === firstParallelGroup
+            : step.stepSequence === firstStep.stepSequence;
+
+          let status: AssignmentStatus = 'pending';
+          if (beforeResume) {
+            status = 'completed';
+          } else if (resumeFromSequence != null ? inResumeWave : inFirstWave) {
+            status = 'active';
+          }
 
           const slaDueAt =
-            step.slaMinutes != null
+            step.slaMinutes != null && (status === 'active' || status === 'pending')
               ? new Date(Date.now() + step.slaMinutes * 60_000)
               : null;
 
@@ -161,7 +327,8 @@ export class WorkflowEngineService {
             permitId,
             workflowStepId: step.id,
             assigneeId: submittedBy,
-            status: (isFirstWave ? 'active' : 'pending') satisfies AssignmentStatus,
+            status,
+            completedAt: status === 'completed' ? new Date() : null,
             parallelGroup: step.parallelGroup ?? null,
             slaDueAt,
             createdBy: submittedBy,
@@ -170,6 +337,28 @@ export class WorkflowEngineService {
         }),
       )
       .returning();
+
+    // Re-attach preserved upstream approvals so prior stages stay decided.
+    if (preservedApprovals.length > 0) {
+      const byStep = new Map(assignments.map((row) => [row.workflowStepId, row]));
+      await client.insert(permitApprovals).values(
+        preservedApprovals.map((approval) => ({
+          permitId,
+          workflowStepId: approval.workflowStepId,
+          workflowAssignmentId: byStep.get(approval.workflowStepId)?.id ?? null,
+          decision: approval.decision,
+          comment: approval.comment,
+          reasonCode: approval.reasonCode,
+          onBehalfOf: approval.onBehalfOf,
+          decidedBy: approval.decidedBy,
+          decidedAt: approval.decidedAt,
+          createdBy: submittedBy,
+          updatedBy: submittedBy,
+        })),
+      );
+    }
+
+    return { assignments, resubmitMode, resumeFromSequence };
   }
 
   async resetWorkflow(permitId: string, db?: DbClient) {
@@ -194,7 +383,8 @@ export class WorkflowEngineService {
       return existing;
     }
 
-    return this.initializeAtSubmit(permitId, tenantId, permitTypeId, actorId);
+    const result = await this.initializeAtSubmit(permitId, tenantId, permitTypeId, actorId);
+    return result.assignments;
   }
 
   async getActiveAssignment(permitId: string) {
@@ -385,12 +575,10 @@ export class WorkflowEngineService {
     }
 
     const nextGroup = next.step.parallelGroup;
+    // Parallel peers may have distinct step_sequence values under the unique index;
+    // activate the whole group together (FR-PTW-016).
     const toActivate = nextGroup
-      ? steps.filter(
-          (row) =>
-            row.step.stepSequence === next.step.stepSequence &&
-            row.step.parallelGroup === nextGroup,
-        )
+      ? steps.filter((row) => row.step.parallelGroup === nextGroup)
       : [next];
 
     let firstActivated: typeof workflowAssignments.$inferSelect | null = null;

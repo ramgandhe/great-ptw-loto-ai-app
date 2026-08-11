@@ -309,6 +309,15 @@ export class PermitService {
         })
         .where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
 
+      const init = await this.workflowEngine.initializeAtSubmit(
+        id,
+        tenantId,
+        detail.permit.permitTypeId,
+        user.id,
+        tx,
+        { isResubmit, fromStatus },
+      );
+
       if (isResubmit) {
         await this.approvalHistoryService.record(
           {
@@ -318,18 +327,14 @@ export class PermitService {
             toStatus: 'pending_approval',
             actorId: user.id,
             createdBy: user.id,
+            metadata: {
+              resubmitMode: init.resubmitMode,
+              resumeFromSequence: init.resumeFromSequence,
+            },
           },
           tx,
         );
       }
-
-      await this.workflowEngine.initializeAtSubmit(
-        id,
-        tenantId,
-        detail.permit.permitTypeId,
-        user.id,
-        tx,
-      );
     });
 
     await this.auditService.log({
