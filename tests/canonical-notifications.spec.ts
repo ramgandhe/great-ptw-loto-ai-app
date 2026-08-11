@@ -119,6 +119,26 @@ describe('CanonicalNotificationService (FR-NOT-002–008)', () => {
     );
   });
 
+  it('maps billing renewal to task_reminder with dedupe key', async () => {
+    await service.fromBillingRenewal({
+      tenantId: 'tenant-1',
+      subscriptionId: 'sub-1',
+      adminUserId: 'admin-1',
+      renewAt: new Date('2026-08-15T00:00:00.000Z'),
+      horizonDays: 7,
+    });
+
+    expect(notificationsService.generateSystem).toHaveBeenCalledWith(
+      'tenant-1',
+      'admin-1',
+      expect.objectContaining({
+        eventType: 'task_reminder',
+        dedupeKey: 'tenant-1:billing:sub-1:renewal:2026-08-15',
+        sourceModule: 'billing',
+      }),
+    );
+  });
+
   it('maps lototo job payload to lototo_verification', async () => {
     await service.fromLototoPayload({
       planId: 'plan-1',

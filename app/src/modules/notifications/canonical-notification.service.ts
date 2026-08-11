@@ -112,6 +112,29 @@ export class CanonicalNotificationService {
     });
   }
 
+  async fromBillingRenewal(params: {
+    tenantId: string;
+    subscriptionId: string;
+    adminUserId: string;
+    renewAt: Date;
+    horizonDays: number;
+  }): Promise<void> {
+    const renewDate = params.renewAt.toISOString().slice(0, 10);
+
+    await this.notificationsService.generateSystem(params.tenantId, params.adminUserId, {
+      eventType: 'task_reminder',
+      category: 'reminder',
+      priority: 'medium',
+      title: 'Subscription renewal due',
+      body: `Your organisation subscription renews on ${renewDate} (within ${params.horizonDays} days). Review billing details before renewal.`,
+      recipientUserIds: [params.adminUserId],
+      entityType: 'tenant_subscription',
+      entityId: params.subscriptionId,
+      dedupeKey: `${params.tenantId}:billing:${params.subscriptionId}:renewal:${renewDate}`,
+      sourceModule: 'billing',
+    });
+  }
+
   async fromIncidentReported(params: {
     tenantId: string;
     incidentId: string;

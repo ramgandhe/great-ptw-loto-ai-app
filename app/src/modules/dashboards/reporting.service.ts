@@ -15,6 +15,7 @@ import { AuditService } from '../logging/audit.service';
 import { DashboardLogService } from './dashboard-log.service';
 import { DASHBOARD_REPORT_PREFIX } from './dashboards.constants';
 import { ListReportsQueryDto, ReportRequestDto } from './dto/dashboard.dto';
+import { AnalyticsService } from './analytics.service';
 import { KpiService } from './kpi.service';
 
 @Injectable()
@@ -26,6 +27,7 @@ export class ReportingService {
     private readonly logService: DashboardLogService,
     private readonly auditService: AuditService,
     private readonly kpiService: KpiService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   async list(user: AuthenticatedUser, query: ListReportsQueryDto) {
@@ -183,18 +185,14 @@ export class ReportingService {
   }
 
   private async buildExportBody(report: typeof reportExports.$inferSelect): Promise<Buffer> {
-    const kpis = (await this.kpiService.getKpis(
-      {
-        id: report.requestedBy,
-        username: 'system',
-        roles: ['org-admin'],
-        tenantId: report.tenantId,
-      },
-      { kind: 'management', periodLabel: 'current' },
-    )) as {
-      items: Array<{ key: string; value: Record<string, unknown> }>;
+    const systemUser: AuthenticatedUser = {
+      id: report.requestedBy,
+      username: 'system',
+      roles: ['org-admin'],
+      tenantId: report.tenantId,
     };
 
+    const metrics = await this.resolveReportMetrics(report.reportType, systemUser);
     const payload = {
       reportType: report.reportType,
       format: report.format,
@@ -202,21 +200,54 @@ export class ReportingService {
       periodStart: report.periodStart,
       periodEnd: report.periodEnd,
       generatedAt: new Date().toISOString(),
-      kpis,
+      metrics,
     };
 
     if (report.format === 'csv') {
-      const lines = ['key,count'];
-      for (const item of kpis.items) {
-        const countVal =
-          typeof item.value.count === 'number' ? item.value.count : JSON.stringify(item.value);
-        lines.push(`${item.key},${countVal}`);
+      const lines = ['key,value'];
+      for (const [key, value] of Object.entries(metrics)) {
+        lines.push(`${key},${typeof value === 'number' ? value : JSON.stringify(value)}`);
       }
       return Buffer.from(lines.join('\n'), 'utf8');
     }
 
-    // pdf/xlsx: store structured JSON payload; FE/Metabase can render later
     return Buffer.from(JSON.stringify(payload, null, 2), 'utf8');
+  }
+
+  private async resolveReportMetrics(
+    reportType: string,
+    user: AuthenticatedUser,
+  ): Promise<Record<string, unknown>> {
+    if (reportType === 'operational_kpis') {
+      const kpis = (await this.kpiService.getKpis(user, {
+        kind: 'management',
+        periodLabel: 'current',
+      })) as { items: Array<{ key: string; value: Record<string, unknown> }> };
+      return Object.fromEntries(
+        kpis.items.map((item) => [
+          item.key,
+          typeof item.value.count === 'number' ? item.value.count : item.value,
+        ]),
+      );
+    }
+
+    const scopeByType: Record<string, 'permits' | 'incidents' | 'simops' | 'lototo' | 'operational'> =
+      {
+        permit_summary: 'permits',
+        incident_summary: 'incidents',
+        simops_summary: 'simops',
+        lototo_summary: 'lototo',
+      };
+    const scope = scopeByType[reportType] ?? 'operational';
+    const analytics = (await this.analyticsService.getAnalytics(user, { scope })) as {
+      source: 'live' | 'snapshot';
+      snapshot?: { payload: Record<string, unknown> } | null;
+      payload?: Record<string, unknown>;
+    };
+    if (analytics.source === 'snapshot' && analytics.snapshot) {
+      return analytics.snapshot.payload as Record<string, unknown>;
+    }
+    return (analytics.payload ?? {}) as Record<string, unknown>;
   }
 
   private contentTypeFor(format: string): string {

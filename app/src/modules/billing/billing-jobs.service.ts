@@ -1,9 +1,15 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, inArray, isNotNull, lte } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, lte } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { tenantSubscriptions } from '../../database/schema';
+import {
+  billingInvoices,
+  subscriptionPlans,
+  tenantSubscriptions,
+} from '../../database/schema';
 import { QueueService } from '../../infrastructure/queue/queue.service';
+import { CanonicalNotificationService } from '../notifications/canonical-notification.service';
 import {
   BILLING_CYCLE_INVOICE_JOB,
   BILLING_RENEWAL_NOTIFY_JOB,
@@ -13,7 +19,6 @@ import { BillingLogService } from './billing-log.service';
 
 /**
  * BullMQ scheduled jobs for billing cycle, usage aggregation and renewal notices.
- * Invoice/usage mutation lands in BE-SP-08.01 (PUS-211).
  */
 @Injectable()
 export class BillingJobsService implements OnModuleInit {
@@ -24,6 +29,7 @@ export class BillingJobsService implements OnModuleInit {
     private readonly queueService: QueueService,
     private readonly configService: ConfigService,
     private readonly logService: BillingLogService,
+    private readonly canonicalNotifications: CanonicalNotificationService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -73,12 +79,11 @@ export class BillingJobsService implements OnModuleInit {
     const now = new Date();
     const due = await this.db
       .select({
-        id: tenantSubscriptions.id,
-        tenantId: tenantSubscriptions.tenantId,
-        status: tenantSubscriptions.status,
-        renewAt: tenantSubscriptions.renewAt,
+        subscription: tenantSubscriptions,
+        plan: subscriptionPlans,
       })
       .from(tenantSubscriptions)
+      .innerJoin(subscriptionPlans, eq(tenantSubscriptions.planId, subscriptionPlans.id))
       .where(
         and(
           inArray(tenantSubscriptions.status, ['active', 'past_due', 'trial']),
@@ -88,16 +93,20 @@ export class BillingJobsService implements OnModuleInit {
       );
 
     for (const row of due) {
+      await this.ensureCycleInvoice(row.subscription, row.plan);
       this.logService.logEvent({
         action: 'billing.cycle-invoice',
-        tenantId: row.tenantId,
-        subscriptionId: row.id,
-        metadata: { status: row.status, renewAt: row.renewAt?.toISOString() },
+        tenantId: row.subscription.tenantId,
+        subscriptionId: row.subscription.id,
+        metadata: {
+          status: row.subscription.status,
+          renewAt: row.subscription.renewAt?.toISOString(),
+        },
       });
     }
 
     if (due.length > 0) {
-      this.logger.log(`Billing cycle candidates flagged: ${due.length}`);
+      this.logger.log(`Billing cycle candidates processed: ${due.length}`);
     }
   }
 
@@ -117,6 +126,7 @@ export class BillingJobsService implements OnModuleInit {
         id: tenantSubscriptions.id,
         tenantId: tenantSubscriptions.tenantId,
         renewAt: tenantSubscriptions.renewAt,
+        createdBy: tenantSubscriptions.createdBy,
       })
       .from(tenantSubscriptions)
       .where(
@@ -128,16 +138,68 @@ export class BillingJobsService implements OnModuleInit {
       );
 
     for (const row of upcoming) {
+      if (!row.renewAt || !row.createdBy) {
+        continue;
+      }
+
+      await this.canonicalNotifications.fromBillingRenewal({
+        tenantId: row.tenantId,
+        subscriptionId: row.id,
+        adminUserId: row.createdBy,
+        renewAt: row.renewAt,
+        horizonDays,
+      });
+
       this.logService.logEvent({
         action: 'billing.renewal-notify',
         tenantId: row.tenantId,
         subscriptionId: row.id,
-        metadata: { renewAt: row.renewAt?.toISOString(), horizonDays },
+        metadata: { renewAt: row.renewAt.toISOString(), horizonDays },
       });
     }
 
     if (upcoming.length > 0) {
-      this.logger.log(`Renewal notifications flagged: ${upcoming.length}`);
+      this.logger.log(`Renewal notifications sent: ${upcoming.length}`);
     }
+  }
+
+  private async ensureCycleInvoice(
+    subscription: typeof tenantSubscriptions.$inferSelect,
+    plan: typeof subscriptionPlans.$inferSelect,
+  ): Promise<void> {
+    const periodStart = subscription.periodStart;
+    const periodEnd = subscription.periodEnd;
+
+    const [existing] = await this.db
+      .select({ id: billingInvoices.id })
+      .from(billingInvoices)
+      .where(
+        and(
+          eq(billingInvoices.tenantId, subscription.tenantId),
+          eq(billingInvoices.subscriptionId, subscription.id),
+          eq(billingInvoices.periodStart, periodStart),
+          eq(billingInvoices.periodEnd, periodEnd),
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      return;
+    }
+
+    const invoiceNumber = `INV-${subscription.tenantId.slice(0, 8)}-${randomUUID().slice(0, 8)}`;
+    await this.db.insert(billingInvoices).values({
+      tenantId: subscription.tenantId,
+      subscriptionId: subscription.id,
+      invoiceNumber,
+      amountMinor: plan.priceMinor,
+      currency: plan.currency,
+      status: 'draft',
+      periodStart,
+      periodEnd,
+      dueAt: subscription.renewAt,
+      createdBy: subscription.createdBy,
+      updatedBy: subscription.createdBy,
+    });
   }
 }

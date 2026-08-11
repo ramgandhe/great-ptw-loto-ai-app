@@ -8,7 +8,9 @@ import {
   AnalyticsSnapshotScope,
   analyticsSnapshots,
   incidents,
+  lototoPlans,
   permits,
+  simopsConflicts,
 } from '../../database/schema';
 import { DashboardCacheService } from './dashboard-cache.service';
 import { DashboardLogService } from './dashboard-log.service';
@@ -188,6 +190,21 @@ export class AnalyticsService {
       };
     }
 
+    if (scope === 'simops') {
+      return {
+        open: await this.countSimopsConflicts(tenantId, ['open', 'assessed', 'mitigation_planned']),
+        resolved: await this.countSimopsConflicts(tenantId, ['approved', 'rejected']),
+      };
+    }
+
+    if (scope === 'lototo') {
+      return {
+        active: await this.countLototoPlans(tenantId, ['ready', 'in_execution']),
+        completed: await this.countLototoPlans(tenantId, ['completed']),
+        draft: await this.countLototoPlans(tenantId, ['draft']),
+      };
+    }
+
     return { scope, status: 'available', note: 'Aggregate pending dedicated module metrics' };
   }
 
@@ -204,6 +221,24 @@ export class AnalyticsService {
       .select({ value: count() })
       .from(incidents)
       .where(and(eq(incidents.tenantId, tenantId), inArray(incidents.status, statuses)));
+    return Number(row?.value ?? 0);
+  }
+
+  private async countSimopsConflicts(tenantId: string, statuses: string[]): Promise<number> {
+    const [row] = await this.db
+      .select({ value: count() })
+      .from(simopsConflicts)
+      .where(
+        and(eq(simopsConflicts.tenantId, tenantId), inArray(simopsConflicts.status, statuses)),
+      );
+    return Number(row?.value ?? 0);
+  }
+
+  private async countLototoPlans(tenantId: string, statuses: string[]): Promise<number> {
+    const [row] = await this.db
+      .select({ value: count() })
+      .from(lototoPlans)
+      .where(and(eq(lototoPlans.tenantId, tenantId), inArray(lototoPlans.status, statuses)));
     return Number(row?.value ?? 0);
   }
 

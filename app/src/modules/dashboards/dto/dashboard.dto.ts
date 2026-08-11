@@ -20,6 +20,8 @@ import {
 export const REPORT_TYPES = [
   'permit_summary',
   'incident_summary',
+  'simops_summary',
+  'lototo_summary',
   'operational_kpis',
 ] as const;
 

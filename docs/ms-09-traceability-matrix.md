@@ -21,8 +21,8 @@ Maps canonical PRD requirements to implementation, Linear tickets, automated tes
 | FR-NOT-006 | PUS-245 | `canonical-notification.service.ts` ← incident submit | `canonical-notifications.spec.ts` |
 | FR-NOT-007 | PUS-245 | `canonical-notification.service.ts` ← SIMOPS conflict detect | `canonical-notifications.spec.ts` |
 | FR-NOT-008 | PUS-245 | `canonical-notification.service.ts` ← LOTOTO jobs | `canonical-notifications.spec.ts`, `lototo-jobs.spec.ts` |
-| FR-DAS-002–008 | PUS-247 / SP-09.06 | `dashboards/`, `reporting.service.ts` | `dashboards-*.spec.ts`, `ms07-lifecycle-http.integration.spec.ts` |
-| FR-BIL-002–005 | PUS-248 / SP-09.07 | `billing/` module, `billing-jobs.service.ts` | `billing-*.spec.ts` |
+| FR-DAS-002–008 | PUS-247 / SP-09.06 | `dashboards/`, `reporting.service.ts` | `dashboards-canon.spec.ts`, `dashboards-*.spec.ts`, `ms07-lifecycle-http.integration.spec.ts` |
+| FR-BIL-002–005 | PUS-248 / SP-09.07 | `billing/` module, `billing-jobs.service.ts` | `billing-canon.spec.ts`, `billing-*.spec.ts` |
 
 ## Release verification checklist
 
@@ -34,3 +34,4 @@ Maps canonical PRD requirements to implementation, Linear tickets, automated tes
 - [ ] SIMOPS advanced detection (FR-SIM-011–021) — tracked in PUS-246 / PR #295
 - [ ] Dashboard canon reconciliation (FR-DAS-002–008) — PUS-247
 - [ ] Billing canon reconciliation (FR-BIL-002–005) — PUS-248
+- [ ] Automated traceability gate (`ms-09-traceability.spec.ts`) — PUS-249
