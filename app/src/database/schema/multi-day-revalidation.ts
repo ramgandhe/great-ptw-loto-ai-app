@@ -1,6 +1,8 @@
 import {
+  boolean,
   date,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -26,8 +28,80 @@ export const REVALIDATION_HISTORY_EVENT_TYPES = [
   'extension_requested',
   'extension_approved',
   'extension_rejected',
+  'validity_checked',
+  'renewal_created',
+  'renewal_accepted',
+  'renewal_rejected',
 ] as const;
 export type RevalidationHistoryEventType = (typeof REVALIDATION_HISTORY_EVENT_TYPES)[number];
+
+export const VALIDITY_DECISIONS = [
+  'ok_gt_48h',
+  'renew_notify_lte_48h',
+  'expired',
+  'out_of_range',
+] as const;
+export type ValidityDecision = (typeof VALIDITY_DECISIONS)[number];
+
+export const RENEWAL_STATUSES = [
+  'draft',
+  'pending_approval',
+  'accepted',
+  'rejected',
+] as const;
+export type RenewalStatus = (typeof RENEWAL_STATUSES)[number];
+
+export const permitValidityChecks = pgTable(
+  'permit_validity_checks',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    permitId: uuid('permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    operationalDate: date('operational_date').notNull(),
+    timezone: varchar('timezone', { length: 64 }).notNull(),
+    decision: varchar('decision', { length: 32 }).notNull(),
+    remainingHours: integer('remaining_hours'),
+    plannedEndAt: timestamp('planned_end_at', { withTimezone: true }),
+    checkedAt: timestamp('checked_at', { withTimezone: true }).notNull().defaultNow(),
+    revalidationRequired: boolean('revalidation_required').notNull().default(false),
+    notifiedAt: timestamp('notified_at', { withTimezone: true }),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  },
+  (table) => [
+    uniqueIndex('permit_validity_checks_tenant_permit_day_unique').on(
+      table.tenantId,
+      table.permitId,
+      table.operationalDate,
+    ),
+    index('permit_validity_checks_tenant_decision_idx').on(table.tenantId, table.decision),
+  ],
+);
+
+export const permitRenewals = pgTable(
+  'permit_renewals',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    sourcePermitId: uuid('source_permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    renewalPermitId: uuid('renewal_permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    status: varchar('status', { length: 32 }).notNull().default('draft'),
+    requestedBy: uuid('requested_by').notNull(),
+    decidedBy: uuid('decided_by'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decisionComments: text('decision_comments'),
+  },
+  (table) => [
+    uniqueIndex('permit_renewals_renewal_permit_unique').on(table.renewalPermitId),
+    index('permit_renewals_source_permit_idx').on(table.sourcePermitId),
+    index('permit_renewals_tenant_status_idx').on(table.tenantId, table.status),
+  ],
+);
 
 export const permitRevalidations = pgTable(
   'permit_revalidations',

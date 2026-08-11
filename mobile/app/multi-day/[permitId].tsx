@@ -13,6 +13,7 @@ import { ApiError } from "@/lib/api";
 import {
   continuePermit,
   createHandover,
+  createRenewal,
   listDailyActivityHistory,
   listDailyProgress,
   listHandovers,
@@ -26,6 +27,7 @@ import {
   queueOfflineDailyProgress,
   queueOfflineExtensionRequest,
   queueOfflineHandover,
+  queueOfflineRenewalCreate,
   queueOfflineRevalidation,
 } from "@/lib/multi-day/offline";
 import type { RevalidationOutcome } from "@/lib/multi-day/types";
@@ -267,6 +269,19 @@ export default function MultiDayPermitScreen() {
               }}
             >
               <Text style={{ color: tokens.colors.foreground }}>Request extension</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.secondaryButton, { borderColor: tokens.colors.border }]}
+              onPress={async () => {
+                if (!isOnline) {
+                  await queueOfflineRenewalCreate(permitId);
+                  setMessage("Renewal create queued for sync");
+                  return;
+                }
+                await runAction(() => createRenewal(permitId).then(() => undefined), "Renewal draft created");
+              }}
+            >
+              <Text style={{ color: tokens.colors.foreground }}>Create renewal draft</Text>
             </Pressable>
           </View>
         </>

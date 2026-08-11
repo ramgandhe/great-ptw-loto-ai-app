@@ -50,3 +50,10 @@ export class DecideExtensionDto {
   @MaxLength(4000)
   comments?: string;
 }
+
+export class DecideRenewalDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  comments?: string;
+}

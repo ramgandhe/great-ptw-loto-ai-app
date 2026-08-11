@@ -121,6 +121,7 @@ export default () => ({
     ),
     revalidationReminderCron: process.env.MDP_REVALIDATION_REMINDER_CRON ?? '0 6 * * *',
     extensionExpiryCron: process.env.MDP_EXTENSION_EXPIRY_CRON ?? '0 5 * * *',
+    validityTransitionCron: process.env.MDP_VALIDITY_TRANSITION_CRON ?? '5 0 * * *',
   },
   incident: {
     cacheTtlSeconds: parseInt(process.env.INCIDENT_CACHE_TTL_SECONDS ?? '300', 10),

@@ -118,3 +118,21 @@ export type RequestExtensionPayload = {
 export type DecideExtensionPayload = {
   comments?: string;
 };
+
+export type PermitRenewal = {
+  id: string;
+  tenantId: string;
+  sourcePermitId: string;
+  renewalPermitId: string;
+  status: "draft" | "pending_approval" | "accepted" | "rejected";
+  requestedBy: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionComments: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DecideRenewalPayload = {
+  comments?: string;
+};

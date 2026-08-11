@@ -3,14 +3,18 @@
 import { useState } from "react";
 import { ApiError } from "@/lib/api";
 import {
+  acceptRenewal,
   approveExtension,
   continuePermit,
+  createRenewal,
   rejectExtension,
+  rejectRenewal,
   requestExtension,
   revalidatePermit,
+  submitRenewal,
   suspendPermitForRevalidation,
 } from "@/lib/multi-day/api";
-import type { PermitExtension, RevalidationOutcome } from "@/lib/multi-day/types";
+import type { PermitExtension, PermitRenewal, RevalidationOutcome } from "@/lib/multi-day/types";
 import { Button } from "@/components/ui/button";
 
 type RevalidationWorkflowProps = {
@@ -37,6 +41,8 @@ export function RevalidationWorkflow({
   const [extensionId, setExtensionId] = useState("");
   const [decisionComments, setDecisionComments] = useState("");
   const [lastExtension, setLastExtension] = useState<PermitExtension | null>(null);
+  const [renewalId, setRenewalId] = useState("");
+  const [lastRenewal, setLastRenewal] = useState<PermitRenewal | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -116,7 +122,8 @@ export function RevalidationWorkflow({
       <div className="rounded-lg border border-border p-4 space-y-3">
         <h2 className="text-lg font-medium">Continue permit</h2>
         <p className="text-sm text-muted-foreground">
-          Current status: {permitStatus}. Continuation requires a passed revalidation.
+          Current status: {permitStatus}. Continuation requires a passed revalidation for today
+          (server timezone). Expired permits are blocked.
         </p>
         <Button
           variant="outline"
@@ -228,6 +235,72 @@ export function RevalidationWorkflow({
               runAction(
                 () => rejectExtension(extensionId, { comments: decisionComments.trim() || undefined }),
                 "Extension rejected",
+              )
+            }
+          >
+            Reject
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border p-4 space-y-3">
+        <h2 className="text-lg font-medium">Permit renewal (FR-MDP-009)</h2>
+        <p className="text-sm text-muted-foreground">
+          Copies template from the source permit. Update schedule/hazards/PPE on the renewal draft,
+          then submit for HOD approval.
+        </p>
+        <Button
+          disabled={isSubmitting}
+          onClick={() =>
+            runAction(async () => {
+              const result = await createRenewal(permitId);
+              setLastRenewal(result.renewal);
+              setRenewalId(result.renewal.id);
+            }, "Renewal draft created")
+          }
+        >
+          Create renewal draft
+        </Button>
+        <label className="block text-sm">
+          Renewal ID
+          <input
+            className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            value={renewalId}
+            onChange={(event) => setRenewalId(event.target.value)}
+            placeholder="Paste renewal ID"
+          />
+        </label>
+        {lastRenewal ? (
+          <p className="text-xs text-muted-foreground">
+            Last renewal: {lastRenewal.id} ({lastRenewal.status}) → permit {lastRenewal.renewalPermitId}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={isSubmitting || !renewalId}
+            onClick={() => runAction(() => submitRenewal(renewalId), "Renewal submitted to HOD")}
+          >
+            Submit to HOD
+          </Button>
+          <Button
+            disabled={isSubmitting || !renewalId}
+            onClick={() =>
+              runAction(
+                () => acceptRenewal(renewalId, { comments: decisionComments.trim() || undefined }),
+                "Renewal accepted",
+              )
+            }
+          >
+            Accept
+          </Button>
+          <Button
+            variant="outline"
+            disabled={isSubmitting || !renewalId}
+            onClick={() =>
+              runAction(
+                () => rejectRenewal(renewalId, { comments: decisionComments.trim() || undefined }),
+                "Renewal rejected",
               )
             }
           >
