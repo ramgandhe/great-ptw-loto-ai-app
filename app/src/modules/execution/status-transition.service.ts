@@ -6,6 +6,7 @@ import {
   permits,
   type PermitStatusHistoryAction,
 } from '../../database/schema';
+import { PermitLifecycleService } from '../permit/permit-lifecycle.service';
 
 export interface StatusTransitionEntry {
   permitId: string;
@@ -23,10 +24,15 @@ type DbClient = Pick<Database, 'insert' | 'update'>;
 
 @Injectable()
 export class StatusTransitionService {
-  constructor(@Inject(DATABASE_CONNECTION) private readonly db: Database) {}
+  constructor(
+    @Inject(DATABASE_CONNECTION) private readonly db: Database,
+    private readonly permitLifecycleService: PermitLifecycleService,
+  ) {}
 
   async transition(entry: StatusTransitionEntry, db?: DbClient) {
     const client = db ?? this.db;
+
+    this.permitLifecycleService.assertTransition(entry.fromStatus, entry.toStatus);
 
     await client
       .update(permits)

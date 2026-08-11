@@ -33,6 +33,7 @@ const PTW_TABLES = [
   'incident_evidence',
   'incidents',
   'audit_history',
+  'supervisor_cosignatures',
   'revalidation_history',
   'permit_suspensions',
   'permit_extensions',

@@ -10,6 +10,7 @@ import { PermitValidationService } from './permit-validation.service';
 import { PermitCacheService } from './permit-cache.service';
 import { PermitJobsService } from './permit-jobs.service';
 import { PermitLogService } from './permit-log.service';
+import { PermitLifecycleService } from './permit-lifecycle.service';
 
 @Module({
   imports: [forwardRef(() => ApprovalModule)],
@@ -22,7 +23,8 @@ import { PermitLogService } from './permit-log.service';
     PermitCacheService,
     PermitLogService,
     PermitJobsService,
+    PermitLifecycleService,
   ],
-  exports: [PermitService, PermitCacheService, PermitLogService],
+  exports: [PermitService, PermitCacheService, PermitLogService, PermitLifecycleService],
 })
 export class PermitModule {}

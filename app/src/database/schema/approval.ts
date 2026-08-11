@@ -27,6 +27,8 @@ export const APPROVAL_HISTORY_ACTIONS = [
   'deferred',
   'stage_advanced',
   'resubmitted',
+  'hod_initial_review',
+  'supervisor_cosign',
 ] as const;
 export type ApprovalHistoryAction = (typeof APPROVAL_HISTORY_ACTIONS)[number];
 

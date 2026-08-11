@@ -12,10 +12,13 @@ import { NotificationService } from './notification.service';
 import { ProgressController } from './progress.controller';
 import { ProgressService } from './progress.service';
 import { StatusTransitionService } from './status-transition.service';
+import { CosignatureController } from './cosignature.controller';
+import { CosignatureService } from './cosignature.service';
+import { ApprovalModule } from '../approval/approval.module';
 
 @Module({
-  imports: [PermitModule],
-  controllers: [ExecutionController, ProgressController, EvidenceController],
+  imports: [PermitModule, ApprovalModule],
+  controllers: [ExecutionController, ProgressController, EvidenceController, CosignatureController],
   providers: [
     ExecutionService,
     ProgressService,
@@ -26,6 +29,7 @@ import { StatusTransitionService } from './status-transition.service';
     ExecutionJobsService,
     ExecutionLogService,
     ExecutionEvidenceService,
+    CosignatureService,
   ],
   exports: [
     ExecutionService,
@@ -34,6 +38,7 @@ import { StatusTransitionService } from './status-transition.service';
     StatusTransitionService,
     ExecutionCacheService,
     ExecutionLogService,
+    CosignatureService,
   ],
 })
 export class ExecutionModule {}

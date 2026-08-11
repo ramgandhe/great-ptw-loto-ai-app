@@ -19,13 +19,15 @@ import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
 import { ApprovalCacheService } from './approval-cache.service';
 import { ApprovalLogService } from './approval-log.service';
-import { PENDING_APPROVAL_STATUS } from './approval.constants';
+import { PENDING_APPROVAL_STATUS, HOD_INITIAL_REVIEW_ACTION, userHasHodRole } from './approval.constants';
 import { ApprovalHistoryService } from './approval-history.service';
 import { ApprovePermitDto } from './dto/approve-permit.dto';
 import { DeferPermitDto } from './dto/defer-permit.dto';
 import { RejectPermitDto } from './dto/reject-permit.dto';
+import { SafetyOfficerVetoDto } from './dto/safety-officer-veto.dto';
 import { NotificationService } from './notification.service';
 import { WorkflowEngineService } from './workflow-engine.service';
+import { PermitLifecycleService } from '../permit/permit-lifecycle.service';
 
 @Injectable()
 export class ApprovalService {
@@ -39,6 +41,7 @@ export class ApprovalService {
     private readonly permitCacheService: PermitCacheService,
     private readonly approvalCacheService: ApprovalCacheService,
     private readonly approvalLogService: ApprovalLogService,
+    private readonly permitLifecycleService: PermitLifecycleService,
   ) {}
 
   async listPending(user: AuthenticatedUser) {
@@ -137,24 +140,30 @@ export class ApprovalService {
       await this.workflowEngine.completeAssignment(assignment.id, user.id, tx);
 
       const hasNext = await this.workflowEngine.hasNextStep(permitId, step.stepSequence, tx);
+      const isHod = userHasHodRole(user.roles);
 
       if (hasNext) {
         await this.workflowEngine.activateNextStep(permitId, step.stepSequence, user.id, tx);
         await this.approvalHistoryService.record(
           {
             permitId,
-            action: 'stage_advanced',
+            action: isHod ? HOD_INITIAL_REVIEW_ACTION : 'stage_advanced',
             fromStatus: permit.status,
             toStatus: PENDING_APPROVAL_STATUS,
             actorId: user.id,
             comment: dto.comment,
             workflowStepId: step.id,
             permitApprovalId: approval.id,
+            metadata: isHod
+              ? { decisionKind: HOD_INITIAL_REVIEW_ACTION, stageAdvanced: true }
+              : undefined,
             createdBy: user.id,
           },
           tx,
         );
       } else {
+        this.permitLifecycleService.assertTransition(permit.status, 'approved');
+
         await tx
           .update(permits)
           .set({ status: 'approved', updatedBy: user.id })
@@ -163,13 +172,14 @@ export class ApprovalService {
         await this.approvalHistoryService.record(
           {
             permitId,
-            action: 'approved',
+            action: isHod ? HOD_INITIAL_REVIEW_ACTION : 'approved',
             fromStatus: permit.status,
             toStatus: 'approved',
             actorId: user.id,
             comment: dto.comment,
             workflowStepId: step.id,
             permitApprovalId: approval.id,
+            metadata: isHod ? { decisionKind: HOD_INITIAL_REVIEW_ACTION, final: true } : undefined,
             createdBy: user.id,
           },
           tx,
@@ -177,12 +187,16 @@ export class ApprovalService {
       }
 
       await this.auditService.log({
-        action: 'permit.approved',
+        action: isHod ? `permit.${HOD_INITIAL_REVIEW_ACTION}` : 'permit.approved',
         entityType: 'permit',
         entityId: permitId,
         userId: user.id,
         tenantId: permit.tenantId,
-        metadata: { workflowStepId: step.id, final: !hasNext },
+        metadata: {
+          workflowStepId: step.id,
+          final: !hasNext,
+          decisionKind: isHod ? HOD_INITIAL_REVIEW_ACTION : 'approval',
+        },
       });
 
       await this.notificationService.enqueueApprovalNotification({
@@ -252,6 +266,76 @@ export class ApprovalService {
       auditAction: 'permit.deferred',
       notificationAction: 'deferred',
     });
+  }
+
+  /** FR-ROL-002: Safety Officer hard override — cancels permit before closure. */
+  async safetyOfficerVeto(permitId: string, dto: SafetyOfficerVetoDto, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const detail = await this.permitService.findOne(permitId, user);
+    const { permit } = detail;
+
+    if (permit.status === 'closed') {
+      throw new ConflictException('Cannot veto a closed permit');
+    }
+
+    if (permit.status === 'rejected') {
+      throw new ConflictException('Permit is already rejected');
+    }
+
+    this.permitLifecycleService.assertTransition(permit.status, 'rejected');
+
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(permits)
+        .set({ status: 'rejected', updatedBy: user.id })
+        .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
+
+      await this.workflowEngine.resetWorkflow(permitId, tx);
+
+      await this.approvalHistoryService.record(
+        {
+          permitId,
+          action: 'rejected',
+          fromStatus: permit.status,
+          toStatus: 'rejected',
+          actorId: user.id,
+          comment: dto.comment,
+          metadata: { safetyOfficerVeto: true, hardOverride: true },
+          createdBy: user.id,
+        },
+        tx,
+      );
+
+      await this.auditService.log({
+        action: 'permit.safety_officer_veto',
+        entityType: 'permit',
+        entityId: permitId,
+        userId: user.id,
+        tenantId,
+        metadata: { fromStatus: permit.status },
+      });
+
+      await this.notificationService.enqueueApprovalNotification({
+        permitId,
+        tenantId,
+        action: 'rejected',
+        actorId: user.id,
+        metadata: { safetyOfficerVeto: true },
+      });
+
+      await this.permitCacheService.invalidatePermit(tenantId, permitId);
+      await this.approvalCacheService.invalidateTenant(tenantId);
+
+      this.approvalLogService.logEvent({
+        action: 'approval.safety_officer_veto',
+        permitId,
+        tenantId,
+        userId: user.id,
+        metadata: { fromStatus: permit.status },
+      });
+    });
+
+    return this.review(permitId, user);
   }
 
   async getHistory(permitId: string, user: AuthenticatedUser) {
@@ -333,6 +417,8 @@ export class ApprovalService {
       auditAction,
       notificationAction,
     } = params;
+
+    this.permitLifecycleService.assertTransition(permit.status, toStatus);
 
     await this.db.transaction(async (tx) => {
       const [approval] = await tx

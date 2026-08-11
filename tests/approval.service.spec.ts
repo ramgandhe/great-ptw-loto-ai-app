@@ -19,6 +19,7 @@ import { WorkflowEngineService } from '../app/src/modules/approval/workflow-engi
 import { AuditService } from '../app/src/modules/logging/audit.service';
 import { PermitCacheService } from '../app/src/modules/permit/permit-cache.service';
 import { PermitService } from '../app/src/modules/permit/permit.service';
+import { PermitLifecycleService } from '../app/src/modules/permit/permit-lifecycle.service';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 
 describe('ApprovalService integration (PUS-136)', () => {
@@ -101,6 +102,7 @@ describe('ApprovalService integration (PUS-136)', () => {
       permitCacheService,
       approvalCacheService,
       approvalLogService,
+      new PermitLifecycleService(),
     );
   });
 

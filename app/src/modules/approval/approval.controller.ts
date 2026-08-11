@@ -9,12 +9,13 @@ import {
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
-import { APPROVAL_ACTION_ROLES, APPROVAL_READ_ROLES } from './approval.constants';
+import { APPROVAL_ACTION_ROLES, APPROVAL_READ_ROLES, SAFETY_OFFICER_VETO_ROLES } from './approval.constants';
 import { ApprovalAttachmentService } from './approval-attachment.service';
 import { ApprovalService } from './approval.service';
 import { ApprovePermitDto } from './dto/approve-permit.dto';
 import { DeferPermitDto } from './dto/defer-permit.dto';
 import { RejectPermitDto } from './dto/reject-permit.dto';
+import { SafetyOfficerVetoDto } from './dto/safety-officer-veto.dto';
 
 @Controller('approvals')
 export class ApprovalController {
@@ -66,6 +67,16 @@ export class ApprovalController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.approvalService.defer(permitId, dto, user);
+  }
+
+  @Roles(...SAFETY_OFFICER_VETO_ROLES)
+  @Post(':permitId/safety-veto')
+  safetyVeto(
+    @Param('permitId', ParseUUIDPipe) permitId: string,
+    @Body() dto: SafetyOfficerVetoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.approvalService.safetyOfficerVeto(permitId, dto, user);
   }
 
   @Roles(...APPROVAL_READ_ROLES)

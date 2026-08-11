@@ -231,6 +231,6 @@ export class WorkflowEngineService {
   }
 
   userHasApproverRole(userRoles: string[], requiredRole: string): boolean {
-    return userRoles.includes(requiredRole) || userRoles.includes('platform-admin');
+    return userRoles.includes(requiredRole);
   }
 }

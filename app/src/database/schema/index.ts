@@ -22,6 +22,7 @@ export * from './notifications';
 export * from './analytics';
 export * from './billing';
 export * from './ops';
+export * from './role-authority';
 
 
 export const platformMetadata = pgTable('platform_metadata', {

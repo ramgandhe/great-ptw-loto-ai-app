@@ -17,7 +17,8 @@ import { AuditService } from '../logging/audit.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
 import { StatusTransitionService } from '../execution/status-transition.service';
-import { ACTIVE_STATUS, CLOSED_STATUS } from './closure.constants';
+import { ACTIVE_STATUS, CLOSED_STATUS, HOD_FINAL_CLOSURE_ACTION } from './closure.constants';
+import { userHasHodRole } from '../approval/approval.constants';
 import { ClosureCacheService } from './closure-cache.service';
 import { ClosureLogService } from './closure-log.service';
 import { ClosePermitDto } from './dto/close-permit.dto';
@@ -64,6 +65,8 @@ export class ClosureService {
     }
 
     const actualEndAt = dto.actualEndAt ? new Date(dto.actualEndAt) : new Date();
+    const isHod = userHasHodRole(user.roles);
+    const closureAuditAction = isHod ? `permit.${HOD_FINAL_CLOSURE_ACTION}` : 'permit.closed';
 
     const closure = await this.db.transaction(async (tx) => {
       const [record] = await tx
@@ -86,7 +89,10 @@ export class ClosureService {
           toStatus: CLOSED_STATUS,
           actorId: user.id,
           comment: dto.comment,
-          metadata: { actualEndAt: actualEndAt.toISOString() },
+          metadata: {
+            actualEndAt: actualEndAt.toISOString(),
+            decisionKind: isHod ? HOD_FINAL_CLOSURE_ACTION : 'closure',
+          },
         },
         tx,
       );
@@ -102,12 +108,13 @@ export class ClosureService {
 
       await tx.insert(auditHistory).values({
         permitId,
-        action: 'permit.closed',
+        action: closureAuditAction,
         actorId: user.id,
         comment: dto.comment ?? null,
         metadata: {
           closureId: record.id,
           actualEndAt: actualEndAt.toISOString(),
+          decisionKind: isHod ? HOD_FINAL_CLOSURE_ACTION : 'closure',
         },
         createdBy: user.id,
       });
@@ -116,12 +123,16 @@ export class ClosureService {
     });
 
     await this.auditService.log({
-      action: 'permit.closed',
+      action: closureAuditAction,
       entityType: 'permit',
       entityId: permitId,
       userId: user.id,
       tenantId,
-      metadata: { closureId: closure.id, actualEndAt: actualEndAt.toISOString() },
+      metadata: {
+        closureId: closure.id,
+        actualEndAt: actualEndAt.toISOString(),
+        decisionKind: isHod ? HOD_FINAL_CLOSURE_ACTION : 'closure',
+      },
     });
 
     await this.permitCacheService.invalidatePermit(tenantId, permitId);
