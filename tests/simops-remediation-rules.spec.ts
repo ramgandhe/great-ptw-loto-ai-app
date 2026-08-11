@@ -5,7 +5,11 @@ import {
   SIMOPS_RESOLVE_ROLES,
   SIMOPS_SYSTEM_ACTOR_ID,
 } from '../app/src/modules/simops/simops.constants';
-import { newerPermitId, type PermitForAnalysis } from '../app/src/modules/simops/conflict-detection.service';
+import {
+  detectPairConflict,
+  newerPermitId,
+  type PermitForAnalysis,
+} from '../app/src/modules/simops/conflict-detection.service';
 
 describe('SIMOPS remediation rules (PUS-246)', () => {
   it('defaults high cross-dept escalation to 4 hours (FR-SIM-019)', () => {
@@ -40,5 +44,33 @@ describe('SIMOPS remediation rules (PUS-246)', () => {
     } as PermitForAnalysis;
 
     expect(newerPermitId(older, newer)).toBe('b');
+  });
+
+  it('treats same-location-only pairs as non-conflicts (FR-SIM-011 negative)', () => {
+    const locationId = 'loc-1';
+    const a = {
+      id: 'a',
+      locationId,
+      workstationId: 'ws-1',
+      machineryId: 'm-1',
+      plannedStartAt: new Date('2026-08-01T08:00:00.000Z'),
+      plannedEndAt: new Date('2026-08-01T16:00:00.000Z'),
+      hazardCategoryCodes: [],
+      submittedAt: new Date(),
+      createdAt: new Date(),
+      permitTypeId: 't1',
+      reference: null,
+      title: 'A',
+      departmentId: 'd1',
+      status: 'approved',
+    } as PermitForAnalysis;
+    const b = {
+      ...a,
+      id: 'b',
+      workstationId: 'ws-2',
+      machineryId: 'm-2',
+    } as PermitForAnalysis;
+
+    expect(detectPairConflict(a, b)).toBeNull();
   });
 });
