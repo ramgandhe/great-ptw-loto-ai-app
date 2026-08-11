@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { ApiError } from "@/lib/api";
 import {
+  acknowledgeDepartmentSimopsConflict,
+  acknowledgeLowSimopsConflict,
   approveSimopsConflict,
   assessSimopsConflict,
   createMitigationPlan,
@@ -31,9 +33,12 @@ export function ConflictWorkflow({ detail, onUpdated }: ConflictWorkflowProps) {
   );
   const [approvalComments, setApprovalComments] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
+  const [lowAckComments, setLowAckComments] = useState("Low-severity conflict acknowledged");
 
   const status = detail.conflict.status;
   const isResolved = status === "approved" || status === "rejected";
+  const requiresJointAck = Boolean(detail.conflict.requiresJointAck);
+  const jointAckComplete = Boolean(detail.conflict.ackUserA && detail.conflict.ackUserB);
 
   async function runAction(action: () => Promise<unknown>) {
     setIsSubmitting(true);
@@ -67,6 +72,62 @@ export function ConflictWorkflow({ detail, onUpdated }: ConflictWorkflowProps) {
           className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
         >
           {error}
+        </div>
+      ) : null}
+
+      {detail.conflict.frozenPermitId ? (
+        <div
+          role="status"
+          className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm"
+        >
+          Newer permit is on SIMOPS hold until this conflict is resolved.
+        </div>
+      ) : null}
+
+      {status === "open" && detail.conflict.severity === "low" ? (
+        <div className="rounded-lg border border-border p-4 space-y-3">
+          <h2 className="text-lg font-medium">Low-severity acknowledgment</h2>
+          <p className="text-sm text-muted-foreground">
+            Job Issuers may acknowledge low-severity conflicts without the full review path.
+          </p>
+          <label className="block text-sm">
+            Comments
+            <textarea
+              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              rows={2}
+              value={lowAckComments}
+              onChange={(event) => setLowAckComments(event.target.value)}
+            />
+          </label>
+          <Button
+            disabled={isSubmitting || !lowAckComments.trim()}
+            onClick={() =>
+              runAction(() =>
+                acknowledgeLowSimopsConflict(detail.conflict.id, lowAckComments.trim()),
+              )
+            }
+          >
+            Acknowledge low conflict
+          </Button>
+        </div>
+      ) : null}
+
+      {requiresJointAck && !jointAckComplete ? (
+        <div className="rounded-lg border border-border p-4 space-y-3">
+          <h2 className="text-lg font-medium">Cross-department acknowledgment</h2>
+          <p className="text-sm text-muted-foreground">
+            Both departments must acknowledge before approval.
+            {detail.conflict.ackUserA ? " First acknowledgment recorded." : ""}
+            {detail.conflict.ackUserB ? " Second acknowledgment recorded." : ""}
+          </p>
+          <Button
+            disabled={isSubmitting}
+            onClick={() =>
+              runAction(() => acknowledgeDepartmentSimopsConflict(detail.conflict.id))
+            }
+          >
+            Record department acknowledgment
+          </Button>
         </div>
       ) : null}
 

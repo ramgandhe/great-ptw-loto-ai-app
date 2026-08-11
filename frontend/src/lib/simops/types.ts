@@ -5,7 +5,14 @@ export type ConflictStatus =
   | "approved"
   | "rejected";
 export type ConflictSeverity = "low" | "medium" | "high";
-export type ConflictType = "location" | "equipment" | "schedule" | "permit_type";
+export type ConflictType =
+  | "location"
+  | "equipment"
+  | "schedule"
+  | "permit_type"
+  | "adjacency"
+  | "hazard"
+  | "energy_source";
 
 export type SimopsConflict = {
   id: string;
@@ -17,6 +24,13 @@ export type SimopsConflict = {
   details?: Record<string, unknown> | null;
   detectedAt: string;
   fingerprint: string;
+  frozenPermitId?: string | null;
+  requiresJointAck?: boolean;
+  ackUserA?: string | null;
+  ackUserB?: string | null;
+  escalateAfter?: string | null;
+  escalatedAt?: string | null;
+  escalatedToRole?: string | null;
   createdAt: string;
   updatedAt: string;
 };

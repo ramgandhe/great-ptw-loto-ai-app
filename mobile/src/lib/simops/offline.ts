@@ -42,3 +42,24 @@ export async function queueOfflineReject(conflictId: string, reason: string): Pr
     payload: { reason },
   });
 }
+
+export async function queueOfflineAcknowledgeLow(
+  conflictId: string,
+  comments: string,
+): Promise<void> {
+  await enqueueSyncItem({
+    entityType: "simops_acknowledge_low",
+    method: "POST",
+    path: `/simops/conflicts/${conflictId}/acknowledge-low`,
+    payload: { comments },
+  });
+}
+
+export async function queueOfflineAcknowledgeDepartment(conflictId: string): Promise<void> {
+  await enqueueSyncItem({
+    entityType: "simops_acknowledge_department",
+    method: "POST",
+    path: `/simops/conflicts/${conflictId}/acknowledge-department`,
+    payload: {},
+  });
+}

@@ -5,10 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lt } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
+  auditHistory,
+  conflictAlerts,
   conflictAssessments,
   conflictHistory,
   conflictParticipants,
@@ -17,21 +19,28 @@ import {
   permits,
   permitSuspensions,
   simopsConflicts,
+  simopsTenantSettings,
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
-import { RESOLVED_CONFLICT_STATUSES } from './simops.constants';
+import {
+  DEFAULT_HIGH_ESCALATION_HOURS,
+  RESOLVED_CONFLICT_STATUSES,
+  SIMOPS_LOW_ACK_ROLES,
+} from './simops.constants';
 import {
   ApproveConflictDto,
   AssessConflictDto,
   MitigationPlanDto,
   RejectConflictDto,
 } from './dto/simops.dto';
+import { SimopsService } from './simops.service';
 
 @Injectable()
 export class ConflictResolutionService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly auditService: AuditService,
+    private readonly simopsService: SimopsService,
   ) {}
 
   async assess(conflictId: string, dto: AssessConflictDto, user: AuthenticatedUser) {
@@ -57,6 +66,10 @@ export class ConflictResolutionService {
       .where(eq(simopsConflicts.id, conflict.id));
 
     await this.recordHistory(tenantId, conflict.id, user.id, 'assessed', {
+      assessedSeverity: dto.assessedSeverity,
+    });
+
+    await this.auditBothPermits(conflict.id, tenantId, user.id, 'simops.conflict_assessed', {
       assessedSeverity: dto.assessedSeverity,
     });
 
@@ -121,6 +134,10 @@ export class ConflictResolutionService {
       actionCount: dto.actions.length,
     });
 
+    await this.auditBothPermits(conflict.id, tenantId, user.id, 'simops.mitigation_planned', {
+      actionCount: dto.actions.length,
+    });
+
     await this.auditService.log({
       action: 'simops.mitigation_planned',
       entityType: 'simops_conflict',
@@ -132,11 +149,96 @@ export class ConflictResolutionService {
     return plan;
   }
 
+  /** FR-SIM-015 — Low-severity conflicts may be auto-acknowledged by Job Issuer. */
+  async acknowledgeLow(conflictId: string, comments: string, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    if (!user.roles.some((role) => (SIMOPS_LOW_ACK_ROLES as readonly string[]).includes(role))) {
+      throw new ForbiddenException('Not authorized to acknowledge low-severity conflicts');
+    }
+
+    const conflict = await this.requireOpenConflict(conflictId, tenantId, ['open']);
+    if (conflict.severity !== 'low') {
+      throw new BadRequestException('Only low-severity conflicts can be auto-acknowledged');
+    }
+
+    const [resolution] = await this.db
+      .insert(conflictResolutions)
+      .values({
+        tenantId,
+        conflictId: conflict.id,
+        outcome: 'approved',
+        comments: comments.trim() || 'Low-severity conflict acknowledged by Job Issuer',
+        resolvedBy: user.id,
+        createdBy: user.id,
+        updatedBy: user.id,
+      })
+      .returning();
+
+    await this.db
+      .update(simopsConflicts)
+      .set({ status: 'approved', updatedBy: user.id, updatedAt: new Date() })
+      .where(eq(simopsConflicts.id, conflict.id));
+
+    await this.simopsService.releaseHold(conflict.id, tenantId, user.id);
+    await this.recordHistory(tenantId, conflict.id, user.id, 'low_acknowledged', {});
+    await this.auditBothPermits(conflict.id, tenantId, user.id, 'simops.conflict_approved', {
+      lowAutoAck: true,
+    });
+
+    return resolution;
+  }
+
+  /** FR-SIM-018 — cross-department joint acknowledgment. */
+  async acknowledgeDepartment(conflictId: string, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const conflict = await this.requireOpenConflict(conflictId, tenantId, [
+      'open',
+      'assessed',
+      'mitigation_planned',
+    ]);
+
+    if (!conflict.requiresJointAck) {
+      throw new BadRequestException('Conflict does not require joint acknowledgment');
+    }
+
+    const patch: Record<string, unknown> = { updatedBy: user.id, updatedAt: new Date() };
+    if (!conflict.ackUserA) {
+      patch.ackUserA = user.id;
+      patch.ackAtA = new Date();
+    } else if (!conflict.ackUserB && conflict.ackUserA !== user.id) {
+      patch.ackUserB = user.id;
+      patch.ackAtB = new Date();
+    } else if (conflict.ackUserA === user.id || conflict.ackUserB === user.id) {
+      throw new BadRequestException('Department acknowledgment already recorded for this actor');
+    } else {
+      throw new BadRequestException('Both department acknowledgments are already recorded');
+    }
+
+    const [updated] = await this.db
+      .update(simopsConflicts)
+      .set(patch)
+      .where(eq(simopsConflicts.id, conflict.id))
+      .returning();
+
+    await this.recordHistory(tenantId, conflict.id, user.id, 'department_acknowledged', {
+      ackUserA: updated.ackUserA,
+      ackUserB: updated.ackUserB,
+    });
+
+    return updated;
+  }
+
   async approve(conflictId: string, dto: ApproveConflictDto, user: AuthenticatedUser) {
     const tenantId = this.requireTenant(user);
     const conflict = await this.requireOpenConflict(conflictId, tenantId, ['mitigation_planned']);
 
     await this.requireAssessmentAndMitigation(conflict.id, tenantId);
+
+    if (conflict.requiresJointAck && (!conflict.ackUserA || !conflict.ackUserB)) {
+      throw new BadRequestException(
+        'Cross-department conflicts require joint acknowledgment from both departments before approval',
+      );
+    }
 
     const [resolution] = await this.db
       .insert(conflictResolutions)
@@ -156,7 +258,13 @@ export class ConflictResolutionService {
       .set({ status: 'approved', updatedBy: user.id, updatedAt: new Date() })
       .where(eq(simopsConflicts.id, conflict.id));
 
+    await this.simopsService.releaseHold(conflict.id, tenantId, user.id);
+
     await this.recordHistory(tenantId, conflict.id, user.id, 'approved', {
+      comments: dto.comments.trim(),
+    });
+
+    await this.auditBothPermits(conflict.id, tenantId, user.id, 'simops.conflict_approved', {
       comments: dto.comments.trim(),
     });
 
@@ -197,10 +305,15 @@ export class ConflictResolutionService {
       .set({ status: 'rejected', updatedBy: user.id, updatedAt: new Date() })
       .where(eq(simopsConflicts.id, conflict.id));
 
-    await this.suspendParticipantPermits(conflict.id, tenantId, user.id);
+    await this.suspendFrozenPermit(conflict.id, tenantId, user.id, conflict.frozenPermitId);
 
     await this.recordHistory(tenantId, conflict.id, user.id, 'rejected', {
       reason: dto.reason.trim(),
+    });
+
+    await this.auditBothPermits(conflict.id, tenantId, user.id, 'simops.conflict_rejected', {
+      reason: dto.reason.trim(),
+      frozenPermitId: conflict.frozenPermitId,
     });
 
     await this.auditService.log({
@@ -212,6 +325,70 @@ export class ConflictResolutionService {
     });
 
     return resolution;
+  }
+
+  /** FR-SIM-019 — escalate overdue cross-department High conflicts. */
+  async escalateOverdue(actorId = 'system') {
+    const now = new Date();
+    const due = await this.db
+      .select()
+      .from(simopsConflicts)
+      .where(
+        and(
+          inArray(simopsConflicts.status, ['open', 'assessed', 'mitigation_planned']),
+          eq(simopsConflicts.requiresJointAck, true),
+          isNull(simopsConflicts.escalatedAt),
+          lt(simopsConflicts.escalateAfter, now),
+        ),
+      );
+
+    let escalated = 0;
+    for (const conflict of due) {
+      const [settings] = await this.db
+        .select()
+        .from(simopsTenantSettings)
+        .where(eq(simopsTenantSettings.tenantId, conflict.tenantId))
+        .limit(1);
+      const arbiterRole = settings?.conflictArbiterRole ?? 'org-admin';
+
+      await this.db
+        .update(simopsConflicts)
+        .set({
+          escalatedAt: now,
+          escalatedToRole: arbiterRole,
+          updatedBy: actorId,
+          updatedAt: now,
+        })
+        .where(eq(simopsConflicts.id, conflict.id));
+
+      await this.db.insert(conflictAlerts).values({
+        tenantId: conflict.tenantId,
+        conflictId: conflict.id,
+        severity: conflict.severity,
+        message: `Cross-department SIMOPS conflict escalated to ${arbiterRole}`,
+        recipientRole: arbiterRole,
+        status: 'pending',
+        createdBy: actorId,
+        updatedBy: actorId,
+      });
+
+      await this.recordHistory(conflict.tenantId, conflict.id, actorId, 'escalated', {
+        escalatedToRole: arbiterRole,
+        defaultHours: settings?.highEscalationHours ?? DEFAULT_HIGH_ESCALATION_HOURS,
+      });
+
+      await this.auditBothPermits(
+        conflict.id,
+        conflict.tenantId,
+        actorId,
+        'simops.conflict_escalated',
+        { escalatedToRole: arbiterRole },
+      );
+
+      escalated += 1;
+    }
+
+    return { escalated };
   }
 
   async listHistory(user: AuthenticatedUser) {
@@ -361,10 +538,53 @@ export class ConflictResolutionService {
     return conflict;
   }
 
-  private async suspendParticipantPermits(
+  private async suspendFrozenPermit(
     conflictId: string,
     tenantId: string,
     userId: string,
+    frozenPermitId: string | null,
+  ) {
+    if (!frozenPermitId) {
+      return;
+    }
+
+    const [updated] = await this.db
+      .update(permits)
+      .set({
+        status: 'suspended',
+        simopsHoldAt: null,
+        simopsHoldConflictId: null,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(permits.id, frozenPermitId),
+          eq(permits.tenantId, tenantId),
+          inArray(permits.status, ['approved', 'active', 'pending_approval']),
+        ),
+      )
+      .returning({ id: permits.id });
+
+    if (updated) {
+      await this.db.insert(permitSuspensions).values({
+        tenantId,
+        permitId: frozenPermitId,
+        reason: `SIMOPS conflict rejected:${conflictId}`,
+        suspendedBy: userId,
+        source: 'manual',
+        createdBy: userId,
+        updatedBy: userId,
+      });
+    }
+  }
+
+  private async auditBothPermits(
+    conflictId: string,
+    tenantId: string,
+    actorId: string,
+    action: string,
+    metadata: Record<string, unknown>,
   ) {
     const participants = await this.db
       .select({ permitId: conflictParticipants.permitId })
@@ -377,31 +597,13 @@ export class ConflictResolutionService {
       );
 
     for (const participant of participants) {
-      const [updated] = await this.db
-        .update(permits)
-        .set({ status: 'suspended', updatedBy: userId, updatedAt: new Date() })
-        .where(
-          and(
-            eq(permits.id, participant.permitId),
-            eq(permits.tenantId, tenantId),
-            inArray(permits.status, ['approved', 'active', 'pending_approval']),
-          ),
-        )
-        .returning({ id: permits.id });
-
-      // Authoritative suspension row so MS-05 continue cannot silently clear SIMOPS holds.
-      // Uses source=manual until a dedicated simops_rejection source is added to the CHECK.
-      if (updated) {
-        await this.db.insert(permitSuspensions).values({
-          tenantId,
-          permitId: participant.permitId,
-          reason: `SIMOPS conflict rejected:${conflictId}`,
-          suspendedBy: userId,
-          source: 'manual',
-          createdBy: userId,
-          updatedBy: userId,
-        });
-      }
+      await this.db.insert(auditHistory).values({
+        permitId: participant.permitId,
+        action,
+        actorId,
+        metadata: { conflictId, ...metadata },
+        createdBy: actorId,
+      });
     }
   }
 

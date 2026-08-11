@@ -6,6 +6,9 @@ const TYPE_LABELS: Record<ConflictType, string> = {
   equipment: "Equipment",
   schedule: "Schedule",
   permit_type: "Permit type",
+  adjacency: "Adjacency",
+  hazard: "Hazard",
+  energy_source: "Energy source",
 };
 
 export function ConflictSummaryCards({ conflicts }: { conflicts: SimopsConflict[] }) {

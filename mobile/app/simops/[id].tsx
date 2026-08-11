@@ -11,6 +11,8 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { ApiError } from "@/lib/api";
 import {
+  acknowledgeDepartmentSimopsConflict,
+  acknowledgeLowSimopsConflict,
   approveSimopsConflict,
   assessSimopsConflict,
   createMitigationPlan,
@@ -19,6 +21,8 @@ import {
 } from "@/lib/simops/api";
 import type { ConflictDetail } from "@/lib/simops/types";
 import {
+  queueOfflineAcknowledgeDepartment,
+  queueOfflineAcknowledgeLow,
   queueOfflineApprove,
   queueOfflineAssess,
   queueOfflineMitigation,
@@ -44,6 +48,7 @@ export default function SimopsConflictDetailScreen() {
   const [actionDescription, setActionDescription] = useState("");
   const [comments, setComments] = useState("");
   const [rejectReason, setRejectReason] = useState("");
+  const [lowAckComments, setLowAckComments] = useState("Low-severity conflict acknowledged");
   const [queuedMessage, setQueuedMessage] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -85,6 +90,8 @@ export default function SimopsConflictDetailScreen() {
 
   const status = detail?.conflict.status;
   const isResolved = status === "approved" || status === "rejected";
+  const requiresJointAck = Boolean(detail?.conflict.requiresJointAck);
+  const jointAckComplete = Boolean(detail?.conflict.ackUserA && detail?.conflict.ackUserB);
 
   return (
     <ScrollView style={{ backgroundColor: tokens.colors.background }} contentContainerStyle={styles.container}>
@@ -103,9 +110,19 @@ export default function SimopsConflictDetailScreen() {
           <View style={[styles.card, { borderColor: tokens.colors.border }]}>
             <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>{detail.conflict.summary}</Text>
             <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12, marginTop: 4 }}>
-              {detail.conflict.status.replace(/_/g, " ")} · {detail.conflict.severity} severity
+              {detail.conflict.status.replace(/_/g, " ")} · {detail.conflict.severity} severity ·{" "}
+              {detail.conflict.conflictType.replace(/_/g, " ")}
             </Text>
           </View>
+
+          {detail.conflict.frozenPermitId ? (
+            <View style={[styles.card, { borderColor: tokens.colors.border }]}>
+              <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>SIMOPS hold</Text>
+              <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12, marginTop: 4 }}>
+                Newer permit is frozen until this conflict is resolved.
+              </Text>
+            </View>
+          ) : null}
 
           {detail.participants.map((participant) => (
             <View key={participant.id} style={[styles.card, { borderColor: tokens.colors.border }]}>
@@ -115,6 +132,63 @@ export default function SimopsConflictDetailScreen() {
               </Text>
             </View>
           ))}
+
+          {!isResolved && status === "open" && detail.conflict.severity === "low" ? (
+            <View style={[styles.card, { borderColor: tokens.colors.border }]}>
+              <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>
+                Low-severity acknowledgment
+              </Text>
+              <TextInput
+                style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
+                multiline
+                value={lowAckComments}
+                onChangeText={setLowAckComments}
+                placeholder="Acknowledgment comments"
+                placeholderTextColor={tokens.colors.mutedForeground}
+              />
+              <Pressable
+                style={[styles.primaryButton, { backgroundColor: tokens.colors.primary }]}
+                onPress={async () => {
+                  if (!isOnline) {
+                    await queueOfflineAcknowledgeLow(detail.conflict.id, lowAckComments.trim());
+                    setQueuedMessage("Low acknowledgment queued for sync");
+                    return;
+                  }
+                  await runAction(() =>
+                    acknowledgeLowSimopsConflict(detail.conflict.id, lowAckComments.trim()),
+                  );
+                }}
+              >
+                <Text style={styles.primaryButtonText}>Acknowledge low conflict</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {!isResolved && requiresJointAck && !jointAckComplete ? (
+            <View style={[styles.card, { borderColor: tokens.colors.border }]}>
+              <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>
+                Cross-department acknowledgment
+              </Text>
+              <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12, marginTop: 4 }}>
+                Both departments must acknowledge before approval.
+                {detail.conflict.ackUserA ? " First acknowledgment recorded." : ""}
+                {detail.conflict.ackUserB ? " Second acknowledgment recorded." : ""}
+              </Text>
+              <Pressable
+                style={[styles.primaryButton, { backgroundColor: tokens.colors.primary }]}
+                onPress={async () => {
+                  if (!isOnline) {
+                    await queueOfflineAcknowledgeDepartment(detail.conflict.id);
+                    setQueuedMessage("Department acknowledgment queued for sync");
+                    return;
+                  }
+                  await runAction(() => acknowledgeDepartmentSimopsConflict(detail.conflict.id));
+                }}
+              >
+                <Text style={styles.primaryButtonText}>Record department acknowledgment</Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           {!isResolved && !detail.assessment ? (
             <View style={[styles.card, { borderColor: tokens.colors.border }]}>

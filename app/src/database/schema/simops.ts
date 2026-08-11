@@ -1,4 +1,15 @@
-import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
 import { auditColumns } from './base';
 import { permits } from './permit';
 
@@ -14,8 +25,68 @@ export type ConflictStatus = (typeof CONFLICT_STATUSES)[number];
 export const CONFLICT_SEVERITIES = ['low', 'medium', 'high'] as const;
 export type ConflictSeverity = (typeof CONFLICT_SEVERITIES)[number];
 
-export const CONFLICT_TYPES = ['location', 'equipment', 'schedule', 'permit_type'] as const;
+export const CONFLICT_TYPES = [
+  'location',
+  'equipment',
+  'schedule',
+  'permit_type',
+  'adjacency',
+  'hazard',
+  'energy_source',
+] as const;
 export type ConflictType = (typeof CONFLICT_TYPES)[number];
+
+export const locationAdjacencies = pgTable(
+  'location_adjacencies',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    locationId: uuid('location_id').notNull(),
+    adjacentLocationId: uuid('adjacent_location_id').notNull(),
+    zoneKey: varchar('zone_key', { length: 64 }),
+  },
+  (table) => [
+    uniqueIndex('location_adjacencies_tenant_pair_unique').on(
+      table.tenantId,
+      table.locationId,
+      table.adjacentLocationId,
+    ),
+    index('location_adjacencies_tenant_id_idx').on(table.tenantId),
+  ],
+);
+
+export const hazardInteractionMatrix = pgTable(
+  'hazard_interaction_matrix',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    hazardCodeA: varchar('hazard_code_a', { length: 64 }).notNull(),
+    hazardCodeB: varchar('hazard_code_b', { length: 64 }).notNull(),
+    severity: varchar('severity', { length: 16 }).notNull(),
+    isActive: boolean('is_active').notNull().default(true),
+  },
+  (table) => [
+    uniqueIndex('hazard_interaction_matrix_tenant_pair_unique').on(
+      table.tenantId,
+      table.hazardCodeA,
+      table.hazardCodeB,
+    ),
+    index('hazard_interaction_matrix_tenant_id_idx').on(table.tenantId),
+  ],
+);
+
+export const simopsTenantSettings = pgTable(
+  'simops_tenant_settings',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    highEscalationHours: integer('high_escalation_hours').notNull().default(4),
+    conflictArbiterRole: varchar('conflict_arbiter_role', { length: 64 })
+      .notNull()
+      .default('org-admin'),
+  },
+  (table) => [uniqueIndex('simops_tenant_settings_tenant_unique').on(table.tenantId)],
+);
 
 export const simopsConflicts = pgTable(
   'simops_conflicts',
@@ -29,12 +100,27 @@ export const simopsConflicts = pgTable(
     details: jsonb('details').$type<Record<string, unknown>>(),
     detectedAt: timestamp('detected_at', { withTimezone: true }).notNull().defaultNow(),
     fingerprint: varchar('fingerprint', { length: 128 }).notNull(),
+    frozenPermitId: uuid('frozen_permit_id').references(() => permits.id, {
+      onDelete: 'set null',
+    }),
+    requiresJointAck: boolean('requires_joint_ack').notNull().default(false),
+    departmentAId: uuid('department_a_id'),
+    departmentBId: uuid('department_b_id'),
+    ackUserA: uuid('ack_user_a'),
+    ackUserB: uuid('ack_user_b'),
+    ackAtA: timestamp('ack_at_a', { withTimezone: true }),
+    ackAtB: timestamp('ack_at_b', { withTimezone: true }),
+    escalateAfter: timestamp('escalate_after', { withTimezone: true }),
+    escalatedAt: timestamp('escalated_at', { withTimezone: true }),
+    escalatedToRole: varchar('escalated_to_role', { length: 64 }),
   },
   (table) => [
     index('simops_conflicts_tenant_id_idx').on(table.tenantId),
     index('simops_conflicts_tenant_status_idx').on(table.tenantId, table.status),
     index('simops_conflicts_severity_idx').on(table.severity),
     uniqueIndex('simops_conflicts_tenant_fingerprint_unique').on(table.tenantId, table.fingerprint),
+    index('simops_conflicts_frozen_permit_id_idx').on(table.frozenPermitId),
+    index('simops_conflicts_escalate_after_idx').on(table.escalateAfter),
   ],
 );
 
