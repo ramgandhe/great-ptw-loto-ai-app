@@ -1,4 +1,5 @@
 import { forwardRef, Module } from '@nestjs/common';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PermitModule } from '../permit/permit.module';
 import { ApprovalAttachmentService } from './approval-attachment.service';
 import { ApprovalController } from './approval.controller';
@@ -13,7 +14,7 @@ import { WorkflowController } from './workflow.controller';
 import { WorkflowEngineService } from './workflow-engine.service';
 
 @Module({
-  imports: [forwardRef(() => PermitModule)],
+  imports: [forwardRef(() => PermitModule), NotificationsModule],
   controllers: [ApprovalController, WorkflowController],
   providers: [
     ApprovalService,

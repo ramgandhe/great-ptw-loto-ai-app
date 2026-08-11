@@ -41,6 +41,10 @@ describe('ApprovalJobsService (PUS-140)', () => {
     }),
   };
 
+  const canonicalNotificationService = {
+    fromApprovalPayload: jest.fn().mockResolvedValue(undefined),
+  };
+
   const service = new ApprovalJobsService(
     null as never,
     queueService,
@@ -48,6 +52,7 @@ describe('ApprovalJobsService (PUS-140)', () => {
     approvalLogService,
     approvalCacheService,
     approvalHistoryService,
+    canonicalNotificationService as never,
   );
 
   beforeEach(() => {

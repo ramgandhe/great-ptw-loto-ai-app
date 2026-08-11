@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { requireActorId } from '../../common/helpers/require-actor-id';
@@ -151,8 +152,20 @@ export class NotificationsService {
   async generate(dto: GenerateNotificationDto, user: AuthenticatedUser) {
     const tenantId = this.requireTenant(user);
     const actorId = requireActorId(user);
+    return this.generateSystem(tenantId, actorId, dto);
+  }
+
+  async generateSystem(
+    tenantId: string,
+    actorId: string,
+    dto: GenerateNotificationDto,
+  ) {
     const channel = dto.channel ?? 'in_app';
     const uniqueRecipients = [...new Set(dto.recipientUserIds)];
+
+    if (uniqueRecipients.length === 0) {
+      throw new BadRequestException('At least one notification recipient is required');
+    }
 
     if (dto.dedupeKey) {
       const [existing] = await this.db

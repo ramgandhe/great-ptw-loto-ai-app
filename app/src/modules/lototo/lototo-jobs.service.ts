@@ -11,6 +11,7 @@ import {
 } from './lototo.constants';
 import { LototoCacheService } from './lototo-cache.service';
 import { LototoLogService } from './lototo-log.service';
+import { CanonicalNotificationService } from '../notifications/canonical-notification.service';
 import type { LototoNotificationPayload } from './notification.service';
 
 @Injectable()
@@ -23,6 +24,7 @@ export class LototoJobsService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly lototoLogService: LototoLogService,
     private readonly lototoCacheService: LototoCacheService,
+    private readonly canonicalNotificationService: CanonicalNotificationService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -70,6 +72,7 @@ export class LototoJobsService implements OnModuleInit {
       payload.permitId,
     );
     await this.lototoCacheService.invalidateTenant(payload.tenantId);
+    await this.canonicalNotificationService.fromLototoPayload(payload);
   }
 
   async sendPlanningReminders(): Promise<number> {

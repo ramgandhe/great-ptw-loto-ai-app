@@ -73,6 +73,7 @@ describe('MDP day-transition and renewal (SP-09.03 / FR-MDP-009)', () => {
       { get: jest.fn() } as never,
       { logEvent: jest.fn() } as unknown as RevalidationLogService,
       { enqueueValidityNotification: jest.fn().mockResolvedValue(undefined) } as unknown as RevalidationNotificationService,
+      { fromValidityPayload: jest.fn().mockResolvedValue(undefined) } as never,
     );
   });
 

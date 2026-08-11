@@ -113,6 +113,7 @@ describe('Approval workflow remediation (SP-09.01)', () => {
       approvalLogService,
       approvalCacheService,
       approvalHistoryService,
+      { fromApprovalPayload: jest.fn().mockResolvedValue(undefined) } as never,
     );
   });
 

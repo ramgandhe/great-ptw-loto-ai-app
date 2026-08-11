@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { and, eq, inArray, lt, sql } from 'drizzle-orm';
+import { Job } from 'bullmq';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   organisations,
@@ -18,9 +19,12 @@ import {
   MDP_DAY_TRANSITION_VALIDITY_JOB,
   MDP_EXTENSION_EXPIRY_JOB,
   MDP_REVALIDATION_REMINDER_JOB,
+  MDP_VALIDITY_NOTIFICATION_JOB,
 } from './revalidation.constants';
 import { RevalidationLogService } from './revalidation-log.service';
 import { RevalidationNotificationService } from './revalidation-notification.service';
+import type { ValidityNotificationPayload } from './revalidation-notification.service';
+import { CanonicalNotificationService } from '../notifications/canonical-notification.service';
 
 @Injectable()
 export class RevalidationJobsService implements OnModuleInit {
@@ -32,6 +36,7 @@ export class RevalidationJobsService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly logService: RevalidationLogService,
     private readonly notificationService: RevalidationNotificationService,
+    private readonly canonicalNotificationService: CanonicalNotificationService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -43,6 +48,9 @@ export class RevalidationJobsService implements OnModuleInit {
     });
     this.queueService.registerHandler(MDP_DAY_TRANSITION_VALIDITY_JOB, async () => {
       await this.runDayTransitionValidityChecks();
+    });
+    this.queueService.registerHandler(MDP_VALIDITY_NOTIFICATION_JOB, async (job) => {
+      await this.processValidityNotification(job as Job<ValidityNotificationPayload>);
     });
 
     const reminderCron =
@@ -290,5 +298,9 @@ export class RevalidationJobsService implements OnModuleInit {
       .limit(1);
 
     return Boolean(row);
+  }
+
+  async processValidityNotification(job: Job<ValidityNotificationPayload>): Promise<void> {
+    await this.canonicalNotificationService.fromValidityPayload(job.data);
   }
 }

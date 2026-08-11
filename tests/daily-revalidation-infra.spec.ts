@@ -41,6 +41,7 @@ describe('Daily Revalidation infra services (PUS-185)', () => {
       { get: () => '0 6 * * *' } as never,
       logService as never,
       { enqueueValidityNotification: jest.fn() } as never,
+      { fromValidityPayload: jest.fn() } as never,
     );
     await jobs.sendRevalidationReminders();
     expect(logService.logEvent).toHaveBeenCalledWith(
@@ -117,6 +118,7 @@ describe('Daily Revalidation infra services (PUS-185)', () => {
       { get: () => '0 0 * * *' } as never,
       logService as never,
       notify as never,
+      { fromValidityPayload: jest.fn() } as never,
     );
 
     await jobs.runDayTransitionValidityChecks();

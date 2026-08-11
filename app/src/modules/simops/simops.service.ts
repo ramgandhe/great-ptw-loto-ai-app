@@ -18,6 +18,7 @@ import {
   simopsConflicts,
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
+import { CanonicalNotificationService } from '../notifications/canonical-notification.service';
 import { ANALYSABLE_PERMIT_STATUSES, ALERT_RECIPIENT_ROLES } from './simops.constants';
 import { ConflictSearchDto } from './dto/simops.dto';
 import {
@@ -30,6 +31,7 @@ export class SimopsService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly auditService: AuditService,
+    private readonly canonicalNotificationService: CanonicalNotificationService,
   ) {}
 
   async listConflicts(user: AuthenticatedUser, query: ConflictSearchDto = {}) {
@@ -296,6 +298,15 @@ export class SimopsService {
       },
       createdBy: userId,
       updatedBy: userId,
+    });
+
+    await this.canonicalNotificationService.fromSimopsConflict({
+      tenantId,
+      conflictId: conflict.id,
+      actorId: userId,
+      permitIds: item.permitIds,
+      severity: item.severity,
+      summary: item.summary,
     });
 
     return true;

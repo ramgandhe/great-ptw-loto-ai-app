@@ -103,6 +103,9 @@ describe('IncidentsService (PUS-186)', () => {
       applyOnSubmit: jest.fn().mockResolvedValue('open'),
       recordHodDecision: jest.fn().mockResolvedValue(undefined),
     };
+    const canonicalNotificationService = {
+      fromIncidentReported: jest.fn().mockResolvedValue(undefined),
+    };
 
     const service = new IncidentsService(
       db as never,
@@ -112,6 +115,7 @@ describe('IncidentsService (PUS-186)', () => {
       storageService as never,
       configService as never,
       severityLifecycle as never,
+      canonicalNotificationService as never,
     );
 
     return { service, db, auditService, logService, cacheService, selectCall: () => selectCall };

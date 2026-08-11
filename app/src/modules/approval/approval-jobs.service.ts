@@ -20,6 +20,7 @@ import {
 import { ApprovalCacheService } from './approval-cache.service';
 import { ApprovalHistoryService } from './approval-history.service';
 import { ApprovalLogService } from './approval-log.service';
+import { CanonicalNotificationService } from '../notifications/canonical-notification.service';
 import type { ApprovalNotificationPayload } from './notification.service';
 
 @Injectable()
@@ -33,6 +34,7 @@ export class ApprovalJobsService implements OnModuleInit {
     private readonly approvalLogService: ApprovalLogService,
     private readonly approvalCacheService: ApprovalCacheService,
     private readonly approvalHistoryService: ApprovalHistoryService,
+    private readonly canonicalNotificationService: CanonicalNotificationService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -90,6 +92,7 @@ export class ApprovalJobsService implements OnModuleInit {
     });
 
     await this.approvalCacheService.invalidateTenant(payload.tenantId);
+    await this.canonicalNotificationService.fromApprovalPayload(payload);
   }
 
   async sendReminders(): Promise<number> {

@@ -23,6 +23,7 @@ import {
 } from '../../database/schema';
 import { StorageService } from '../../infrastructure/storage/storage.service';
 import { AuditService } from '../logging/audit.service';
+import { CanonicalNotificationService } from '../notifications/canonical-notification.service';
 import { UploadedFilePayload } from '../permit/uploaded-file.interface';
 import { IncidentCacheService } from './incident-cache.service';
 import { IncidentLogService } from './incident-log.service';
@@ -48,6 +49,7 @@ export class IncidentsService {
     private readonly storageService: StorageService,
     private readonly configService: ConfigService,
     private readonly severityLifecycle: IncidentSeverityLifecycleService,
+    private readonly canonicalNotificationService: CanonicalNotificationService,
   ) {}
 
   async create(dto: CreateIncidentDto, user: AuthenticatedUser) {
@@ -236,6 +238,14 @@ export class IncidentsService {
       tenantId,
       userId: actorId,
       metadata: { reference: row.reference },
+    });
+
+    await this.canonicalNotificationService.fromIncidentReported({
+      tenantId,
+      incidentId: id,
+      actorId,
+      reference: row.reference,
+      severityPath: incident.severityPath,
     });
 
     await this.cacheService.invalidateIncident(tenantId, id);
