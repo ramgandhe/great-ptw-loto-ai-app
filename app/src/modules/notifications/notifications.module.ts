@@ -3,6 +3,7 @@ import { LoggingModule } from '../logging/logging.module';
 import { DeliveryService } from './delivery.service';
 import { EscalationService } from './escalation.service';
 import { NotificationCacheService } from './notification-cache.service';
+import { NotificationDispatchService } from './notification-dispatch.service';
 import { NotificationJobsService } from './notification-jobs.service';
 import { NotificationLogService } from './notification-log.service';
 import { NotificationsController } from './notifications.controller';
@@ -14,6 +15,7 @@ import { ReminderService } from './reminder.service';
   controllers: [NotificationsController],
   providers: [
     NotificationsService,
+    NotificationDispatchService,
     DeliveryService,
     ReminderService,
     EscalationService,
@@ -23,6 +25,7 @@ import { ReminderService } from './reminder.service';
   ],
   exports: [
     NotificationsService,
+    NotificationDispatchService,
     DeliveryService,
     ReminderService,
     EscalationService,

@@ -98,6 +98,7 @@ describe('IncidentsService (PUS-186)', () => {
       putObject: jest.fn().mockResolvedValue(undefined),
     };
     const configService = { get: () => 'incidents/evidence' };
+    const notificationDispatch = { dispatch: jest.fn().mockResolvedValue({ suppressed: false }) };
 
     const service = new IncidentsService(
       db as never,
@@ -106,6 +107,7 @@ describe('IncidentsService (PUS-186)', () => {
       logService as never,
       storageService as never,
       configService as never,
+      notificationDispatch as never,
     );
 
     return { service, db, auditService, logService, cacheService, selectCall: () => selectCall };

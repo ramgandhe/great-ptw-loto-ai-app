@@ -253,6 +253,9 @@ The Notifications module depends on:
     failed `notification_recipients` whose `next_retry_at` is due.
   - `notification.task-reminder` (`NOTIFICATION_TASK_REMINDER_CRON`) emits
     reminder sweeps for recent `task_reminder` notifications.
+  - `notification.permit-expiry` (`NOTIFICATION_PERMIT_EXPIRY_CRON`, FR-NOT-005)
+    notifies stakeholders before permit planned end within
+    `NOTIFICATION_PERMIT_EXPIRY_HORIZON_HOURS`.
 - **Keycloak** — recipient identity / role validation for notification routes
   (wired in BE-SP-07.01).
 - **Grafana Loki** — structured delivery logging (`loki: true` marker).

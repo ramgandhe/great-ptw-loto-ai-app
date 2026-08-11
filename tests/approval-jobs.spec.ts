@@ -28,12 +28,36 @@ describe('ApprovalJobsService (PUS-140)', () => {
     get: jest.fn().mockReturnValue('0 8 * * *'),
   };
 
+  const notificationDispatch = {
+    dispatch: jest.fn().mockResolvedValue({ suppressed: false }),
+  };
+
+  const db = {
+    select: jest.fn().mockReturnValue({
+      from: () => ({
+        where: () => ({
+          limit: () =>
+            Promise.resolve([
+              {
+                id: 'permit-1',
+                tenantId: 'tenant-1',
+                reference: 'PTW-1',
+                submittedBy: 'user-2',
+                createdBy: 'user-2',
+              },
+            ]),
+        }),
+      }),
+    }),
+  };
+
   const service = new ApprovalJobsService(
-    null as never,
+    db as never,
     queueService,
     configService as never,
     approvalLogService,
     approvalCacheService,
+    notificationDispatch as never,
   );
 
   beforeEach(() => {

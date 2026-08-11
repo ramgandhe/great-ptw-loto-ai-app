@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { LoggingModule } from '../logging/logging.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { SimopsController } from './simops.controller';
 import { ConflictResolutionService } from './conflict-resolution.service';
 import { SimopsService } from './simops.service';
 
 @Module({
-  imports: [LoggingModule],
+  imports: [LoggingModule, NotificationsModule],
   controllers: [SimopsController],
   providers: [SimopsService, ConflictResolutionService],
   exports: [SimopsService, ConflictResolutionService],

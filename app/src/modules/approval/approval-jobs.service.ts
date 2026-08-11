@@ -5,6 +5,7 @@ import { Job } from 'bullmq';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { permits, workflowAssignments } from '../../database/schema';
 import { QueueService } from '../../infrastructure/queue/queue.service';
+import { NotificationDispatchService } from '../notifications/notification-dispatch.service';
 import {
   APPROVAL_NOTIFICATION_JOB,
   APPROVAL_REMINDER_JOB,
@@ -24,6 +25,7 @@ export class ApprovalJobsService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly approvalLogService: ApprovalLogService,
     private readonly approvalCacheService: ApprovalCacheService,
+    private readonly notificationDispatch: NotificationDispatchService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -65,6 +67,57 @@ export class ApprovalJobsService implements OnModuleInit {
     });
 
     await this.approvalCacheService.invalidateTenant(payload.tenantId);
+    await this.dispatchFrNotApproval(payload);
+  }
+
+  private async dispatchFrNotApproval(payload: ApprovalNotificationPayload): Promise<void> {
+    const requirementByAction = {
+      approved: 'FR-NOT-002',
+      rejected: 'FR-NOT-003',
+      deferred: 'FR-NOT-004',
+    } as const;
+
+    const requirementId =
+      requirementByAction[payload.action as keyof typeof requirementByAction];
+    if (!requirementId) {
+      return;
+    }
+
+    const [permit] = await this.db
+      .select()
+      .from(permits)
+      .where(and(eq(permits.id, payload.permitId), eq(permits.tenantId, payload.tenantId)))
+      .limit(1);
+
+    if (!permit) {
+      return;
+    }
+
+    const recipientId = permit.submittedBy ?? permit.createdBy;
+    if (!recipientId) {
+      return;
+    }
+
+    const titles = {
+      'FR-NOT-002': 'Permit approved',
+      'FR-NOT-003': 'Permit rejected',
+      'FR-NOT-004': 'Permit deferred',
+    } as const;
+
+    await this.notificationDispatch.dispatch({
+      tenantId: payload.tenantId,
+      actorId: payload.actorId,
+      requirementId,
+      title: titles[requirementId],
+      body: `Permit ${permit.reference ?? permit.id} was ${payload.action}.`,
+      recipientUserIds: [recipientId],
+      entityType: 'permit',
+      entityId: permit.id,
+      dedupeKey: `fr-not:${requirementId}:${permit.id}:${payload.action}`,
+      sourceModule: 'approval',
+      category: 'workflow',
+      priority: payload.action === 'rejected' ? 'high' : 'medium',
+    });
   }
 
   async sendReminders(): Promise<number> {
