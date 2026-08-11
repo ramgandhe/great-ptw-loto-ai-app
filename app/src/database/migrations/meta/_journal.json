@@ -155,6 +155,13 @@
       "when": 1753766400000,
       "tag": "0021_production_readiness",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1753770000000,
+      "tag": "0022_incident_severity_lifecycle",
+      "breakpoints": true
     }
   ]
 }

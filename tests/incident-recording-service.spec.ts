@@ -98,6 +98,12 @@ describe('IncidentsService (PUS-186)', () => {
       putObject: jest.fn().mockResolvedValue(undefined),
     };
     const configService = { get: () => 'incidents/evidence' };
+    const severityLifecycleService = {
+      openPathOnSubmit: jest.fn().mockResolvedValue({ lifecycleStatus: 'awaiting_hod' }),
+      getLifecycleForIncident: jest.fn().mockResolvedValue(null),
+      listHistory: jest.fn().mockResolvedValue([]),
+      decideNearMiss: jest.fn(),
+    };
 
     const service = new IncidentsService(
       db as never,
@@ -106,9 +112,18 @@ describe('IncidentsService (PUS-186)', () => {
       logService as never,
       storageService as never,
       configService as never,
+      severityLifecycleService as never,
     );
 
-    return { service, db, auditService, logService, cacheService, selectCall: () => selectCall };
+    return {
+      service,
+      db,
+      auditService,
+      logService,
+      cacheService,
+      severityLifecycleService,
+      selectCall: () => selectCall,
+    };
   }
 
   it('creates a draft near miss', async () => {

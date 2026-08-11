@@ -1,6 +1,7 @@
 import {
   bigint,
   index,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -31,6 +32,31 @@ export type IncidentStatus = (typeof INCIDENT_STATUSES)[number];
 
 export const INCIDENT_PRIORITIES = ['low', 'medium', 'high', 'critical'] as const;
 export type IncidentPriority = (typeof INCIDENT_PRIORITIES)[number];
+
+/** FR-INC-011 near-miss HOD decision outcomes. */
+export const NEAR_MISS_HOD_DECISIONS = ['continue', 'stop'] as const;
+export type NearMissHodDecision = (typeof NEAR_MISS_HOD_DECISIONS)[number];
+
+/**
+ * Structural lifecycle states — distinct from investigation/closure statuses.
+ * Near-miss awaits HOD; accident is auto-terminated without HOD continue/stop.
+ */
+export const INCIDENT_LIFECYCLE_STATUSES = [
+  'awaiting_hod',
+  'continued',
+  'stopped',
+  'auto_terminated',
+] as const;
+export type IncidentLifecycleStatus = (typeof INCIDENT_LIFECYCLE_STATUSES)[number];
+
+export const INCIDENT_LIFECYCLE_EVENT_TYPES = [
+  'path_opened',
+  'hod_continue',
+  'hod_stop',
+  'accident_auto_terminated',
+  'permit_cancelled',
+] as const;
+export type IncidentLifecycleEventType = (typeof INCIDENT_LIFECYCLE_EVENT_TYPES)[number];
 
 export const incidents = pgTable(
   'incidents',
@@ -126,5 +152,58 @@ export const incidentPermits = pgTable(
     index('incident_permits_tenant_id_idx').on(table.tenantId),
     index('incident_permits_incident_id_idx').on(table.incidentId),
     index('incident_permits_permit_id_idx').on(table.permitId),
+  ],
+);
+
+/** FR-INC-011 — one structural lifecycle row per incident (near-miss vs accident paths). */
+export const incidentSeverityLifecycle = pgTable(
+  'incident_severity_lifecycle',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    incidentId: uuid('incident_id')
+      .notNull()
+      .references(() => incidents.id, { onDelete: 'cascade' }),
+    severityPath: varchar('severity_path', { length: 32 }).notNull(),
+    lifecycleStatus: varchar('lifecycle_status', { length: 32 }).notNull(),
+    hodDecision: varchar('hod_decision', { length: 16 }),
+    hodDecidedBy: uuid('hod_decided_by'),
+    hodDecidedAt: timestamp('hod_decided_at', { withTimezone: true }),
+    hodDecisionComments: text('hod_decision_comments'),
+    /** Idempotency marker for accident auto-termination / near-miss stop permit cancel. */
+    permitsCancelledAt: timestamp('permits_cancelled_at', { withTimezone: true }),
+    appliedAt: timestamp('applied_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('incident_severity_lifecycle_incident_unique').on(table.incidentId),
+    index('incident_severity_lifecycle_tenant_status_idx').on(
+      table.tenantId,
+      table.lifecycleStatus,
+    ),
+  ],
+);
+
+/** Immutable FR-INC-011 severity lifecycle audit trail. */
+export const incidentSeverityHistory = pgTable(
+  'incident_severity_history',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    createdBy: uuid('created_by'),
+    tenantId: uuid('tenant_id').notNull(),
+    incidentId: uuid('incident_id')
+      .notNull()
+      .references(() => incidents.id, { onDelete: 'cascade' }),
+    eventType: varchar('event_type', { length: 64 }).notNull(),
+    actorId: uuid('actor_id').notNull(),
+    permitId: uuid('permit_id'),
+    payload: jsonb('payload').$type<Record<string, unknown>>(),
+  },
+  (table) => [
+    index('incident_severity_history_tenant_incident_idx').on(table.tenantId, table.incidentId),
+    index('incident_severity_history_incident_created_at_idx').on(
+      table.incidentId,
+      table.createdAt,
+    ),
   ],
 );

@@ -26,12 +26,14 @@ import { AuditService } from '../logging/audit.service';
 import { UploadedFilePayload } from '../permit/uploaded-file.interface';
 import { IncidentCacheService } from './incident-cache.service';
 import { IncidentLogService } from './incident-log.service';
+import { IncidentSeverityLifecycleService } from './incident-severity-lifecycle.service';
 import {
   ALLOWED_INCIDENT_EVIDENCE_CONTENT_TYPES,
   MAX_INCIDENT_EVIDENCE_SIZE_BYTES,
 } from './incidents.constants';
 import {
   CreateIncidentDto,
+  HodNearMissDecisionDto,
   UpdateIncidentDto,
   UploadIncidentEvidenceDto,
 } from './dto/incident.dto';
@@ -45,6 +47,7 @@ export class IncidentsService {
     private readonly logService: IncidentLogService,
     private readonly storageService: StorageService,
     private readonly configService: ConfigService,
+    private readonly severityLifecycleService: IncidentSeverityLifecycleService,
   ) {}
 
   async create(dto: CreateIncidentDto, user: AuthenticatedUser) {
@@ -107,6 +110,10 @@ export class IncidentsService {
       userId: actorId,
       metadata: { reference, incidentType: dto.incidentType },
     });
+
+    if (submit) {
+      await this.severityLifecycleService.openPathOnSubmit(row, actorId);
+    }
 
     await this.cacheService.invalidateIncident(tenantId, row.id);
     return this.loadDetail(row.id, tenantId);
@@ -219,8 +226,28 @@ export class IncidentsService {
       metadata: { reference: row.reference },
     });
 
+    await this.severityLifecycleService.openPathOnSubmit(row, actorId);
+
     await this.cacheService.invalidateIncident(tenantId, id);
     return this.loadDetail(id, tenantId);
+  }
+
+  async decideNearMissContinue(
+    id: string,
+    dto: HodNearMissDecisionDto,
+    user: AuthenticatedUser,
+  ) {
+    return this.severityLifecycleService.decideNearMiss(id, 'continue', dto.comments, user);
+  }
+
+  async decideNearMissStop(id: string, dto: HodNearMissDecisionDto, user: AuthenticatedUser) {
+    return this.severityLifecycleService.decideNearMiss(id, 'stop', dto.comments, user);
+  }
+
+  async listSeverityHistory(id: string, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    await this.requireIncident(id, tenantId);
+    return this.severityLifecycleService.listHistory(id, tenantId);
   }
 
   async uploadEvidence(
@@ -307,26 +334,36 @@ export class IncidentsService {
 
   private async loadDetail(id: string, tenantId: string) {
     const incident = await this.requireIncident(id, tenantId);
-    const [evidence, equipment, linkedPermits] = await Promise.all([
-      this.db
-        .select()
-        .from(incidentEvidence)
-        .where(
-          and(eq(incidentEvidence.tenantId, tenantId), eq(incidentEvidence.incidentId, id)),
-        ),
-      this.db
-        .select()
-        .from(incidentEquipment)
-        .where(
-          and(eq(incidentEquipment.tenantId, tenantId), eq(incidentEquipment.incidentId, id)),
-        ),
-      this.db
-        .select()
-        .from(incidentPermits)
-        .where(and(eq(incidentPermits.tenantId, tenantId), eq(incidentPermits.incidentId, id))),
-    ]);
+    const [evidence, equipment, linkedPermits, severityLifecycle, severityHistory] =
+      await Promise.all([
+        this.db
+          .select()
+          .from(incidentEvidence)
+          .where(
+            and(eq(incidentEvidence.tenantId, tenantId), eq(incidentEvidence.incidentId, id)),
+          ),
+        this.db
+          .select()
+          .from(incidentEquipment)
+          .where(
+            and(eq(incidentEquipment.tenantId, tenantId), eq(incidentEquipment.incidentId, id)),
+          ),
+        this.db
+          .select()
+          .from(incidentPermits)
+          .where(and(eq(incidentPermits.tenantId, tenantId), eq(incidentPermits.incidentId, id))),
+        this.severityLifecycleService.getLifecycleForIncident(id, tenantId),
+        this.severityLifecycleService.listHistory(id, tenantId),
+      ]);
 
-    return { incident, evidence, equipment, permits: linkedPermits };
+    return {
+      incident,
+      evidence,
+      equipment,
+      permits: linkedPermits,
+      severityLifecycle,
+      severityHistory,
+    };
   }
 
   private async linkAssociations(
