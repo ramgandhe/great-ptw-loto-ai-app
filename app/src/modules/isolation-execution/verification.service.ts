@@ -4,6 +4,7 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { isolationVerifications } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
+import { NotificationDispatchService } from '../notifications/notification-dispatch.service';
 import { RecordVerificationDto } from './dto/record-verification.dto';
 import { IsolationCacheService } from './isolation-cache.service';
 import { IsolationExecutionService } from './isolation-execution.service';
@@ -20,6 +21,7 @@ export class VerificationService {
     private readonly auditService: AuditService,
     private readonly cacheService: IsolationCacheService,
     private readonly logService: IsolationLogService,
+    private readonly notificationDispatch: NotificationDispatchService,
   ) {}
 
   async record(executionId: string, dto: RecordVerificationDto, user: AuthenticatedUser) {
@@ -81,6 +83,21 @@ export class VerificationService {
       metadata: { isolationPointId: dto.isolationPointId, result: dto.result },
     });
     await this.cacheService.invalidate(execution.tenantId, executionId, execution.planId);
+
+    await this.notificationDispatch.dispatch({
+      tenantId: execution.tenantId,
+      actorId: user.id!,
+      requirementId: 'FR-NOT-008',
+      title: 'LOTOTO verification recorded',
+      body: `Isolation verification ${dto.result} for execution ${executionId}.`,
+      recipientUserIds: [user.id!, execution.createdBy].filter(Boolean) as string[],
+      entityType: 'isolation_execution',
+      entityId: executionId,
+      dedupeKey: `fr-not-008:${verification.id}`,
+      sourceModule: 'lototo',
+      category: 'workflow',
+      priority: 'medium',
+    });
 
     return verification;
   }

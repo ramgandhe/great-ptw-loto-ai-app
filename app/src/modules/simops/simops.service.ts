@@ -18,6 +18,7 @@ import {
   simopsConflicts,
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
+import { NotificationDispatchService } from '../notifications/notification-dispatch.service';
 import { ANALYSABLE_PERMIT_STATUSES, ALERT_RECIPIENT_ROLES } from './simops.constants';
 import { ConflictSearchDto } from './dto/simops.dto';
 import {
@@ -30,6 +31,7 @@ export class SimopsService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly auditService: AuditService,
+    private readonly notificationDispatch: NotificationDispatchService,
   ) {}
 
   async listConflicts(user: AuthenticatedUser, query: ConflictSearchDto = {}) {
@@ -296,6 +298,35 @@ export class SimopsService {
       },
       createdBy: userId,
       updatedBy: userId,
+    });
+
+    const linkedPermits = await this.db
+      .select({
+        submittedBy: permits.submittedBy,
+        createdBy: permits.createdBy,
+      })
+      .from(permits)
+      .where(and(eq(permits.tenantId, tenantId), inArray(permits.id, item.permitIds)));
+    const recipients = new Set<string>();
+    for (const permit of linkedPermits) {
+      if (permit.submittedBy) recipients.add(permit.submittedBy);
+      if (permit.createdBy) recipients.add(permit.createdBy);
+    }
+    if (userId) recipients.add(userId);
+
+    await this.notificationDispatch.dispatch({
+      tenantId,
+      actorId: userId,
+      requirementId: 'FR-NOT-007',
+      title: 'SIMOPS conflict detected',
+      body: item.summary,
+      recipientUserIds: [...recipients],
+      entityType: 'simops_conflict',
+      entityId: conflict.id,
+      dedupeKey: `fr-not-007:${conflict.id}`,
+      sourceModule: 'simops',
+      category: 'escalation',
+      priority: item.severity === 'high' ? 'critical' : 'high',
     });
 
     return true;

@@ -23,6 +23,7 @@ import {
 } from '../../database/schema';
 import { StorageService } from '../../infrastructure/storage/storage.service';
 import { AuditService } from '../logging/audit.service';
+import { NotificationDispatchService } from '../notifications/notification-dispatch.service';
 import { UploadedFilePayload } from '../permit/uploaded-file.interface';
 import { IncidentCacheService } from './incident-cache.service';
 import { IncidentLogService } from './incident-log.service';
@@ -45,6 +46,7 @@ export class IncidentsService {
     private readonly logService: IncidentLogService,
     private readonly storageService: StorageService,
     private readonly configService: ConfigService,
+    private readonly notificationDispatch: NotificationDispatchService,
   ) {}
 
   async create(dto: CreateIncidentDto, user: AuthenticatedUser) {
@@ -107,6 +109,10 @@ export class IncidentsService {
       userId: actorId,
       metadata: { reference, incidentType: dto.incidentType },
     });
+
+    if (submit) {
+      await this.dispatchIncidentReported(row, actorId, dto.permitIds);
+    }
 
     await this.cacheService.invalidateIncident(tenantId, row.id);
     return this.loadDetail(row.id, tenantId);
@@ -219,8 +225,58 @@ export class IncidentsService {
       metadata: { reference: row.reference },
     });
 
+    const linked = await this.db
+      .select({ permitId: incidentPermits.permitId })
+      .from(incidentPermits)
+      .where(and(eq(incidentPermits.tenantId, tenantId), eq(incidentPermits.incidentId, id)));
+
+    await this.dispatchIncidentReported(
+      row,
+      actorId,
+      linked.map((item) => item.permitId),
+    );
+
     await this.cacheService.invalidateIncident(tenantId, id);
     return this.loadDetail(id, tenantId);
+  }
+
+  private async dispatchIncidentReported(
+    incident: typeof incidents.$inferSelect,
+    actorId: string,
+    permitIds?: string[],
+  ) {
+    const recipients = new Set<string>();
+    if (incident.reportedBy) {
+      recipients.add(incident.reportedBy);
+    }
+    if (permitIds?.length) {
+      const linkedPermits = await this.db
+        .select({
+          submittedBy: permits.submittedBy,
+          createdBy: permits.createdBy,
+        })
+        .from(permits)
+        .where(and(eq(permits.tenantId, incident.tenantId), inArray(permits.id, permitIds)));
+      for (const permit of linkedPermits) {
+        if (permit.submittedBy) recipients.add(permit.submittedBy);
+        if (permit.createdBy) recipients.add(permit.createdBy);
+      }
+    }
+
+    await this.notificationDispatch.dispatch({
+      tenantId: incident.tenantId,
+      actorId,
+      requirementId: 'FR-NOT-006',
+      title: 'Incident reported',
+      body: `${incident.reference}: ${incident.title}`,
+      recipientUserIds: [...recipients],
+      entityType: 'incident',
+      entityId: incident.id,
+      dedupeKey: `fr-not-006:${incident.id}`,
+      sourceModule: 'incident',
+      category: 'escalation',
+      priority: 'high',
+    });
   }
 
   async uploadEvidence(

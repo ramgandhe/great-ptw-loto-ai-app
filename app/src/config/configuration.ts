@@ -143,6 +143,12 @@ export default () => ({
     cacheTtlSeconds: parseInt(process.env.NOTIFICATION_CACHE_TTL_SECONDS ?? '300', 10),
     deliveryRetryCron: process.env.NOTIFICATION_DELIVERY_RETRY_CRON ?? '*/5 * * * *',
     taskReminderCron: process.env.NOTIFICATION_TASK_REMINDER_CRON ?? '0 7 * * *',
+    permitExpiryCron: process.env.NOTIFICATION_PERMIT_EXPIRY_CRON ?? '0 6 * * *',
+    permitExpiryHorizonHours: parseInt(
+      process.env.NOTIFICATION_PERMIT_EXPIRY_HORIZON_HOURS ?? '48',
+      10,
+    ),
+    maxDeliveryRetries: parseInt(process.env.NOTIFICATION_MAX_DELIVERY_RETRIES ?? '5', 10),
   },
   dashboard: {
     cacheTtlSeconds: parseInt(process.env.DASHBOARD_CACHE_TTL_SECONDS ?? '120', 10),
