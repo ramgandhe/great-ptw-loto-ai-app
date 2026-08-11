@@ -2,6 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RolesGuard } from '../app/src/common/guards/roles.guard';
 import { LOTOTO_WRITE_ROLES } from '../app/src/modules/lototo/lototo.constants';
+import { mockRoleGuardReflector } from './helpers/role-guard-mock';
 
 describe('LOTOTO role enforcement (PUS-151)', () => {
   const getAllAndOverride = jest.fn();
@@ -25,7 +26,7 @@ describe('LOTOTO role enforcement (PUS-151)', () => {
   });
 
   it('allows authorised LOTOTO configuration roles', () => {
-    getAllAndOverride.mockReturnValue([...LOTOTO_WRITE_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, LOTOTO_WRITE_ROLES);
 
     const result = guard.canActivate(buildContext({ roles: ['supervisor'] }));
 
@@ -33,7 +34,7 @@ describe('LOTOTO role enforcement (PUS-151)', () => {
   });
 
   it('denies viewer role from modifying LOTOTO plans', () => {
-    getAllAndOverride.mockReturnValue([...LOTOTO_WRITE_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, LOTOTO_WRITE_ROLES);
 
     expect(() => guard.canActivate(buildContext({ roles: ['viewer'] }))).toThrow(
       ForbiddenException,
@@ -41,7 +42,7 @@ describe('LOTOTO role enforcement (PUS-151)', () => {
   });
 
   it('denies unauthenticated requests', () => {
-    getAllAndOverride.mockReturnValue([...LOTOTO_WRITE_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, LOTOTO_WRITE_ROLES);
 
     expect(() => guard.canActivate(buildContext(undefined))).toThrow(ForbiddenException);
   });

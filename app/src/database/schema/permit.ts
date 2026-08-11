@@ -22,6 +22,7 @@ export const PERMIT_STATUSES = [
   'pending_closure',
   'closed',
   'expired',
+  'cancelled',
   'rejected',
   'deferred',
 ] as const;

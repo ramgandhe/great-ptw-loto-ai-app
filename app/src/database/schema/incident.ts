@@ -19,9 +19,13 @@ export type IncidentType = (typeof INCIDENT_TYPES)[number];
 export const INCIDENT_SEVERITY_PATHS = ['near_miss', 'accident'] as const;
 export type IncidentSeverityPath = (typeof INCIDENT_SEVERITY_PATHS)[number];
 
+export const INCIDENT_HOD_DECISIONS = ['continue', 'stop'] as const;
+export type IncidentHodDecision = (typeof INCIDENT_HOD_DECISIONS)[number];
+
 export const INCIDENT_STATUSES = [
   'draft',
   'open',
+  'pending_hod_decision',
   'investigating',
   'pending_verification',
   'verified',
@@ -126,5 +130,25 @@ export const incidentPermits = pgTable(
     index('incident_permits_tenant_id_idx').on(table.tenantId),
     index('incident_permits_incident_id_idx').on(table.incidentId),
     index('incident_permits_permit_id_idx').on(table.permitId),
+  ],
+);
+
+export const incidentHodDecisions = pgTable(
+  'incident_hod_decisions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    createdBy: uuid('created_by'),
+    tenantId: uuid('tenant_id').notNull(),
+    incidentId: uuid('incident_id')
+      .notNull()
+      .references(() => incidents.id, { onDelete: 'cascade' }),
+    decision: varchar('decision', { length: 16 }).notNull(),
+    decidedBy: uuid('decided_by').notNull(),
+    comment: text('comment'),
+  },
+  (table) => [
+    uniqueIndex('incident_hod_decisions_incident_unique').on(table.incidentId),
+    index('incident_hod_decisions_tenant_id_idx').on(table.tenantId),
   ],
 );

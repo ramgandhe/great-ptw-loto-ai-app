@@ -39,6 +39,7 @@ export default () => ({
   },
   keycloak: {
     url: process.env.KEYCLOAK_URL ?? 'http://localhost:8080',
+    issuer: process.env.KEYCLOAK_ISSUER ?? process.env.KEYCLOAK_URL ?? 'http://localhost:8080',
     realm: process.env.KEYCLOAK_REALM ?? 'ptw-platform',
     clientId: process.env.KEYCLOAK_CLIENT_ID ?? 'ptw-api',
   },
@@ -65,6 +66,7 @@ export default () => ({
   approval: {
     cacheTtlSeconds: parseInt(process.env.APPROVAL_CACHE_TTL_SECONDS ?? '300', 10),
     reminderCron: process.env.APPROVAL_REMINDER_CRON ?? '0 8 * * *',
+    slaEscalationCron: process.env.APPROVAL_SLA_ESCALATION_CRON ?? '0 * * * *',
     attachmentUrlExpirySeconds: parseInt(
       process.env.APPROVAL_ATTACHMENT_URL_EXPIRY_SECONDS ?? '3600',
       10,
@@ -121,6 +123,7 @@ export default () => ({
     ),
     revalidationReminderCron: process.env.MDP_REVALIDATION_REMINDER_CRON ?? '0 6 * * *',
     extensionExpiryCron: process.env.MDP_EXTENSION_EXPIRY_CRON ?? '0 5 * * *',
+    dayTransitionValidityCron: process.env.MDP_DAY_TRANSITION_VALIDITY_CRON ?? '0 0 * * *',
   },
   incident: {
     cacheTtlSeconds: parseInt(process.env.INCIDENT_CACHE_TTL_SECONDS ?? '300', 10),

@@ -195,14 +195,26 @@ describe('Permit approval schema (PUS-139)', () => {
     expect(approval.comment).toContain('Hazards');
   });
 
-  dbTest('rejects duplicate approval for the same permit step', async () => {
+  dbTest('rejects duplicate approval for the same workflow assignment', async () => {
     const { tenantId, permitTypeId } = testIds();
     const permit = await createSubmittedPermit(tenantId, permitTypeId);
     const { step1 } = await createWorkflowSteps(tenantId, permitTypeId);
 
+    const [assignment] = await db
+      .insert(schema.workflowAssignments)
+      .values({
+        permitId: permit.id,
+        workflowStepId: step1.id,
+        assigneeId: approverId,
+        status: 'active',
+        createdBy: issuerId,
+      })
+      .returning();
+
     await db.insert(schema.permitApprovals).values({
       permitId: permit.id,
       workflowStepId: step1.id,
+      workflowAssignmentId: assignment.id,
       decision: 'approve',
       decidedBy: approverId,
       createdBy: approverId,
@@ -212,6 +224,7 @@ describe('Permit approval schema (PUS-139)', () => {
       db.insert(schema.permitApprovals).values({
         permitId: permit.id,
         workflowStepId: step1.id,
+        workflowAssignmentId: assignment.id,
         decision: 'approve',
         decidedBy: approverId,
         createdBy: approverId,

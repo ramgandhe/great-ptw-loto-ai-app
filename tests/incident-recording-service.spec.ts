@@ -99,6 +99,11 @@ describe('IncidentsService (PUS-186)', () => {
     };
     const configService = { get: () => 'incidents/evidence' };
 
+    const severityLifecycle = {
+      applyOnSubmit: jest.fn().mockResolvedValue('open'),
+      recordHodDecision: jest.fn().mockResolvedValue(undefined),
+    };
+
     const service = new IncidentsService(
       db as never,
       auditService as never,
@@ -106,6 +111,7 @@ describe('IncidentsService (PUS-186)', () => {
       logService as never,
       storageService as never,
       configService as never,
+      severityLifecycle as never,
     );
 
     return { service, db, auditService, logService, cacheService, selectCall: () => selectCall };

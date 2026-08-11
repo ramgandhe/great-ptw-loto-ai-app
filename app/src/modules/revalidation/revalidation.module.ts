@@ -4,6 +4,7 @@ import { RevalidationCacheService } from './revalidation-cache.service';
 import { RevalidationController } from './revalidation.controller';
 import { RevalidationJobsService } from './revalidation-jobs.service';
 import { RevalidationLogService } from './revalidation-log.service';
+import { RevalidationNotificationService } from './revalidation-notification.service';
 import { RevalidationService } from './revalidation.service';
 
 @Module({
@@ -13,6 +14,7 @@ import { RevalidationService } from './revalidation.service';
     RevalidationService,
     RevalidationCacheService,
     RevalidationLogService,
+    RevalidationNotificationService,
     RevalidationJobsService,
   ],
   exports: [RevalidationService, RevalidationCacheService, RevalidationLogService],

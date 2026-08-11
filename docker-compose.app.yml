@@ -27,6 +27,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-ptw_minio_password}
       MINIO_BUCKET: ptw-documents
       KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_ISSUER: http://localhost:8080
       KEYCLOAK_REALM: ptw-platform
       LOKI_URL: http://loki:3100
       CORS_ORIGIN: http://localhost:3000

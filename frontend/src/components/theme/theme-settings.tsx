@@ -14,6 +14,13 @@ import { cn } from "@/lib/utils";
 const selectClassName =
   "h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground";
 
+const THEME_LABELS: Record<ThemeName, string> = {
+  hazard: "Hazard",
+  "control-room": "Control Room",
+  setu: "Setu",
+  "ledger-slate": "Ledger Slate",
+};
+
 type ThemeSettingsProps = {
   variant?: "toolbar" | "form";
   className?: string;
@@ -35,7 +42,7 @@ export function ThemeSettings({ variant = "toolbar", className }: ThemeSettingsP
           >
             {THEMES.map((name) => (
               <option key={name} value={name}>
-                {name}
+                {THEME_LABELS[name]}
               </option>
             ))}
           </select>
@@ -93,7 +100,7 @@ export function ThemeSettings({ variant = "toolbar", className }: ThemeSettingsP
       >
         {THEMES.map((name) => (
           <option key={name} value={name}>
-            {name}
+            {THEME_LABELS[name]}
           </option>
         ))}
       </select>

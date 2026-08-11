@@ -42,6 +42,15 @@ describe('Production readiness schema (PUS-223)', () => {
   dbTest('stores backup run, retention policy and migration log', async () => {
     const tenantId = randomUUID();
 
+    await db
+      .delete(schema.dataRetentionPolicies)
+      .where(
+        and(
+          isNull(schema.dataRetentionPolicies.tenantId),
+          eq(schema.dataRetentionPolicies.entityType, 'audit_logs'),
+        ),
+      );
+
     const [backup] = await db
       .insert(schema.backupRuns)
       .values({
@@ -121,6 +130,16 @@ describe('Production readiness schema (PUS-223)', () => {
 
   dbTest('enforces one platform retention policy per entity type', async () => {
     const entityType = 'report_exports';
+
+    await db
+      .delete(schema.dataRetentionPolicies)
+      .where(
+        and(
+          isNull(schema.dataRetentionPolicies.tenantId),
+          eq(schema.dataRetentionPolicies.entityType, entityType),
+        ),
+      );
+
     await db.insert(schema.dataRetentionPolicies).values({
       tenantId: null,
       entityType,

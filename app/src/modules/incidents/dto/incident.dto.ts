@@ -116,3 +116,13 @@ export class UploadIncidentEvidenceDto {
   @MaxLength(1000)
   comment?: string;
 }
+
+export class HodDecisionDto {
+  @IsIn(['continue', 'stop'])
+  decision!: 'continue' | 'stop';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  comment?: string;
+}

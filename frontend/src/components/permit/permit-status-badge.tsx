@@ -1,14 +1,15 @@
 import { cn } from "@/lib/utils";
 
 const statusStyles: Record<string, string> = {
-  draft: "bg-muted text-muted-foreground",
-  pending_approval: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  approved: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  active: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
-  suspended: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
-  rejected: "bg-destructive/15 text-destructive",
-  deferred: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
-  closed: "bg-muted text-muted-foreground",
+  draft: "bg-[var(--permit-draft-bg)] text-[var(--permit-draft)]",
+  pending_approval: "bg-[var(--permit-pending-bg)] text-[var(--permit-pending)]",
+  approved: "bg-[var(--permit-approved-bg)] text-[var(--permit-approved)]",
+  active: "bg-[var(--permit-active-bg)] text-[var(--permit-active)]",
+  suspended: "bg-[var(--status-warning-bg)] text-[var(--status-warning)]",
+  rejected: "bg-[var(--permit-rejected-bg)] text-[var(--permit-rejected)]",
+  deferred: "bg-[var(--status-info-bg)] text-[var(--status-info)]",
+  closed: "bg-[var(--permit-closed-bg)] text-[var(--permit-closed)]",
+  expired: "bg-[var(--permit-expired-bg)] text-[var(--permit-expired)]",
 };
 
 export function PermitStatusBadge({ status }: { status: string }) {

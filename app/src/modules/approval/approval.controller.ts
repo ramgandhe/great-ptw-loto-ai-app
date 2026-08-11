@@ -9,7 +9,7 @@ import {
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
-import { APPROVAL_ACTION_ROLES, APPROVAL_READ_ROLES } from './approval.constants';
+import { APPROVAL_ACTION_ROLES, APPROVAL_READ_ROLES, SAFETY_VETO_ROLES } from './approval.constants';
 import { ApprovalAttachmentService } from './approval-attachment.service';
 import { ApprovalService } from './approval.service';
 import { ApprovePermitDto } from './dto/approve-permit.dto';
@@ -66,6 +66,16 @@ export class ApprovalController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.approvalService.defer(permitId, dto, user);
+  }
+
+  @Roles(...SAFETY_VETO_ROLES)
+  @Post(':permitId/safety-veto')
+  safetyVeto(
+    @Param('permitId', ParseUUIDPipe) permitId: string,
+    @Body() dto: RejectPermitDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.approvalService.safetyVeto(permitId, dto, user);
   }
 
   @Roles(...APPROVAL_READ_ROLES)

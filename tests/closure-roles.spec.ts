@@ -6,6 +6,7 @@ import {
   CLOSURE_CLOSE_ROLES,
   CLOSURE_VERIFY_ROLES,
 } from '../app/src/modules/closure/closure.constants';
+import { mockRoleGuardReflector } from './helpers/role-guard-mock';
 
 describe('Closure role enforcement (PUS-150)', () => {
   const getAllAndOverride = jest.fn();
@@ -29,22 +30,22 @@ describe('Closure role enforcement (PUS-150)', () => {
   });
 
   it('allows supervisor to verify and close permits', () => {
-    getAllAndOverride.mockReturnValue([...CLOSURE_VERIFY_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, CLOSURE_VERIFY_ROLES);
 
     expect(guard.canActivate(buildContext({ roles: ['supervisor'] }))).toBe(true);
 
-    getAllAndOverride.mockReturnValue([...CLOSURE_CLOSE_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, CLOSURE_CLOSE_ROLES);
     expect(guard.canActivate(buildContext({ roles: ['supervisor'] }))).toBe(true);
   });
 
   it('allows viewer to read archive endpoints', () => {
-    getAllAndOverride.mockReturnValue([...CLOSURE_ARCHIVE_READ_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, CLOSURE_ARCHIVE_READ_ROLES);
 
     expect(guard.canActivate(buildContext({ roles: ['viewer'] }))).toBe(true);
   });
 
   it('denies viewer from verify and close actions', () => {
-    getAllAndOverride.mockReturnValue([...CLOSURE_VERIFY_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, CLOSURE_VERIFY_ROLES);
 
     expect(() => guard.canActivate(buildContext({ roles: ['viewer'] }))).toThrow(
       ForbiddenException,
@@ -52,9 +53,23 @@ describe('Closure role enforcement (PUS-150)', () => {
   });
 
   it('denies operator from closure actions', () => {
-    getAllAndOverride.mockReturnValue([...CLOSURE_CLOSE_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, CLOSURE_CLOSE_ROLES);
 
     expect(() => guard.canActivate(buildContext({ roles: ['operator'] }))).toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it('denies administrators from verify and close actions (FR-ROL-003)', () => {
+    mockRoleGuardReflector(getAllAndOverride, CLOSURE_VERIFY_ROLES);
+
+    expect(() => guard.canActivate(buildContext({ roles: ['org-admin'] }))).toThrow(
+      ForbiddenException,
+    );
+
+    mockRoleGuardReflector(getAllAndOverride, CLOSURE_CLOSE_ROLES);
+
+    expect(() => guard.canActivate(buildContext({ roles: ['platform-admin'] }))).toThrow(
       ForbiddenException,
     );
   });

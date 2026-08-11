@@ -7,6 +7,7 @@ import { ApprovalHistoryService } from './approval-history.service';
 import { ApprovalJobsService } from './approval-jobs.service';
 import { ApprovalLogService } from './approval-log.service';
 import { ApprovalService } from './approval.service';
+import { DelegationService } from './delegation.service';
 import { NotificationService } from './notification.service';
 import { WorkflowController } from './workflow.controller';
 import { WorkflowEngineService } from './workflow-engine.service';
@@ -17,6 +18,7 @@ import { WorkflowEngineService } from './workflow-engine.service';
   providers: [
     ApprovalService,
     WorkflowEngineService,
+    DelegationService,
     ApprovalHistoryService,
     NotificationService,
     ApprovalCacheService,

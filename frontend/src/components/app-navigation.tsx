@@ -2,69 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Activity,
-  AlertTriangle,
-  BarChart3,
-  Bell,
-  Building2,
-  CheckSquare,
-  ClipboardList,
-  CreditCard,
-  FileEdit,
-  FileText,
-  Hammer,
-  LayoutDashboard,
-  ListChecks,
-  Lock,
-  LockKeyhole,
-  Server,
-  Settings,
-  Shield,
-  Sparkles,
-  TriangleAlert,
-  Users,
-} from "lucide-react";
 import { Icon } from "@/components/icons";
+import { useAuthProfile } from "@/lib/auth/auth-profile-context";
+import { getNavItemsForRoles } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/reports", label: "Reports", icon: FileText },
-  { href: "/organisation", label: "Organisation", icon: Building2 },
-  { href: "/permits", label: "Permits", icon: ClipboardList },
-  { href: "/active-permits", label: "Active work", icon: Activity },
-  { href: "/permits/drafts", label: "Drafts", icon: FileEdit },
-  { href: "/approvals", label: "Approvals", icon: CheckSquare },
-  { href: "/approvals/deferred", label: "Deferred", icon: ListChecks },
-  { href: "/execution", label: "Execution", icon: Hammer },
-  { href: "/lototo", label: "LOTOTO", icon: LockKeyhole },
-  { href: "/simops", label: "SIMOPS", icon: TriangleAlert },
-  { href: "/incidents", label: "Incidents", icon: AlertTriangle },
-  { href: "/notifications", label: "Notifications", icon: Bell },
-  { href: "/billing", label: "Billing", icon: CreditCard },
-  { href: "/platform", label: "Platform", icon: Server },
-  { href: "/closure", label: "Closure", icon: Lock },
-  { href: "/ai", label: "AI assistant", icon: Sparkles },
-  { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/workforce", label: "Workforce", icon: Users },
-  { href: "/safety", label: "Safety", icon: Shield },
-] as const;
 
 export function AppNavigation() {
   const pathname = usePathname();
+  const { roles } = useAuthProfile();
+  const navItems = getNavItemsForRoles(roles);
 
   return (
     <nav
       aria-label="Main navigation"
-      className="flex h-full w-56 shrink-0 flex-col border-r border-border bg-card p-4"
+      className="flex h-full w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground"
     >
       <div className="mb-8 px-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="font-mono text-xs font-medium uppercase tracking-wide text-muted-foreground">
           PTW Platform
         </p>
-        <p className="text-sm font-semibold">Permit-to-Work</p>
+        <p className="font-[family-name:var(--font-display)] text-sm font-semibold">Permit-to-Work</p>
       </div>
       <ul className="flex flex-col gap-1">
         {navItems.map(({ href, label, icon }) => {
@@ -78,8 +35,8 @@ export function AppNavigation() {
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
                   isActive
-                    ? "bg-accent font-medium text-accent-foreground"
-                    : "text-foreground hover:bg-accent/60",
+                    ? "bg-primary/12 font-medium text-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
                 <Icon icon={icon} size="sm" />

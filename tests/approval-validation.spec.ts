@@ -52,8 +52,12 @@ describe('WorkflowEngineService role checks (PUS-136)', () => {
     expect(service.userHasApproverRole(['supervisor'], 'supervisor')).toBe(true);
   });
 
-  it('allows platform-admin override', () => {
-    expect(service.userHasApproverRole(['platform-admin'], 'org-admin')).toBe(true);
+  it('denies platform-admin override for workflow steps', () => {
+    expect(service.userHasApproverRole(['platform-admin'], 'org-admin')).toBe(false);
+  });
+
+  it('denies org-admin override for workflow steps', () => {
+    expect(service.userHasApproverRole(['org-admin'], 'supervisor')).toBe(false);
   });
 
   it('denies unauthorised role', () => {

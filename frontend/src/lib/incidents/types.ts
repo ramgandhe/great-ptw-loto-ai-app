@@ -3,6 +3,7 @@ export type IncidentSeverityPath = "near_miss" | "accident";
 export type IncidentStatus =
   | "draft"
   | "open"
+  | "pending_hod_decision"
   | "investigating"
   | "pending_verification"
   | "verified"

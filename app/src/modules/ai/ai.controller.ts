@@ -1,11 +1,12 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
-import { Public } from '../../common/decorators/auth.decorators';
+import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { RagPipeline } from '../../services/rag-pipeline';
 import { SemanticCache } from '../../services/semantic-cache';
 import { InputGuard } from '../../security/input-guard';
 import { HybridRetriever } from '../../components/hybrid-retriever';
 import { AiQueryDto } from './dto/ai-query.dto';
 import { AiHealthStatus } from './ai.types';
+import { AI_QUERY_ROLES } from './ai.constants';
 
 @Controller('ai')
 export class AiController {
@@ -27,6 +28,7 @@ export class AiController {
     };
   }
 
+  @Roles(...AI_QUERY_ROLES)
   @Post('query')
   async query(@Body() body: AiQueryDto) {
     return this.ragPipeline.run(body);

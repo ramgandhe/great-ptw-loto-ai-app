@@ -19,6 +19,7 @@ interface KeycloakJwtPayload {
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private readonly configService: ConfigService) {
     const keycloakUrl = configService.get<string>('keycloak.url')!;
+    const keycloakIssuer = configService.get<string>('keycloak.issuer')!;
     const realm = configService.get<string>('keycloak.realm')!;
 
     super({
@@ -30,7 +31,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         jwksRequestsPerMinute: 10,
         jwksUri: `${keycloakUrl}/realms/${realm}/protocol/openid-connect/certs`,
       }),
-      issuer: `${keycloakUrl}/realms/${realm}`,
+      issuer: `${keycloakIssuer}/realms/${realm}`,
       algorithms: ['RS256'],
     });
   }
