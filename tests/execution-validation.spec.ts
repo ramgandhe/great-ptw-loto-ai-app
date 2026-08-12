@@ -8,6 +8,7 @@ import {
   EXECUTION_READ_ROLES,
   EXECUTION_WRITE_ROLES,
 } from '../app/src/modules/execution/execution.constants';
+import { mockRoleGuardReflector } from './helpers/role-guard-mock';
 
 describe('Execution DTO validation (PUS-141)', () => {
   it('rejects empty suspend reason', async () => {
@@ -75,21 +76,21 @@ describe('Execution role enforcement (PUS-141)', () => {
   });
 
   it('allows authorised execution write roles', () => {
-    getAllAndOverride.mockReturnValue([...EXECUTION_WRITE_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, EXECUTION_WRITE_ROLES);
 
     const result = guard.canActivate(buildContext({ roles: ['operator'] }));
     expect(result).toBe(true);
   });
 
   it('allows viewer for execution read endpoints', () => {
-    getAllAndOverride.mockReturnValue([...EXECUTION_READ_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, EXECUTION_READ_ROLES);
 
     const result = guard.canActivate(buildContext({ roles: ['viewer'] }));
     expect(result).toBe(true);
   });
 
   it('denies viewer for execution write endpoints', () => {
-    getAllAndOverride.mockReturnValue([...EXECUTION_WRITE_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, EXECUTION_WRITE_ROLES);
 
     expect(() => guard.canActivate(buildContext({ roles: ['viewer'] }))).toThrow(
       ForbiddenException,
@@ -97,7 +98,7 @@ describe('Execution role enforcement (PUS-141)', () => {
   });
 
   it('denies unauthenticated requests', () => {
-    getAllAndOverride.mockReturnValue([...EXECUTION_WRITE_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, EXECUTION_WRITE_ROLES);
 
     expect(() => guard.canActivate(buildContext(undefined))).toThrow(ForbiddenException);
   });

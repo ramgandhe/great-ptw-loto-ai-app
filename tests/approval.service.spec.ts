@@ -14,6 +14,7 @@ import { ApprovalHistoryService } from '../app/src/modules/approval/approval-his
 import { ApprovalCacheService } from '../app/src/modules/approval/approval-cache.service';
 import { ApprovalLogService } from '../app/src/modules/approval/approval-log.service';
 import { ApprovalService } from '../app/src/modules/approval/approval.service';
+import { DelegationService } from '../app/src/modules/approval/delegation.service';
 import { NotificationService } from '../app/src/modules/approval/notification.service';
 import { WorkflowEngineService } from '../app/src/modules/approval/workflow-engine.service';
 import { AuditService } from '../app/src/modules/logging/audit.service';
@@ -91,6 +92,10 @@ describe('ApprovalService integration (PUS-136)', () => {
       }),
     } as unknown as PermitService;
 
+    const delegationService = {
+      findActiveDelegation: jest.fn().mockResolvedValue(null),
+    } as unknown as DelegationService;
+
     approvalService = new ApprovalService(
       db,
       permitService,
@@ -101,6 +106,7 @@ describe('ApprovalService integration (PUS-136)', () => {
       permitCacheService,
       approvalCacheService,
       approvalLogService,
+      delegationService,
     );
   });
 
@@ -162,8 +168,8 @@ describe('ApprovalService integration (PUS-136)', () => {
           tenantId,
           permitTypeId,
           stepSequence: 2,
-          name: 'Head of Department Approval',
-          approverRole: 'org-admin',
+          name: 'Safety Officer Sign-off',
+          approverRole: 'safety-officer',
           createdBy: issuerId,
         })
         .returning();
@@ -257,21 +263,23 @@ describe('ApprovalService integration (PUS-136)', () => {
 
   dbTest('advances multi-stage workflow and finalises permit', async () => {
     const { supervisorUser, createPendingPermit, createWorkflowSteps } = testContext();
-    const multiStageApprover: AuthenticatedUser = {
+    const safetyOfficerUser: AuthenticatedUser = {
       ...supervisorUser,
-      roles: ['supervisor', 'org-admin'],
+      id: randomUUID(),
+      roles: ['safety-officer'],
+      email: 'safety@example.com',
     };
     const permit = await createPendingPermit();
     await createWorkflowSteps();
 
-    const afterFirst = await approvalService.approve(permit.id, {}, multiStageApprover);
+    const afterFirst = await approvalService.approve(permit.id, {}, supervisorUser);
     expect(afterFirst.permit.status).toBe('pending_approval');
-    expect(afterFirst.activeAssignment?.step.approverRole).toBe('org-admin');
+    expect(afterFirst.activeAssignment?.step.approverRole).toBe('safety-officer');
 
-    const afterSecond = await approvalService.approve(permit.id, {}, multiStageApprover);
+    const afterSecond = await approvalService.approve(permit.id, {}, safetyOfficerUser);
     expect(afterSecond.permit.status).toBe('approved');
 
-    const history = await approvalService.getHistory(permit.id, multiStageApprover);
+    const history = await approvalService.getHistory(permit.id, safetyOfficerUser);
     expect(history.some((entry) => entry.action === 'stage_advanced')).toBe(true);
     expect(history.some((entry) => entry.action === 'approved')).toBe(true);
   });

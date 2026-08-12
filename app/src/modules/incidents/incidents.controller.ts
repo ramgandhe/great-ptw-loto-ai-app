@@ -16,10 +16,12 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { UploadedFilePayload } from '../permit/uploaded-file.interface';
 import {
   CreateIncidentDto,
+  HodDecisionDto,
   UpdateIncidentDto,
   UploadIncidentEvidenceDto,
 } from './dto/incident.dto';
 import {
+  INCIDENT_HOD_DECISION_ROLES,
   INCIDENT_READ_ROLES,
   INCIDENT_REPORT_ROLES,
   MAX_INCIDENT_EVIDENCE_SIZE_BYTES,
@@ -62,6 +64,16 @@ export class IncidentsController {
   @Post(':id/submit')
   submit(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.incidentsService.submit(id, user);
+  }
+
+  @Roles(...INCIDENT_HOD_DECISION_ROLES)
+  @Post(':id/hod-decision')
+  recordHodDecision(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HodDecisionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.incidentsService.recordHodDecision(id, dto, user);
   }
 
   @Roles(...INCIDENT_REPORT_ROLES)

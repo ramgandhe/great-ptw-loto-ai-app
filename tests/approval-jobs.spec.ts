@@ -1,8 +1,12 @@
 import { Job } from 'bullmq';
 import { ApprovalCacheService } from '../app/src/modules/approval/approval-cache.service';
+import { ApprovalHistoryService } from '../app/src/modules/approval/approval-history.service';
 import { ApprovalJobsService } from '../app/src/modules/approval/approval-jobs.service';
 import { ApprovalLogService } from '../app/src/modules/approval/approval-log.service';
-import { APPROVAL_NOTIFICATION_JOB } from '../app/src/modules/approval/approval.constants';
+import {
+  APPROVAL_NOTIFICATION_JOB,
+  APPROVAL_SLA_ESCALATION_JOB,
+} from '../app/src/modules/approval/approval.constants';
 import { QueueService } from '../app/src/infrastructure/queue/queue.service';
 
 describe('ApprovalJobsService (PUS-140)', () => {
@@ -24,8 +28,21 @@ describe('ApprovalJobsService (PUS-140)', () => {
     invalidateTenant: jest.fn().mockResolvedValue(undefined),
   } as unknown as ApprovalCacheService;
 
+  const approvalHistoryService = {
+    record: jest.fn().mockResolvedValue(undefined),
+  } as unknown as ApprovalHistoryService;
+
   const configService = {
-    get: jest.fn().mockReturnValue('0 8 * * *'),
+    get: jest.fn((key: string) => {
+      if (key === 'approval.slaEscalationCron') {
+        return '0 * * * *';
+      }
+      return '0 8 * * *';
+    }),
+  };
+
+  const canonicalNotificationService = {
+    fromApprovalPayload: jest.fn().mockResolvedValue(undefined),
   };
 
   const service = new ApprovalJobsService(
@@ -34,6 +51,8 @@ describe('ApprovalJobsService (PUS-140)', () => {
     configService as never,
     approvalLogService,
     approvalCacheService,
+    approvalHistoryService,
+    canonicalNotificationService as never,
   );
 
   beforeEach(() => {
@@ -48,10 +67,19 @@ describe('ApprovalJobsService (PUS-140)', () => {
       APPROVAL_NOTIFICATION_JOB,
       expect.any(Function),
     );
+    expect(queueService.registerHandler).toHaveBeenCalledWith(
+      APPROVAL_SLA_ESCALATION_JOB,
+      expect.any(Function),
+    );
     expect(queueAdd).toHaveBeenCalledWith(
       'approval.reminder',
       {},
       expect.objectContaining({ jobId: 'approval-reminder-schedule' }),
+    );
+    expect(queueAdd).toHaveBeenCalledWith(
+      APPROVAL_SLA_ESCALATION_JOB,
+      {},
+      expect.objectContaining({ jobId: 'approval-sla-escalation-schedule' }),
     );
   });
 

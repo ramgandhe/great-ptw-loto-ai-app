@@ -2,6 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RolesGuard } from '../app/src/common/guards/roles.guard';
 import { APPROVAL_ACTION_ROLES } from '../app/src/modules/approval/approval.constants';
+import { mockRoleGuardReflector } from './helpers/role-guard-mock';
 
 describe('Approval role enforcement (PUS-140)', () => {
   const getAllAndOverride = jest.fn();
@@ -25,7 +26,7 @@ describe('Approval role enforcement (PUS-140)', () => {
   });
 
   it('allows authorised approver roles', () => {
-    getAllAndOverride.mockReturnValue([...APPROVAL_ACTION_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, APPROVAL_ACTION_ROLES);
 
     const result = guard.canActivate(
       buildContext({ roles: ['supervisor'] }),
@@ -35,15 +36,27 @@ describe('Approval role enforcement (PUS-140)', () => {
   });
 
   it('denies non-approver roles attempting approval actions', () => {
-    getAllAndOverride.mockReturnValue([...APPROVAL_ACTION_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, APPROVAL_ACTION_ROLES);
 
     expect(() =>
       guard.canActivate(buildContext({ roles: ['viewer'] })),
     ).toThrow(ForbiddenException);
   });
 
+  it('denies administrators from approval actions (FR-ROL-003)', () => {
+    mockRoleGuardReflector(getAllAndOverride, APPROVAL_ACTION_ROLES);
+
+    expect(() =>
+      guard.canActivate(buildContext({ roles: ['org-admin'] })),
+    ).toThrow(ForbiddenException);
+
+    expect(() =>
+      guard.canActivate(buildContext({ roles: ['platform-admin'] })),
+    ).toThrow(ForbiddenException);
+  });
+
   it('denies unauthenticated requests', () => {
-    getAllAndOverride.mockReturnValue([...APPROVAL_ACTION_ROLES]);
+    mockRoleGuardReflector(getAllAndOverride, APPROVAL_ACTION_ROLES);
 
     expect(() => guard.canActivate(buildContext(undefined))).toThrow(ForbiddenException);
   });

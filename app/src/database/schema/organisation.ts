@@ -21,6 +21,7 @@ export const organisations = pgTable(
     name: varchar('name', { length: 255 }).notNull(),
     legalName: varchar('legal_name', { length: 255 }),
     registrationNumber: varchar('registration_number', { length: 128 }),
+    timezone: varchar('timezone', { length: 64 }).notNull().default('UTC'),
     status: varchar('status', { length: 32 }).notNull().default('active'),
   },
   (table) => [

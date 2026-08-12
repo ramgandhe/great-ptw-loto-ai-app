@@ -61,6 +61,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.setAttribute("data-theme", preferences.theme);
     root.setAttribute("data-density", preferences.density);
     root.setAttribute("data-style", preferences.visualStyle);
+    root.setAttribute("data-mode", preferences.mode);
     root.classList.toggle("dark", preferences.mode === "dark");
     localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
   }, [preferences]);

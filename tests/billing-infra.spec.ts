@@ -32,17 +32,41 @@ describe('Billing infra services (PUS-214)', () => {
     );
   });
 
-  it('BillingJobsService flags due renewals for invoicing', async () => {
+  it('BillingJobsService processes due renewals for invoicing', async () => {
     const due = [
       {
-        id: 's1',
-        tenantId: 't1',
-        status: 'active',
-        renewAt: new Date('2026-07-01T00:00:00.000Z'),
+        subscription: {
+          id: 's1',
+          tenantId: 't1',
+          status: 'active',
+          renewAt: new Date('2026-07-01T00:00:00.000Z'),
+          periodStart: new Date('2026-06-01T00:00:00.000Z'),
+          periodEnd: new Date('2026-07-01T00:00:00.000Z'),
+          createdBy: 'admin-1',
+        },
+        plan: { priceMinor: 1000, currency: 'INR' },
       },
     ];
     const db = {
-      select: () => ({ from: () => ({ where: () => Promise.resolve(due) }) }),
+      select: jest
+        .fn()
+        .mockReturnValueOnce({
+          from: () => ({
+            innerJoin: () => ({
+              where: () => Promise.resolve(due),
+            }),
+          }),
+        })
+        .mockReturnValue({
+          from: () => ({
+            where: () => ({
+              limit: () => Promise.resolve([]),
+            }),
+          }),
+        }),
+      insert: () => ({
+        values: () => Promise.resolve(undefined),
+      }),
     };
     const logService = { logEvent: jest.fn() };
     const jobs = new BillingJobsService(
@@ -50,6 +74,7 @@ describe('Billing infra services (PUS-214)', () => {
       {} as never,
       { get: () => '0 2 * * *' } as never,
       logService as never,
+      { fromBillingRenewal: jest.fn() } as never,
     );
 
     await jobs.processBillingCycle();
@@ -65,6 +90,7 @@ describe('Billing infra services (PUS-214)', () => {
       {} as never,
       { get: () => '0 * * * *' } as never,
       logService as never,
+      { fromBillingRenewal: jest.fn() } as never,
     );
 
     await jobs.aggregateUsage();
@@ -73,8 +99,11 @@ describe('Billing infra services (PUS-214)', () => {
     );
   });
 
-  it('BillingJobsService flags upcoming renewals', async () => {
-    const upcoming = [{ id: 's1', tenantId: 't1', renewAt: new Date() }];
+  it('BillingJobsService notifies admins of upcoming renewals', async () => {
+    const upcoming = [
+      { id: 's1', tenantId: 't1', renewAt: new Date(), createdBy: 'admin-1' },
+    ];
+    const canonicalNotifications = { fromBillingRenewal: jest.fn().mockResolvedValue(undefined) };
     const db = {
       select: () => ({ from: () => ({ where: () => Promise.resolve(upcoming) }) }),
     };
@@ -86,9 +115,13 @@ describe('Billing infra services (PUS-214)', () => {
         get: (key: string) => (key === 'billing.renewalHorizonDays' ? 7 : '0 9 * * *'),
       } as never,
       logService as never,
+      canonicalNotifications as never,
     );
 
     await jobs.notifyUpcomingRenewals();
+    expect(canonicalNotifications.fromBillingRenewal).toHaveBeenCalledWith(
+      expect.objectContaining({ subscriptionId: 's1', adminUserId: 'admin-1' }),
+    );
     expect(logService.logEvent).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'billing.renewal-notify', tenantId: 't1' }),
     );

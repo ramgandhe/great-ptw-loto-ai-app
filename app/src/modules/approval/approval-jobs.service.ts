@@ -1,17 +1,26 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull, lt } from 'drizzle-orm';
 import { Job } from 'bullmq';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { permits, workflowAssignments } from '../../database/schema';
+import {
+  approvalSlaEscalations,
+  permits,
+  workflowAssignments,
+  workflowSteps,
+} from '../../database/schema';
 import { QueueService } from '../../infrastructure/queue/queue.service';
 import {
   APPROVAL_NOTIFICATION_JOB,
   APPROVAL_REMINDER_JOB,
+  APPROVAL_SLA_ESCALATION_JOB,
+  MAX_SLA_ESCALATION_LEVELS,
   PENDING_APPROVAL_STATUS,
 } from './approval.constants';
 import { ApprovalCacheService } from './approval-cache.service';
+import { ApprovalHistoryService } from './approval-history.service';
 import { ApprovalLogService } from './approval-log.service';
+import { CanonicalNotificationService } from '../notifications/canonical-notification.service';
 import type { ApprovalNotificationPayload } from './notification.service';
 
 @Injectable()
@@ -24,6 +33,8 @@ export class ApprovalJobsService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly approvalLogService: ApprovalLogService,
     private readonly approvalCacheService: ApprovalCacheService,
+    private readonly approvalHistoryService: ApprovalHistoryService,
+    private readonly canonicalNotificationService: CanonicalNotificationService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -35,20 +46,36 @@ export class ApprovalJobsService implements OnModuleInit {
       await this.sendReminders();
     });
 
-    const cron = this.configService.get<string>('approval.reminderCron') ?? '0 8 * * *';
+    this.queueService.registerHandler(APPROVAL_SLA_ESCALATION_JOB, async () => {
+      await this.escalateOverdueSlas();
+    });
+
+    const reminderCron = this.configService.get<string>('approval.reminderCron') ?? '0 8 * * *';
+    const slaCron =
+      this.configService.get<string>('approval.slaEscalationCron') ?? '0 * * * *';
 
     try {
       await this.queueService.getQueue().add(
         APPROVAL_REMINDER_JOB,
         {},
         {
-          repeat: { pattern: cron },
+          repeat: { pattern: reminderCron },
           jobId: 'approval-reminder-schedule',
         },
       );
-      this.logger.log(`Scheduled approval reminder job (${cron})`);
+      await this.queueService.getQueue().add(
+        APPROVAL_SLA_ESCALATION_JOB,
+        {},
+        {
+          repeat: { pattern: slaCron },
+          jobId: 'approval-sla-escalation-schedule',
+        },
+      );
+      this.logger.log(
+        `Scheduled approval reminder (${reminderCron}) and SLA escalation (${slaCron}) jobs`,
+      );
     } catch (error) {
-      this.logger.warn('Could not schedule approval reminder job');
+      this.logger.warn('Could not schedule approval background jobs');
       this.logger.debug(error);
     }
   }
@@ -65,6 +92,7 @@ export class ApprovalJobsService implements OnModuleInit {
     });
 
     await this.approvalCacheService.invalidateTenant(payload.tenantId);
+    await this.canonicalNotificationService.fromApprovalPayload(payload);
   }
 
   async sendReminders(): Promise<number> {
@@ -99,6 +127,100 @@ export class ApprovalJobsService implements OnModuleInit {
     }
 
     this.logger.log(`Enqueued ${rows.length} approval reminder notifications`);
+    return rows.length;
+  }
+
+  async escalateOverdueSlas(): Promise<number> {
+    const now = new Date();
+
+    const rows = await this.db
+      .select({
+        assignment: workflowAssignments,
+        permit: permits,
+        step: workflowSteps,
+      })
+      .from(workflowAssignments)
+      .innerJoin(permits, eq(workflowAssignments.permitId, permits.id))
+      .innerJoin(workflowSteps, eq(workflowAssignments.workflowStepId, workflowSteps.id))
+      .where(
+        and(
+          eq(permits.status, PENDING_APPROVAL_STATUS),
+          eq(workflowAssignments.status, 'active'),
+          isNull(workflowAssignments.slaPausedAt),
+          lt(workflowAssignments.slaDeadlineAt, now),
+          lt(workflowAssignments.escalationLevel, MAX_SLA_ESCALATION_LEVELS),
+        ),
+      );
+
+    if (rows.length === 0) {
+      return 0;
+    }
+
+    const queue = this.queueService.getQueue();
+
+    for (const row of rows) {
+      const nextLevel = row.assignment.escalationLevel + 1;
+      const fallbackRole =
+        typeof row.step.stepConfig?.escalationRole === 'string'
+          ? row.step.stepConfig.escalationRole
+          : row.step.approverRole;
+      const extensionHours = row.step.slaHours ?? 24;
+      const nextDeadline = new Date(now.getTime() + extensionHours * 60 * 60 * 1000);
+
+      await this.db.transaction(async (tx) => {
+        await tx
+          .update(workflowAssignments)
+          .set({
+            escalationLevel: nextLevel,
+            slaDeadlineAt: nextDeadline,
+            updatedBy: row.assignment.assigneeId,
+          })
+          .where(eq(workflowAssignments.id, row.assignment.id));
+
+        await tx.insert(approvalSlaEscalations).values({
+          tenantId: row.permit.tenantId,
+          permitId: row.permit.id,
+          workflowAssignmentId: row.assignment.id,
+          escalationLevel: nextLevel,
+          fallbackRole,
+          createdBy: row.assignment.assigneeId,
+        });
+
+        await this.approvalHistoryService.record(
+          {
+            permitId: row.permit.id,
+            action: 'sla_escalated',
+            fromStatus: row.permit.status,
+            toStatus: row.permit.status,
+            actorId: row.assignment.assigneeId,
+            workflowStepId: row.step.id,
+            metadata: {
+              escalationLevel: nextLevel,
+              fallbackRole,
+              workflowAssignmentId: row.assignment.id,
+            },
+            createdBy: row.assignment.assigneeId,
+          },
+          tx,
+        );
+      });
+
+      await queue.add(APPROVAL_NOTIFICATION_JOB, {
+        permitId: row.permit.id,
+        tenantId: row.permit.tenantId,
+        action: 'sla_escalated',
+        actorId: row.assignment.assigneeId,
+        metadata: {
+          escalationLevel: nextLevel,
+          fallbackRole,
+          workflowAssignmentId: row.assignment.id,
+        },
+      } satisfies ApprovalNotificationPayload);
+
+      await this.approvalCacheService.invalidateTenant(row.permit.tenantId);
+    }
+
+    this.logger.log(`Escalated ${rows.length} overdue approval SLAs`);
     return rows.length;
   }
 }

@@ -35,8 +35,6 @@ import { DashboardsModule } from './modules/dashboards/dashboards.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { ClosureModule } from './modules/closure/closure.module';
 import { LoggingModule } from './modules/logging/logging.module';
-import { AiModule } from './modules/ai/ai.module';
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -91,7 +89,6 @@ import { AiModule } from './modules/ai/ai.module';
     NotificationsModule,
     DashboardsModule,
     BillingModule,
-    AiModule,
   ],
   providers: [
     JwtAuthGuard,

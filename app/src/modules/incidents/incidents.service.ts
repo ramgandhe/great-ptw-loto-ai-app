@@ -23,6 +23,7 @@ import {
 } from '../../database/schema';
 import { StorageService } from '../../infrastructure/storage/storage.service';
 import { AuditService } from '../logging/audit.service';
+import { CanonicalNotificationService } from '../notifications/canonical-notification.service';
 import { UploadedFilePayload } from '../permit/uploaded-file.interface';
 import { IncidentCacheService } from './incident-cache.service';
 import { IncidentLogService } from './incident-log.service';
@@ -30,8 +31,10 @@ import {
   ALLOWED_INCIDENT_EVIDENCE_CONTENT_TYPES,
   MAX_INCIDENT_EVIDENCE_SIZE_BYTES,
 } from './incidents.constants';
+import { IncidentSeverityLifecycleService } from './incident-severity-lifecycle.service';
 import {
   CreateIncidentDto,
+  HodDecisionDto,
   UpdateIncidentDto,
   UploadIncidentEvidenceDto,
 } from './dto/incident.dto';
@@ -45,6 +48,8 @@ export class IncidentsService {
     private readonly logService: IncidentLogService,
     private readonly storageService: StorageService,
     private readonly configService: ConfigService,
+    private readonly severityLifecycle: IncidentSeverityLifecycleService,
+    private readonly canonicalNotificationService: CanonicalNotificationService,
   ) {}
 
   async create(dto: CreateIncidentDto, user: AuthenticatedUser) {
@@ -64,6 +69,11 @@ export class IncidentsService {
 
     const reference = this.generateReference();
     const now = new Date();
+    const status = submit
+      ? severityPath === 'accident'
+        ? 'open'
+        : 'pending_hod_decision'
+      : 'draft';
 
     const [row] = await this.db
       .insert(incidents)
@@ -72,7 +82,7 @@ export class IncidentsService {
         reference,
         incidentType: dto.incidentType,
         severityPath,
-        status: submit ? 'open' : 'draft',
+        status,
         title: dto.title,
         description: dto.description,
         locationDescription: dto.locationDescription ?? '',
@@ -90,6 +100,10 @@ export class IncidentsService {
       .returning();
 
     await this.linkAssociations(row.id, tenantId, actorId, dto.permitIds, dto.machineryIds);
+
+    if (submit) {
+      await this.severityLifecycle.applyOnSubmit(row.id, tenantId, actorId, severityPath);
+    }
 
     await this.auditService.log({
       action: submit ? 'incident.submitted' : 'incident.created',
@@ -190,10 +204,17 @@ export class IncidentsService {
     }
 
     const now = new Date();
+    const submittedStatus = await this.severityLifecycle.applyOnSubmit(
+      id,
+      tenantId,
+      actorId,
+      incident.severityPath,
+    );
+
     const [row] = await this.db
       .update(incidents)
       .set({
-        status: 'open',
+        status: submittedStatus,
         submittedBy: actorId,
         submittedAt: now,
         updatedBy: actorId,
@@ -219,8 +240,50 @@ export class IncidentsService {
       metadata: { reference: row.reference },
     });
 
+    await this.canonicalNotificationService.fromIncidentReported({
+      tenantId,
+      incidentId: id,
+      actorId,
+      reference: row.reference,
+      severityPath: incident.severityPath,
+    });
+
     await this.cacheService.invalidateIncident(tenantId, id);
     return this.loadDetail(id, tenantId);
+  }
+
+  async recordHodDecision(id: string, dto: HodDecisionDto, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const actorId = requireActorId(user);
+    const incident = await this.requireIncident(id, tenantId);
+
+    if (incident.severityPath !== 'near_miss') {
+      throw new ConflictException('HOD decisions apply only to near-miss severity paths');
+    }
+    if (incident.status !== 'pending_hod_decision') {
+      throw new ConflictException('Incident is not awaiting HOD decision');
+    }
+
+    await this.severityLifecycle.recordHodDecision(
+      id,
+      tenantId,
+      actorId,
+      dto.decision,
+      dto.comment,
+    );
+
+    const [row] = await this.db
+      .update(incidents)
+      .set({
+        status: 'open',
+        updatedBy: actorId,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(incidents.id, id), eq(incidents.tenantId, tenantId)))
+      .returning();
+
+    await this.cacheService.invalidateIncident(tenantId, id);
+    return this.loadDetail(row.id, tenantId);
   }
 
   async uploadEvidence(

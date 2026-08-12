@@ -32,12 +32,17 @@ describe('LototoJobsService (PUS-155)', () => {
     get: jest.fn().mockReturnValue('0 8 * * *'),
   };
 
+  const canonicalNotificationService = {
+    fromLototoPayload: jest.fn().mockResolvedValue(undefined),
+  };
+
   const service = new LototoJobsService(
     null as never,
     queueService,
     configService as never,
     lototoLogService,
     lototoCacheService,
+    canonicalNotificationService as never,
   );
 
   beforeEach(() => {

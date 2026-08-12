@@ -67,19 +67,45 @@ export class WorkflowEngineService {
       throw new BadRequestException('No approval workflow configured for this permit type');
     }
 
-    return this.client(db)
-      .insert(workflowAssignments)
-      .values(
-        steps.map((step, index) => ({
+    const values: Array<{
+      permitId: string;
+      workflowStepId: string;
+      assigneeId: string;
+      assignmentSlot: string;
+      status: AssignmentStatus;
+      slaDeadlineAt?: Date;
+      createdBy: string;
+      updatedBy: string;
+    }> = [];
+
+    let firstSequence: number | null = null;
+
+    for (const step of steps) {
+      const isFirst = firstSequence === null || step.stepSequence === firstSequence;
+      if (firstSequence === null) {
+        firstSequence = step.stepSequence;
+      }
+
+      const roles =
+        step.stageMode === 'parallel' && step.parallelRoles?.length
+          ? step.parallelRoles
+          : [step.approverRole];
+
+      for (const role of roles) {
+        values.push({
           permitId,
           workflowStepId: step.id,
           assigneeId: submittedBy,
-          status: (index === 0 ? 'active' : 'pending') satisfies AssignmentStatus,
+          assignmentSlot: step.stageMode === 'parallel' ? role : 'default',
+          status: isFirst ? 'active' : 'pending',
+          slaDeadlineAt: isFirst && step.slaHours ? this.slaDeadline(step.slaHours) : undefined,
           createdBy: submittedBy,
           updatedBy: submittedBy,
-        })),
-      )
-      .returning();
+        });
+      }
+    }
+
+    return this.client(db).insert(workflowAssignments).values(values).returning();
   }
 
   async resetWorkflow(permitId: string, db?: DbClient) {
@@ -107,15 +133,28 @@ export class WorkflowEngineService {
     return this.initializeAtSubmit(permitId, tenantId, permitTypeId, actorId);
   }
 
-  async getActiveAssignment(permitId: string) {
-    const [assignment] = await this.db
-      .select()
+  async getActiveAssignments(permitId: string, db?: DbClient) {
+    return this.client(db)
+      .select({
+        assignment: workflowAssignments,
+        step: workflowSteps,
+      })
       .from(workflowAssignments)
+      .innerJoin(workflowSteps, eq(workflowAssignments.workflowStepId, workflowSteps.id))
       .where(
         and(eq(workflowAssignments.permitId, permitId), eq(workflowAssignments.status, 'active')),
-      );
+      )
+      .orderBy(asc(workflowSteps.stepSequence));
+  }
 
-    return assignment ?? null;
+  async getActiveAssignment(permitId: string) {
+    const rows = await this.getActiveAssignments(permitId);
+    return rows[0]?.assignment ?? null;
+  }
+
+  async getActiveAssignmentWithStep(permitId: string) {
+    const rows = await this.getActiveAssignments(permitId);
+    return rows[0] ?? null;
   }
 
   async getAssignmentWithStep(permitId: string, assignmentId: string) {
@@ -140,21 +179,6 @@ export class WorkflowEngineService {
     return assignment;
   }
 
-  async getActiveAssignmentWithStep(permitId: string) {
-    const [result] = await this.db
-      .select({
-        assignment: workflowAssignments,
-        step: workflowSteps,
-      })
-      .from(workflowAssignments)
-      .innerJoin(workflowSteps, eq(workflowAssignments.workflowStepId, workflowSteps.id))
-      .where(
-        and(eq(workflowAssignments.permitId, permitId), eq(workflowAssignments.status, 'active')),
-      );
-
-    return result ?? null;
-  }
-
   async completeAssignment(assignmentId: string, userId: string, db?: DbClient) {
     const [assignment] = await this.client(db)
       .update(workflowAssignments)
@@ -167,6 +191,47 @@ export class WorkflowEngineService {
       .returning();
 
     return assignment;
+  }
+
+  async isParallelStageComplete(
+    permitId: string,
+    stepId: string,
+    quorumMode: string,
+    db?: DbClient,
+  ): Promise<boolean> {
+    const assignments = await this.client(db)
+      .select()
+      .from(workflowAssignments)
+      .where(
+        and(
+          eq(workflowAssignments.permitId, permitId),
+          eq(workflowAssignments.workflowStepId, stepId),
+        ),
+      );
+
+    if (quorumMode === 'first') {
+      return assignments.some((row) => row.status === 'completed');
+    }
+
+    return assignments.every((row) => row.status === 'completed' || row.status === 'skipped');
+  }
+
+  async completeParallelStage(
+    permitId: string,
+    stepId: string,
+    userId: string,
+    db?: DbClient,
+  ) {
+    await this.client(db)
+      .update(workflowAssignments)
+      .set({ status: 'skipped', updatedBy: userId })
+      .where(
+        and(
+          eq(workflowAssignments.permitId, permitId),
+          eq(workflowAssignments.workflowStepId, stepId),
+          eq(workflowAssignments.status, 'active'),
+        ),
+      );
   }
 
   async activateNextStep(
@@ -190,19 +255,28 @@ export class WorkflowEngineService {
       )
       .orderBy(asc(workflowSteps.stepSequence));
 
-    const next = steps.find((row) => row.step.stepSequence > currentStepSequence);
-    if (!next) {
-      return null;
+    const nextSequence = steps.find((row) => row.step.stepSequence > currentStepSequence)?.step
+      .stepSequence;
+
+    if (!nextSequence) {
+      return [];
     }
 
-    const [activated] = await this.client(db)
-      .update(workflowAssignments)
-      .set({
-        status: 'active',
-        updatedBy: userId,
-      })
-      .where(eq(workflowAssignments.id, next.assignment.id))
-      .returning();
+    const nextRows = steps.filter((row) => row.step.stepSequence === nextSequence);
+    const activated = [];
+
+    for (const row of nextRows) {
+      const [item] = await this.client(db)
+        .update(workflowAssignments)
+        .set({
+          status: 'active',
+          slaDeadlineAt: row.step.slaHours ? this.slaDeadline(row.step.slaHours) : null,
+          updatedBy: userId,
+        })
+        .where(eq(workflowAssignments.id, row.assignment.id))
+        .returning();
+      activated.push(item);
+    }
 
     return activated;
   }
@@ -231,6 +305,23 @@ export class WorkflowEngineService {
   }
 
   userHasApproverRole(userRoles: string[], requiredRole: string): boolean {
-    return userRoles.includes(requiredRole) || userRoles.includes('platform-admin');
+    return userRoles.includes(requiredRole);
+  }
+
+  resolveApproverRoleForAssignment(
+    userRoles: string[],
+    step: typeof workflowSteps.$inferSelect,
+    assignmentSlot: string,
+  ): string | null {
+    if (step.stageMode === 'parallel') {
+      const role = assignmentSlot;
+      return userRoles.includes(role) ? role : null;
+    }
+
+    return userRoles.includes(step.approverRole) ? step.approverRole : null;
+  }
+
+  private slaDeadline(hours: number): Date {
+    return new Date(Date.now() + hours * 60 * 60 * 1000);
   }
 }

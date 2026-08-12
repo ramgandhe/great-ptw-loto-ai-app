@@ -1,4 +1,4 @@
-import { ExecutionContext, INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
+import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
@@ -11,23 +11,19 @@ import { AuthenticatedUser } from '../app/src/common/interfaces/authenticated-us
 import { QueueService } from '../app/src/infrastructure/queue/queue.service';
 import { StorageService } from '../app/src/infrastructure/storage/storage.service';
 import * as schema from '../app/src/database/schema';
+import {
+  asIntegrationUser,
+  createIntegrationAuthGuard,
+  setIntegrationUser,
+} from './helpers/integration-auth';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 
-function authGuardAs(user: AuthenticatedUser) {
-  return {
-    canActivate: (context: ExecutionContext) => {
-      context.switchToHttp().getRequest().user = user;
-      return true;
-    },
-  };
-}
-
-async function createTestApp(user: AuthenticatedUser): Promise<INestApplication> {
+async function createTestApp(): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
   })
     .overrideProvider(JwtAuthGuard)
-    .useValue(authGuardAs(user))
+    .useValue(createIntegrationAuthGuard())
     .overrideProvider(QueueService)
     .useValue({
       onModuleInit: jest.fn().mockResolvedValue(undefined),
@@ -82,6 +78,14 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
     email: 'admin@example.com',
   };
 
+  const supervisorUser: AuthenticatedUser = {
+    id: randomUUID(),
+    username: 'supervisor',
+    tenantId,
+    roles: ['supervisor'],
+    email: 'supervisor@example.com',
+  };
+
   const completeChecklist = {
     workCompleted: true,
     evidenceReviewed: true,
@@ -101,7 +105,8 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
       return;
     }
 
-    app = await createTestApp(adminUser);
+    app = await createTestApp();
+    setIntegrationUser(adminUser);
   });
 
   afterAll(async () => {
@@ -179,8 +184,8 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
       tenantId,
       permitTypeId,
       stepSequence: 1,
-      name: 'Org Admin Approval',
-      approverRole: 'org-admin',
+      name: 'Supervisor Approval',
+      approverRole: 'supervisor',
       createdBy: userId,
     });
 
@@ -208,10 +213,12 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
       .expect(201);
     expect(submitRes.body.data.permit.status).toBe('pending_approval');
 
-    const approveRes = await request(app.getHttpServer())
-      .post(`/api/v1/approvals/${permitId}/approve`)
-      .send({ comment: 'Approved for MS-02 integration test' })
-      .expect(201);
+    const approveRes = await asIntegrationUser(supervisorUser, () =>
+      request(app.getHttpServer())
+        .post(`/api/v1/approvals/${permitId}/approve`)
+        .send({ comment: 'Approved for MS-02 integration test' })
+        .expect(201),
+    );
     expect(approveRes.body.data.permit.status).toBe('approved');
 
     const activateRes = await request(app.getHttpServer())
@@ -236,10 +243,12 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
     expect(evidenceRes.status).toBe(201);
     expect(evidenceRes.body.success).toBe(true);
 
-    const verifyRes = await request(app.getHttpServer())
-      .post(`/api/v1/permits/${permitId}/verify`)
-      .send({ checklist: completeChecklist, comment: 'Area secured' })
-      .expect(201);
+    const verifyRes = await asIntegrationUser(supervisorUser, () =>
+      request(app.getHttpServer())
+        .post(`/api/v1/permits/${permitId}/verify`)
+        .send({ checklist: completeChecklist, comment: 'Area secured' })
+        .expect(201),
+    );
     expect(verifyRes.body.data.verification.permitId).toBe(permitId);
 
     const verificationGetRes = await request(app.getHttpServer())
@@ -247,10 +256,12 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
       .expect(200);
     expect(verificationGetRes.body.data.permitId).toBe(permitId);
 
-    const closeRes = await request(app.getHttpServer())
-      .post(`/api/v1/permits/${permitId}/close`)
-      .send({ comment: 'Work complete' })
-      .expect(201);
+    const closeRes = await asIntegrationUser(supervisorUser, () =>
+      request(app.getHttpServer())
+        .post(`/api/v1/permits/${permitId}/close`)
+        .send({ comment: 'Work complete' })
+        .expect(201),
+    );
     expect(closeRes.body.data.permit.status).toBe('closed');
 
     const archiveRes = await request(app.getHttpServer()).get('/api/v1/permits/archive').expect(200);

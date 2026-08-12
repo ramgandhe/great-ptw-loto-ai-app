@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Building2, CreditCard, LogOut, Server, Settings } from "lucide-react";
+import { Bell, Building2, CreditCard, LogOut, Settings } from "lucide-react";
 import { ThemeSettings } from "@/components/theme/theme-settings";
 import { Button } from "@/components/ui/button";
+import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { signOut } from "@/lib/auth/keycloak";
+import { BILLING_READ_ROLES } from "@/lib/auth/roles";
+import { hasAnyRole } from "@/lib/auth/rbac";
 
-const links = [
+const organisationLinks = [
   {
     href: "/organisation/profile",
     label: "Organisation profile",
@@ -19,21 +22,21 @@ const links = [
     description: "Channel and event notification settings",
     icon: Bell,
   },
-  {
-    href: "/billing",
-    label: "Billing & subscription",
-    description: "Plans, usage and invoice history",
-    icon: CreditCard,
-  },
-  {
-    href: "/platform",
-    label: "Platform status",
-    description: "Health probes and release information",
-    icon: Server,
-  },
 ];
 
+const billingLink = {
+  href: "/billing",
+  label: "Billing & subscription",
+  description: "Plans, usage and invoice history",
+  icon: CreditCard,
+};
+
 export default function SettingsPage() {
+  const { roles } = useAuthProfile();
+  const links = hasAnyRole(roles, BILLING_READ_ROLES)
+    ? [...organisationLinks, billingLink]
+    : organisationLinks;
+
   return (
     <main className="flex flex-1 flex-col gap-8 p-8">
       <div className="flex items-center gap-3">

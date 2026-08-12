@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Healthcheck — pings API system health and AI health endpoints.
+ * Healthcheck — pings API system health endpoint.
  */
 const apiBase = process.env.API_BASE_URL ?? 'http://localhost:4000/api/v1';
 
@@ -18,7 +18,6 @@ async function check(path: string): Promise<void> {
 
 async function main(): Promise<void> {
   await check('/health');
-  await check('/ai/health');
 }
 
 main().catch((error: unknown) => {

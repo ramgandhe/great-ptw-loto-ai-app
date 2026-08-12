@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { LoggingModule } from '../logging/logging.module';
+import { CanonicalNotificationService } from './canonical-notification.service';
 import { DeliveryService } from './delivery.service';
 import { EscalationService } from './escalation.service';
 import { NotificationCacheService } from './notification-cache.service';
@@ -14,6 +15,7 @@ import { ReminderService } from './reminder.service';
   controllers: [NotificationsController],
   providers: [
     NotificationsService,
+    CanonicalNotificationService,
     DeliveryService,
     ReminderService,
     EscalationService,
@@ -23,6 +25,7 @@ import { ReminderService } from './reminder.service';
   ],
   exports: [
     NotificationsService,
+    CanonicalNotificationService,
     DeliveryService,
     ReminderService,
     EscalationService,

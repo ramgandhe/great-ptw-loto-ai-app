@@ -13,6 +13,8 @@ type PlanCardProps = {
   isAdmin: boolean;
   isSubmitting?: boolean;
   onSelect?: (planId: string) => void;
+  subscriptionStatusLabel?: string;
+  renewAtLabel?: string;
 };
 
 export function PlanCard({
@@ -21,6 +23,8 @@ export function PlanCard({
   isAdmin,
   isSubmitting = false,
   onSelect,
+  subscriptionStatusLabel,
+  renewAtLabel,
 }: PlanCardProps) {
   const isCurrent = currentPlanId === plan.id;
 
@@ -50,6 +54,23 @@ export function PlanCard({
           / {BILLING_INTERVAL_LABELS[plan.billingInterval].toLowerCase()}
         </span>
       </p>
+
+      {isCurrent && (subscriptionStatusLabel || renewAtLabel) ? (
+        <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+          {subscriptionStatusLabel ? (
+            <div>
+              <dt className="text-xs text-muted-foreground">Status</dt>
+              <dd className="text-sm font-medium">{subscriptionStatusLabel}</dd>
+            </div>
+          ) : null}
+          {renewAtLabel ? (
+            <div>
+              <dt className="text-xs text-muted-foreground">Renews</dt>
+              <dd className="text-sm font-medium">{renewAtLabel}</dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
 
       {plan.description ? (
         <p className="mt-3 text-sm text-muted-foreground">{plan.description}</p>

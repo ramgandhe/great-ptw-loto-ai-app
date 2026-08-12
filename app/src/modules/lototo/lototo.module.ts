@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PermitModule } from '../permit/permit.module';
 import { EquipmentService } from './equipment.service';
 import { IsolationController } from './isolation.controller';
@@ -13,7 +14,7 @@ import { NotificationService } from './notification.service';
 import { SequenceService } from './sequence.service';
 
 @Module({
-  imports: [PermitModule],
+  imports: [PermitModule, NotificationsModule],
   controllers: [LototoController, IsolationController],
   providers: [
     LototoService,

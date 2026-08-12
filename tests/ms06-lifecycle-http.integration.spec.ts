@@ -1,7 +1,8 @@
-import { ExecutionContext, INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
+import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { eq } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 import request from 'supertest';
@@ -11,23 +12,19 @@ import { AuthenticatedUser } from '../app/src/common/interfaces/authenticated-us
 import { QueueService } from '../app/src/infrastructure/queue/queue.service';
 import { StorageService } from '../app/src/infrastructure/storage/storage.service';
 import * as schema from '../app/src/database/schema';
+import {
+  asIntegrationUser,
+  createIntegrationAuthGuard,
+  setIntegrationUser,
+} from './helpers/integration-auth';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 
-function authGuardAs(user: AuthenticatedUser) {
-  return {
-    canActivate: (context: ExecutionContext) => {
-      context.switchToHttp().getRequest().user = user;
-      return true;
-    },
-  };
-}
-
-async function createTestApp(user: AuthenticatedUser): Promise<INestApplication> {
+async function createTestApp(): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
   })
     .overrideProvider(JwtAuthGuard)
-    .useValue(authGuardAs(user))
+    .useValue(createIntegrationAuthGuard())
     .overrideProvider(QueueService)
     .useValue({
       onModuleInit: jest.fn().mockResolvedValue(undefined),
@@ -79,6 +76,14 @@ describe('MS-06 lifecycle HTTP integration (ITC-INC-001–010)', () => {
     email: 'admin@example.com',
   };
 
+  const supervisorUser: AuthenticatedUser = {
+    id: randomUUID(),
+    username: 'supervisor',
+    tenantId,
+    roles: ['supervisor'],
+    email: 'supervisor@example.com',
+  };
+
   beforeAll(async () => {
     pool = new Pool({ connectionString: testDatabaseUrl });
     try {
@@ -91,7 +96,8 @@ describe('MS-06 lifecycle HTTP integration (ITC-INC-001–010)', () => {
       return;
     }
 
-    app = await createTestApp(adminUser);
+    app = await createTestApp();
+    setIntegrationUser(adminUser);
   });
 
   afterAll(async () => {
@@ -156,8 +162,8 @@ describe('MS-06 lifecycle HTTP integration (ITC-INC-001–010)', () => {
       tenantId,
       permitTypeId,
       stepSequence: 1,
-      name: 'Org Admin Approval',
-      approverRole: 'org-admin',
+      name: 'Supervisor Approval',
+      approverRole: 'supervisor',
       createdBy: userId,
     });
 
@@ -178,10 +184,12 @@ describe('MS-06 lifecycle HTTP integration (ITC-INC-001–010)', () => {
     const permitId = createRes.body.data.permit.id;
 
     await request(server).post(`/api/v1/permits/${permitId}/submit`).expect(201);
-    await request(server)
-      .post(`/api/v1/approvals/${permitId}/approve`)
-      .send({ comment: 'Approved for MS-06 integration test' })
-      .expect(201);
+    await asIntegrationUser(supervisorUser, () =>
+      request(server)
+        .post(`/api/v1/approvals/${permitId}/approve`)
+        .send({ comment: 'Approved for MS-06 integration test' })
+        .expect(201),
+    );
     await request(server)
       .post(`/api/v1/permits/${permitId}/activate`)
       .send({ comment: 'Work started' })
@@ -229,6 +237,13 @@ describe('MS-06 lifecycle HTTP integration (ITC-INC-001–010)', () => {
         .post(`/api/v1/incidents/${incidentId}/submit`)
         .expect(201);
       expect(submitRes.body.data.incident.status).toBe('open');
+
+      const permitAfterSubmit = await drizzle(pool, { schema })
+        .select()
+        .from(schema.permits)
+        .where(eq(schema.permits.id, permitId))
+        .limit(1);
+      expect(permitAfterSubmit[0]?.status).toBe('cancelled');
 
       const evidenceRes = await request(server)
         .post(`/api/v1/incidents/${incidentId}/evidence`)
