@@ -35,6 +35,7 @@ services:
 
   keycloak:
     restart: unless-stopped
+    command: start --import-realm
     environment:
       KC_DB_USERNAME: ${POSTGRES_USER:?POSTGRES_USER is required}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
@@ -86,6 +87,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
       MINIO_BUCKET: ${MINIO_BUCKET:-ptw-documents}
       KEYCLOAK_URL: ${KEYCLOAK_URL:?KEYCLOAK_URL is required}
+      KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER:?KEYCLOAK_ISSUER is required}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-ptw-platform}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-ptw-api}
       LOKI_URL: ${LOKI_URL:-http://loki:3100}
@@ -119,8 +121,16 @@ services:
 
   frontend:
     restart: unless-stopped
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?NEXT_PUBLIC_APP_URL is required}
+        NEXT_PUBLIC_KEYCLOAK_URL: ${NEXT_PUBLIC_KEYCLOAK_URL:?NEXT_PUBLIC_KEYCLOAK_URL is required}
+        NEXT_PUBLIC_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-ptw-platform}
+        NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: ${NEXT_PUBLIC_KEYCLOAK_CLIENT_ID:-ptw-web}
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
       NODE_ENV: production
     depends_on:
       api:

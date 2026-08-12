@@ -1,0 +1,15 @@
+# TLS reverse proxy for production (SP-08.03).
+# Set APP_DOMAIN, API_DOMAIN and AUTH_DOMAIN in the environment before starting Caddy.
+# Example: docker compose -f infrastructure/production/docker-compose.caddy.yml up -d
+
+{$APP_DOMAIN} {
+	reverse_proxy 127.0.0.1:3000
+}
+
+{$API_DOMAIN} {
+	reverse_proxy 127.0.0.1:4000
+}
+
+{$AUTH_DOMAIN} {
+	reverse_proxy 127.0.0.1:8080
+}

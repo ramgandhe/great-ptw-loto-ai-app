@@ -191,10 +191,6 @@ export const CLOSURE_READ_ROLES = [
   "viewer",
 ] as const;
 
-export const PLATFORM_OPS_ROLES = ["org-admin", "platform-admin"] as const;
-
-export const AI_ASSISTANT_ROLES = NOTIFICATION_READ_ROLES;
-
 export const SAFETY_HUB_ROLES = [
   "job-issuer",
   "operator",

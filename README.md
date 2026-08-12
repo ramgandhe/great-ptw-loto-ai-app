@@ -1,18 +1,15 @@
 # PTW Platform
 
-Enterprise Permit-to-Work and safety management platform with an AI assistant layer.
+Enterprise Permit-to-Work and safety management platform.
 
 ## Repository structure
 
 ```
-app/                 NestJS backend (PTW + AI RAG)
+app/                 NestJS backend (PTW API)
 frontend/            Next.js web application
 mobile/              React Native (Expo) mobile application
 packages/shared/     Shared TypeScript types and constants
 tests/               Jest suites
-evaluation/          Golden dataset + offline/online eval
-observability/       Tracing, feedback, cost tracking (re-exports)
-data/                Raw → processed → index config
 scripts/             seed, migrate, healthcheck
 infrastructure/      Keycloak realm export
 docs/                Specs, architecture, API, deployment
@@ -59,18 +56,14 @@ npm run start -w mobile
 npm run healthcheck
 ```
 
-## API endpoints (foundation + AI)
+## API endpoints (foundation)
 
 | Endpoint | Method | Auth | Purpose |
 | --- | --- | --- | --- |
 | `/api/v1/health` | GET | Public | Service health |
-| `/api/v1/ai/health` | GET | Public | AI layer health |
-| `/api/v1/ai/query` | POST | Required | RAG assistant query |
 | `/api/v1/auth/profile` | GET | Required | Current user profile |
 | `/api/v1/system/config` | GET | Public | Client configuration |
 | `/api/v1/system/version` | GET | Public | Version information |
-
-Web AI UI: `/ai`
 
 ## Default Keycloak credentials (development)
 

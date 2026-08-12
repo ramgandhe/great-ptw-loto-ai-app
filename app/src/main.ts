@@ -59,7 +59,11 @@ async function bootstrap(): Promise<void> {
   const storageService = app.get(StorageService);
   await storageService.ensureBucket();
 
-  const port = configService.get<number>('port') ?? 4000;
+  const configuredPort = configService.get<number>('port');
+  const port =
+    typeof configuredPort === 'number' && Number.isFinite(configuredPort) && configuredPort > 0
+      ? configuredPort
+      : 4000;
   await app.listen(port);
   logger.log(`API listening on http://localhost:${port}/api/v1/health`);
 }

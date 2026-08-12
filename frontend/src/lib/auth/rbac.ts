@@ -1,5 +1,4 @@
 import {
-  AI_ASSISTANT_ROLES,
   APPROVAL_READ_ROLES,
   AUTHENTICATED_ROLES,
   BILLING_READ_ROLES,
@@ -20,7 +19,6 @@ import {
   ORGANISATION_WRITE_ROLES,
   PERMIT_READ_ROLES,
   PERMIT_WRITE_ROLES,
-  PLATFORM_OPS_ROLES,
   RESTORATION_READ_ROLES,
   SAFETY_HUB_ROLES,
   SIMOPS_READ_ROLES,
@@ -37,7 +35,6 @@ const ORGANISATION_ADMIN_PATHS = ["/organisation/profile", "/organisation/workfl
 
 const ROUTE_RULES: RouteRule[] = [
   { test: (p) => p === "/unauthorized" || p === "/settings", roles: AUTHENTICATED_ROLES },
-  { test: (p) => p === "/platform", roles: PLATFORM_OPS_ROLES },
   { test: (p) => p === "/billing", roles: BILLING_READ_ROLES },
   { test: (p) => p === "/analytics", roles: DASHBOARD_ANALYTICS_ROLES },
   { test: (p) => p === "/reports", roles: DASHBOARD_REPORT_ROLES },
@@ -65,7 +62,6 @@ const ROUTE_RULES: RouteRule[] = [
   { test: (p) => p.startsWith("/simops"), roles: SIMOPS_READ_ROLES },
   { test: (p) => p.startsWith("/notifications"), roles: NOTIFICATION_READ_ROLES },
   { test: (p) => p.startsWith("/closure"), roles: CLOSURE_READ_ROLES },
-  { test: (p) => p === "/ai", roles: AI_ASSISTANT_ROLES },
   { test: (p) => p === "/safety", roles: SAFETY_HUB_ROLES },
   { test: (p) => p === "/", roles: DASHBOARD_READ_ROLES },
 ];

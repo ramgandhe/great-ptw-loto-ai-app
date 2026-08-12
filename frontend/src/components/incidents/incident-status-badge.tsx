@@ -3,6 +3,7 @@ import type { IncidentStatus } from "@/lib/incidents/types";
 const LABELS: Record<IncidentStatus, string> = {
   draft: "Draft",
   open: "Open",
+  pending_hod_decision: "Pending HOD decision",
   investigating: "Investigating",
   pending_verification: "Pending verification",
   verified: "Verified",

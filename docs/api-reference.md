@@ -19,13 +19,6 @@ Security notes (SP-08.02): JWT required on all non-public routes; Helmet +
 Production boot guards (SP-08.03): `NODE_ENV=production` requires
 `REDIS_PASSWORD` + `CORS_ORIGIN` and rejects known local/dev secret defaults.
 
-## AI
-
-| Method | Path | Auth | Notes |
-| --- | --- | --- | --- |
-| GET | `/ai/health` | Public | Retriever/cache/guard status |
-| POST | `/ai/query` | Required | RAG query body `{ query, conversationId?, permitId? }` |
-
 PTW permit/approval/execution/closure/SIMOPS routes remain under their existing controllers.
 
 ## Multi-Day Daily Progress (MS-05 / SP-05.01)

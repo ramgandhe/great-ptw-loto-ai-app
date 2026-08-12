@@ -23,7 +23,6 @@ import {
 import {
   currentPeriodLabel,
   formatDateLabel,
-  formatPrice,
   isBillingAdmin,
   SUBSCRIPTION_STATUS_LABELS,
 } from "@/lib/billing/labels";
@@ -96,6 +95,16 @@ export default function BillingPage() {
   );
 
   const isSubscribeFlow = subscription === null;
+
+  const currentPlan = useMemo(
+    () => plans.find((plan) => plan.id === subscription?.planId) ?? subscription?.plan ?? null,
+    [plans, subscription],
+  );
+
+  const alternatePlans = useMemo(
+    () => plans.filter((plan) => plan.id !== subscription?.planId),
+    [plans, subscription?.planId],
+  );
 
   async function handlePlanConfirm() {
     if (!selectedPlan) {
@@ -173,56 +182,67 @@ export default function BillingPage() {
         <>
           <BillingAlertBanner subscription={subscription} />
 
-          {subscription ? (
-            <section className="rounded-lg border border-border bg-card p-5">
-              <h2 className="text-sm font-semibold">Current subscription</h2>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Plan</p>
-                  <p className="font-medium">{subscription.plan.name}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Status</p>
-                  <p className="font-medium">{SUBSCRIPTION_STATUS_LABELS[subscription.status]}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Price</p>
-                  <p className="font-medium">
-                    {formatPrice(subscription.plan.priceMinor, subscription.plan.currency)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Renews</p>
-                  <p className="font-medium">{formatDateLabel(subscription.renewAt)}</p>
-                </div>
+          {subscription && currentPlan ? (
+            <section>
+              <h2 className="mb-3 text-sm font-semibold">Your subscription</h2>
+              <div className="max-w-xl">
+                <PlanCard
+                  plan={currentPlan}
+                  currentPlanId={subscription.planId}
+                  isAdmin={isAdmin}
+                  isSubmitting={isSubmitting}
+                  subscriptionStatusLabel={SUBSCRIPTION_STATUS_LABELS[subscription.status]}
+                  renewAtLabel={formatDateLabel(subscription.renewAt)}
+                />
               </div>
             </section>
           ) : null}
 
-          <section>
-            <h2 className="mb-3 text-sm font-semibold">Subscription plans</h2>
-            {plans.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No active plans are available.</p>
-            ) : (
+          {isSubscribeFlow ? (
+            <section>
+              <h2 className="mb-3 text-sm font-semibold">Choose a plan</h2>
+              {plans.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No active plans are available.</p>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {plans.map((plan) => (
+                    <PlanCard
+                      key={plan.id}
+                      plan={plan}
+                      isAdmin={isAdmin}
+                      isSubmitting={isSubmitting}
+                      onSelect={isAdmin ? (planId) => setDialogPlan(plans.find((p) => p.id === planId) ?? null) : undefined}
+                    />
+                  ))}
+                </div>
+              )}
+              {!isAdmin ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Plan changes require organisation administrator access.
+                </p>
+              ) : null}
+            </section>
+          ) : isAdmin && alternatePlans.length > 0 ? (
+            <section>
+              <h2 className="mb-3 text-sm font-semibold">Change plan</h2>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {plans.map((plan) => (
+                {alternatePlans.map((plan) => (
                   <PlanCard
                     key={plan.id}
                     plan={plan}
                     currentPlanId={subscription?.planId}
                     isAdmin={isAdmin}
                     isSubmitting={isSubmitting}
-                    onSelect={isAdmin ? (planId) => setDialogPlan(plans.find((p) => p.id === planId) ?? null) : undefined}
+                    onSelect={(planId) => setDialogPlan(plans.find((p) => p.id === planId) ?? null)}
                   />
                 ))}
               </div>
-            )}
-            {!isAdmin ? (
-              <p className="mt-3 text-xs text-muted-foreground">
-                Plan changes require organisation administrator access.
-              </p>
-            ) : null}
-          </section>
+            </section>
+          ) : !isAdmin ? (
+            <p className="text-xs text-muted-foreground">
+              Plan changes require organisation administrator access.
+            </p>
+          ) : null}
 
           <section className="rounded-lg border border-border p-5">
             <h2 className="text-sm font-semibold">Usage</h2>
@@ -234,11 +254,9 @@ export default function BillingPage() {
             </div>
 
             {isAdmin ? (
-              <form
-                onSubmit={handleRecordUsage}
-                className="mt-6 grid max-w-xl gap-3 border-t border-border pt-6"
-              >
-                <h3 className="text-sm font-medium">Record usage (admin)</h3>
+              <details className="mt-6 border-t border-border pt-6">
+                <summary className="cursor-pointer text-sm font-medium">Record usage (admin)</summary>
+                <form onSubmit={handleRecordUsage} className="mt-4 grid max-w-xl gap-3">
                 <label className="flex flex-col gap-1 text-sm">
                   Metric key
                   <input
@@ -276,7 +294,8 @@ export default function BillingPage() {
                 <Button type="submit" disabled={isSubmitting} className="w-fit">
                   Save usage
                 </Button>
-              </form>
+                </form>
+              </details>
             ) : null}
           </section>
 
