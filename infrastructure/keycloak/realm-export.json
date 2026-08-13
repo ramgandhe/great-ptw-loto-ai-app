@@ -44,10 +44,13 @@
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
       "redirectUris": [
-        "http://localhost:3000/*"
+        "http://localhost:3000/*",
+        "https://ptw-loto-web.onrender.com/*",
+        "https://ptw-loto-web.onrender.com/callback"
       ],
       "webOrigins": [
-        "http://localhost:3000"
+        "http://localhost:3000",
+        "https://ptw-loto-web.onrender.com"
       ],
       "protocol": "openid-connect"
     },

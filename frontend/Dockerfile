@@ -35,4 +35,4 @@ COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/frontend/.next ./frontend/.next
 COPY --from=builder /app/frontend/public ./frontend/public
 EXPOSE 3000
-CMD ["npm", "run", "start", "-w", "web"]
+CMD ["sh", "-c", "npm run start -w web -- -p ${PORT:-3000}"]

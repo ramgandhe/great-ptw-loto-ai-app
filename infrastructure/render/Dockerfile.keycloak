@@ -1,0 +1,11 @@
+FROM quay.io/keycloak/keycloak:26.0
+
+COPY infrastructure/keycloak/realm-export.json /opt/keycloak/data/import/realm-export.json
+
+ENV KC_HEALTH_ENABLED=true \
+    KC_HTTP_ENABLED=true \
+    KEYCLOAK_ADMIN=admin \
+    KEYCLOAK_ADMIN_PASSWORD=admin
+
+# Render injects PORT. Use start-dev + realm import for demo.
+ENTRYPOINT ["/bin/sh", "-c", "exec /opt/keycloak/bin/kc.sh start-dev --import-realm --http-port=${PORT:-8080} --hostname-strict=false --proxy-headers=xforwarded"]
