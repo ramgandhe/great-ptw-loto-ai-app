@@ -122,12 +122,17 @@ services:
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: .
     healthCheckPath: /
-    dockerBuildArgs:
-      NEXT_PUBLIC_API_URL: https://ptw-loto-api.onrender.com/api/v1
-      NEXT_PUBLIC_APP_URL: https://ptw-loto-web.onrender.com
-      NEXT_PUBLIC_KEYCLOAK_URL: https://ptw-loto-auth.onrender.com
-      NEXT_PUBLIC_KEYCLOAK_REALM: ptw-platform
-      NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: ptw-web
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://ptw-loto-api.onrender.com/api/v1
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://ptw-loto-web.onrender.com
+      - key: NEXT_PUBLIC_KEYCLOAK_URL
+        value: https://ptw-loto-auth.onrender.com
+      - key: NEXT_PUBLIC_KEYCLOAK_REALM
+        value: ptw-platform
+      - key: NEXT_PUBLIC_KEYCLOAK_CLIENT_ID
+        value: ptw-web
 
 databases:
   - name: ptw-loto-db
