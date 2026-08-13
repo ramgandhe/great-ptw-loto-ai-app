@@ -32,10 +32,15 @@ describe('Production readiness backend (PUS-220)', () => {
     expect(validateEnv(fullProductionEnv(), silentLogger)).toEqual([]);
   });
 
-  it('requires REDIS_PASSWORD and CORS_ORIGIN in production', () => {
+  it('requires Redis auth and CORS_ORIGIN in production', () => {
     const env = fullProductionEnv();
     delete env.REDIS_PASSWORD;
-    expect(() => validateEnv(env, silentLogger)).toThrow(/REDIS_PASSWORD/);
+    expect(() => validateEnv(env, silentLogger)).toThrow(/REDIS_PASSWORD|REDIS_URL/);
+
+    const envUrl = fullProductionEnv();
+    delete envUrl.REDIS_PASSWORD;
+    envUrl.REDIS_URL = 'redis://:prod-redis-secret@redis:6379';
+    expect(validateEnv(envUrl, silentLogger)).toEqual([]);
 
     const env2 = fullProductionEnv();
     delete env2.CORS_ORIGIN;
