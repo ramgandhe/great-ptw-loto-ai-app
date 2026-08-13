@@ -50,7 +50,7 @@ services:
       sizeGB: 1
     envVars:
       - key: MINIO_ROOT_USER
-        value: ptw_minio
+        value: ptw_render_minio
       - key: MINIO_ROOT_PASSWORD
         generateValue: true
 
@@ -71,6 +71,11 @@ services:
         fromDatabase:
           name: ptw-loto-db
           property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: ptw-loto-redis
+          property: connectionString
       - key: REDIS_HOST
         fromService:
           type: keyvalue
@@ -81,11 +86,6 @@ services:
           type: keyvalue
           name: ptw-loto-redis
           property: port
-      - key: REDIS_PASSWORD
-        fromService:
-          type: keyvalue
-          name: ptw-loto-redis
-          property: password
       - key: MINIO_ENDPOINT
         value: ptw-loto-minio.onrender.com
       - key: MINIO_PORT
@@ -93,7 +93,7 @@ services:
       - key: MINIO_USE_SSL
         value: "true"
       - key: MINIO_ACCESS_KEY
-        value: ptw_minio
+        value: ptw_render_minio
       - key: MINIO_SECRET_KEY
         fromService:
           type: web

@@ -13,11 +13,31 @@ export default () => ({
       10,
     ),
   },
-  redis: {
-    host: process.env.REDIS_HOST ?? 'localhost',
-    port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-    password: process.env.REDIS_PASSWORD || undefined,
-  },
+  redis: (() => {
+    const fromUrl = (() => {
+      const raw = process.env.REDIS_URL;
+      if (!raw) return null;
+      try {
+        const u = new URL(raw);
+        return {
+          host: u.hostname || undefined,
+          port: u.port ? parseInt(u.port, 10) : undefined,
+          password: u.password ? decodeURIComponent(u.password) : undefined,
+        };
+      } catch {
+        return null;
+      }
+    })();
+
+    return {
+      host: process.env.REDIS_HOST || fromUrl?.host || 'localhost',
+      port: parseInt(
+        process.env.REDIS_PORT || String(fromUrl?.port ?? 6379),
+        10,
+      ),
+      password: process.env.REDIS_PASSWORD || fromUrl?.password || undefined,
+    };
+  })(),
   bullmq: {
     workerConcurrency: parseInt(process.env.BULLMQ_WORKER_CONCURRENCY ?? '5', 10),
   },

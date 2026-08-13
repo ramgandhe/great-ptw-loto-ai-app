@@ -21,7 +21,7 @@ export const REQUIRED_ENV_VARS = [
 ] as const;
 
 /** Extra vars required only when NODE_ENV=production (SP-08.03). */
-export const PRODUCTION_REQUIRED_ENV_VARS = ['REDIS_PASSWORD', 'CORS_ORIGIN'] as const;
+export const PRODUCTION_REQUIRED_ENV_VARS = ['CORS_ORIGIN'] as const;
 
 /** Reject known local/dev secrets in production boots. */
 const INSECURE_PRODUCTION_PATTERNS: ReadonlyArray<{
@@ -35,13 +35,8 @@ const INSECURE_PRODUCTION_PATTERNS: ReadonlyArray<{
     hint: 'replace local Postgres credentials',
   },
   {
-    key: 'REDIS_PASSWORD',
-    pattern: /CHANGE_ME|^$/i,
-    hint: 'set a non-placeholder Redis password',
-  },
-  {
     key: 'MINIO_ACCESS_KEY',
-    pattern: /CHANGE_ME|ptw_minio$/i,
+    pattern: /CHANGE_ME|^ptw_minio$/i,
     hint: 'replace local MinIO access key',
   },
   {
@@ -74,6 +69,21 @@ export function validateEnv(
   }
 
   if (isProduction) {
+    const redisPassword =
+      env.REDIS_PASSWORD ||
+      (() => {
+        try {
+          return env.REDIS_URL ? new URL(env.REDIS_URL).password : '';
+        } catch {
+          return '';
+        }
+      })();
+    if (!redisPassword) {
+      throw new Error(
+        'Insecure production configuration: REDIS_PASSWORD or REDIS_URL password is required',
+      );
+    }
+
     const insecure = INSECURE_PRODUCTION_PATTERNS.filter(({ key, pattern }) => {
       const value = env[key] ?? '';
       return pattern.test(value);
