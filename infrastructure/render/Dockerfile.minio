@@ -1,6 +1,6 @@
 FROM minio/minio:latest
 
-ENV MINIO_ROOT_USER=ptw_minio \
+ENV MINIO_ROOT_USER=ptw_render_minio \
     MINIO_ROOT_PASSWORD=ptw_minio_password
 
 # Render injects PORT. Persist data on attached disk at /data.
