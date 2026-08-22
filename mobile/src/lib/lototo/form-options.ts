@@ -17,9 +17,9 @@ export const ENERGY_SOURCE_OPTIONS = [
 ] as const;
 
 export const ASSIGNMENT_ROLE_OPTIONS: { value: LototoAssignmentRole; label: string }[] = [
-  { value: "isolation_officer", label: "Isolation officer" },
-  { value: "verifier", label: "Verifier" },
-  { value: "supervisor", label: "Supervisor" },
+  { value: "operator", label: "Job executor" },
+  { value: "safety-officer", label: "Safety officer" },
+  { value: "hod", label: "Head of Department" },
 ];
 
 export type LototoFormOptions = {

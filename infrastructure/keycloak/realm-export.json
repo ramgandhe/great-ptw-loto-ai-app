@@ -15,23 +15,27 @@
       },
       {
         "name": "org-admin",
-        "description": "Organisation administrator"
+        "description": "Organisation administrator (System Administrator)"
       },
       {
-        "name": "supervisor",
-        "description": "Operational supervisor"
+        "name": "hod",
+        "description": "Head of Department — approves, closes, and authorises permits"
       },
       {
         "name": "operator",
-        "description": "Field operator"
+        "description": "Job Executor — field operator"
       },
       {
         "name": "job-issuer",
-        "description": "Job Issuer \u2014 creates and submits permits"
+        "description": "Job Issuer — creates and submits permits"
       },
       {
         "name": "viewer",
         "description": "Read-only viewer"
+      },
+      {
+        "name": "safety-officer",
+        "description": "Safety Officer — safety gate and verification"
       }
     ]
   },
@@ -44,14 +48,14 @@
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
       "redirectUris": [
-        "http://localhost:3000/*",
-        "https://ptw-loto-web.onrender.com/*",
-        "https://ptw-loto-web.onrender.com/callback"
+        "http://localhost:3000/*"
       ],
       "webOrigins": [
-        "http://localhost:3000",
-        "https://ptw-loto-web.onrender.com"
+        "http://localhost:3000"
       ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:3000/login"
+      },
       "protocol": "openid-connect"
     },
     {
@@ -84,6 +88,7 @@
   ],
   "users": [
     {
+      "id": "00000000-0000-4000-8000-000000000011",
       "username": "admin",
       "enabled": true,
       "emailVerified": true,
@@ -107,6 +112,7 @@
       ]
     },
     {
+      "id": "00000000-0000-4000-8000-000000000012",
       "username": "orgadmin",
       "enabled": true,
       "emailVerified": true,
@@ -130,6 +136,7 @@
       ]
     },
     {
+      "id": "00000000-0000-4000-8000-000000000013",
       "username": "issuer",
       "enabled": true,
       "emailVerified": true,
@@ -153,12 +160,13 @@
       ]
     },
     {
-      "username": "supervisor",
+      "id": "00000000-0000-4000-8000-000000000014",
+      "username": "hod",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "Safety",
-      "lastName": "Supervisor",
-      "email": "supervisor@ptw.local",
+      "firstName": "Head",
+      "lastName": "Of Department",
+      "email": "hod@ptw.local",
       "attributes": {
         "tenant_id": [
           "00000000-0000-4000-8000-000000000001"
@@ -172,8 +180,79 @@
         }
       ],
       "realmRoles": [
-        "supervisor",
-        "org-admin"
+        "hod"
+      ]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000015",
+      "username": "operator",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Field",
+      "lastName": "Operator",
+      "email": "operator@ptw.local",
+      "attributes": {
+        "tenant_id": [
+          "00000000-0000-4000-8000-000000000001"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "operator"
+      ]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000016",
+      "username": "safety",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Safety",
+      "lastName": "Officer",
+      "email": "safety@ptw.local",
+      "attributes": {
+        "tenant_id": [
+          "00000000-0000-4000-8000-000000000001"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "safety-officer"
+      ]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000017",
+      "username": "viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Read",
+      "lastName": "Only",
+      "email": "viewer@ptw.local",
+      "attributes": {
+        "tenant_id": [
+          "00000000-0000-4000-8000-000000000001"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "viewer"
       ]
     }
   ],

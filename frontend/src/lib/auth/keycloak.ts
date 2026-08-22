@@ -34,7 +34,10 @@ export function consumeAuthRedirect(): string {
   return path && path.startsWith("/") ? path : "/";
 }
 
-export async function startKeycloakLogin(redirectPath = "/"): Promise<void> {
+export async function startKeycloakLogin(
+  redirectPath = "/",
+  options?: { forceLogin?: boolean },
+): Promise<void> {
   storeAuthRedirect(redirectPath);
   const verifier = generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
@@ -48,6 +51,9 @@ export async function startKeycloakLogin(redirectPath = "/"): Promise<void> {
     code_challenge: challenge,
     code_challenge_method: "S256",
   });
+  if (options?.forceLogin) {
+    params.set("prompt", "login");
+  }
 
   window.location.assign(`${authConfig.authorizationEndpoint}?${params.toString()}`);
 }
@@ -101,5 +107,9 @@ export async function refreshAccessToken(): Promise<boolean> {
 
 export function signOut() {
   clearTokens();
-  window.location.assign("/login");
+  const params = new URLSearchParams({
+    client_id: authConfig.clientId,
+    post_logout_redirect_uri: authConfig.postLogoutRedirectUri,
+  });
+  window.location.assign(`${authConfig.logoutEndpoint}?${params.toString()}`);
 }

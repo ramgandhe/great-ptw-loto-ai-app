@@ -12,14 +12,19 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { CreatePermitDto } from './dto/create-permit.dto';
 import { RenewPermitDto } from './dto/renew-permit.dto';
-import { PERMIT_READ_ROLES, PERMIT_WRITE_ROLES } from './permit.constants';
+import {
+  PERMIT_CREATE_ROLES,
+  PERMIT_READ_ROLES,
+  PERMIT_SUBMIT_ROLES,
+  PERMIT_WRITE_ROLES,
+} from './permit.constants';
 import { PermitService } from './permit.service';
 
 @Controller('permits')
 export class PermitController {
   constructor(private readonly permitService: PermitService) {}
 
-  @Roles(...PERMIT_WRITE_ROLES)
+  @Roles(...PERMIT_CREATE_ROLES)
   @Post()
   create(@Body() dto: CreatePermitDto, @CurrentUser() user: AuthenticatedUser) {
     return this.permitService.create(dto, user);
@@ -53,7 +58,7 @@ export class PermitController {
     return this.permitService.renewFromExpired(id, dto, user);
   }
 
-  @Roles(...PERMIT_WRITE_ROLES)
+  @Roles(...PERMIT_SUBMIT_ROLES)
   @Post(':id/submit')
   submit(
     @Param('id', ParseUUIDPipe) id: string,

@@ -29,7 +29,7 @@ describe('Approval role enforcement (PUS-140)', () => {
     mockRoleGuardReflector(getAllAndOverride, APPROVAL_ACTION_ROLES);
 
     const result = guard.canActivate(
-      buildContext({ roles: ['supervisor'] }),
+      buildContext({ roles: ['hod'] }),
     );
 
     expect(result).toBe(true);

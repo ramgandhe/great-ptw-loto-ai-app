@@ -131,9 +131,9 @@ describe('ApprovalService integration (PUS-136)', () => {
 
     const supervisorUser: AuthenticatedUser = {
       id: supervisorId,
-      username: 'supervisor',
+      username: 'hod',
       tenantId,
-      roles: ['supervisor'],
+      roles: ['hod'],
       email: 'supervisor@example.com',
     };
 
@@ -153,7 +153,7 @@ describe('ApprovalService integration (PUS-136)', () => {
           permitTypeId,
           stepSequence: 1,
           name: 'Safety Officer Review',
-          approverRole: 'supervisor',
+          approverRole: 'hod',
           createdBy: issuerId,
         })
         .returning();

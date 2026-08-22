@@ -10,12 +10,16 @@ export function isSubmittablePermitStatus(status: string): boolean {
   return (SUBMITTABLE_PERMIT_STATUSES as readonly string[]).includes(status);
 }
 
+export const PERMIT_CREATE_ROLES = ['job-issuer', 'org-admin', 'platform-admin'] as const;
+
+export const PERMIT_SUBMIT_ROLES = ['job-issuer', 'org-admin', 'platform-admin'] as const;
+
+export const PERMIT_EXECUTOR_DRAFT_ROLES = ['operator'] as const;
+
 export const PERMIT_WRITE_ROLES = [
-  'job-issuer',
-  'operator',
-  'supervisor',
-  'org-admin',
-  'platform-admin',
+  ...PERMIT_CREATE_ROLES,
+  ...PERMIT_EXECUTOR_DRAFT_ROLES,
+  'hod',
 ] as const;
 
 export const PERMIT_READ_ROLES = [...PERMIT_WRITE_ROLES, 'viewer'] as const;

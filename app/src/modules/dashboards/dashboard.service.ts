@@ -85,8 +85,8 @@ export class DashboardService {
     if (roles.some((r) => DASHBOARD_KIND_ROLES.safety.includes(r))) {
       return 'safety';
     }
-    if (roles.some((r) => DASHBOARD_KIND_ROLES.supervisor.includes(r))) {
-      return 'supervisor';
+    if (roles.some((r) => DASHBOARD_KIND_ROLES.hod.includes(r))) {
+      return 'hod';
     }
     return 'personal';
   }

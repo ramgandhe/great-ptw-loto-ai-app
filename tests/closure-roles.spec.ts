@@ -32,10 +32,10 @@ describe('Closure role enforcement (PUS-150)', () => {
   it('allows supervisor to verify and close permits', () => {
     mockRoleGuardReflector(getAllAndOverride, CLOSURE_VERIFY_ROLES);
 
-    expect(guard.canActivate(buildContext({ roles: ['supervisor'] }))).toBe(true);
+    expect(guard.canActivate(buildContext({ roles: ['hod'] }))).toBe(true);
 
     mockRoleGuardReflector(getAllAndOverride, CLOSURE_CLOSE_ROLES);
-    expect(guard.canActivate(buildContext({ roles: ['supervisor'] }))).toBe(true);
+    expect(guard.canActivate(buildContext({ roles: ['hod'] }))).toBe(true);
   });
 
   it('allows viewer to read archive endpoints', () => {

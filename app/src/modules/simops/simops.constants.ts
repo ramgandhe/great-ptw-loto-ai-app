@@ -1,5 +1,5 @@
 export const SIMOPS_WRITE_ROLES = [
-  'supervisor',
+  'hod',
   'org-admin',
   'platform-admin',
   'job-issuer',
@@ -15,11 +15,11 @@ export const ANALYSABLE_PERMIT_STATUSES = [
 ] as const;
 
 export const SIMOPS_RESOLVE_ROLES = [
-  'supervisor',
+  'hod',
   'org-admin',
   'platform-admin',
 ] as const;
 
 export const RESOLVED_CONFLICT_STATUSES = ['approved', 'rejected'] as const;
 
-export const ALERT_RECIPIENT_ROLES = ['supervisor', 'org-admin'] as const;
+export const ALERT_RECIPIENT_ROLES = ['hod', 'org-admin'] as const;

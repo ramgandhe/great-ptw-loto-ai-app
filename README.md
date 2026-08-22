@@ -12,7 +12,7 @@ packages/shared/     Shared TypeScript types and constants
 tests/               Jest suites
 scripts/             seed, migrate, healthcheck
 infrastructure/      Keycloak realm export
-docs/                Specs, architecture, API, deployment
+docs/                Specs, architecture, API
 docker-compose.yml   Local infrastructure + app containers
 ```
 
@@ -39,8 +39,8 @@ npm run db:seed
 ```
 
 Required environment variables are validated at API startup; see
-`.env.example` and `docs/deployment.md` for the full list and the isolation
-execution (SP-03.02) infrastructure configuration.
+`.env.example` for the full list and the isolation execution (SP-03.02)
+infrastructure configuration.
 
 3. Run apps:
 
@@ -70,13 +70,31 @@ npm run healthcheck
 - URL: `http://localhost:8080`
 - Realm: `ptw-platform`
 - Admin: `admin` / `admin`
-- Test user: `admin@ptw.local` / `admin`
+- Test users (run `./scripts/keycloak-sync-dev-users.sh` if only admin exists):
+  - `admin@ptw.local` / `admin` — platform admin
+  - `orgadmin@ptw.local` / `orgadmin` — organisation admin (System Administrator)
+  - `issuer@ptw.local` / `admin` — job issuer
+  - `operator@ptw.local` / `admin` — job executor
+  - `hod@ptw.local` / `admin` — Head of Department
+  - `safety@ptw.local` / `admin` — safety officer
+  - `viewer@ptw.local` / `admin` — read-only viewer
 
 ## Testing
 
 ```bash
 npm run test
 ```
+
+## Demo data
+
+Seed master data and workflow scenarios (permits, approvals, execution, LOTOTO, incidents, SIMOPS, notifications):
+
+```bash
+npm run db:migrate
+npm run db:seed
+```
+
+See [docs/demo-seed-scenarios.md](docs/demo-seed-scenarios.md) for reference codes and which login to use per scenario.
 
 ## Sprint reference
 

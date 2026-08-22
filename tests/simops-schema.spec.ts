@@ -104,7 +104,7 @@ describe('SIMOPS detection schema (PUS-169)', () => {
       conflictId: conflict.id,
       severity: 'high',
       message: 'Equipment overlap detected',
-      recipientRole: 'supervisor',
+      recipientRole: 'hod',
       createdBy: userId,
     });
 

@@ -12,5 +12,6 @@ export const BILLING_ADMIN_ROLES = ['org-admin', 'platform-admin'] as const;
 export const BILLING_READ_ROLES = [
   'org-admin',
   'platform-admin',
-  'safety-manager',
+  'safety-officer',
+  'hod',
 ] as const;

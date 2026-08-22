@@ -10,12 +10,12 @@ export function PermitStepNav({
 }) {
   return (
     <ol className="flex flex-wrap gap-2">
-      {PERMIT_WIZARD_STEPS.map((label, index) => {
+      {PERMIT_WIZARD_STEPS.map((step, index) => {
         const isActive = index === currentStep;
         const isComplete = index < currentStep;
 
         return (
-          <li key={label}>
+          <li key={step.label}>
             <button
               type="button"
               onClick={() => onStepClick?.(index)}
@@ -28,7 +28,7 @@ export function PermitStepNav({
                     : "bg-muted text-muted-foreground",
               )}
             >
-              {index + 1}. {label}
+              {index + 1}. {step.label}
             </button>
           </li>
         );

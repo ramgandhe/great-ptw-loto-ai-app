@@ -9,8 +9,10 @@ export const authConfig = {
   clientId: process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID ?? "ptw-web",
   appUrl,
   redirectUri: `${appUrl}/callback`,
+  postLogoutRedirectUri: `${appUrl}/login`,
   authorizationEndpoint: `${base}/auth`,
   tokenEndpoint: `${base}/token`,
+  logoutEndpoint: `${base}/logout`,
 };
 
 export const PKCE_VERIFIER_KEY = "ptw_pkce_verifier";

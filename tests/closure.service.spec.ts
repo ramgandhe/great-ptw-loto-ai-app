@@ -28,9 +28,9 @@ describe('Closure services integration (PUS-146)', () => {
 
   const supervisorUser: AuthenticatedUser = {
     id: supervisorId,
-    username: 'supervisor',
+    username: 'hod',
     tenantId,
-    roles: ['supervisor'],
+    roles: ['hod'],
     email: 'supervisor@example.com',
   };
 

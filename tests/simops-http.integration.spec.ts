@@ -62,9 +62,9 @@ describe('SIMOPS HTTP integration (PUS-166 / PUS-171)', () => {
 
   const supervisorUser: AuthenticatedUser = {
     id: supervisorId,
-    username: 'supervisor',
+    username: 'hod',
     tenantId,
-    roles: ['supervisor'],
+    roles: ['hod'],
     email: 'supervisor@example.com',
   };
 

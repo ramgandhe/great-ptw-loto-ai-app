@@ -2,9 +2,9 @@ export const LOTOTO_PLAN_STATUSES = ["draft", "ready", "in_execution", "complete
 export type LototoPlanStatus = (typeof LOTOTO_PLAN_STATUSES)[number];
 
 export const LOTOTO_ASSIGNMENT_ROLES = [
-  "isolation_officer",
-  "verifier",
-  "supervisor",
+  "operator",
+  "safety-officer",
+  "hod",
 ] as const;
 export type LototoAssignmentRole = (typeof LOTOTO_ASSIGNMENT_ROLES)[number];
 

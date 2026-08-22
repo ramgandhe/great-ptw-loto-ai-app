@@ -13,13 +13,10 @@ describe('Infrastructure hardening (PUS-219)', () => {
     expect(envExample).toMatch(/SECURITY_HELMET_ENABLED/);
   });
 
-  it('compose and deployment docs cover hardening + rollback', () => {
+  it('compose covers dependency health gates and Redis auth knobs', () => {
     const compose = readFileSync(join(repoRoot, 'docker-compose.yml'), 'utf8');
-    const deployment = readFileSync(join(repoRoot, 'docs/deployment.md'), 'utf8');
     expect(compose).toMatch(/REDIS_PASSWORD/);
     expect(compose).toMatch(/BULLMQ_WORKER_CONCURRENCY/);
     expect(compose).toMatch(/condition: service_healthy/);
-    expect(deployment).toMatch(/Infrastructure hardening \(SP-08\.02\)/);
-    expect(deployment).toMatch(/Rollback path/);
   });
 });

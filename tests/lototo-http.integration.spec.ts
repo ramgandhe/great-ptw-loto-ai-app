@@ -64,9 +64,9 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
 
   const supervisorUser: AuthenticatedUser = {
     id: supervisorId,
-    username: 'supervisor',
+    username: 'hod',
     tenantId,
-    roles: ['supervisor'],
+    roles: ['hod'],
     email: 'supervisor@example.com',
   };
 
@@ -220,12 +220,12 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
 
     await request(app.getHttpServer())
       .post(`/api/v1/lototo/plans/${planId}/assignments`)
-      .send({ workforceUserId: officerId, role: 'isolation_officer' })
+      .send({ workforceUserId: officerId, role: 'operator' })
       .expect(201);
 
     await request(app.getHttpServer())
       .post(`/api/v1/lototo/plans/${planId}/assignments`)
-      .send({ workforceUserId: verifierId, role: 'verifier' })
+      .send({ workforceUserId: verifierId, role: 'safety-officer' })
       .expect(201);
 
     const sequenceRes = await request(app.getHttpServer())

@@ -26,6 +26,15 @@ import { CreatePermitDto } from './dto/create-permit.dto';
 import { RenewPermitDto } from './dto/renew-permit.dto';
 import { UpdatePermitDto } from './dto/update-permit.dto';
 import { isEditablePermitStatus, isSubmittablePermitStatus } from './permit.constants';
+import {
+  assertDraftUpdateAllowed,
+  assertPermitCreateAllowed,
+  assertPermitSubmitAllowed,
+} from './permit-collaboration';
+import {
+  PERMIT_CREATE_ROLES,
+  PERMIT_EXECUTOR_DRAFT_ROLES,
+} from './permit.constants';
 import { PermitCacheService } from './permit-cache.service';
 import { PermitLogService } from './permit-log.service';
 import { PermitValidationService } from './permit-validation.service';
@@ -54,6 +63,7 @@ export class PermitService {
   ) {}
 
   async create(dto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
+    assertPermitCreateAllowed(user);
     const tenantId = this.requireTenant(user);
 
     return this.db.transaction(async (tx) => {
@@ -133,11 +143,33 @@ export class PermitService {
       conditions.push(eq(permits.status, status));
     }
 
-    const results = await this.db
-      .select()
-      .from(permits)
-      .where(and(...conditions))
-      .orderBy(desc(permits.createdAt));
+    const isExecutorOnly =
+      PERMIT_EXECUTOR_DRAFT_ROLES.some((role) => user.roles.includes(role)) &&
+      !PERMIT_CREATE_ROLES.some((role) => user.roles.includes(role));
+
+    let results: (typeof permits.$inferSelect)[];
+
+    if (isExecutorOnly && status === 'draft') {
+      const rows = await this.db
+        .select({ permit: permits })
+        .from(permits)
+        .innerJoin(permitExecutors, eq(permitExecutors.permitId, permits.id))
+        .where(
+          and(
+            eq(permits.tenantId, tenantId),
+            eq(permits.status, 'draft'),
+            eq(permitExecutors.workforceUserId, user.id),
+          ),
+        )
+        .orderBy(desc(permits.updatedAt));
+      results = rows.map((row) => row.permit);
+    } else {
+      results = await this.db
+        .select()
+        .from(permits)
+        .where(and(...conditions))
+        .orderBy(desc(permits.createdAt));
+    }
 
     await this.permitCacheService.setPermitList(tenantId, status, results);
     return results;
@@ -167,6 +199,8 @@ export class PermitService {
     if (!isEditablePermitStatus(existing.permit.status)) {
       throw new ConflictException('Only draft, deferred or rejected permits can be updated');
     }
+
+    assertDraftUpdateAllowed(user, existing, dto);
 
     return this.db.transaction(async (tx) => {
       const permitUpdates: Partial<typeof permits.$inferInsert> = {
@@ -248,6 +282,7 @@ export class PermitService {
   }
 
   async submit(id: string, user: AuthenticatedUser): Promise<PermitDetail> {
+    assertPermitSubmitAllowed(user);
     const tenantId = this.requireTenant(user);
     const detail = await this.loadDetail(this.db, id, tenantId);
 

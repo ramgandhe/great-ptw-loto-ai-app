@@ -3,7 +3,7 @@ export const APPROVAL_REMINDER_JOB = 'approval.reminder';
 export const APPROVAL_SLA_ESCALATION_JOB = 'approval.sla-escalation';
 
 /** Operational approvers only — administrators must not approve permits (FR-ROL-003). */
-export const APPROVER_ROLES = ['supervisor', 'safety-officer'] as const;
+export const APPROVER_ROLES = ['hod', 'job-issuer'] as const;
 
 export const SAFETY_VETO_ROLES = ['safety-officer'] as const;
 

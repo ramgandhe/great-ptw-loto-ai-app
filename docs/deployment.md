@@ -11,49 +11,6 @@ npm run dev:api
 npm run dev:web
 ```
 
-## Production deployment (SP-08.03)
-
-Use the production overlay — secrets come from `.env.production` (never committed):
-
-```bash
-cp .env.production.example .env.production
-# edit secrets, CORS_ORIGIN, KEYCLOAK_HOSTNAME, NEXT_PUBLIC_API_URL
-docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-  --env-file .env.production up -d --build
-DATABASE_URL=... npm run db:migrate
-curl -fsS http://127.0.0.1:4000/api/v1/health
-```
-
-### Go-live sequence
-
-1. Infrastructure verification (Postgres, Redis, MinIO, Keycloak, Loki, Metabase healthy).
-2. Verified backup (`backup_runs` / external snapshot) before migrate.
-3. Deploy API image; run migrations forward only.
-4. Deploy frontend; confirm `NEXT_PUBLIC_API_URL`.
-5. Smoke: auth, health, permit create/approve path, file upload, notifications.
-6. Enable production traffic; enter hypercare with raised Loki/alert attention.
-
-### Production compose controls
-
-`docker-compose.prod.yml` requires secret env vars (`POSTGRES_PASSWORD`,
-`REDIS_PASSWORD`, MinIO keys, Keycloak admin, `DATABASE_URL`, `CORS_ORIGIN`),
-binds published ports to `127.0.0.1`, sets `restart: unless-stopped`, forces
-`NODE_ENV=production` on API/frontend, enables `SECURITY_TRUST_PROXY`, and gates
-API on healthy Loki as well as Postgres/Redis/MinIO/Keycloak.
-
-### Loki / monitoring
-
-- Ship API structured logs (`loki: true`) to Grafana Loki.
-- Alert on sustained `/api/v1/health` unhealthy, migration failures, and backup
-  job failures recorded in `backup_runs`.
-- Retain logs per organisational policy (see `data_retention_policies`).
-
-### Go-live rollback
-
-Same as the SP-08.02 rollback path: redeploy previous images, restore Postgres
-from the pre-migrate backup if needed, migrate forward only, verify health
-before opening traffic.
-
 ## Full stack containers
 
 ```bash
@@ -122,31 +79,8 @@ API pool knobs (defaults shown):
 - `DATABASE_POOL_IDLE_TIMEOUT_MS=30000`
 - `DATABASE_POOL_CONNECTION_TIMEOUT_MS=5000`
 
-After deploy, run `ANALYZE` on hot tables during a maintenance window if
+After schema changes, run `ANALYZE` on hot tables during a maintenance window if
 query plans lag behind new indexes.
-
-## Infrastructure hardening (SP-08.02)
-
-Hardening controls for platform dependencies:
-
-- **Redis** — optional `REDIS_PASSWORD` (compose enables `--requirepass` when set);
-  API/BullMQ clients pass the password when configured.
-- **BullMQ** — `BULLMQ_WORKER_CONCURRENCY` controls worker parallelism (default 5).
-- **API throttling** — `RATE_LIMIT_TTL_MS` / `RATE_LIMIT_LIMIT` feed Nest Throttler.
-- **Keycloak** — compose waits on Keycloak health before starting `api`; production
-  should shorten access-token TTL, enable HTTPS, and restrict admin console exposure.
-- **MinIO** — inject `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` from secrets; never
-  commit production credentials.
-- **Loki** — retain structured `loki: true` logs for security/ops investigation.
-
-### Rollback path
-
-1. Redeploy previous known-good images/tags for `api` / `frontend`.
-2. If a migration shipped with the release, do **not** drop tables; restore from
-   the latest Postgres backup and re-run `npm run db:migrate` only forward.
-3. Clear Redis cache keys if stale config was cached (`FLUSHDB` only on dedicated
-   PTW Redis instances).
-4. Verify `/api/v1/health` is green before routing traffic back.
 
 ## Isolation Execution infrastructure (SP-03.02)
 
@@ -159,7 +93,7 @@ The Isolation Execution module depends on:
   verification.
 - **MinIO** — evidence storage for `isolation_evidence`; the API issues presigned
   upload/download URLs (`ISOLATION_EVIDENCE_URL_EXPIRY_SECONDS`).
-- **Keycloak** — role validation (`isolation-officer`, `verifier`, `supervisor`,
+- **Keycloak** — role validation (`operator`, `safety-officer`, `hod`,
   `org-admin`, `platform-admin`) enforced server-side on every lock/tag/
   verification route.
 - **Grafana Loki** — structured isolation event logging (`loki: true` marker).
@@ -174,7 +108,7 @@ The Restoration & History module depends on:
   (`RESTORATION_NOTIFICATION_CRON`) flagging verified executions pending restoration.
 - **MinIO** — restoration-evidence storage via presigned upload/download URLs
   (`RESTORATION_EVIDENCE_URL_EXPIRY_SECONDS`), keyed under the execution path.
-- **Keycloak** — role validation (`isolation-officer`, `verifier`, `supervisor`,
+- **Keycloak** — role validation (`operator`, `safety-officer`, `hod`,
   `org-admin`, `platform-admin`) enforced server-side on every restoration/removal route.
 - **Grafana Loki** — structured restoration event logging (`loki: true` marker).
 
@@ -310,28 +244,5 @@ curl -fsS http://localhost:4000/api/v1/health/ready | jq
 curl -fsS http://localhost:4000/api/v1/health/live | jq
 ```
 
-Production boots (`NODE_ENV=production`) also require `REDIS_PASSWORD` and
-`CORS_ORIGIN`, and refuse known local/dev secret defaults.
-## Rollback
-
-Deployments are rolled back by reverting the merge and, where a migration was
-included, rolling the database forward to a compensating state (migrations are
-forward-only; there is no destructive down-migration).
-
-1. **Application:** revert the merge commit on the target branch and redeploy the
-   previous image tag:
-
-   ```bash
-   git revert -m 1 <merge_commit_sha>
-   git push origin <branch>
-   docker compose up -d --build api frontend
-   ```
-
-2. **Database:** the SP-03.02 tables (`isolation_execution`, `applied_locks`,
-   `applied_tags`, `isolation_verifications`, `isolation_evidence`) are additive
-   in migration `0008` and are not read by earlier (MS-02) code, so a reverted
-   application can run against the migrated schema without a down-migration. If
-   the tables must be removed, apply a new forward migration that drops them
-   (never edit or delete an applied migration file).
-3. **Verify:** `curl /api/v1/health` returns `healthy` and CI is green on the
-   reverting PR.
+Production boots (`NODE_ENV=production`) also require `CORS_ORIGIN`, and refuse
+known local/dev secret defaults.

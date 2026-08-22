@@ -3,7 +3,7 @@ import { RestorationController } from '../app/src/modules/restoration/restoratio
 import { LototoHistoryController } from '../app/src/modules/restoration/lototo-history.controller';
 
 describe('Restoration controllers are thin (PUS-161)', () => {
-  const user: AuthenticatedUser = { id: 'u1', username: 'u', roles: ['isolation-officer'], tenantId: 't1' };
+  const user: AuthenticatedUser = { id: 'u1', username: 'u', roles: ['operator'], tenantId: 't1' };
 
   it('RestorationController delegates to services without logic', async () => {
     const restorationService = {

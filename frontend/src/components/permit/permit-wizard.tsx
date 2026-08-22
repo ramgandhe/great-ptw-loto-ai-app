@@ -15,8 +15,11 @@ import {
   uploadPermitAttachment,
 } from "@/lib/permit/api";
 import {
+  canRoleEditWizardStep,
+  canRoleSubmitPermit,
   createEmptyPermitForm,
   formToSavePayload,
+  getWizardStepOwner,
   PERMIT_WIZARD_STEPS,
   permitDetailToForm,
   validateStep,
@@ -68,6 +71,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [hazards, setHazards] = useState<MasterDataRecord[]>([]);
   const [ppeItems, setPpeItems] = useState<MasterDataRecord[]>([]);
   const [executorOptions, setExecutorOptions] = useState<WorkforceRecord[]>([]);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [masterDataLoading, setMasterDataLoading] = useState(true);
 
   useEffect(() => {
@@ -107,6 +111,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           byId.set(person.id, person);
         }
         setExecutorOptions(Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name)));
+        setUserRoles(profile.roles);
 
         setForm((current) => {
           const executors = (current.executors ?? []).map((executor) => ({
@@ -115,6 +120,13 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           }));
           if (executors.some((executor) => executor.workforceUserId.trim())) {
             return { ...current, executors };
+          }
+          if (profile.roles.includes("operator")) {
+            return {
+              ...current,
+              currentStep: 2,
+              executors: [{ workforceUserId: profile.id, isPrimary: true }],
+            };
           }
           return {
             ...current,
@@ -255,6 +267,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const isReadOnly = !isEditablePermitStatus(status);
   const isResubmit = status === "deferred" || status === "rejected";
   const step = form.currentStep;
+  const canEditStep = !isReadOnly && canRoleEditWizardStep(userRoles, step);
+  const canSubmit = canRoleSubmitPermit(userRoles);
+  const stepOwner = getWizardStepOwner(step);
+  const isOperatorPhase = stepOwner === "operator";
+  const isIssuerPhase = stepOwner === "job-issuer";
+  const fieldDisabled = isReadOnly || !canEditStep;
 
   return (
     <div className="flex flex-col gap-6 p-8">
@@ -267,14 +285,28 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               : "Edit draft permit"}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Complete each step to prepare the permit for submission.
+          {isOperatorPhase
+            ? "Complete on-site operational details. Executors do not approve permits."
+            : isIssuerPhase && step < 4
+              ? "Enter core permit information, assign an executor, then hand off for on-site details."
+              : "Review executor details and submit the permit for HOD approval."}
         </p>
       </div>
 
       {status === "draft" ? <DraftBanner /> : null}
+      {!canEditStep && !isReadOnly ? (
+        <p className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          This step is owned by the {stepOwner === "operator" ? "job executor" : "job issuer"}. You can view
+          it but cannot edit it.
+        </p>
+      ) : null}
       <PermitStepNav
         currentStep={step}
-        onStepClick={(nextStep) => setForm((current) => ({ ...current, currentStep: nextStep }))}
+        onStepClick={(nextStep) => {
+          if (canRoleEditWizardStep(userRoles, nextStep) || !isReadOnly) {
+            setForm((current) => ({ ...current, currentStep: nextStep }));
+          }
+        }}
       />
       <ValidationSummary errors={errors} />
       {apiError ? (
@@ -300,7 +332,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               id="permitTypeId"
               value={form.permitTypeId}
               options={permitTypes}
-              disabled={isReadOnly || masterDataLoading}
+              disabled={fieldDisabled || masterDataLoading}
               placeholder="Select permit type"
               onChange={(permitTypeId) => setForm({ ...form, permitTypeId })}
             />
@@ -310,7 +342,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               id="title"
               className={fieldClassName}
               value={form.title}
-              disabled={isReadOnly}
+              disabled={fieldDisabled}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </FormField>
@@ -319,7 +351,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               id="workScope"
               className={`${fieldClassName} min-h-28 py-2`}
               value={form.workScope}
-              disabled={isReadOnly}
+              disabled={fieldDisabled}
               onChange={(e) => setForm({ ...form, workScope: e.target.value })}
             />
           </FormField>
@@ -333,7 +365,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               id="plantId"
               value={form.plantId}
               options={plants}
-              disabled={isReadOnly || masterDataLoading}
+              disabled={fieldDisabled || masterDataLoading}
               placeholder="Select plant"
               onChange={(plantId) => setForm({ ...form, plantId })}
             />
@@ -343,7 +375,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               id="departmentId"
               value={form.departmentId}
               options={departments}
-              disabled={isReadOnly || masterDataLoading}
+              disabled={fieldDisabled || masterDataLoading}
               placeholder="Select department"
               onChange={(departmentId) => setForm({ ...form, departmentId })}
             />
@@ -353,53 +385,41 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               id="locationId"
               value={form.locationId}
               options={locations}
-              disabled={isReadOnly || masterDataLoading}
+              disabled={fieldDisabled || masterDataLoading}
               placeholder="Select location"
               onChange={(locationId) => setForm({ ...form, locationId })}
             />
           </FormField>
-          <FormField label="Workstation" htmlFor="workstationId">
-            <MasterDataSelect
-              id="workstationId"
-              value={form.workstationId}
-              options={workstations}
-              disabled={isReadOnly || masterDataLoading}
-              placeholder="Select workstation (optional)"
-              onChange={(workstationId) =>
-                setForm((current) => ({
-                  ...current,
-                  workstationId,
-                  machineryId:
-                    current.machineryId &&
-                    machinery.some(
-                      (item) =>
-                        item.id === current.machineryId && item.workstationId !== workstationId,
-                    )
-                      ? ""
-                      : current.machineryId,
-                }))
+          <FormField
+            label="Primary executor"
+            htmlFor="primary-executor"
+            hint="Assign who will complete on-site details before submission."
+          >
+            <select
+              id="primary-executor"
+              className={fieldClassName}
+              value={form.executors[0]?.workforceUserId ?? ""}
+              disabled={fieldDisabled || masterDataLoading}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  executors: [{ workforceUserId: event.target.value, isPrimary: true }],
+                })
               }
-            />
-          </FormField>
-          <FormField label="Machinery" htmlFor="machineryId">
-            <MasterDataSelect
-              id="machineryId"
-              value={form.machineryId}
-              options={
-                form.workstationId
-                  ? machinery.filter((item) => item.workstationId === form.workstationId)
-                  : machinery
-              }
-              disabled={isReadOnly || masterDataLoading}
-              placeholder="Select machinery (optional)"
-              onChange={(machineryId) => setForm({ ...form, machineryId })}
-            />
+            >
+              <option value="">Select executor</option>
+              {executorOptions.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {formatWorkforceOptionLabel(person)}
+                </option>
+              ))}
+            </select>
           </FormField>
           <FormField label="Planned start" htmlFor="plannedStartAt">
             <PlannedDateTimeField
               id="plannedStartAt"
               value={form.plannedStartAt}
-              disabled={isReadOnly}
+              disabled={fieldDisabled}
               onChange={(plannedStartAt) => {
                 setForm((current) => ({
                   ...current,
@@ -429,6 +449,45 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
       {step === 2 ? (
         <section className="grid gap-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField label="Workstation" htmlFor="workstationId">
+              <MasterDataSelect
+                id="workstationId"
+                value={form.workstationId}
+                options={workstations}
+                disabled={fieldDisabled || masterDataLoading}
+                placeholder="Select workstation"
+                onChange={(workstationId) =>
+                  setForm((current) => ({
+                    ...current,
+                    workstationId,
+                    machineryId:
+                      current.machineryId &&
+                      machinery.some(
+                        (item) =>
+                          item.id === current.machineryId && item.workstationId !== workstationId,
+                      )
+                        ? ""
+                        : current.machineryId,
+                  }))
+                }
+              />
+            </FormField>
+            <FormField label="Machinery" htmlFor="machineryId">
+              <MasterDataSelect
+                id="machineryId"
+                value={form.machineryId}
+                options={
+                  form.workstationId
+                    ? machinery.filter((item) => item.workstationId === form.workstationId)
+                    : machinery
+                }
+                disabled={fieldDisabled || masterDataLoading}
+                placeholder="Select machinery"
+                onChange={(machineryId) => setForm({ ...form, machineryId })}
+              />
+            </FormField>
+          </div>
           <div className="grid gap-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold">Hazards</h2>
@@ -436,7 +495,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={isReadOnly}
+                disabled={fieldDisabled}
                 onClick={() =>
                   setForm({
                     ...form,
@@ -454,7 +513,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     id={`hazard-${index}`}
                     value={hazard.hazardCategoryId}
                     options={hazards}
-                    disabled={isReadOnly || masterDataLoading}
+                    disabled={fieldDisabled || masterDataLoading}
                     placeholder="Select hazard"
                     onChange={(hazardCategoryId) => {
                       const hazardRows = [...form.hazards];
@@ -468,7 +527,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     id={`hazard-desc-${index}`}
                     className={fieldClassName}
                     value={hazard.description}
-                    disabled={isReadOnly}
+                    disabled={fieldDisabled}
                     onChange={(e) => {
                       const hazards = [...form.hazards];
                       hazards[index] = { ...hazard, description: e.target.value };
@@ -487,7 +546,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={isReadOnly}
+                disabled={fieldDisabled}
                 onClick={() =>
                   setForm({
                     ...form,
@@ -505,7 +564,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     id={`ppe-${index}`}
                     value={item.ppeCatalogueId}
                     options={ppeItems}
-                    disabled={isReadOnly || masterDataLoading}
+                    disabled={fieldDisabled || masterDataLoading}
                     placeholder="Select PPE"
                     onChange={(ppeCatalogueId) => {
                       const ppe = [...form.ppe];
@@ -521,7 +580,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     min={1}
                     className={fieldClassName}
                     value={item.quantity}
-                    disabled={isReadOnly}
+                    disabled={fieldDisabled}
                     onChange={(e) => {
                       const ppe = [...form.ppe];
                       ppe[index] = { ...item, quantity: Number(e.target.value) || 1 };
@@ -543,7 +602,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               type="button"
               variant="outline"
               size="sm"
-              disabled={isReadOnly}
+              disabled={fieldDisabled}
               onClick={() =>
                 setForm({
                   ...form,
@@ -565,7 +624,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                   id={`executor-${index}`}
                   className={fieldClassName}
                   value={executor.workforceUserId ?? ""}
-                  disabled={isReadOnly || masterDataLoading}
+                  disabled={fieldDisabled || masterDataLoading}
                   onChange={(event) => {
                     const executors = [...form.executors];
                     executors[index] = { ...executor, workforceUserId: event.target.value };
@@ -584,7 +643,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 <input
                   type="checkbox"
                   checked={executor.isPrimary}
-                  disabled={isReadOnly}
+                  disabled={fieldDisabled}
                   onChange={(e) => {
                     const executors = [...form.executors];
                     executors[index] = { ...executor, isPrimary: e.target.checked };
@@ -663,11 +722,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           </Button>
         ) : null}
         {step < PERMIT_WIZARD_STEPS.length - 1 ? (
-          <Button type="button" onClick={() => void handleNext()} disabled={isSaving || isSubmitting || isReadOnly}>
+          <Button type="button" onClick={() => void handleNext()} disabled={isSaving || isSubmitting || !canEditStep}>
             {isSaving ? "Saving..." : "Next"}
           </Button>
         ) : (
-          <Button type="button" onClick={() => void handleSubmit()} disabled={isSubmitting || isReadOnly}>
+          <Button type="button" onClick={() => void handleSubmit()} disabled={isSubmitting || !canSubmit || !canEditStep}>
             {isSubmitting ? "Submitting..." : "Submit permit"}
           </Button>
         )}

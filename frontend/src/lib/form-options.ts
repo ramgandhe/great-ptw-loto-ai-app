@@ -23,12 +23,11 @@ export type SelectOption = {
 
 export const ASSIGNABLE_ROLES: SelectOption[] = [
   { value: "org-admin", label: "Organisation admin" },
-  { value: "supervisor", label: "Supervisor" },
-  { value: "verifier", label: "Verifier" },
-  { value: "isolation-officer", label: "Isolation officer" },
+  { value: "hod", label: "Head of Department" },
   { value: "job-issuer", label: "Job issuer" },
+  { value: "operator", label: "Job executor" },
+  { value: "safety-officer", label: "Safety officer" },
   { value: "viewer", label: "Viewer" },
-  { value: "operator", label: "Operator" },
 ];
 
 export function formatOrgOptionLabel(item: { name: string; code?: string | null }): string {

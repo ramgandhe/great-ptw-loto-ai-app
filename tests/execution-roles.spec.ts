@@ -32,7 +32,7 @@ describe('Execution role enforcement (PUS-145)', () => {
   it('allows authorised execution action roles for suspend/resume', () => {
     mockRoleGuardReflector(getAllAndOverride, EXECUTION_ACTION_ROLES);
 
-    const result = guard.canActivate(buildContext({ roles: ['supervisor'] }));
+    const result = guard.canActivate(buildContext({ roles: ['hod'] }));
     expect(result).toBe(true);
   });
 

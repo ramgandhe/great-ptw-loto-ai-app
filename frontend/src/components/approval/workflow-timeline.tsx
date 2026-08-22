@@ -1,5 +1,6 @@
 import { CheckCircle2, Circle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatApproverRoleLabel } from "@/lib/approval/labels";
 import type { WorkflowAssignmentRow } from "@/lib/approval/types";
 
 function stepIcon(status: string) {
@@ -47,8 +48,8 @@ export function WorkflowTimeline({ workflow }: { workflow: WorkflowAssignmentRow
               <p className="font-medium">
                 {step.stepSequence}. {step.name}
               </p>
-              <p className="text-muted-foreground capitalize">
-                {step.approverRole.replace(/-/g, " ")} · {assignment.status.replace(/_/g, " ")}
+              <p className="text-muted-foreground">
+                {formatApproverRoleLabel(step.approverRole)} · {assignment.status.replace(/_/g, " ")}
               </p>
             </div>
           </li>

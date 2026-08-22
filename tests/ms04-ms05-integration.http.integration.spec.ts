@@ -76,9 +76,9 @@ describe('MS-04/MS-05 integration journeys (PUS-227)', () => {
 
   const user: AuthenticatedUser = {
     id: actorId,
-    username: 'supervisor',
+    username: 'hod',
     tenantId,
-    roles: ['supervisor', 'job-issuer', 'safety-officer', 'org-admin'],
+    roles: ['hod', 'job-issuer', 'safety-officer', 'org-admin'],
     email: 'supervisor@example.com',
   };
 

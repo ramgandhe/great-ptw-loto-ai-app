@@ -89,7 +89,7 @@ PTW permit/approval/execution/closure/SIMOPS routes remain under their existing 
 
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
-| GET | `/dashboard` | Required | Role-based dashboard (`kind` = personal\|supervisor\|safety\|management) |
+| GET | `/dashboard` | Required | Role-based dashboard (`kind` = personal\|hod\|safety\|management) |
 | GET | `/dashboard/kpis` | Required | KPI widgets (`kind`, `periodLabel` optional) |
 | GET | `/reports` | Required | List report exports for current user (`status` optional) |
 | POST | `/reports/generate` | Required | Request report export (`reportType`, `format`, filters/period) |

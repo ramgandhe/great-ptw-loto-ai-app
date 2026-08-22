@@ -33,7 +33,7 @@ describe('StatusValidationService transitions (PUS-156)', () => {
 });
 
 describe('Isolation execution controllers are thin (PUS-156)', () => {
-  const user: AuthenticatedUser = { id: 'u1', username: 'u', roles: ['isolation-officer'], tenantId: 't1' };
+  const user: AuthenticatedUser = { id: 'u1', username: 'u', roles: ['operator'], tenantId: 't1' };
 
   it('IsolationExecutionController delegates to the service without logic', async () => {
     const service = {

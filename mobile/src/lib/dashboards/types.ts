@@ -1,4 +1,4 @@
-export type DashboardKind = "personal" | "supervisor" | "safety" | "management";
+export type DashboardKind = "personal" | "hod" | "safety" | "management";
 
 export interface KpiItem {
   key: string;

@@ -14,7 +14,7 @@ import { auditColumns } from './base';
 /** FR-DSH-001…003 role-based dashboard kinds. */
 export const DASHBOARD_KINDS = [
   'personal',
-  'supervisor',
+  'hod',
   'safety',
   'management',
 ] as const;

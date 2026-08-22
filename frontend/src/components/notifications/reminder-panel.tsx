@@ -3,7 +3,6 @@
 import Link from "next/link";
 import type { Notification } from "@/lib/notifications/types";
 import { NotificationPriorityLabel } from "@/components/notifications/notification-priority-label";
-import { Button } from "@/components/ui/button";
 
 interface ReminderPanelProps {
   reminders: Notification[];
@@ -37,13 +36,6 @@ export function ReminderPanel({ reminders }: ReminderPanelProps) {
           </li>
         ))}
       </ul>
-      <div className="mt-4">
-        <Link href="/notifications?category=reminder">
-          <Button type="button" variant="outline" size="sm">
-            View all reminders
-          </Button>
-        </Link>
-      </div>
     </section>
   );
 }

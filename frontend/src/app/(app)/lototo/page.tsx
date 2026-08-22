@@ -3,12 +3,17 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
+import { useAuthProfile } from "@/lib/auth/auth-profile-context";
+import { hasAnyRole } from "@/lib/auth/rbac";
+import { LOTOTO_WRITE_ROLES } from "@/lib/auth/roles";
 import { listLototoPlans } from "@/lib/lototo/api";
 import type { LototoPlan } from "@/lib/lototo/types";
 import { PlanStatusBadge } from "@/components/lototo/plan-status-badge";
 import { Button } from "@/components/ui/button";
 
 export default function LototoPlansPage() {
+  const { roles } = useAuthProfile();
+  const canCreatePlans = hasAnyRole(roles, LOTOTO_WRITE_ROLES);
   const [plans, setPlans] = useState<LototoPlan[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,9 +36,11 @@ export default function LototoPlansPage() {
             Configure hazardous energy isolation before permit execution.
           </p>
         </div>
-        <Link href="/lototo/plans/new">
-          <Button>New LOTOTO plan</Button>
-        </Link>
+        {canCreatePlans ? (
+          <Link href="/lototo/plans/new">
+            <Button>New LOTOTO plan</Button>
+          </Link>
+        ) : null}
         <Link href="/lototo/active">
           <Button variant="outline">Active LOTOTO</Button>
         </Link>
@@ -53,9 +60,11 @@ export default function LototoPlansPage() {
       ) : plans.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center">
           <p className="text-sm text-muted-foreground">No LOTOTO plans yet.</p>
-          <Link href="/lototo/plans/new" className="mt-4 inline-block">
-            <Button variant="outline">Create first plan</Button>
-          </Link>
+          {canCreatePlans ? (
+            <Link href="/lototo/plans/new" className="mt-4 inline-block">
+              <Button variant="outline">Create first plan</Button>
+            </Link>
+          ) : null}
         </div>
       ) : (
         <ul className="divide-y divide-border rounded-lg border border-border">

@@ -78,9 +78,9 @@ describe('MS-06 lifecycle HTTP integration (ITC-INC-001–010)', () => {
 
   const supervisorUser: AuthenticatedUser = {
     id: randomUUID(),
-    username: 'supervisor',
+    username: 'hod',
     tenantId,
-    roles: ['supervisor'],
+    roles: ['hod'],
     email: 'supervisor@example.com',
   };
 
@@ -163,7 +163,7 @@ describe('MS-06 lifecycle HTTP integration (ITC-INC-001–010)', () => {
       permitTypeId,
       stepSequence: 1,
       name: 'Supervisor Approval',
-      approverRole: 'supervisor',
+      approverRole: 'hod',
       createdBy: userId,
     });
 

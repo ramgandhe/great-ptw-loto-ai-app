@@ -142,9 +142,9 @@ describe('Approval workflow remediation (SP-09.01)', () => {
 
     const supervisorUser: AuthenticatedUser = {
       id: supervisorId,
-      username: 'supervisor',
+      username: 'hod',
       tenantId,
-      roles: ['supervisor'],
+      roles: ['hod'],
       email: 'supervisor@example.com',
     };
 
@@ -192,10 +192,10 @@ describe('Approval workflow remediation (SP-09.01)', () => {
           permitTypeId,
           stepSequence: 1,
           name: 'Joint sign-off',
-          approverRole: 'supervisor',
+          approverRole: 'hod',
           stageMode: 'parallel',
           quorumMode,
-          parallelRoles: ['supervisor', 'safety-officer'],
+          parallelRoles: ['hod', 'safety-officer'],
           createdBy: issuerId,
         })
         .returning();
@@ -266,7 +266,7 @@ describe('Approval workflow remediation (SP-09.01)', () => {
       permitTypeId: permit.permitTypeId,
       stepSequence: 1,
       name: 'Supervisor review',
-      approverRole: 'supervisor',
+      approverRole: 'hod',
       createdBy: issuerId,
     });
 
@@ -277,7 +277,7 @@ describe('Approval workflow remediation (SP-09.01)', () => {
       tenantId,
       delegatorId: supervisorId,
       delegateId,
-      role: 'supervisor',
+      role: 'hod',
       validFrom,
       validTo,
       createdBy: supervisorId,
@@ -309,7 +309,7 @@ describe('Approval workflow remediation (SP-09.01)', () => {
       permitTypeId: permit.permitTypeId,
       stepSequence: 1,
       name: 'Supervisor review',
-      approverRole: 'supervisor',
+      approverRole: 'hod',
       createdBy: issuerId,
     });
 
@@ -398,7 +398,7 @@ describe('Approval workflow remediation (SP-09.01)', () => {
         permitTypeId: permit.permitTypeId,
         stepSequence: 1,
         name: 'Supervisor review',
-        approverRole: 'supervisor',
+        approverRole: 'hod',
         slaHours: 4,
         stepConfig: { escalationRole: 'safety-officer' },
         createdBy: issuerId,

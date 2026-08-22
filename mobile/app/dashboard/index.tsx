@@ -10,7 +10,7 @@ import { useTheme } from "@/providers/theme-provider";
 
 const KINDS: { value: DashboardKind; label: string }[] = [
   { value: "personal", label: "Personal" },
-  { value: "supervisor", label: "Supervisor" },
+  { value: "hod", label: "Supervisor" },
   { value: "safety", label: "Safety" },
   { value: "management", label: "Management" },
 ];

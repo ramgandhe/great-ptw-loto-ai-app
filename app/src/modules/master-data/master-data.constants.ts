@@ -4,7 +4,7 @@ export const MASTER_DATA_WRITE_ROLES = ['org-admin', 'platform-admin'] as const;
 
 export const MASTER_DATA_READ_ROLES = [
   ...MASTER_DATA_WRITE_ROLES,
-  'supervisor',
+  'hod',
   'operator',
   'job-issuer',
   'viewer',

@@ -134,7 +134,7 @@ describe('Incident severity lifecycle (FR-INC-011)', () => {
         getHandler: () => ({}),
         getClass: () => ({}),
         switchToHttp: () => ({
-          getRequest: () => ({ user: { roles: ['supervisor'] } }),
+          getRequest: () => ({ user: { roles: ['hod'] } }),
         }),
       } as never),
     ).toBe(true);

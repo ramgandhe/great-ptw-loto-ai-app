@@ -2,7 +2,7 @@ import type { AnalyticsScope, DashboardKind } from "./types";
 
 export const DASHBOARD_KIND_LABELS: Record<DashboardKind, string> = {
   personal: "Personal",
-  supervisor: "Supervisor",
+  hod: "Head of Department",
   safety: "Safety",
   management: "Management",
 };

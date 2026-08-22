@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS "lototo_assignments" (
   "role" varchar(64) NOT NULL,
   "assigned_at" timestamp with time zone DEFAULT now() NOT NULL,
   CONSTRAINT "lototo_assignments_role_check"
-    CHECK ("role" IN ('isolation_officer', 'verifier', 'supervisor')),
+    CHECK ("role" IN ('operator', 'safety-officer', 'hod')),
   CONSTRAINT "lototo_assignments_plan_id_lototo_plans_id_fk"
     FOREIGN KEY ("plan_id") REFERENCES "lototo_plans"("id") ON DELETE CASCADE
 );

@@ -43,7 +43,7 @@ export default function LototoPlanDetailScreen() {
   const [machineryId, setMachineryId] = useState("");
   const [energySourceType, setEnergySourceType] = useState("electrical");
   const [workforceUserId, setWorkforceUserId] = useState("");
-  const [assignmentRole, setAssignmentRole] = useState("isolation_officer");
+  const [assignmentRole, setAssignmentRole] = useState("operator");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,7 +135,7 @@ export default function LototoPlanDetailScreen() {
     try {
       await assignLototoPersonnel(id, {
         workforceUserId,
-        role: assignmentRole as "isolation_officer" | "verifier" | "supervisor",
+        role: assignmentRole as "operator" | "safety-officer" | "hod",
       });
       setMessage("Personnel assigned.");
     } catch (err) {

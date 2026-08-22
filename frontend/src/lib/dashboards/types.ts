@@ -1,4 +1,4 @@
-export type DashboardKind = "personal" | "supervisor" | "safety" | "management";
+export type DashboardKind = "personal" | "hod" | "safety" | "management";
 
 export type AnalyticsScope = "permits" | "incidents" | "lototo" | "simops" | "operational";
 

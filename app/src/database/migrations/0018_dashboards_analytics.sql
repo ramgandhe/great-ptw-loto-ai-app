@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS "dashboard_preferences" (
   "filters" jsonb DEFAULT '{}'::jsonb NOT NULL,
   "refresh_seconds" integer DEFAULT 60 NOT NULL,
   CONSTRAINT "dashboard_preferences_kind_check"
-    CHECK ("dashboard_kind" IN ('personal', 'supervisor', 'safety', 'management')),
+    CHECK ("dashboard_kind" IN ('personal', 'hod', 'safety', 'management')),
   CONSTRAINT "dashboard_preferences_refresh_seconds_check"
     CHECK ("refresh_seconds" > 0)
 );
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS "kpi_cache" (
   CONSTRAINT "kpi_cache_dashboard_kind_check"
     CHECK (
       "dashboard_kind" IS NULL
-      OR "dashboard_kind" IN ('personal', 'supervisor', 'safety', 'management')
+      OR "dashboard_kind" IN ('personal', 'hod', 'safety', 'management')
     )
 );
 

@@ -63,9 +63,9 @@ describe('Closure HTTP integration (PUS-146 / PUS-147 / PUS-148)', () => {
 
   const supervisorUser: AuthenticatedUser = {
     id: supervisorId,
-    username: 'supervisor',
+    username: 'hod',
     tenantId,
-    roles: ['supervisor'],
+    roles: ['hod'],
     email: 'supervisor@example.com',
   };
 

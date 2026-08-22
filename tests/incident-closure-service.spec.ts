@@ -6,7 +6,7 @@ describe('IncidentClosureService (PUS-196)', () => {
   const user = {
     id: '22222222-2222-4222-8222-222222222222',
     username: 'manager',
-    roles: ['safety-manager'],
+    roles: ['safety-officer'],
     tenantId,
   };
   const incidentId = '33333333-3333-4333-8333-333333333333';

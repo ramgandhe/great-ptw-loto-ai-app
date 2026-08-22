@@ -4,7 +4,7 @@ export const MDP_DAY_TRANSITION_VALIDITY_JOB = 'mdp.day-transition-validity';
 export const MDP_VALIDITY_NOTIFICATION_JOB = 'mdp.validity-notification';
 
 export const REVALIDATION_WRITE_ROLES = [
-  'supervisor',
+  'hod',
   'org-admin',
   'platform-admin',
 ] as const;
@@ -17,7 +17,7 @@ export const REVALIDATION_READ_ROLES = [
 
 export const EXTENSION_REQUEST_ROLES = [
   'job-issuer',
-  'supervisor',
+  'hod',
   'org-admin',
   'platform-admin',
 ] as const;

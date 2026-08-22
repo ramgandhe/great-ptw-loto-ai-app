@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
+import { getProfile } from "@/lib/auth/api";
+import { canRoleSubmitPermit } from "@/lib/permit/form";
 import { listPermits } from "@/lib/permit/api";
 import type { PermitRecord } from "@/lib/permit/types";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
@@ -12,8 +14,13 @@ export default function DraftPermitsPage() {
   const [permits, setPermits] = useState<PermitRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [canCreate, setCanCreate] = useState(false);
 
   useEffect(() => {
+    getProfile()
+      .then((profile) => setCanCreate(canRoleSubmitPermit(profile.roles)))
+      .catch(() => setCanCreate(false));
+
     listPermits("draft")
       .then(setPermits)
       .catch((err) => {
@@ -28,13 +35,17 @@ export default function DraftPermitsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Draft permits</h1>
           <p className="text-sm text-muted-foreground">
-            Resume incomplete permits before submission.
+            {canCreate
+              ? "Resume incomplete permits before submission."
+              : "Complete on-site details for permits assigned to you."}
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href="/permits/new">
-            <Button>Create permit</Button>
-          </Link>
+          {canCreate ? (
+            <Link href="/permits/new">
+              <Button>Create permit</Button>
+            </Link>
+          ) : null}
           <Link href="/permits">
             <Button variant="ghost">All permits</Button>
           </Link>

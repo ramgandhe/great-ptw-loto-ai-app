@@ -69,14 +69,14 @@ describe('Isolation Execution HTTP integration (PUS-156)', () => {
     id: officerId,
     username: 'officer',
     tenantId,
-    roles: ['isolation-officer'],
+    roles: ['operator'],
     email: 'officer@example.com',
   };
   const verifier: AuthenticatedUser = {
     id: randomUUID(),
-    username: 'verifier',
+    username: 'safety-officer',
     tenantId,
-    roles: ['verifier'],
+    roles: ['safety-officer'],
     email: 'verifier@example.com',
   };
   const reader: AuthenticatedUser = {
@@ -90,7 +90,7 @@ describe('Isolation Execution HTTP integration (PUS-156)', () => {
     id: randomUUID(),
     username: 'other-admin',
     tenantId: randomUUID(),
-    roles: ['isolation-officer', 'org-admin'],
+    roles: ['operator', 'org-admin'],
     email: 'other@example.com',
   };
   const noActionRole: AuthenticatedUser = {

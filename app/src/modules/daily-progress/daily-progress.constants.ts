@@ -5,7 +5,7 @@ export const DAILY_PROGRESS_EVIDENCE_PREFIX = 'mdp/daily-progress';
 export const MDP_WRITE_ROLES = [
   'job-issuer',
   'operator',
-  'supervisor',
+  'hod',
   'org-admin',
   'platform-admin',
 ] as const;
@@ -13,7 +13,7 @@ export const MDP_WRITE_ROLES = [
 export const MDP_READ_ROLES = [...MDP_WRITE_ROLES, 'viewer'] as const;
 
 export const MDP_HANDOVER_ROLES = [
-  'supervisor',
+  'hod',
   'job-issuer',
   'org-admin',
   'platform-admin',

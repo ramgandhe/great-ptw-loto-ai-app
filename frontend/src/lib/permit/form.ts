@@ -1,12 +1,30 @@
 import type { PermitDetail, PermitFormState } from "./types";
 
+export type WizardParticipant = "job-issuer" | "operator";
+
 export const PERMIT_WIZARD_STEPS = [
-  "Basic information",
-  "Location & schedule",
-  "Hazards & PPE",
-  "Executors",
-  "Review & submit",
+  { label: "Basic information", owner: "job-issuer" satisfies WizardParticipant },
+  { label: "Location & schedule", owner: "job-issuer" satisfies WizardParticipant },
+  { label: "On-site details", owner: "operator" satisfies WizardParticipant },
+  { label: "Crew assignment", owner: "operator" satisfies WizardParticipant },
+  { label: "Review & submit", owner: "job-issuer" satisfies WizardParticipant },
 ] as const;
+
+export function getWizardStepOwner(step: number): WizardParticipant {
+  return PERMIT_WIZARD_STEPS[step]?.owner ?? "job-issuer";
+}
+
+export function canRoleEditWizardStep(roles: string[], step: number): boolean {
+  const owner = getWizardStepOwner(step);
+  if (owner === "job-issuer") {
+    return roles.includes("job-issuer") || roles.includes("org-admin") || roles.includes("platform-admin");
+  }
+  return roles.includes("operator");
+}
+
+export function canRoleSubmitPermit(roles: string[]): boolean {
+  return roles.includes("job-issuer") || roles.includes("org-admin") || roles.includes("platform-admin");
+}
 
 export function createEmptyPermitForm(): PermitFormState {
   return {
@@ -110,6 +128,9 @@ export function validateStep(form: PermitFormState, step: number): string[] {
     if (!form.plannedEndAt) errors.push("Planned end date and time are required");
     if (form.plannedStartAt && form.plannedEndAt && form.plannedEndAt <= form.plannedStartAt) {
       errors.push("Planned end must be after planned start");
+    }
+    if (!form.executors.some((e) => (e.workforceUserId ?? "").trim())) {
+      errors.push("Assign a primary executor before handing off on-site details");
     }
   }
 

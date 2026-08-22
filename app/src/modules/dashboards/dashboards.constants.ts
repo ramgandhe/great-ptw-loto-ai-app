@@ -12,26 +12,23 @@ export const DASHBOARD_KPI_REFRESH_JOB = 'dashboard.kpi-refresh';
 export const DASHBOARD_READ_ROLES = [
   'operator',
   'job-issuer',
-  'supervisor',
+  'hod',
   'safety-officer',
-  'safety-manager',
   'org-admin',
   'platform-admin',
   'viewer',
 ] as const;
 
 export const DASHBOARD_REPORT_ROLES = [
-  'supervisor',
+  'hod',
   'safety-officer',
-  'safety-manager',
   'org-admin',
   'platform-admin',
 ] as const;
 
 export const DASHBOARD_ANALYTICS_ROLES = [
-  'supervisor',
+  'hod',
   'safety-officer',
-  'safety-manager',
   'org-admin',
   'platform-admin',
 ] as const;
@@ -39,15 +36,9 @@ export const DASHBOARD_ANALYTICS_ROLES = [
 /** Roles allowed per dashboard kind (BR-DSH-001 / BR-DSH-002). */
 export const DASHBOARD_KIND_ROLES: Record<DashboardKind, readonly string[]> = {
   personal: DASHBOARD_READ_ROLES,
-  supervisor: [
-    'supervisor',
-    'safety-officer',
-    'safety-manager',
-    'org-admin',
-    'platform-admin',
-  ],
-  safety: ['safety-officer', 'safety-manager', 'org-admin', 'platform-admin'],
-  management: ['safety-manager', 'org-admin', 'platform-admin'],
+  hod: ['hod', 'safety-officer', 'org-admin', 'platform-admin'],
+  safety: ['safety-officer', 'org-admin', 'platform-admin'],
+  management: ['safety-officer', 'org-admin', 'platform-admin'],
 };
 
 /** Object key prefix inside MINIO_BUCKET for generated report exports. */

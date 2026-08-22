@@ -12,11 +12,11 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const next = searchParams.get("next") ?? "/";
 
-  async function handleLogin() {
+  async function handleLogin(forceLogin = false) {
     setError(null);
     setLoading(true);
     try {
-      await startKeycloakLogin(next);
+      await startKeycloakLogin(next, { forceLogin });
     } catch (err) {
       setLoading(false);
       setError(err instanceof Error ? err.message : "Could not start sign in.");
@@ -34,16 +34,25 @@ function LoginContent() {
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <button
         type="button"
-        onClick={handleLogin}
+        onClick={() => handleLogin(false)}
         disabled={loading}
         className={cn(buttonVariants(), "w-full")}
       >
         {loading ? "Redirecting…" : "Continue with Keycloak"}
       </button>
+      <button
+        type="button"
+        onClick={() => handleLogin(true)}
+        disabled={loading}
+        className={cn(buttonVariants({ variant: "outline" }), "w-full")}
+      >
+        Sign in as a different user
+      </button>
       <p className="text-xs text-muted-foreground">
         Keycloak must be running at{" "}
-        <code className="rounded bg-muted px-1">http://localhost:8080</code>. Use{" "}
-        <strong>admin@ptw.local</strong> / <strong>admin</strong>.
+        <code className="rounded bg-muted px-1">http://localhost:8080</code>.
+        If you keep landing as admin, use <strong>Sign in as a different user</strong>{" "}
+        or sign out from Settings first.
       </p>
     </div>
   );

@@ -7,7 +7,7 @@ export const SUSPENDED_STATUS = 'suspended' as const;
 
 export const EXECUTION_ACTION_ROLES = [
   'operator',
-  'supervisor',
+  'hod',
   'org-admin',
   'platform-admin',
 ] as const;

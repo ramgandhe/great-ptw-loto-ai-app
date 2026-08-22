@@ -244,13 +244,13 @@ describe('LOTOTO configuration schema (PUS-154)', () => {
       {
         planId: plan.id,
         workforceUserId: officerId,
-        role: 'isolation_officer',
+        role: 'operator',
         createdBy: userId,
       },
       {
         planId: plan.id,
         workforceUserId: verifierId,
-        role: 'verifier',
+        role: 'safety-officer',
         createdBy: userId,
       },
     ]);

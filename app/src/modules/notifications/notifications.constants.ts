@@ -7,9 +7,8 @@ export const NOTIFICATION_TASK_REMINDER_JOB = 'notification.task-reminder';
 export const NOTIFICATION_READ_ROLES = [
   'operator',
   'job-issuer',
-  'supervisor',
+  'hod',
   'safety-officer',
-  'safety-manager',
   'org-admin',
   'platform-admin',
   'viewer',

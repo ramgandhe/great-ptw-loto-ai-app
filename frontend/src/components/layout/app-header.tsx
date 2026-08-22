@@ -1,6 +1,5 @@
 "use client";
 
-import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ThemeSettings } from "@/components/theme/theme-settings";
 import { Button } from "@/components/ui/button";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -23,7 +22,6 @@ export function AppHeader() {
         </p>
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <NotificationBell />
         <Button type="button" variant="outline" size="sm" onClick={signOut}>
           Sign out
         </Button>

@@ -87,7 +87,7 @@ describe('Dashboards & Analytics schema (PUS-209)', () => {
       .values({
         tenantId,
         kpiKey: 'active_permits',
-        dashboardKind: 'supervisor',
+        dashboardKind: 'hod',
         periodLabel: 'current',
         value: { count: 12 },
         createdBy: userId,

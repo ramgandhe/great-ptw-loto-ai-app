@@ -14,26 +14,25 @@ export const LOCK_REMOVED = 'removed' as const;
 export const VERIFICATION_PASS = 'pass' as const;
 export const VERIFICATION_FAIL = 'fail' as const;
 
-// RBAC roles. Derived from SP-03.01 lototo_assignments roles
-// (isolation_officer, verifier, supervisor) plus tenancy admins.
+// RBAC roles aligned with PRD personas (operator, safety-officer, hod) plus tenancy admins.
 export const ISOLATION_ACTION_ROLES = [
-  'isolation-officer',
-  'supervisor',
+  'operator',
+  'hod',
   'org-admin',
   'platform-admin',
 ] as const;
 
 export const ISOLATION_VERIFY_ROLES = [
-  'verifier',
-  'supervisor',
+  'safety-officer',
+  'hod',
   'org-admin',
   'platform-admin',
 ] as const;
 
 export const ISOLATION_READ_ROLES = [
-  'isolation-officer',
-  'verifier',
-  'supervisor',
+  'operator',
+  'safety-officer',
+  'hod',
   'org-admin',
   'platform-admin',
   'job-issuer',
