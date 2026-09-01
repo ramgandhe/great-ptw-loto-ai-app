@@ -201,30 +201,32 @@ export const SAFETY_HUB_ROLES = [
   "safety-officer",
 ] as const;
 
-/** Sidebar visibility — PRD persona scoped. Admins see config only (FR-ROL-003). */
+/** Sidebar visibility — org-admin sees every operational and admin tab. */
 export const NAV_ORGANISATION_ROLES = ["org-admin", "platform-admin"] as const;
 export const NAV_WORKFORCE_ROLES = ["org-admin", "platform-admin"] as const;
-export const NAV_PERMITS_ROLES = ["job-issuer", "operator", "hod", "viewer"] as const;
-export const NAV_DRAFTS_ROLES = ["job-issuer"] as const;
-export const NAV_ACTIVE_WORK_ROLES = ["job-issuer", "operator", "hod", "viewer"] as const;
-export const NAV_APPROVALS_ROLES = ["hod", "safety-officer", "job-issuer", "viewer"] as const;
-export const NAV_DEFERRED_ROLES = ["hod", "safety-officer", "job-issuer"] as const;
+export const NAV_PERMITS_ROLES = ["job-issuer", "operator", "hod", "org-admin", "viewer"] as const;
+export const NAV_DRAFTS_ROLES = ["job-issuer", "org-admin"] as const;
+export const NAV_ACTIVE_WORK_ROLES = ["job-issuer", "operator", "hod", "org-admin", "viewer"] as const;
+export const NAV_APPROVALS_ROLES = ["hod", "safety-officer", "job-issuer", "org-admin", "viewer"] as const;
+export const NAV_DEFERRED_ROLES = ["hod", "safety-officer", "job-issuer", "org-admin"] as const;
 export const NAV_OPERATOR_DRAFTS_ROLES = ["operator"] as const;
-export const NAV_EXECUTION_ROLES = ["operator", "hod", "job-issuer", "viewer"] as const;
-export const NAV_LOTOTO_ROLES = ["hod", "operator", "viewer"] as const;
-export const NAV_SIMOPS_ROLES = ["hod", "safety-officer", "job-issuer", "viewer"] as const;
+export const NAV_EXECUTION_ROLES = ["operator", "hod", "job-issuer", "org-admin", "viewer"] as const;
+export const NAV_LOTOTO_ROLES = ["hod", "operator", "org-admin", "viewer"] as const;
+export const NAV_SIMOPS_ROLES = ["hod", "safety-officer", "job-issuer", "org-admin", "viewer"] as const;
 export const NAV_INCIDENTS_ROLES = [
   "operator",
   "job-issuer",
   "hod",
   "safety-officer",
+  "org-admin",
   "viewer",
 ] as const;
-export const NAV_CLOSURE_ROLES = ["job-issuer", "hod", "viewer"] as const;
+export const NAV_CLOSURE_ROLES = ["job-issuer", "hod", "org-admin", "viewer"] as const;
 export const NAV_SAFETY_ROLES = [
   "safety-officer",
   "hod",
   "job-issuer",
   "operator",
+  "org-admin",
   "viewer",
 ] as const;

@@ -242,12 +242,19 @@ describe('ApprovalService integration (PUS-136)', () => {
   });
 
   dbTest('rejects out-of-sequence approver', async () => {
-    const { orgAdminUser, createPendingPermit, createWorkflowSteps } = testContext();
+    const { supervisorUser, createPendingPermit, createWorkflowSteps } = testContext();
     const permit = await createPendingPermit();
     await createWorkflowSteps();
 
+    const issuerUser: AuthenticatedUser = {
+      ...supervisorUser,
+      id: randomUUID(),
+      roles: ['job-issuer'],
+      email: 'issuer@example.com',
+    };
+
     await expect(
-      approvalService.approve(permit.id, {}, orgAdminUser),
+      approvalService.approve(permit.id, {}, issuerUser),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 

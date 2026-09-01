@@ -60,10 +60,20 @@ describe('Closure role enforcement (PUS-150)', () => {
     );
   });
 
-  it('denies administrators from verify and close actions (FR-ROL-003)', () => {
+  it('allows org-admin to verify and close permits', () => {
     mockRoleGuardReflector(getAllAndOverride, CLOSURE_VERIFY_ROLES);
 
-    expect(() => guard.canActivate(buildContext({ roles: ['org-admin'] }))).toThrow(
+    expect(guard.canActivate(buildContext({ roles: ['org-admin'] }))).toBe(true);
+
+    mockRoleGuardReflector(getAllAndOverride, CLOSURE_CLOSE_ROLES);
+
+    expect(guard.canActivate(buildContext({ roles: ['org-admin'] }))).toBe(true);
+  });
+
+  it('denies platform-admin from verify and close actions (FR-ROL-003)', () => {
+    mockRoleGuardReflector(getAllAndOverride, CLOSURE_VERIFY_ROLES);
+
+    expect(() => guard.canActivate(buildContext({ roles: ['platform-admin'] }))).toThrow(
       ForbiddenException,
     );
 

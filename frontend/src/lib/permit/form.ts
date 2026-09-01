@@ -19,7 +19,11 @@ export function canRoleEditWizardStep(roles: string[], step: number): boolean {
   if (owner === "job-issuer") {
     return roles.includes("job-issuer") || roles.includes("org-admin") || roles.includes("platform-admin");
   }
-  return roles.includes("operator");
+  return (
+    roles.includes("operator") ||
+    roles.includes("org-admin") ||
+    roles.includes("platform-admin")
+  );
 }
 
 export function canRoleSubmitPermit(roles: string[]): boolean {

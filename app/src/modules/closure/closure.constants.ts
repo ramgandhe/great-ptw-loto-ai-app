@@ -1,10 +1,9 @@
 export const ACTIVE_STATUS = 'active' as const;
 export const CLOSED_STATUS = 'closed' as const;
 
-/** HOD only — administrators must not verify closure (FR-ROL-003). */
-export const CLOSURE_VERIFY_ROLES = ['hod'] as const;
+export const CLOSURE_VERIFY_ROLES = ['hod', 'org-admin'] as const;
 
-export const CLOSURE_CLOSE_ROLES = ['hod'] as const;
+export const CLOSURE_CLOSE_ROLES = ['hod', 'org-admin'] as const;
 
 export const CLOSURE_ARCHIVE_READ_ROLES = [
   'job-issuer',

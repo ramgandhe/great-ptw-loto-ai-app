@@ -43,12 +43,14 @@ describe('Approval role enforcement (PUS-140)', () => {
     ).toThrow(ForbiddenException);
   });
 
-  it('denies administrators from approval actions (FR-ROL-003)', () => {
+  it('allows org-admin to take approval actions', () => {
     mockRoleGuardReflector(getAllAndOverride, APPROVAL_ACTION_ROLES);
 
-    expect(() =>
-      guard.canActivate(buildContext({ roles: ['org-admin'] })),
-    ).toThrow(ForbiddenException);
+    expect(guard.canActivate(buildContext({ roles: ['org-admin'] }))).toBe(true);
+  });
+
+  it('denies platform-admin from approval actions (FR-ROL-003)', () => {
+    mockRoleGuardReflector(getAllAndOverride, APPROVAL_ACTION_ROLES);
 
     expect(() =>
       guard.canActivate(buildContext({ roles: ['platform-admin'] })),

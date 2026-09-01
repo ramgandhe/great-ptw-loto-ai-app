@@ -122,7 +122,7 @@ describe('Incident severity lifecycle (FR-INC-011)', () => {
     );
   });
 
-  it('restricts HOD decision endpoint to supervisor role', () => {
+  it('allows HOD and org-admin to take HOD incident decisions', () => {
     const getAllAndOverride = jest.fn();
     const reflector = { getAllAndOverride } as unknown as Reflector;
     const guard = new RolesGuard(reflector);
@@ -139,12 +139,22 @@ describe('Incident severity lifecycle (FR-INC-011)', () => {
       } as never),
     ).toBe(true);
 
-    expect(() =>
+    expect(
       guard.canActivate({
         getHandler: () => ({}),
         getClass: () => ({}),
         switchToHttp: () => ({
           getRequest: () => ({ user: { roles: ['org-admin'] } }),
+        }),
+      } as never),
+    ).toBe(true);
+
+    expect(() =>
+      guard.canActivate({
+        getHandler: () => ({}),
+        getClass: () => ({}),
+        switchToHttp: () => ({
+          getRequest: () => ({ user: { roles: ['viewer'] } }),
         }),
       } as never),
     ).toThrow(ForbiddenException);

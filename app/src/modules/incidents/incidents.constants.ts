@@ -22,7 +22,7 @@ export const INCIDENT_SAFETY_ROLES = [
   'platform-admin',
 ] as const;
 
-export const INCIDENT_HOD_DECISION_ROLES = ['hod'] as const;
+export const INCIDENT_HOD_DECISION_ROLES = ['hod', 'org-admin'] as const;
 
 export const ALLOWED_INCIDENT_EVIDENCE_CONTENT_TYPES = [
   'image/jpeg',

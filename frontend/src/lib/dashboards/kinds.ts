@@ -28,8 +28,12 @@ export function resolveDashboardKind(userRoles: string[]): DashboardKind {
   return "personal";
 }
 
-/** Kinds the user may view — one per persona unless they hold multiple leadership roles. */
+/** Kinds the user may view. Admins can switch between all kinds for full visibility. */
 export function getAllowedDashboardKinds(userRoles: string[]): DashboardKind[] {
+  const isAdmin = userRoles.includes("org-admin") || userRoles.includes("platform-admin");
+  if (isAdmin) {
+    return KIND_PRIORITY.filter((kind) => hasAnyRole(userRoles, KIND_ROLE_ACCESS[kind]));
+  }
   const primary = resolveDashboardKind(userRoles);
   return [primary];
 }

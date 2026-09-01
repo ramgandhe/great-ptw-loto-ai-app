@@ -3,6 +3,7 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  CreditCard,
   Building2,
   CheckSquare,
   ClipboardList,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 import {
   AUTHENTICATED_ROLES,
+  BILLING_READ_ROLES,
   DASHBOARD_ANALYTICS_ROLES,
   DASHBOARD_READ_ROLES,
   DASHBOARD_REPORT_ROLES,
@@ -66,6 +68,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { href: "/incidents", label: "Incidents", icon: AlertTriangle, roles: NAV_INCIDENTS_ROLES },
   { href: "/closure", label: "Closure", icon: Lock, roles: NAV_CLOSURE_ROLES },
   { href: "/reports", label: "Reports", icon: FileText, roles: DASHBOARD_REPORT_ROLES },
+  { href: "/billing", label: "Billing", icon: CreditCard, roles: BILLING_READ_ROLES },
   { href: "/settings", label: "Settings", icon: Settings, roles: AUTHENTICATED_ROLES },
   { href: "/workforce", label: "Workforce", icon: Users, roles: NAV_WORKFORCE_ROLES },
 ];

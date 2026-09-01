@@ -305,6 +305,9 @@ export class WorkflowEngineService {
   }
 
   userHasApproverRole(userRoles: string[], requiredRole: string): boolean {
+    if (userRoles.includes('org-admin')) {
+      return true;
+    }
     return userRoles.includes(requiredRole);
   }
 
@@ -313,6 +316,10 @@ export class WorkflowEngineService {
     step: typeof workflowSteps.$inferSelect,
     assignmentSlot: string,
   ): string | null {
+    if (userRoles.includes('org-admin')) {
+      return step.stageMode === 'parallel' ? assignmentSlot : step.approverRole;
+    }
+
     if (step.stageMode === 'parallel') {
       const role = assignmentSlot;
       return userRoles.includes(role) ? role : null;

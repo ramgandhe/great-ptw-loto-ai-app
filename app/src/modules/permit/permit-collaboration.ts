@@ -87,6 +87,9 @@ export function canEditWizardStep(
   detail: PermitDetail,
 ): boolean {
   if (hasAnyRole(user, PERMIT_CREATE_ROLES)) {
+    if (user.roles.includes('org-admin')) {
+      return true;
+    }
     return step === 0 || step === 1 || step === 4;
   }
 
