@@ -1,4 +1,4 @@
-import { IsBoolean, IsObject, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsObject, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 
 export class CreatePermitTypeDto {
   @IsString()
@@ -12,6 +12,11 @@ export class CreatePermitTypeDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^#[0-9A-Fa-f]{6}$/, { message: 'color must be a hex value such as #2563EB' })
+  color?: string;
 
   @IsOptional()
   @IsObject()

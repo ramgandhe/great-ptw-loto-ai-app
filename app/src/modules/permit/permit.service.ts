@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -6,7 +7,8 @@ import {
   ConflictException,
   forwardRef,
 } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { ConfigService } from '@nestjs/config';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { generatePermitReference } from '../../database/permit-reference';
@@ -16,9 +18,17 @@ import {
   permitExecutors,
   permitHazards,
   permitPpe,
+  permitLototo,
+  permitGasTesting,
+  permitViewers,
+  permitSafetyOfficers,
   permits,
+  lototoPlans,
+  gasTestingCatalogue,
   revalidationHistory,
+  tenantUsers,
 } from '../../database/schema';
+import { MailService } from '../../infrastructure/mail/mail.service';
 import { AuditService } from '../logging/audit.service';
 import { ApprovalHistoryService } from '../approval/approval-history.service';
 import { WorkflowEngineService } from '../approval/workflow-engine.service';
@@ -30,7 +40,9 @@ import {
   assertDraftUpdateAllowed,
   assertPermitCreateAllowed,
   assertPermitSubmitAllowed,
+  sanitizeDraftUpdateDto,
 } from './permit-collaboration';
+import { assertPermitVisible, visiblePermitFilter } from './permit-access';
 import {
   PERMIT_CREATE_ROLES,
   PERMIT_EXECUTOR_DRAFT_ROLES,
@@ -44,7 +56,11 @@ export interface PermitDetail {
   draft: typeof permitDrafts.$inferSelect | null;
   hazards: (typeof permitHazards.$inferSelect)[];
   ppe: (typeof permitPpe.$inferSelect)[];
+  lototo: (typeof permitLototo.$inferSelect)[];
+  gasTesting: (typeof permitGasTesting.$inferSelect)[];
   executors: (typeof permitExecutors.$inferSelect)[];
+  viewers: (typeof permitViewers.$inferSelect)[];
+  safetyOfficers: (typeof permitSafetyOfficers.$inferSelect)[];
   attachments: (typeof permitAttachments.$inferSelect)[];
 }
 
@@ -60,13 +76,15 @@ export class PermitService {
     private readonly workflowEngine: WorkflowEngineService,
     @Inject(forwardRef(() => ApprovalHistoryService))
     private readonly approvalHistoryService: ApprovalHistoryService,
+    private readonly mailService: MailService,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(dto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
     assertPermitCreateAllowed(user);
     const tenantId = this.requireTenant(user);
 
-    return this.db.transaction(async (tx) => {
+    const created = await this.db.transaction(async (tx) => {
       const [permit] = await tx
         .insert(permits)
         .values({
@@ -80,6 +98,8 @@ export class PermitService {
           locationId: dto.locationId,
           workstationId: dto.workstationId,
           machineryId: dto.machineryId,
+          lototoRequired: dto.lototoRequired ?? false,
+          gasTestingRequired: dto.gasTestingRequired ?? false,
           plannedStartAt: dto.plannedStartAt,
           plannedEndAt: dto.plannedEndAt,
           createdBy: user.id,
@@ -98,7 +118,7 @@ export class PermitService {
         })
         .returning();
 
-      await this.insertRelations(tx, permit.id, user.id, dto);
+      await this.insertRelations(tx, permit.id, user.id, tenantId, dto.machineryId, dto.workstationId, dto);
 
       await this.auditService.log({
         action: 'permit.created',
@@ -122,6 +142,8 @@ export class PermitService {
       const detail = await this.loadDetail(tx, permit.id, tenantId);
       return { ...detail, draft };
     });
+    await this.notifyAssignedExecutors(created, tenantId, new Set());
+    return created;
   }
 
   async findAll(
@@ -131,7 +153,7 @@ export class PermitService {
     const tenantId = this.requireTenant(user);
 
     const cached = await this.permitCacheService.getPermitList<(typeof permits.$inferSelect)[]>(
-      tenantId,
+      `${tenantId}:${user.id}`,
       status,
     );
     if (cached) {
@@ -141,6 +163,11 @@ export class PermitService {
     const conditions = [eq(permits.tenantId, tenantId)];
     if (status) {
       conditions.push(eq(permits.status, status));
+    }
+
+    const visibility = await visiblePermitFilter(this.db, user, tenantId);
+    if (visibility) {
+      conditions.push(visibility);
     }
 
     const isExecutorOnly =
@@ -171,7 +198,7 @@ export class PermitService {
         .orderBy(desc(permits.createdAt));
     }
 
-    await this.permitCacheService.setPermitList(tenantId, status, results);
+    await this.permitCacheService.setPermitList(`${tenantId}:${user.id}`, status, results);
     return results;
   }
 
@@ -180,17 +207,49 @@ export class PermitService {
 
     const cached = await this.permitCacheService.getPermitDetail(tenantId, id);
     if (cached) {
+      await assertPermitVisible(this.db, user, cached);
       return cached;
     }
 
     const detail = await this.loadDetail(this.db, id, tenantId);
+    await assertPermitVisible(this.db, user, detail);
     await this.permitCacheService.setPermitDetail(tenantId, id, detail);
     return detail;
   }
 
+  async removeDraft(id: string, user: AuthenticatedUser): Promise<{ id: string; deleted: boolean }> {
+    const tenantId = this.requireTenant(user);
+    const detail = await this.loadDetail(this.db, id, tenantId);
+
+    if (detail.permit.status !== 'draft') {
+      throw new ConflictException('Only draft permits can be deleted');
+    }
+
+    await this.db.delete(permits).where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
+
+    await this.auditService.log({
+      action: 'permit.deleted',
+      entityType: 'permit',
+      entityId: id,
+      userId: user.id,
+      tenantId,
+      metadata: { status: 'draft', title: detail.permit.title },
+    });
+
+    await this.permitCacheService.invalidatePermit(tenantId, id);
+    this.permitLogService.logEvent({
+      action: 'permit.deleted',
+      permitId: id,
+      tenantId,
+      userId: user.id,
+    });
+
+    return { id, deleted: true };
+  }
+
   async update(
     id: string,
-    dto: UpdatePermitDto,
+    rawDto: UpdatePermitDto,
     user: AuthenticatedUser,
   ): Promise<PermitDetail> {
     const tenantId = this.requireTenant(user);
@@ -200,9 +259,11 @@ export class PermitService {
       throw new ConflictException('Only draft, deferred or rejected permits can be updated');
     }
 
+    const dto = sanitizeDraftUpdateDto(user, rawDto);
     assertDraftUpdateAllowed(user, existing, dto);
 
-    return this.db.transaction(async (tx) => {
+    const previousExecutorIds = new Set(existing.executors.map((row) => row.workforceUserId));
+    const updated = await this.db.transaction(async (tx) => {
       const permitUpdates: Partial<typeof permits.$inferInsert> = {
         updatedBy: user.id,
       };
@@ -215,6 +276,8 @@ export class PermitService {
       if (dto.locationId !== undefined) permitUpdates.locationId = dto.locationId;
       if (dto.workstationId !== undefined) permitUpdates.workstationId = dto.workstationId;
       if (dto.machineryId !== undefined) permitUpdates.machineryId = dto.machineryId;
+      if (dto.lototoRequired !== undefined) permitUpdates.lototoRequired = dto.lototoRequired;
+      if (dto.gasTestingRequired !== undefined) permitUpdates.gasTestingRequired = dto.gasTestingRequired;
       if (dto.plannedStartAt !== undefined) permitUpdates.plannedStartAt = dto.plannedStartAt;
       if (dto.plannedEndAt !== undefined) permitUpdates.plannedEndAt = dto.plannedEndAt;
 
@@ -251,10 +314,62 @@ export class PermitService {
         }
       }
 
+      if (dto.lototo !== undefined) {
+        await tx.delete(permitLototo).where(eq(permitLototo.permitId, id));
+        if (dto.lototo.length > 0) {
+          await this.insertLototo(
+            tx,
+            id,
+            user.id,
+            tenantId,
+            dto.machineryId !== undefined ? dto.machineryId : existing.permit.machineryId,
+            dto.lototo,
+          );
+        }
+      } else if (
+        dto.machineryId !== undefined &&
+        dto.machineryId !== existing.permit.machineryId
+      ) {
+        await tx.delete(permitLototo).where(eq(permitLototo.permitId, id));
+      }
+
+      if (dto.gasTesting !== undefined) {
+        await tx.delete(permitGasTesting).where(eq(permitGasTesting.permitId, id));
+        if (dto.gasTesting.length > 0) {
+          await this.insertGasTesting(
+            tx,
+            id,
+            user.id,
+            tenantId,
+            dto.workstationId !== undefined ? dto.workstationId : existing.permit.workstationId,
+            dto.gasTesting,
+          );
+        }
+      } else if (
+        dto.workstationId !== undefined &&
+        dto.workstationId !== existing.permit.workstationId
+      ) {
+        await tx.delete(permitGasTesting).where(eq(permitGasTesting.permitId, id));
+      }
+
       if (dto.executors !== undefined) {
         await tx.delete(permitExecutors).where(eq(permitExecutors.permitId, id));
         if (dto.executors.length > 0) {
           await this.insertExecutors(tx, id, user.id, dto.executors);
+        }
+      }
+
+      if (dto.viewers !== undefined) {
+        await tx.delete(permitViewers).where(eq(permitViewers.permitId, id));
+        if (dto.viewers.length > 0) {
+          await this.insertAssignees(tx, permitViewers, id, user.id, dto.viewers);
+        }
+      }
+
+      if (dto.safetyOfficers !== undefined) {
+        await tx.delete(permitSafetyOfficers).where(eq(permitSafetyOfficers.permitId, id));
+        if (dto.safetyOfficers.length > 0) {
+          await this.insertAssignees(tx, permitSafetyOfficers, id, user.id, dto.safetyOfficers);
         }
       }
 
@@ -279,6 +394,10 @@ export class PermitService {
 
       return this.loadDetail(tx, id, tenantId);
     });
+    if (dto.executors !== undefined) {
+      await this.notifyAssignedExecutors(updated, tenantId, previousExecutorIds);
+    }
+    return updated;
   }
 
   async submit(id: string, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -386,6 +505,8 @@ export class PermitService {
           locationId: source.permit.locationId,
           workstationId: source.permit.workstationId,
           machineryId: source.permit.machineryId,
+          lototoRequired: source.permit.lototoRequired,
+          gasTestingRequired: source.permit.gasTestingRequired,
           plannedStartAt: dto.plannedStartAt
             ? new Date(dto.plannedStartAt)
             : source.permit.plannedStartAt,
@@ -426,6 +547,33 @@ export class PermitService {
             permitId: renewal.id,
             ppeCatalogueId: item.ppeCatalogueId,
             quantity: item.quantity,
+            createdBy: user.id,
+            updatedBy: user.id,
+          })),
+        );
+      }
+
+      if (source.lototo.length > 0) {
+        await tx.insert(permitLototo).values(
+          source.lototo.map((item) => ({
+            permitId: renewal.id,
+            lototoPlanId: item.lototoPlanId,
+            createdBy: user.id,
+            updatedBy: user.id,
+          })),
+        );
+      }
+
+      if (source.gasTesting.length > 0) {
+        await tx.insert(permitGasTesting).values(
+          source.gasTesting.map((item) => ({
+            permitId: renewal.id,
+            gasTestingCatalogueId: item.gasTestingCatalogueId,
+            workstationId: item.workstationId,
+            parameter: item.parameter,
+            unit: item.unit,
+            minimum: item.minimum,
+            maximum: item.maximum,
             createdBy: user.id,
             updatedBy: user.id,
           })),
@@ -504,24 +652,49 @@ export class PermitService {
       .where(eq(permitHazards.permitId, id));
 
     const ppe = await db.select().from(permitPpe).where(eq(permitPpe.permitId, id));
+    const lototo = await db.select().from(permitLototo).where(eq(permitLototo.permitId, id));
+    const gasTesting = await db
+      .select()
+      .from(permitGasTesting)
+      .where(eq(permitGasTesting.permitId, id));
 
     const executors = await db
       .select()
       .from(permitExecutors)
       .where(eq(permitExecutors.permitId, id));
 
+    const viewers = await db.select().from(permitViewers).where(eq(permitViewers.permitId, id));
+    const safetyOfficers = await db
+      .select()
+      .from(permitSafetyOfficers)
+      .where(eq(permitSafetyOfficers.permitId, id));
+
     const attachments = await db
       .select()
       .from(permitAttachments)
       .where(eq(permitAttachments.permitId, id));
 
-    return { permit, draft: draft ?? null, hazards, ppe, executors, attachments };
+    return {
+      permit,
+      draft: draft ?? null,
+      hazards,
+      ppe,
+      lototo,
+      gasTesting,
+      executors,
+      viewers,
+      safetyOfficers,
+      attachments,
+    };
   }
 
   private async insertRelations(
-    db: Pick<Database, 'insert'>,
+    db: Pick<Database, 'insert' | 'select'>,
     permitId: string,
     userId: string,
+    tenantId: string,
+    machineryId: string | null | undefined,
+    workstationId: string | null | undefined,
     dto: CreatePermitDto | UpdatePermitDto,
   ): Promise<void> {
     if (dto.hazards?.length) {
@@ -530,8 +703,20 @@ export class PermitService {
     if (dto.ppe?.length) {
       await this.insertPpe(db, permitId, userId, dto.ppe);
     }
+    if (dto.lototo?.length) {
+      await this.insertLototo(db, permitId, userId, tenantId, machineryId, dto.lototo);
+    }
+    if (dto.gasTesting?.length) {
+      await this.insertGasTesting(db, permitId, userId, tenantId, workstationId, dto.gasTesting);
+    }
     if (dto.executors?.length) {
       await this.insertExecutors(db, permitId, userId, dto.executors);
+    }
+    if (dto.viewers?.length) {
+      await this.insertAssignees(db, permitViewers, permitId, userId, dto.viewers);
+    }
+    if (dto.safetyOfficers?.length) {
+      await this.insertAssignees(db, permitSafetyOfficers, permitId, userId, dto.safetyOfficers);
     }
   }
 
@@ -577,6 +762,91 @@ export class PermitService {
     );
   }
 
+  private async insertLototo(
+    db: Pick<Database, 'insert' | 'select'>,
+    permitId: string,
+    userId: string,
+    tenantId: string,
+    machineryId: string | null | undefined,
+    lototoItems: NonNullable<CreatePermitDto['lototo']>,
+  ): Promise<void> {
+    if (lototoItems.length === 0) {
+      return;
+    }
+    if (!machineryId) {
+      throw new BadRequestException('Machinery is required when attaching LOTOTO procedures');
+    }
+
+    const ids = [...new Set(lototoItems.map((item) => item.lototoPlanId))];
+    const rows = await db
+      .select({ id: lototoPlans.id, machineryId: lototoPlans.machineryId })
+      .from(lototoPlans)
+      .where(and(eq(lototoPlans.tenantId, tenantId), inArray(lototoPlans.id, ids)));
+
+    if (rows.length !== ids.length) {
+      throw new BadRequestException('One or more LOTOTO procedures were not found');
+    }
+    if (rows.some((row) => row.machineryId !== machineryId)) {
+      throw new BadRequestException('LOTOTO procedures must belong to the selected machinery');
+    }
+
+    await db.insert(permitLototo).values(
+      lototoItems.map((item) => ({
+        permitId,
+        lototoPlanId: item.lototoPlanId,
+        createdBy: userId,
+        updatedBy: userId,
+      })),
+    );
+  }
+
+  private async insertGasTesting(
+    db: Pick<Database, 'insert' | 'select'>,
+    permitId: string,
+    userId: string,
+    tenantId: string,
+    workstationId: string | null | undefined,
+    items: NonNullable<CreatePermitDto['gasTesting']>,
+  ): Promise<void> {
+    if (items.length === 0) {
+      return;
+    }
+    if (!workstationId) {
+      throw new BadRequestException('Workstation is required when attaching gas testing items');
+    }
+
+    const ids = [...new Set(items.map((item) => item.gasTestingCatalogueId))];
+    const rows = await db
+      .select()
+      .from(gasTestingCatalogue)
+      .where(and(eq(gasTestingCatalogue.tenantId, tenantId), inArray(gasTestingCatalogue.id, ids)));
+
+    if (rows.length !== ids.length) {
+      throw new BadRequestException('One or more gas testing items were not found');
+    }
+    if (rows.some((row) => row.workstationId !== workstationId)) {
+      throw new BadRequestException('Gas testing items must belong to the selected workstation');
+    }
+
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    await db.insert(permitGasTesting).values(
+      items.map((item) => {
+        const source = byId.get(item.gasTestingCatalogueId)!;
+        return {
+          permitId,
+          gasTestingCatalogueId: source.id,
+          workstationId: source.workstationId,
+          parameter: source.parameter,
+          unit: source.unit,
+          minimum: source.minimum,
+          maximum: source.maximum,
+          createdBy: userId,
+          updatedBy: userId,
+        };
+      }),
+    );
+  }
+
   private async insertExecutors(
     db: Pick<Database, 'insert'>,
     permitId: string,
@@ -595,6 +865,63 @@ export class PermitService {
         createdBy: userId,
         updatedBy: userId,
       })),
+    );
+  }
+
+  private async insertAssignees(
+    db: Pick<Database, 'insert'>,
+    table: typeof permitViewers | typeof permitSafetyOfficers,
+    permitId: string,
+    userId: string,
+    rows: Array<{ workforceUserId: string }>,
+  ): Promise<void> {
+    if (rows.length === 0) {
+      return;
+    }
+
+    await db.insert(table).values(
+      rows.map((row) => ({
+        permitId,
+        workforceUserId: row.workforceUserId,
+        createdBy: userId,
+        updatedBy: userId,
+      })),
+    );
+  }
+
+  private async notifyAssignedExecutors(
+    detail: PermitDetail,
+    tenantId: string,
+    previousIds: Set<string>,
+  ): Promise<void> {
+    const added = detail.executors
+      .map((row) => row.workforceUserId)
+      .filter((id) => !previousIds.has(id));
+    if (added.length === 0) {
+      return;
+    }
+
+    const recipients = await this.db
+      .select({ email: tenantUsers.email, firstName: tenantUsers.firstName })
+      .from(tenantUsers)
+      .where(and(eq(tenantUsers.tenantId, tenantId), inArray(tenantUsers.keycloakUserId, added)));
+
+    const appUrl = (
+      this.configService.get<string>('appPublicUrl') ?? 'http://localhost:3000'
+    ).replace(/\/$/, '');
+    const permitUrl = `${appUrl}/permits/${detail.permit.id}`;
+    const title = detail.permit.title;
+
+    await Promise.all(
+      recipients
+        .filter((row) => row.email)
+        .map((row) =>
+          this.mailService.send({
+            to: row.email,
+            subject: `Assigned as executor: ${title}`,
+            text: `Hello${row.firstName ? ` ${row.firstName}` : ''},\n\nYou have been assigned as an executor on permit "${title}".\n\nOpen the permit: ${permitUrl}\n\nComplete the on-site details. The job issuer will submit the permit.`,
+          }),
+        ),
     );
   }
 

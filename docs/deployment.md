@@ -94,7 +94,7 @@ The Isolation Execution module depends on:
 - **MinIO** — evidence storage for `isolation_evidence`; the API issues presigned
   upload/download URLs (`ISOLATION_EVIDENCE_URL_EXPIRY_SECONDS`).
 - **Keycloak** — role validation (`operator`, `safety-officer`, `hod`,
-  `org-admin`, `platform-admin`) enforced server-side on every lock/tag/
+  `tenant-owner`, `platform-admin`) enforced server-side on every lock/tag/
   verification route.
 - **Grafana Loki** — structured isolation event logging (`loki: true` marker).
 
@@ -109,7 +109,7 @@ The Restoration & History module depends on:
 - **MinIO** — restoration-evidence storage via presigned upload/download URLs
   (`RESTORATION_EVIDENCE_URL_EXPIRY_SECONDS`), keyed under the execution path.
 - **Keycloak** — role validation (`operator`, `safety-officer`, `hod`,
-  `org-admin`, `platform-admin`) enforced server-side on every restoration/removal route.
+  `tenant-owner`, `platform-admin`) enforced server-side on every restoration/removal route.
 - **Grafana Loki** — structured restoration event logging (`loki: true` marker).
 
 ## Multi-Day Daily Progress infrastructure (SP-05.01)
@@ -227,7 +227,7 @@ The Billing & Subscription module depends on:
     aggregation sweeps into `usage_records`.
   - `billing.renewal-notify` (`BILLING_RENEWAL_NOTIFY_CRON`) flags upcoming
     renewals within `BILLING_RENEWAL_HORIZON_DAYS` (FR-BIL-005).
-- **Keycloak** — org-admin / platform-admin role validation for billing routes
+- **Keycloak** — tenant-owner / platform-admin role validation for billing routes
   (wired in BE-SP-08.01).
 - **Grafana Loki** — structured billing event logging (`loki: true`).
 - **Metabase** — optional usage/revenue reporting via `METABASE_URL`.

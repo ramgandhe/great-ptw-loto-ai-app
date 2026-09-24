@@ -62,6 +62,17 @@ export default () => ({
     issuer: process.env.KEYCLOAK_ISSUER ?? process.env.KEYCLOAK_URL ?? 'http://localhost:8080',
     realm: process.env.KEYCLOAK_REALM ?? 'ptw-platform',
     clientId: process.env.KEYCLOAK_CLIENT_ID ?? 'ptw-api',
+    adminUser: process.env.KEYCLOAK_ADMIN ?? 'admin',
+    adminPassword: process.env.KEYCLOAK_ADMIN_PASSWORD ?? 'admin',
+  },
+  appPublicUrl: process.env.APP_PUBLIC_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+  smtp: {
+    host: process.env.SMTP_HOST || undefined,
+    port: parseInt(process.env.SMTP_PORT ?? '587', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER || undefined,
+    pass: process.env.SMTP_PASS || undefined,
+    from: process.env.SMTP_FROM || undefined,
   },
   auth: {
     defaultTenantId:

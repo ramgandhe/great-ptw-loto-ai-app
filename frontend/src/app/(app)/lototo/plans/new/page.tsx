@@ -19,10 +19,8 @@ import { Button } from "@/components/ui/button";
 function NewLototoPlanForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [permits, setPermits] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>>["permits"]>([]);
   const [workstations, setWorkstations] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>>["workstations"]>([]);
   const [machinery, setMachinery] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>>["machinery"]>([]);
-  const [permitId, setPermitId] = useState(searchParams.get("permitId") ?? "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [workstationId, setWorkstationId] = useState("");
@@ -39,9 +37,12 @@ function NewLototoPlanForm() {
     function loadFormData() {
       loadLototoFormOptions()
         .then((options) => {
-          setPermits(options.permits);
           setWorkstations(options.workstations);
           setMachinery(options.machinery);
+          const fromQuery = searchParams.get("machineryId");
+          if (fromQuery) {
+            setMachineryId(fromQuery);
+          }
         })
         .catch((err) => {
           setError(err instanceof ApiError ? err.message : "Failed to load form data");
@@ -51,18 +52,21 @@ function NewLototoPlanForm() {
     loadFormData();
     window.addEventListener("focus", loadFormData);
     return () => window.removeEventListener("focus", loadFormData);
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
+    if (machinery.length === 0) {
+      return;
+    }
     if (machineryId && !filteredMachinery.some((item) => item.id === machineryId)) {
       setMachineryId("");
     }
-  }, [filteredMachinery, machineryId]);
+  }, [filteredMachinery, machineryId, machinery.length]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!permitId || !title.trim()) {
-      setError("Permit and title are required.");
+    if (!machineryId || !title.trim()) {
+      setError("Machinery and title are required.");
       return;
     }
 
@@ -70,11 +74,10 @@ function NewLototoPlanForm() {
     setError(null);
     try {
       const plan = await createLototoPlan({
-        permitId,
+        machineryId,
         title: title.trim(),
         description: description.trim() || undefined,
         workstationId: workstationId || undefined,
-        machineryId: machineryId || undefined,
       });
       router.push(`/lototo/plans/${plan.id}`);
     } catch (err) {
@@ -91,7 +94,7 @@ function NewLototoPlanForm() {
         </Link>
         <h1 className="mt-2 text-2xl font-semibold">New LOTOTO plan</h1>
         <p className="text-sm text-muted-foreground">
-          Link a plan to an approved, active, or suspended permit.
+          Attach a LOTOTO procedure to machinery. Permits can then select it when LOTOTO is required.
         </p>
       </div>
 
@@ -103,20 +106,39 @@ function NewLototoPlanForm() {
         ) : null}
 
         <SelectField
-          id="lototo-permit"
-          label="Permit"
-          required
-          value={permitId}
-          onChange={setPermitId}
-          placeholder={permits.length === 0 ? "No eligible permits" : "Select permit"}
+          id="lototo-workstation"
+          label="Workstation"
+          value={workstationId}
+          onChange={setWorkstationId}
+          placeholder="None"
           hint={
-            permits.length === 0
-              ? "Complete permit approval before creating a LOTOTO plan."
-              : undefined
+            workstations.length === 0
+              ? "Add workstations under Organisation → Workstations."
+              : "Optional — filters machinery below."
           }
-          options={permits.map((permit) => ({
-            value: permit.id,
-            label: `${permit.title}${permit.reference ? ` (${permit.reference})` : ""} · ${permit.status.replace(/_/g, " ")}`,
+          options={workstations.map((ws) => ({
+            value: ws.id,
+            label: formatOrgOptionLabel(ws),
+          }))}
+        />
+
+        <SelectField
+          id="lototo-machinery"
+          label="Machinery"
+          required
+          value={machineryId}
+          onChange={setMachineryId}
+          placeholder={filteredMachinery.length === 0 ? "No machinery available" : "Select machinery"}
+          hint={
+            filteredMachinery.length === 0
+              ? "Add machinery under Organisation → Machinery."
+              : workstationId
+                ? "Showing machinery for the selected workstation."
+                : undefined
+          }
+          options={filteredMachinery.map((item) => ({
+            value: item.id,
+            label: formatOrgOptionLabel(item),
           }))}
         />
 
@@ -140,42 +162,6 @@ function NewLototoPlanForm() {
             className={fieldClassName}
           />
         </FormField>
-
-        <SelectField
-          id="lototo-workstation"
-          label="Workstation"
-          value={workstationId}
-          onChange={setWorkstationId}
-          placeholder="None"
-          hint={
-            workstations.length === 0
-              ? "Add workstations under Organisation → Workstations."
-              : "Optional — filters machinery below."
-          }
-          options={workstations.map((ws) => ({
-            value: ws.id,
-            label: formatOrgOptionLabel(ws),
-          }))}
-        />
-
-        <SelectField
-          id="lototo-machinery"
-          label="Machinery"
-          value={machineryId}
-          onChange={setMachineryId}
-          placeholder={filteredMachinery.length === 0 ? "No machinery available" : "None"}
-          hint={
-            filteredMachinery.length === 0
-              ? "Add machinery under Organisation → Machinery."
-              : workstationId
-                ? "Showing machinery for the selected workstation."
-                : "Optional — select a workstation to narrow the list."
-          }
-          options={filteredMachinery.map((item) => ({
-            value: item.id,
-            label: formatOrgOptionLabel(item),
-          }))}
-        />
 
         <div className="flex gap-2 pt-2">
           <Button type="submit" disabled={isSubmitting}>

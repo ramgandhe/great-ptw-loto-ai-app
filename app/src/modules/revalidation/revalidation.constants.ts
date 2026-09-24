@@ -5,7 +5,7 @@ export const MDP_VALIDITY_NOTIFICATION_JOB = 'mdp.validity-notification';
 
 export const REVALIDATION_WRITE_ROLES = [
   'hod',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
@@ -18,11 +18,11 @@ export const REVALIDATION_READ_ROLES = [
 export const EXTENSION_REQUEST_ROLES = [
   'job-issuer',
   'hod',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
 export const EXTENSION_APPROVE_ROLES = [
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;

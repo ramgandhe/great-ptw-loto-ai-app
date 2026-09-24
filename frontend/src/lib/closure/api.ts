@@ -56,11 +56,11 @@ export function verifyPermit(
 
 export function closePermit(
   permitId: string,
-  payload?: { comment?: string; actualEndAt?: string },
+  payload: { comment: string; actualEndAt?: string; checklist: VerificationChecklist },
 ) {
   return fetchApi<ClosePermitResult>(`/permits/${permitId}/close`, {
     method: "POST",
-    body: JSON.stringify(payload ?? {}),
+    body: JSON.stringify(payload),
   });
 }
 

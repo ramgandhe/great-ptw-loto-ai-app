@@ -27,6 +27,7 @@ import {
 import { getDashboard } from "@/lib/dashboards/api";
 import { getAllowedDashboardKinds, resolveDashboardKind } from "@/lib/dashboards/kinds";
 import type { DashboardKind, DashboardPayload } from "@/lib/dashboards/types";
+import { TenantName } from "@/components/organisation/tenant-name";
 import { DashboardKindSelector } from "@/components/dashboards/dashboard-kind-selector";
 import { DashboardNotificationsPanel } from "@/components/dashboards/dashboard-notifications-panel";
 import { KpiGrid } from "@/components/dashboards/kpi-grid";
@@ -84,8 +85,9 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <TenantName className="mt-1 text-sm font-medium" />
           <p className="mt-1 text-sm text-muted-foreground">
-            KPIs and operational summary from the platform analytics service.
+            KPIs and operational summary for this organisation.
           </p>
           {dashboard?.refreshedAt ? (
             <p className="mt-1 text-xs text-muted-foreground">

@@ -16,7 +16,10 @@ export const PERMIT_STATUS_HISTORY_ACTIONS = [
   'activated',
   'suspended',
   'resumed',
+  'revalidated',
   'verified',
+  'execution_completed',
+  'sent_back',
   'closed',
   'cancelled',
 ] as const;

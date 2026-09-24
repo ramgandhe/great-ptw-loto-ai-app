@@ -22,8 +22,9 @@ export class LototoController {
   findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query('permitId') permitId?: string,
+    @Query('machineryId') machineryId?: string,
   ) {
-    return this.lototoService.findAll(user, permitId);
+    return this.lototoService.findAll(user, permitId, machineryId);
   }
 
   @Roles(...LOTOTO_READ_ROLES)

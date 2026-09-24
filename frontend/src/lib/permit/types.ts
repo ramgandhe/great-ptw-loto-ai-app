@@ -11,6 +11,8 @@ export type PermitRecord = {
   locationId: string | null;
   workstationId: string | null;
   machineryId: string | null;
+  lototoRequired?: boolean;
+  gasTestingRequired?: boolean;
   plannedStartAt: string | null;
   plannedEndAt: string | null;
   submittedAt: string | null;
@@ -26,6 +28,18 @@ export type PermitHazardInput = {
 export type PermitPpeInput = {
   ppeCatalogueId: string;
   quantity: number;
+};
+
+export type PermitLototoInput = {
+  lototoPlanId: string;
+};
+
+export type PermitGasTestingInput = {
+  gasTestingCatalogueId: string;
+};
+
+export type PermitAssigneeInput = {
+  workforceUserId: string;
 };
 
 export type PermitExecutorInput = {
@@ -46,7 +60,13 @@ export type PermitFormState = {
   plannedEndAt: string;
   hazards: PermitHazardInput[];
   ppe: PermitPpeInput[];
+  lototoRequired: boolean;
+  lototo: PermitLototoInput[];
+  gasTestingRequired: boolean;
+  gasTesting: PermitGasTestingInput[];
   executors: PermitExecutorInput[];
+  viewers: PermitAssigneeInput[];
+  safetyOfficers: PermitAssigneeInput[];
   currentStep: number;
 };
 
@@ -72,7 +92,11 @@ export type PermitDetail = {
   draft: PermitDraft | null;
   hazards: Array<{ hazardCategoryId: string; description: string | null }>;
   ppe: Array<{ ppeCatalogueId: string; quantity: number | null }>;
+  lototo: Array<{ lototoPlanId: string }>;
+  gasTesting: Array<{ gasTestingCatalogueId: string }>;
   executors: Array<{ workforceUserId: string; isPrimary: boolean | null }>;
+  viewers: Array<{ workforceUserId: string }>;
+  safetyOfficers: Array<{ workforceUserId: string }>;
   attachments: PermitAttachment[];
 };
 
@@ -90,7 +114,13 @@ export type CreatePermitPayload = {
   currentStep?: number;
   hazards?: PermitHazardInput[];
   ppe?: PermitPpeInput[];
+  lototoRequired?: boolean;
+  lototo?: PermitLototoInput[];
+  gasTestingRequired?: boolean;
+  gasTesting?: PermitGasTestingInput[];
   executors?: PermitExecutorInput[];
+  viewers?: PermitAssigneeInput[];
+  safetyOfficers?: PermitAssigneeInput[];
 };
 
 export type SaveDraftPayload = Partial<CreatePermitPayload>;

@@ -53,11 +53,15 @@ describe('WorkflowEngineService role checks (PUS-136)', () => {
   });
 
   it('denies platform-admin override for workflow steps', () => {
-    expect(service.userHasApproverRole(['platform-admin'], 'org-admin')).toBe(false);
+    expect(service.userHasApproverRole(['platform-admin'], 'tenant-owner')).toBe(false);
   });
 
-  it('allows org-admin to act on workflow steps', () => {
-    expect(service.userHasApproverRole(['org-admin'], 'hod')).toBe(true);
+  it('allows tenant-admin on tenant-admin steps', () => {
+    expect(service.userHasApproverRole(['tenant-admin'], 'tenant-admin')).toBe(true);
+  });
+
+  it('allows tenant-owner to act on workflow steps', () => {
+    expect(service.userHasApproverRole(['tenant-owner'], 'hod')).toBe(true);
   });
 
   it('denies unauthorised role', () => {

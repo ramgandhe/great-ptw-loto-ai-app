@@ -77,7 +77,7 @@ export default function LototoPlansPage() {
                 <div>
                   <p className="font-medium">{plan.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {plan.reference ?? "No reference"} · Permit {plan.permitId.slice(0, 8)}…
+                    {plan.reference ?? "No reference"}
                   </p>
                 </div>
                 <PlanStatusBadge status={plan.status} />

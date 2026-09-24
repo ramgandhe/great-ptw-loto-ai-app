@@ -90,7 +90,7 @@ describe('Isolation Execution HTTP integration (PUS-156)', () => {
     id: randomUUID(),
     username: 'other-admin',
     tenantId: randomUUID(),
-    roles: ['operator', 'org-admin'],
+    roles: ['operator', 'tenant-owner'],
     email: 'other@example.com',
   };
   const noActionRole: AuthenticatedUser = {

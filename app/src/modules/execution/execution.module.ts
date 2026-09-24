@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
+import { ApprovalModule } from '../approval/approval.module';
 import { PermitModule } from '../permit/permit.module';
 import { EvidenceController } from './evidence.controller';
 import { EvidenceService } from './evidence.service';
@@ -14,7 +15,7 @@ import { ProgressService } from './progress.service';
 import { StatusTransitionService } from './status-transition.service';
 
 @Module({
-  imports: [PermitModule],
+  imports: [PermitModule, forwardRef(() => ApprovalModule)],
   controllers: [ExecutionController, ProgressController, EvidenceController],
   providers: [
     ExecutionService,

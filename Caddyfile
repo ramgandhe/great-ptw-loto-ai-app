@@ -1,0 +1,34 @@
+# HTTP reverse proxy (IP or hostname). TLS/site names are added when a domain exists.
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.caddy.yml up -d
+#
+# Later (domain): replace :80 with app.example.com, api.example.com, auth.example.com
+# and enable HTTPS (Caddy obtains certificates automatically).
+
+:80 {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+
+	handle /realms/* {
+		reverse_proxy keycloak:8080
+	}
+
+	handle /resources/* {
+		reverse_proxy keycloak:8080
+	}
+
+	handle /admin/* {
+		reverse_proxy keycloak:8080
+	}
+
+	handle /js/* {
+		reverse_proxy keycloak:8080
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

@@ -1,6 +1,6 @@
 export const SIMOPS_WRITE_ROLES = [
   'hod',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
   'job-issuer',
 ] as const;
@@ -16,10 +16,10 @@ export const ANALYSABLE_PERMIT_STATUSES = [
 
 export const SIMOPS_RESOLVE_ROLES = [
   'hod',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
 export const RESOLVED_CONFLICT_STATUSES = ['approved', 'rejected'] as const;
 
-export const ALERT_RECIPIENT_ROLES = ['hod', 'org-admin'] as const;
+export const ALERT_RECIPIENT_ROLES = ['hod', 'tenant-owner', 'tenant-admin'] as const;

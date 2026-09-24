@@ -4,6 +4,7 @@ import { auditColumns } from './base';
 export * from './base';
 export * from './master-data';
 export * from './organisation';
+export * from './platform';
 export * from './workforce';
 export * from './permit';
 export * from './approval';

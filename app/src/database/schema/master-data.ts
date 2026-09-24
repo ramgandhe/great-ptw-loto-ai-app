@@ -1,5 +1,6 @@
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -10,6 +11,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { auditColumns } from './base';
+import { locations } from './organisation';
 
 export const CHECKLIST_STATUSES = ['draft', 'published'] as const;
 export type ChecklistStatus = (typeof CHECKLIST_STATUSES)[number];
@@ -31,6 +33,7 @@ export const permitTypes = pgTable(
     code: varchar('code', { length: 64 }).notNull(),
     name: varchar('name', { length: 255 }).notNull(),
     description: text('description'),
+    color: varchar('color', { length: 7 }),
     defaultAttributes: jsonb('default_attributes').$type<Record<string, unknown>>(),
     isActive: boolean('is_active').notNull().default(true),
   },
@@ -66,11 +69,13 @@ export const workstationCatalogue = pgTable(
     code: varchar('code', { length: 64 }).notNull(),
     name: varchar('name', { length: 255 }).notNull(),
     description: text('description'),
+    locationId: uuid('location_id').references(() => locations.id, { onDelete: 'restrict' }),
     isActive: boolean('is_active').notNull().default(true),
   },
   (table) => [
     uniqueIndex('workstation_catalogue_tenant_code_unique').on(table.tenantId, table.code),
     index('workstation_catalogue_tenant_id_idx').on(table.tenantId),
+    index('workstation_catalogue_location_id_idx').on(table.locationId),
   ],
 );
 
@@ -91,6 +96,30 @@ export const machineryCatalogue = pgTable(
     uniqueIndex('machinery_catalogue_tenant_code_unique').on(table.tenantId, table.code),
     index('machinery_catalogue_tenant_id_idx').on(table.tenantId),
     index('machinery_catalogue_workstation_id_idx').on(table.workstationId),
+  ],
+);
+
+export const gasTestingCatalogue = pgTable(
+  'gas_testing_catalogue',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    workstationId: uuid('workstation_id')
+      .notNull()
+      .references(() => workstationCatalogue.id, { onDelete: 'restrict' }),
+    parameter: varchar('parameter', { length: 255 }).notNull(),
+    unit: varchar('unit', { length: 32 }).notNull(),
+    minimum: doublePrecision('minimum').notNull(),
+    maximum: doublePrecision('maximum').notNull(),
+  },
+  (table) => [
+    uniqueIndex('gas_testing_catalogue_tenant_ws_parameter_unique').on(
+      table.tenantId,
+      table.workstationId,
+      table.parameter,
+    ),
+    index('gas_testing_catalogue_tenant_id_idx').on(table.tenantId),
+    index('gas_testing_catalogue_workstation_id_idx').on(table.workstationId),
   ],
 );
 

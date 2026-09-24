@@ -34,9 +34,9 @@ describe('Dashboard canon reconciliation (FR-DAS-002–008)', () => {
 
   const adminUser: AuthenticatedUser = {
     id: userId,
-    username: 'org-admin',
+    username: 'tenant-owner',
     tenantId,
-    roles: ['org-admin'],
+    roles: ['tenant-owner'],
   };
 
   let kpiService: KpiService;

@@ -24,33 +24,30 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-const STORAGE_KEY = "ptw-theme-preferences";
+const STORAGE_KEY = "ptw-theme-preferences-v2";
+
+const DEFAULT_PREFERENCES = {
+  theme: "hazard" as ThemeName,
+  density: "normal" as Density,
+  visualStyle: "standard" as VisualStyle,
+  mode: "light" as const,
+};
 
 function loadPreferences() {
   if (typeof window === "undefined") {
-    return {
-      theme: "hazard" as ThemeName,
-      density: "normal" as Density,
-      visualStyle: "standard" as VisualStyle,
-      mode: "light" as const,
-    };
+    return DEFAULT_PREFERENCES;
   }
 
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      return { ...DEFAULT_PREFERENCES, ...JSON.parse(stored) };
     }
   } catch {
     // ignore
   }
 
-  return {
-    theme: "hazard" as ThemeName,
-    density: "normal" as Density,
-    visualStyle: "standard" as VisualStyle,
-    mode: window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
-  };
+  return DEFAULT_PREFERENCES;
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

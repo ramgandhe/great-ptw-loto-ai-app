@@ -16,6 +16,7 @@ import {
   formToSavePayload,
   PERMIT_WIZARD_STEPS,
   permitDetailToForm,
+  shouldSaveExecutorPayload,
   validateStep,
 } from "@/lib/permit/form";
 import {
@@ -27,6 +28,9 @@ import type { PermitDetail, PermitFormState } from "@/lib/permit/types";
 import { isEditablePermitStatus } from "@/lib/permit/status";
 import * as DocumentPicker from "expo-document-picker";
 import { SelectField } from "@/components/ui/select-field";
+import { listLototoPlans } from "@/lib/lototo/api";
+import type { LototoPlan } from "@/lib/lototo/types";
+import { listGasTesting, type GasTestingRecord } from "@/lib/master-data/api";
 import {
   filterMachineryByWorkstation,
   formatOrgOptionLabel,
@@ -68,6 +72,8 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     null,
   );
   const [optionsLoading, setOptionsLoading] = useState(true);
+  const [machineryLototo, setMachineryLototo] = useState<LototoPlan[]>([]);
+  const [workstationGasTesting, setWorkstationGasTesting] = useState<GasTestingRecord[]>([]);
 
   const filteredMachinery = useMemo(
     () => filterMachineryByWorkstation(formOptions?.machinery ?? [], form.workstationId),
@@ -99,15 +105,37 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
       form.machineryId &&
       !filteredMachinery.some((item) => item.id === form.machineryId)
     ) {
-      setForm((current) => ({ ...current, machineryId: "" }));
+      setForm((current) => ({ ...current, machineryId: "", lototoRequired: false, lototo: [] }));
     }
   }, [filteredMachinery, form.machineryId]);
+
+  useEffect(() => {
+    if (!form.machineryId) {
+      setMachineryLototo([]);
+      return;
+    }
+    listLototoPlans({ machineryId: form.machineryId })
+      .then(setMachineryLototo)
+      .catch(() => setMachineryLototo([]));
+  }, [form.machineryId]);
+
+  useEffect(() => {
+    if (!form.workstationId) {
+      setWorkstationGasTesting([]);
+      return;
+    }
+    listGasTesting(form.workstationId)
+      .then(setWorkstationGasTesting)
+      .catch(() => setWorkstationGasTesting([]));
+  }, [form.workstationId]);
 
   const permitStatus = initialDetail?.permit.status ?? "draft";
   const isReadOnly = !isEditablePermitStatus(permitStatus);
 
   const persistDraft = useCallback(async () => {
-    const payload = formToSavePayload(form);
+    const payload = formToSavePayload(form, {
+      executorOnly: shouldSaveExecutorPayload(formOptions?.userRoles ?? []),
+    });
 
     try {
       if (!currentPermitId) {
@@ -140,7 +168,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
           path: "/permits",
           payload,
           localDraftId: localId,
-          title: payload.title,
+          title: form.title || "Untitled permit",
         });
       } else {
         await queuePermitMutation({
@@ -148,7 +176,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
           path: `/permits/${currentPermitId}`,
           payload,
           localDraftId: localId,
-          title: payload.title,
+          title: form.title || "Untitled permit",
         });
       }
 
@@ -156,7 +184,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
       setQueuedOffline(true);
       return localId;
     }
-  }, [currentPermitId, form]);
+  }, [currentPermitId, form, formOptions?.userRoles]);
 
   const handleSaveDraft = async () => {
     setIsBusy(true);
@@ -358,7 +386,14 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
             }))}
             placeholder="Select workstation (optional)"
             disabled={isReadOnly || optionsLoading}
-            onChange={(workstationId) => setForm({ ...form, workstationId })}
+            onChange={(workstationId) =>
+              setForm({
+                ...form,
+                workstationId,
+                gasTesting: workstationId === form.workstationId ? form.gasTesting : [],
+                gasTestingRequired: workstationId ? form.gasTestingRequired : false,
+              })
+            }
           />
           <SelectField
             label="Machinery"
@@ -369,7 +404,14 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
             }))}
             placeholder="Select machinery (optional)"
             disabled={isReadOnly || optionsLoading}
-            onChange={(machineryId) => setForm({ ...form, machineryId })}
+            onChange={(machineryId) =>
+              setForm({
+                ...form,
+                machineryId,
+                lototo: machineryId === form.machineryId ? form.lototo : [],
+                lototoRequired: machineryId ? form.lototoRequired : false,
+              })
+            }
           />
           <Text style={styles.label}>Planned start (ISO datetime)</Text>
           <TextInput
@@ -459,6 +501,111 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
           >
             <Text style={styles.secondaryButtonText}>Add PPE</Text>
           </Pressable>
+
+          <Pressable
+            style={styles.secondaryButton}
+            disabled={isReadOnly || !form.machineryId}
+            onPress={() =>
+              setForm({
+                ...form,
+                lototoRequired: !form.lototoRequired,
+                lototo: !form.lototoRequired ? form.lototo : [],
+              })
+            }
+          >
+            <Text style={styles.secondaryButtonText}>
+              {form.lototoRequired ? "LOTOTO required (on)" : "LOTOTO required (off)"}
+            </Text>
+          </Pressable>
+
+          {form.lototoRequired ? (
+            <>
+              {machineryLototo.length === 0 ? (
+                <Text style={styles.hint}>No LOTOTO procedures for this machinery.</Text>
+              ) : null}
+              {form.lototo.map((item, index) => (
+                <SelectField
+                  key={`lototo-${index}`}
+                  label="LOTOTO procedure"
+                  value={item.lototoPlanId}
+                  options={machineryLototo.map((plan) => ({
+                    value: plan.id,
+                    label: plan.title,
+                  }))}
+                  placeholder="Select LOTOTO"
+                  disabled={isReadOnly}
+                  onChange={(lototoPlanId) => {
+                    const lototo = [...form.lototo];
+                    lototo[index] = { lototoPlanId };
+                    setForm({ ...form, lototo });
+                  }}
+                />
+              ))}
+              <Pressable
+                style={styles.secondaryButton}
+                disabled={isReadOnly || machineryLototo.length === 0}
+                onPress={() =>
+                  setForm({ ...form, lototo: [...form.lototo, { lototoPlanId: "" }] })
+                }
+              >
+                <Text style={styles.secondaryButtonText}>Add LOTOTO</Text>
+              </Pressable>
+            </>
+          ) : null}
+
+          <Pressable
+            style={styles.secondaryButton}
+            disabled={isReadOnly || !form.workstationId}
+            onPress={() =>
+              setForm({
+                ...form,
+                gasTestingRequired: !form.gasTestingRequired,
+                gasTesting: !form.gasTestingRequired ? form.gasTesting : [],
+              })
+            }
+          >
+            <Text style={styles.secondaryButtonText}>
+              {form.gasTestingRequired ? "Gas testing required (on)" : "Gas testing required (off)"}
+            </Text>
+          </Pressable>
+
+          {form.gasTestingRequired ? (
+            <>
+              {workstationGasTesting.length === 0 ? (
+                <Text style={styles.hint}>No gas testing items for this workstation.</Text>
+              ) : null}
+              {form.gasTesting.map((item, index) => (
+                <SelectField
+                  key={`gas-testing-${index}`}
+                  label="Gas testing item"
+                  value={item.gasTestingCatalogueId}
+                  options={workstationGasTesting.map((row) => ({
+                    value: row.id,
+                    label: `${row.parameter} (${row.minimum}–${row.maximum} ${row.unit})`,
+                  }))}
+                  placeholder="Select gas testing"
+                  disabled={isReadOnly}
+                  onChange={(gasTestingCatalogueId) => {
+                    const gasTesting = [...form.gasTesting];
+                    gasTesting[index] = { gasTestingCatalogueId };
+                    setForm({ ...form, gasTesting });
+                  }}
+                />
+              ))}
+              <Pressable
+                style={styles.secondaryButton}
+                disabled={isReadOnly || workstationGasTesting.length === 0}
+                onPress={() =>
+                  setForm({
+                    ...form,
+                    gasTesting: [...form.gasTesting, { gasTestingCatalogueId: "" }],
+                  })
+                }
+              >
+                <Text style={styles.secondaryButtonText}>Add gas testing</Text>
+              </Pressable>
+            </>
+          ) : null}
         </View>
       ) : null}
 

@@ -1,0 +1,44 @@
+# Reverse proxy on port 80. Combine with demo overlay for public URLs:
+#
+#   export DEMO_WEB_URL=http://<public-ip>
+#   export DEMO_API_URL=http://<public-ip>/api/v1
+#   export DEMO_AUTH_URL=http://<public-ip>
+#   export PUBLIC_ORIGIN=http://<public-ip>
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.caddy.yml up -d --build
+#
+# When a domain is ready, point DNS here, change PUBLIC_ORIGIN / DEMO_* to https://...
+# and update Caddyfile site addresses.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    environment:
+      SECURITY_TRUST_PROXY: "true"
+      APP_PUBLIC_URL: ${PUBLIC_ORIGIN:-http://127.0.0.1}
+
+  keycloak:
+    environment:
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME: ${PUBLIC_ORIGIN:-http://127.0.0.1}
+
+volumes:
+  caddy_data:
+  caddy_config:

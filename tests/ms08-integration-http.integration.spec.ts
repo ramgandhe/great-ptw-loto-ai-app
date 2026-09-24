@@ -73,9 +73,9 @@ describe('MS-08 integration HTTP (billing + platform readiness + regression)', (
 
   const adminUser: AuthenticatedUser = {
     id: userId,
-    username: 'org-admin',
+    username: 'tenant-owner',
     tenantId,
-    roles: ['org-admin'],
+    roles: ['tenant-owner'],
     email: 'admin@example.com',
   };
 

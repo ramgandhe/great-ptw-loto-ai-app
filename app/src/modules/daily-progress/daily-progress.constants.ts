@@ -6,7 +6,7 @@ export const MDP_WRITE_ROLES = [
   'job-issuer',
   'operator',
   'hod',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
@@ -15,6 +15,6 @@ export const MDP_READ_ROLES = [...MDP_WRITE_ROLES, 'viewer'] as const;
 export const MDP_HANDOVER_ROLES = [
   'hod',
   'job-issuer',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;

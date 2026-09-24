@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ne } from 'drizzle-orm';
 import { requireTenant } from '../../common/helpers/tenant-context';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -13,6 +13,12 @@ import {
   plants,
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
+import { isApprovalApproverRole } from '../approval/default-workflow';
+import {
+  applyCurrentWorkflowToLiveStep,
+  ensureDefaultApprovalWorkflow,
+} from '../approval/ensure-default-workflow';
+import { optionalUuid } from '../../common/helpers/optional-uuid';
 import { CreateOrgEntityDto, UpdateOrgEntityDto } from './dto/org-entity.dto';
 import { CreateOrganisationDto, UpdateOrganisationDto } from './dto/organisation.dto';
 
@@ -67,6 +73,7 @@ export class OrganisationService {
       .returning();
 
     await this.audit('organisation.created', 'organisation', row.id, user, tenantId);
+    await ensureDefaultApprovalWorkflow(this.db, tenantId, optionalUuid(user.id));
     return row;
   }
 
@@ -186,22 +193,110 @@ export class OrganisationService {
   }
 
   getWorkflow(id: string, user: AuthenticatedUser) {
-    return this.getActive(approvalWorkflows, id, user);
+    return this.getActive(approvalWorkflows, id, user) as Promise<typeof approvalWorkflows.$inferSelect>;
   }
 
   createWorkflow(dto: CreateOrgEntityDto, user: AuthenticatedUser) {
+    if (!dto.approverRole || !isApprovalApproverRole(dto.approverRole)) {
+      throw new BadRequestException('Approver role is required');
+    }
+
     return this.createEntity(approvalWorkflows, 'approval_workflow', user, {
       name: dto.name.trim(),
       code: dto.code?.trim(),
       description: dto.description,
+      approverRole: dto.approverRole,
+      isCurrent: false,
     });
   }
 
-  updateWorkflow(id: string, dto: UpdateOrgEntityDto, user: AuthenticatedUser) {
-    return this.updateEntity(approvalWorkflows, 'approval_workflow', id, user, dto);
+  async updateWorkflow(id: string, dto: UpdateOrgEntityDto, user: AuthenticatedUser) {
+    const tenantId = requireTenant(user);
+    if (dto.approverRole !== undefined && !isApprovalApproverRole(dto.approverRole)) {
+      throw new BadRequestException('Approver role is invalid');
+    }
+
+    const existing = await this.getWorkflow(id, user);
+    const [row] = await this.db
+      .update(approvalWorkflows)
+      .set({
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.code !== undefined ? { code: dto.code?.trim() } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.approverRole !== undefined ? { approverRole: dto.approverRole } : {}),
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(eq(approvalWorkflows.id, id), eq(approvalWorkflows.tenantId, tenantId), ne(approvalWorkflows.status, 'archived')),
+      )
+      .returning();
+    if (!row) {
+      throw new NotFoundException('Record not found');
+    }
+
+    if (row.isCurrent) {
+      const stepId = await applyCurrentWorkflowToLiveStep(this.db, tenantId, optionalUuid(user.id), {
+        name: row.name,
+        approverRole: row.approverRole ?? existing.approverRole ?? 'hod',
+        workflowStepId: row.workflowStepId,
+      });
+      if (stepId !== row.workflowStepId) {
+        await this.db
+          .update(approvalWorkflows)
+          .set({ workflowStepId: stepId, updatedBy: user.id, updatedAt: new Date() })
+          .where(eq(approvalWorkflows.id, row.id));
+        row.workflowStepId = stepId;
+      }
+    }
+
+    await this.audit('approval_workflow.updated', 'approval_workflow', id, user, tenantId);
+    return row;
   }
 
-  archiveWorkflow(id: string, user: AuthenticatedUser) {
+  async activateWorkflow(id: string, user: AuthenticatedUser) {
+    const tenantId = requireTenant(user);
+    const workflow = await this.getWorkflow(id, user);
+    const approverRole = workflow.approverRole;
+    if (!approverRole || !isApprovalApproverRole(approverRole)) {
+      throw new BadRequestException('Approver role is required before activating this workflow');
+    }
+
+    const stepId = await this.db.transaction(async (tx) => {
+      await tx
+        .update(approvalWorkflows)
+        .set({ isCurrent: false, updatedBy: user.id, updatedAt: new Date() })
+        .where(and(eq(approvalWorkflows.tenantId, tenantId), ne(approvalWorkflows.status, 'archived')));
+
+      const liveStepId = await applyCurrentWorkflowToLiveStep(tx, tenantId, optionalUuid(user.id), {
+        name: workflow.name,
+        approverRole,
+        workflowStepId: workflow.workflowStepId,
+      });
+
+      const [updated] = await tx
+        .update(approvalWorkflows)
+        .set({
+          isCurrent: true,
+          workflowStepId: liveStepId,
+          updatedBy: user.id,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(approvalWorkflows.id, id), eq(approvalWorkflows.tenantId, tenantId)))
+        .returning();
+
+      return { liveStepId, updated };
+    });
+
+    await this.audit('approval_workflow.activated', 'approval_workflow', id, user, tenantId);
+    return stepId.updated;
+  }
+
+  async archiveWorkflow(id: string, user: AuthenticatedUser) {
+    const workflow = await this.getWorkflow(id, user);
+    if (workflow.isCurrent) {
+      throw new ConflictException('Activate another workflow before archiving the current one');
+    }
     return this.archiveEntity(approvalWorkflows, 'approval_workflow', id, user);
   }
 

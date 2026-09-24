@@ -14,7 +14,7 @@ export const DASHBOARD_READ_ROLES = [
   'job-issuer',
   'hod',
   'safety-officer',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
   'viewer',
 ] as const;
@@ -22,23 +22,23 @@ export const DASHBOARD_READ_ROLES = [
 export const DASHBOARD_REPORT_ROLES = [
   'hod',
   'safety-officer',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
 export const DASHBOARD_ANALYTICS_ROLES = [
   'hod',
   'safety-officer',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
 /** Roles allowed per dashboard kind (BR-DSH-001 / BR-DSH-002). */
 export const DASHBOARD_KIND_ROLES: Record<DashboardKind, readonly string[]> = {
   personal: DASHBOARD_READ_ROLES,
-  hod: ['hod', 'safety-officer', 'org-admin', 'platform-admin'],
-  safety: ['safety-officer', 'org-admin', 'platform-admin'],
-  management: ['safety-officer', 'org-admin', 'platform-admin'],
+  hod: ['hod', 'safety-officer', 'tenant-owner', 'tenant-admin', 'platform-admin'],
+  safety: ['safety-officer', 'tenant-owner', 'tenant-admin', 'platform-admin'],
+  management: ['safety-officer', 'tenant-owner', 'tenant-admin', 'platform-admin'],
 };
 
 /** Object key prefix inside MINIO_BUCKET for generated report exports. */

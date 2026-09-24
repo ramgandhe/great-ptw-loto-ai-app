@@ -88,6 +88,10 @@ describe('Approval workflow remediation (SP-09.01)', () => {
           hazards: [],
           ppe: [],
           executors: [],
+          lototo: [],
+          gasTesting: [],
+          viewers: [],
+          safetyOfficers: [],
           attachments: [],
         };
       }),

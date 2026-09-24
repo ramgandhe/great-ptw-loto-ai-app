@@ -3,10 +3,16 @@ export type OrgRecord = {
   name: string;
   code?: string | null;
   description?: string | null;
+  approverRole?: string | null;
+  isCurrent?: boolean;
+  category?: string | null;
+  severity?: string | null;
   status?: string;
   parentId?: string | null;
   plantId?: string | null;
   departmentId?: string | null;
+  locationId?: string | null;
+  workstationId?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -18,6 +24,7 @@ export type MachineryRecord = OrgRecord & {
 export type Organisation = OrgRecord & {
   legalName?: string | null;
   registrationNumber?: string | null;
+  ownerEmail?: string | null;
 };
 
 export type NotificationPreference = OrgRecord & {
@@ -34,4 +41,6 @@ export type EntityField = {
   required?: boolean;
   multiline?: boolean;
   select?: EntitySelectResource;
+  /** Static select options (used when `select` is not set). */
+  options?: { value: string; label: string }[];
 };

@@ -11,7 +11,7 @@ export type LototoAssignmentRole = (typeof LOTOTO_ASSIGNMENT_ROLES)[number];
 export type LototoPlan = {
   id: string;
   tenantId: string;
-  permitId: string;
+  permitId: string | null;
   workstationId: string | null;
   machineryId: string | null;
   reference: string | null;
@@ -41,11 +41,10 @@ export type LototoAssignment = {
 };
 
 export type CreateLototoPlanPayload = {
-  permitId: string;
+  machineryId: string;
   title: string;
   description?: string;
   workstationId?: string;
-  machineryId?: string;
   reference?: string;
 };
 

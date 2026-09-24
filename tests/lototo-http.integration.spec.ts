@@ -155,7 +155,6 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/lototo/plans')
       .send({
-        permitId: permit.id,
         machineryId: machinery.id,
         title: 'Compressor isolation',
         description: 'Lock out main drive',
@@ -163,31 +162,30 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
       .expect(201);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.data.permitId).toBe(permit.id);
+    expect(res.body.data.machineryId).toBe(machinery.id);
     expect(res.body.data.status).toBe('draft');
   });
 
-  httpTest('lists LOTOTO plans filtered by permit', async () => {
-    const { permit, machinery } = await seedPermitAndEquipment();
+  httpTest('lists LOTOTO plans filtered by machinery', async () => {
+    const { machinery } = await seedPermitAndEquipment();
 
     await request(app.getHttpServer())
       .post('/api/v1/lototo/plans')
       .send({
-        permitId: permit.id,
         machineryId: machinery.id,
         title: 'Plan A',
       })
       .expect(201);
 
     const listRes = await request(app.getHttpServer())
-      .get(`/api/v1/lototo/plans?permitId=${permit.id}`)
+      .get(`/api/v1/lototo/plans?machineryId=${machinery.id}`)
       .expect(200);
 
     expect(listRes.body.success).toBe(true);
     expect(listRes.body.data.length).toBeGreaterThanOrEqual(1);
-    expect(listRes.body.data.every((plan: { permitId: string }) => plan.permitId === permit.id)).toBe(
-      true,
-    );
+    expect(
+      listRes.body.data.every((plan: { machineryId: string }) => plan.machineryId === machinery.id),
+    ).toBe(true);
   });
 
   httpTest('configures isolation points, assignments, and sequence', async () => {
@@ -196,7 +194,6 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
     const planRes = await request(app.getHttpServer())
       .post('/api/v1/lototo/plans')
       .send({
-        permitId: permit.id,
         machineryId: machinery.id,
         title: 'Full configuration plan',
       })
@@ -256,11 +253,11 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
     expect(detailRes.body.data.sequence).toHaveLength(1);
   });
 
-  httpTest('rejects LOTOTO plan for non-existent permit', async () => {
+  httpTest('rejects LOTOTO plan for non-existent machinery', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/lototo/plans')
       .send({
-        permitId: randomUUID(),
+        machineryId: randomUUID(),
         title: 'Orphan plan',
       })
       .expect(404);
@@ -274,7 +271,6 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
     const planRes = await request(app.getHttpServer())
       .post('/api/v1/lototo/plans')
       .send({
-        permitId: permit.id,
         machineryId: machinery.id,
         title: 'Duplicate isolation plan',
       })
@@ -305,12 +301,12 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
     const viewerApp = await createTestApp(viewerUser);
 
     try {
-      const { permit } = await seedPermitAndEquipment();
+      const { machinery } = await seedPermitAndEquipment();
 
       await request(viewerApp.getHttpServer())
         .post('/api/v1/lototo/plans')
         .send({
-          permitId: permit.id,
+          machineryId: machinery.id,
           title: 'Viewer attempt',
         })
         .expect(403);

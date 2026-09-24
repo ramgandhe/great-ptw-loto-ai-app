@@ -69,7 +69,7 @@ export function ClosureDialog({
 
         <div>
           <label htmlFor="closure-comment" className="text-sm font-medium">
-            Closure comment (optional)
+            Closure comment (required)
           </label>
           <textarea
             id="closure-comment"
@@ -91,7 +91,7 @@ export function ClosureDialog({
           <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting || !comment.trim()}>
             {isSubmitting ? "Closing..." : "Close permit"}
           </Button>
         </div>

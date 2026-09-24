@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   boolean,
   index,
@@ -23,6 +24,7 @@ export const organisations = pgTable(
     registrationNumber: varchar('registration_number', { length: 128 }),
     timezone: varchar('timezone', { length: 64 }).notNull().default('UTC'),
     status: varchar('status', { length: 32 }).notNull().default('active'),
+    ownerEmail: varchar('owner_email', { length: 255 }),
   },
   (table) => [
     uniqueIndex('organisations_tenant_unique').on(table.tenantId),
@@ -90,11 +92,17 @@ export const approvalWorkflows = pgTable(
     name: varchar('name', { length: 255 }).notNull(),
     code: varchar('code', { length: 64 }),
     description: text('description'),
+    approverRole: varchar('approver_role', { length: 64 }),
+    isCurrent: boolean('is_current').notNull().default(false),
+    workflowStepId: uuid('workflow_step_id'),
     status: varchar('status', { length: 32 }).notNull().default('active'),
     config: jsonb('config').$type<Record<string, unknown>>(),
   },
   (table) => [
     uniqueIndex('approval_workflows_tenant_code_unique').on(table.tenantId, table.code),
+    uniqueIndex('approval_workflows_tenant_current_unique')
+      .on(table.tenantId)
+      .where(sql`"is_current" = true AND "status" <> 'archived'`),
     index('approval_workflows_tenant_id_idx').on(table.tenantId),
   ],
 );

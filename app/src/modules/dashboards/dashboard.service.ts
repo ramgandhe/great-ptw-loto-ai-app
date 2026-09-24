@@ -124,9 +124,32 @@ export class DashboardService {
         createdBy: userId,
         updatedBy: userId,
       })
+      .onConflictDoNothing({
+        target: [
+          dashboardPreferences.tenantId,
+          dashboardPreferences.userId,
+          dashboardPreferences.dashboardKind,
+        ],
+      })
       .returning();
 
-    return created;
+    if (created) {
+      return created;
+    }
+
+    const [raceWinner] = await this.db
+      .select()
+      .from(dashboardPreferences)
+      .where(
+        and(
+          eq(dashboardPreferences.tenantId, tenantId),
+          eq(dashboardPreferences.userId, userId),
+          eq(dashboardPreferences.dashboardKind, kind),
+        ),
+      )
+      .limit(1);
+
+    return raceWinner!;
   }
 
   private async buildSummary(tenantId: string, actorId: string, kind: DashboardKind) {

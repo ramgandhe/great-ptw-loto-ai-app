@@ -41,6 +41,6 @@ export type EvidenceRecord = {
 };
 
 export type ExecutionActionResult = {
-  execution: PermitExecution;
+  execution: PermitExecution | null;
   permit: PermitRecord;
 };

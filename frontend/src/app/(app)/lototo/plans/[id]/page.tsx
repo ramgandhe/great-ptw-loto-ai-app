@@ -213,10 +213,22 @@ export default function LototoPlanDetailPage() {
           <PlanStatusBadge status={plan.status} />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          {plan.description ?? "No description"} ·{" "}
-          <Link href={`/permits/${plan.permitId}`} className="underline">
-            View permit
-          </Link>
+          {plan.description ?? "No description"}
+          {plan.permitId ? (
+            <>
+              {" · "}
+              <Link href={`/permits/${plan.permitId}`} className="underline">
+                View permit
+              </Link>
+            </>
+          ) : (
+            <>
+              {" · "}
+              <Link href="/organisation/machinery" className="underline">
+                Machinery
+              </Link>
+            </>
+          )}
         </p>
       </div>
 

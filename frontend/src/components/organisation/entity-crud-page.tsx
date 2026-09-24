@@ -10,6 +10,7 @@ import {
   notificationPreferencesApi,
   permitTemplatesApi,
   plantsApi,
+  hazardsApi,
   ppeConfigurationsApi,
   safetyChecklistsApi,
   workstationsApi,
@@ -29,6 +30,7 @@ const entityApis = {
   templates: permitTemplatesApi,
   checklists: safetyChecklistsApi,
   ppe: ppeConfigurationsApi,
+  hazards: hazardsApi,
   notifications: notificationPreferencesApi,
 } as const;
 
@@ -106,7 +108,11 @@ export function EntityCrudPage({
     event.preventDefault();
     setSubmitting(true);
     setError(null);
-    const payload = Object.fromEntries(fields.map((f) => [f.key, form[f.key]?.trim() ?? ""]));
+    const payload = Object.fromEntries(
+      fields
+        .map((f) => [f.key, form[f.key]?.trim() ?? ""] as const)
+        .filter(([, value]) => value !== ""),
+    );
 
     try {
       if (editingId) {
@@ -120,6 +126,16 @@ export function EntityCrudPage({
       setError(err instanceof ApiError ? err.message : "Save failed");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleActivate(id: string) {
+    setError(null);
+    try {
+      await approvalWorkflowsApi.activate(id);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Activate failed");
     }
   }
 
@@ -167,7 +183,7 @@ export function EntityCrudPage({
                 className="rounded-lg border border-border bg-background px-3 py-2 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
               />
-            ) : field.select ? (
+            ) : field.select || field.options ? (
               <select
                 required={field.required}
                 value={form[field.key] ?? ""}
@@ -175,7 +191,9 @@ export function EntityCrudPage({
                 onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
               >
                 <option value="">Select {field.label.toLowerCase()}</option>
-                {(selectOptions[field.select] ?? []).map((option) => (
+                {(field.options ??
+                  (field.select ? (selectOptions[field.select] ?? []) : [])
+                ).map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -220,6 +238,15 @@ export function EntityCrudPage({
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Code</th>
+                {fields.some((field) => field.key === "category") ? (
+                  <th className="px-4 py-3 font-medium">Category</th>
+                ) : null}
+                {fields.some((field) => field.key === "approverRole") ? (
+                  <th className="px-4 py-3 font-medium">Approver</th>
+                ) : null}
+                {fields.some((field) => field.key === "severity") ? (
+                  <th className="px-4 py-3 font-medium">Severity</th>
+                ) : null}
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Actions</th>
               </tr>
@@ -229,21 +256,45 @@ export function EntityCrudPage({
                 <tr key={item.id} className="border-t border-border">
                   <td className="px-4 py-3">{String(item[nameField] ?? "—")}</td>
                   <td className="px-4 py-3 text-muted-foreground">{item.code ?? "—"}</td>
+                  {fields.some((field) => field.key === "category") ? (
+                    <td className="px-4 py-3 text-muted-foreground">{item.category ?? "—"}</td>
+                  ) : null}
+                  {fields.some((field) => field.key === "approverRole") ? (
+                    <td className="px-4 py-3 text-muted-foreground">{item.approverRole ?? "—"}</td>
+                  ) : null}
+                  {fields.some((field) => field.key === "severity") ? (
+                    <td className="px-4 py-3 text-muted-foreground">{item.severity ?? "—"}</td>
+                  ) : null}
                   <td className="px-4 py-3">
-                    <OrgStatusBadge status={item.status} />
+                    {item.isCurrent ? (
+                      <span className="text-sm font-medium">Current</span>
+                    ) : (
+                      <OrgStatusBadge status={item.status} />
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-3">
                       <button type="button" className="text-primary hover:underline" onClick={() => startEdit(item)}>
                         Edit
                       </button>
-                      <button
-                        type="button"
-                        className="text-destructive hover:underline"
-                        onClick={() => void handleArchive(item.id)}
-                      >
-                        Archive
-                      </button>
+                      {resource === "workflows" && !item.isCurrent ? (
+                        <button
+                          type="button"
+                          className="text-primary hover:underline"
+                          onClick={() => void handleActivate(item.id)}
+                        >
+                          Activate
+                        </button>
+                      ) : null}
+                      {item.isCurrent ? null : (
+                        <button
+                          type="button"
+                          className="text-destructive hover:underline"
+                          onClick={() => void handleArchive(item.id)}
+                        >
+                          Archive
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

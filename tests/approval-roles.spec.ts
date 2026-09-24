@@ -43,10 +43,10 @@ describe('Approval role enforcement (PUS-140)', () => {
     ).toThrow(ForbiddenException);
   });
 
-  it('allows org-admin to take approval actions', () => {
+  it('allows tenant-owner to take approval actions', () => {
     mockRoleGuardReflector(getAllAndOverride, APPROVAL_ACTION_ROLES);
 
-    expect(guard.canActivate(buildContext({ roles: ['org-admin'] }))).toBe(true);
+    expect(guard.canActivate(buildContext({ roles: ['tenant-owner'] }))).toBe(true);
   });
 
   it('denies platform-admin from approval actions (FR-ROL-003)', () => {

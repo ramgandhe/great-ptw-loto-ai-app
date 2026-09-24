@@ -78,7 +78,7 @@ describe('MS-04/MS-05 integration journeys (PUS-227)', () => {
     id: actorId,
     username: 'hod',
     tenantId,
-    roles: ['hod', 'job-issuer', 'safety-officer', 'org-admin'],
+    roles: ['hod', 'job-issuer', 'safety-officer', 'tenant-owner'],
     email: 'supervisor@example.com',
   };
 

@@ -15,24 +15,29 @@ export class ApiError extends Error {
   }
 }
 
-export async function fetchApi<T>(path: string, init?: RequestInit, retried = false): Promise<T> {
-  const token = getAccessToken();
+export async function fetchApi<T>(
+  path: string,
+  init?: RequestInit & { skipAuth?: boolean },
+  retried = false,
+): Promise<T> {
+  const { skipAuth, ...requestInit } = init ?? {};
+  const token = skipAuth ? null : getAccessToken();
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
+    ...requestInit,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init?.headers,
+      ...requestInit.headers,
     },
   });
 
   const body = await response.json();
 
-  if (response.status === 401 && !retried && typeof window !== "undefined") {
+  if (response.status === 401 && !retried && !skipAuth && typeof window !== "undefined") {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
-      return fetchApi<T>(path, init, true);
+      return fetchApi<T>(path, requestInit, true);
     }
 
     clearTokens();

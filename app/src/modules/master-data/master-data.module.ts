@@ -16,6 +16,8 @@ import { MasterDataCacheService } from './master-data-cache.service';
 import { MasterDataLogService } from './master-data-log.service';
 import { PermitTypeController } from './permit-type.controller';
 import { PermitTypeService } from './permit-type.service';
+import { GasTestingController } from './gas-testing.controller';
+import { GasTestingService } from './gas-testing.service';
 import { PpeController } from './ppe.controller';
 import { PpeService } from './ppe.service';
 import { ReferenceIntegrityService } from './reference-integrity.service';
@@ -25,6 +27,7 @@ import { WorkstationService } from './workstation.service';
 @Module({
   controllers: [
     PermitTypeController,
+    GasTestingController,
     PpeController,
     WorkstationController,
     MachineryController,
@@ -36,6 +39,7 @@ import { WorkstationService } from './workstation.service';
   ],
   providers: [
     PermitTypeService,
+    GasTestingService,
     PpeService,
     WorkstationService,
     MachineryService,
@@ -49,6 +53,7 @@ import { WorkstationService } from './workstation.service';
   ],
   exports: [
     PermitTypeService,
+    GasTestingService,
     PpeService,
     WorkstationService,
     MachineryService,

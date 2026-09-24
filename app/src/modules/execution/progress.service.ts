@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { and, asc, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
+import { isTenantPrivileged } from '../../common/constants/tenant-roles';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { permitExecution, permitExecutors, permitProgress } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
@@ -110,7 +111,7 @@ export class ProgressService {
   }
 
   private async requireExecutor(permitId: string, user: AuthenticatedUser) {
-    if (user.roles.includes('platform-admin') || user.roles.includes('org-admin')) {
+    if (user.roles.includes('platform-admin') || isTenantPrivileged(user.roles)) {
       return;
     }
 

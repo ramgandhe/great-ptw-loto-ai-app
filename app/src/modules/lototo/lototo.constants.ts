@@ -1,6 +1,6 @@
 export const LOTOTO_WRITE_ROLES = [
   'hod',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 

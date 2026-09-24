@@ -7,6 +7,7 @@ export type WorkforceRecord = {
   departmentId?: string | null;
   agencyId?: string | null;
   role?: string | null;
+  executorKind?: "internal" | "contractor" | "agency";
   createdAt?: string;
   updatedAt?: string;
 };
@@ -19,6 +20,29 @@ export type CompetencyRecord = {
   expiryDate?: string | null;
   status?: string;
   description?: string | null;
+};
+
+export type TenantUser = {
+  id: string;
+  email: string | null;
+  username: string;
+  name?: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  enabled: boolean;
+  roles: string[];
+  departmentId?: string | null;
+  executorKind?: "internal" | "contractor" | "agency";
+};
+
+export type CreatedTenantUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  temporaryPassword: string;
+  signInUrl: string;
+  signInHint: string;
 };
 
 export type EntityField = {

@@ -90,7 +90,7 @@ describe('Permit approval schema (PUS-139)', () => {
         permitTypeId,
         stepSequence: 2,
         name: 'Head of Department Approval',
-        approverRole: 'org-admin',
+        approverRole: 'tenant-admin',
         createdBy: issuerId,
       })
       .returning();

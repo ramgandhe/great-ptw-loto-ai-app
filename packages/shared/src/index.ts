@@ -36,6 +36,8 @@ export interface UserProfile {
   email?: string;
   firstName?: string;
   lastName?: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
   roles: string[];
   tenantId?: string;
 }

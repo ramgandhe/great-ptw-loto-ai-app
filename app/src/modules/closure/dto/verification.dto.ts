@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsBoolean, IsString, MinLength, ValidateNested } from 'class-validator';
 
 export class VerificationChecklistDto {
   @IsBoolean()
@@ -16,9 +16,9 @@ export class VerificationChecklistDto {
 }
 
 export class VerificationDto {
-  @IsOptional()
   @IsString()
-  comment?: string;
+  @MinLength(1)
+  comment!: string;
 
   @ValidateNested()
   @Type(() => VerificationChecklistDto)

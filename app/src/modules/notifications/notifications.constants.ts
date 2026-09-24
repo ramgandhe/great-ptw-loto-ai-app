@@ -9,9 +9,9 @@ export const NOTIFICATION_READ_ROLES = [
   'job-issuer',
   'hod',
   'safety-officer',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
   'viewer',
 ] as const;
 
-export const NOTIFICATION_TEST_ROLES = ['org-admin', 'platform-admin'] as const;
+export const NOTIFICATION_TEST_ROLES = ['tenant-owner', 'tenant-admin', 'platform-admin'] as const;

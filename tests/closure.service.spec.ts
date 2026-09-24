@@ -28,9 +28,9 @@ describe('Closure services integration (PUS-146)', () => {
 
   const supervisorUser: AuthenticatedUser = {
     id: supervisorId,
-    username: 'hod',
+    username: 'owner',
     tenantId,
-    roles: ['hod'],
+    roles: ['tenant-owner'],
     email: 'supervisor@example.com',
   };
 
@@ -67,6 +67,10 @@ describe('Closure services integration (PUS-146)', () => {
           hazards: [],
           ppe: [],
           executors: [],
+          lototo: [],
+          gasTesting: [],
+          viewers: [],
+          safetyOfficers: [],
           attachments: [],
         };
       }),
@@ -87,6 +91,7 @@ describe('Closure services integration (PUS-146)', () => {
     verificationService = new VerificationService(
       db,
       permitService,
+      new StatusTransitionService(db),
       auditService,
       permitCacheService,
       closureCacheService,
@@ -121,12 +126,12 @@ describe('Closure services integration (PUS-146)', () => {
     });
   };
 
-  async function createActivePermit() {
+  async function createExecutionCompletedPermit() {
     const [permit] = await db
       .insert(schema.permits)
       .values({
         tenantId,
-        status: 'active',
+        status: 'execution_completed',
         permitTypeId: randomUUID(),
         title: 'Closure service permit',
         locationId,
@@ -148,8 +153,8 @@ describe('Closure services integration (PUS-146)', () => {
     hazardsRemoved: true,
   };
 
-  dbTest('verifies active permit without changing status', async () => {
-    const permit = await createActivePermit();
+  dbTest('verifies execution-completed permit into pending closure', async () => {
+    const permit = await createExecutionCompletedPermit();
 
     const result = await verificationService.verify(
       permit.id,
@@ -157,30 +162,34 @@ describe('Closure services integration (PUS-146)', () => {
       supervisorUser,
     );
 
-    expect(result.permit.status).toBe('active');
+    expect(result.permit.status).toBe('pending_closure');
     expect(result.verification.permitId).toBe(permit.id);
   });
 
   dbTest('rejects closure without verification', async () => {
-    const permit = await createActivePermit();
+    const permit = await createExecutionCompletedPermit();
 
     await expect(
-      closureService.close(permit.id, { comment: 'Done' }, supervisorUser),
+      closureService.close(
+        permit.id,
+        { comment: 'Done', checklist: completeChecklist },
+        supervisorUser,
+      ),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
   dbTest('closes verified permit and archives it', async () => {
-    const permit = await createActivePermit();
+    const permit = await createExecutionCompletedPermit();
 
     await verificationService.verify(
       permit.id,
-      { checklist: completeChecklist },
+      { checklist: completeChecklist, comment: 'All clear' },
       supervisorUser,
     );
 
     const result = await closureService.close(
       permit.id,
-      { comment: 'Work complete' },
+      { comment: 'Work complete', checklist: completeChecklist },
       supervisorUser,
     );
 
@@ -196,16 +205,20 @@ describe('Closure services integration (PUS-146)', () => {
   });
 
   dbTest('rejects duplicate verification', async () => {
-    const permit = await createActivePermit();
+    const permit = await createExecutionCompletedPermit();
 
     await verificationService.verify(
       permit.id,
-      { checklist: completeChecklist },
+      { checklist: completeChecklist, comment: 'All clear' },
       supervisorUser,
     );
 
     await expect(
-      verificationService.verify(permit.id, { checklist: completeChecklist }, supervisorUser),
+      verificationService.verify(
+        permit.id,
+        { checklist: completeChecklist, comment: 'All clear' },
+        supervisorUser,
+      ),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 });

@@ -1,4 +1,5 @@
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { APPROVAL_APPROVER_ROLES } from '../../approval/default-workflow';
 
 export class CreateOrgEntityDto {
   @IsString()
@@ -12,6 +13,10 @@ export class CreateOrgEntityDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsIn([...APPROVAL_APPROVER_ROLES])
+  approverRole?: string;
 
   @IsOptional()
   @IsString()
@@ -35,6 +40,10 @@ export class UpdateOrgEntityDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsIn([...APPROVAL_APPROVER_ROLES])
+  approverRole?: string;
 
   @IsOptional()
   @IsString()

@@ -28,6 +28,45 @@ export function resumePermit(permitId: string) {
   });
 }
 
+export function completeExecution(
+  permitId: string,
+  payload: {
+    comment: string;
+    checklist: {
+      workDescribedComplete: boolean;
+      procedureFollowed: boolean;
+      lototoDone: boolean;
+      gasTestingDone: boolean;
+    };
+  },
+) {
+  return fetchApi<import("@/lib/permit/types").PermitDetail>(`/permits/${permitId}/complete-execution`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function sendBackToExecutor(permitId: string, comment: string) {
+  return fetchApi<import("@/lib/permit/types").PermitDetail>(`/permits/${permitId}/send-back-to-executor`, {
+    method: "POST",
+    body: JSON.stringify({ comment }),
+  });
+}
+
+export function sendBackToIssuer(permitId: string, comment: string) {
+  return fetchApi<import("@/lib/permit/types").PermitDetail>(`/permits/${permitId}/send-back-to-issuer`, {
+    method: "POST",
+    body: JSON.stringify({ comment }),
+  });
+}
+
+export function revalidatePermitAfterSuspension(permitId: string) {
+  return fetchApi<import("@/lib/permit/types").PermitDetail>(
+    `/permits/${permitId}/revalidate-after-suspension`,
+    { method: "POST" },
+  );
+}
+
 export function addProgress(
   permitId: string,
   payload: { summary: string; metadata?: Record<string, unknown> },

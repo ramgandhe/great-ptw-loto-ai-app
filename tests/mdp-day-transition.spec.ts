@@ -65,6 +65,8 @@ describe('MDP day-transition and renewal (SP-09.03 / FR-MDP-009)', () => {
       permitLogService,
       workflowEngine,
       approvalHistoryService,
+      { send: jest.fn().mockResolvedValue(undefined) } as never,
+      { get: () => 'http://localhost:3000' } as never,
     );
 
     revalidationJobs = new RevalidationJobsService(

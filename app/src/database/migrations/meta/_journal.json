@@ -204,6 +204,90 @@
       "when": 1753791600000,
       "tag": "0028_permit_creation_workflow_alignment",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1753795200000,
+      "tag": "0029_tenant_invites",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1753798800000,
+      "tag": "0030_tenant_users",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1753802400000,
+      "tag": "0031_permit_type_color",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1753806000000,
+      "tag": "0032_roles_and_machinery_lototo",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1753809600000,
+      "tag": "0033_lototo_plan_permit_optional",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1753813200000,
+      "tag": "0034_gas_testing",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1753816800000,
+      "tag": "0035_workstation_location",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1757820000000,
+      "tag": "0036_user_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1758114000000,
+      "tag": "0037_workforce_login",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1758117600000,
+      "tag": "0038_default_approval_workflow",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1758600000000,
+      "tag": "0039_permit_visibility_closure",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1758710000000,
+      "tag": "0040_drop_active_verification_triggers",
+      "breakpoints": true
     }
   ]
 }

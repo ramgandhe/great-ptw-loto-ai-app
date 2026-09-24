@@ -73,9 +73,9 @@ describe('MS-07 integration HTTP (notifications + dashboards + regression)', () 
 
   const adminUser: AuthenticatedUser = {
     id: userId,
-    username: 'org-admin',
+    username: 'tenant-owner',
     tenantId,
-    roles: ['org-admin'],
+    roles: ['tenant-owner'],
     email: 'admin@example.com',
   };
 

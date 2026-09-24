@@ -8,6 +8,8 @@ const statusStyles: Record<string, string> = {
   suspended: "bg-[var(--status-warning-bg)] text-[var(--status-warning)]",
   rejected: "bg-[var(--permit-rejected-bg)] text-[var(--permit-rejected)]",
   deferred: "bg-[var(--status-info-bg)] text-[var(--status-info)]",
+  execution_completed: "bg-[var(--permit-pending-bg)] text-[var(--permit-pending)]",
+  pending_closure: "bg-[var(--permit-approved-bg)] text-[var(--permit-approved)]",
   closed: "bg-[var(--permit-closed-bg)] text-[var(--permit-closed)]",
   expired: "bg-[var(--permit-expired-bg)] text-[var(--permit-expired)]",
 };

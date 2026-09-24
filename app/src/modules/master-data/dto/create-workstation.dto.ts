@@ -1,4 +1,12 @@
+import { Transform } from 'class-transformer';
 import { IsBoolean, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+
+function emptyToUndefined(value: unknown) {
+  if (typeof value === 'string' && value.trim() === '') {
+    return undefined;
+  }
+  return value;
+}
 
 export class CreateWorkstationDto {
   @IsString()
@@ -8,6 +16,11 @@ export class CreateWorkstationDto {
   @IsString()
   @MinLength(1)
   name!: string;
+
+  @IsOptional()
+  @Transform(({ value }) => emptyToUndefined(value))
+  @IsUUID()
+  locationId?: string;
 
   @IsOptional()
   @IsString()

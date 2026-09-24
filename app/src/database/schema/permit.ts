@@ -1,6 +1,7 @@
 import {
   bigint,
   boolean,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -18,6 +19,7 @@ export const PERMIT_STATUSES = [
   'pending_approval',
   'approved',
   'active',
+  'execution_completed',
   'suspended',
   'pending_closure',
   'closed',
@@ -43,6 +45,8 @@ export const permits = pgTable(
     locationId: uuid('location_id'),
     workstationId: uuid('workstation_id'),
     machineryId: uuid('machinery_id'),
+    lototoRequired: boolean('lototo_required').notNull().default(false),
+    gasTestingRequired: boolean('gas_testing_required').notNull().default(false),
     plannedStartAt: timestamp('planned_start_at', { withTimezone: true }),
     plannedEndAt: timestamp('planned_end_at', { withTimezone: true }),
     renewedFromPermitId: uuid('renewed_from_permit_id'),
@@ -129,6 +133,29 @@ export const permitPpe = pgTable(
   ],
 );
 
+export const permitGasTesting = pgTable(
+  'permit_gas_testing',
+  {
+    ...auditColumns,
+    permitId: uuid('permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    gasTestingCatalogueId: uuid('gas_testing_catalogue_id').notNull(),
+    workstationId: uuid('workstation_id').notNull(),
+    parameter: varchar('parameter', { length: 255 }).notNull(),
+    unit: varchar('unit', { length: 32 }).notNull(),
+    minimum: doublePrecision('minimum').notNull(),
+    maximum: doublePrecision('maximum').notNull(),
+  },
+  (table) => [
+    uniqueIndex('permit_gas_testing_permit_item_unique').on(
+      table.permitId,
+      table.gasTestingCatalogueId,
+    ),
+    index('permit_gas_testing_permit_id_idx').on(table.permitId),
+  ],
+);
+
 export const permitExecutors = pgTable(
   'permit_executors',
   {
@@ -145,5 +172,55 @@ export const permitExecutors = pgTable(
       table.workforceUserId,
     ),
     index('permit_executors_permit_id_idx').on(table.permitId),
+  ],
+);
+
+export const permitViewers = pgTable(
+  'permit_viewers',
+  {
+    ...auditColumns,
+    permitId: uuid('permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    workforceUserId: uuid('workforce_user_id').notNull(),
+  },
+  (table) => [
+    uniqueIndex('permit_viewers_permit_user_unique').on(table.permitId, table.workforceUserId),
+    index('permit_viewers_permit_id_idx').on(table.permitId),
+  ],
+);
+
+export const permitSafetyOfficers = pgTable(
+  'permit_safety_officers',
+  {
+    ...auditColumns,
+    permitId: uuid('permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    workforceUserId: uuid('workforce_user_id').notNull(),
+  },
+  (table) => [
+    uniqueIndex('permit_safety_officers_permit_user_unique').on(
+      table.permitId,
+      table.workforceUserId,
+    ),
+    index('permit_safety_officers_permit_id_idx').on(table.permitId),
+  ],
+);
+
+export const permitExecutionCompletions = pgTable(
+  'permit_execution_completions',
+  {
+    ...auditColumns,
+    permitId: uuid('permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    completedBy: uuid('completed_by').notNull(),
+    completedAt: timestamp('completed_at', { withTimezone: true }).notNull().defaultNow(),
+    comment: text('comment').notNull(),
+    checklist: jsonb('checklist').$type<Record<string, boolean>>().notNull(),
+  },
+  (table) => [
+    uniqueIndex('permit_execution_completions_permit_id_unique').on(table.permitId),
   ],
 );

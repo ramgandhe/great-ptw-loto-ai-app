@@ -60,7 +60,7 @@ export function currentPeriodLabel(): string {
   return `${now.getFullYear()}-${month}`;
 }
 
-export const BILLING_ADMIN_ROLES = ["org-admin", "platform-admin"] as const;
+export const BILLING_ADMIN_ROLES = ["tenant-owner", "platform-admin"] as const;
 
 export function isBillingAdmin(roles: string[]): boolean {
   return roles.some((role) => (BILLING_ADMIN_ROLES as readonly string[]).includes(role));

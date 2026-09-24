@@ -3,7 +3,7 @@ import type { EntityField } from "@/lib/workforce/types";
 
 const fields: EntityField[] = [
   { key: "name", label: "Contractor name", required: true },
-  { key: "email", label: "Email" },
+  { key: "email", label: "Email", required: true },
   { key: "agencyId", label: "Agency", select: "agency" },
   { key: "departmentId", label: "Department", select: "department" },
 ];

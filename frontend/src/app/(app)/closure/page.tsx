@@ -15,8 +15,11 @@ export default function ClosureQueuePage() {
 
   useEffect(() => {
     setIsLoading(true);
-    listPermits("active")
-      .then(setPermits)
+    Promise.all([
+      listPermits("execution_completed"),
+      listPermits("pending_closure"),
+    ])
+      .then(([completed, pending]) => setPermits([...completed, ...pending]))
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : "Failed to load permits");
       })
@@ -29,7 +32,7 @@ export default function ClosureQueuePage() {
         <div>
           <h1 className="text-2xl font-semibold">Permit closure</h1>
           <p className="text-sm text-muted-foreground">
-            Verify completed work and close active permits.
+            Verify completed work and close permits.
           </p>
         </div>
         <Link href="/closure/archive">
@@ -46,7 +49,7 @@ export default function ClosureQueuePage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading permits...</p>
       ) : permits.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No active permits awaiting closure.</p>
+        <p className="text-sm text-muted-foreground">No permits awaiting closure.</p>
       ) : (
         <div className="grid gap-3">
           {permits.map((permit) => (

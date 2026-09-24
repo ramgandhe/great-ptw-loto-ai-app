@@ -9,13 +9,14 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   auditHistory,
-  permitStatusHistory,
   permitVerifications,
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
-import { ACTIVE_STATUS } from './closure.constants';
+import { StatusTransitionService } from '../execution/status-transition.service';
+import { isTenantPrivileged } from '../../common/constants/tenant-roles';
+import { EXECUTION_COMPLETED_STATUS, PENDING_CLOSURE_STATUS } from './closure.constants';
 import { ClosureCacheService } from './closure-cache.service';
 import { ClosureLogService } from './closure-log.service';
 import { VerificationDto } from './dto/verification.dto';
@@ -26,6 +27,7 @@ export class VerificationService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly permitService: PermitService,
+    private readonly statusTransitionService: StatusTransitionService,
     private readonly auditService: AuditService,
     private readonly permitCacheService: PermitCacheService,
     private readonly closureCacheService: ClosureCacheService,
@@ -38,8 +40,16 @@ export class VerificationService {
     const detail = await this.permitService.findOne(permitId, user);
     const { permit } = detail;
 
-    if (permit.status !== ACTIVE_STATUS) {
-      throw new ConflictException('Only active permits can be verified');
+    if (permit.status !== EXECUTION_COMPLETED_STATUS) {
+      throw new ConflictException('Only execution-completed permits can be verified');
+    }
+
+    if (
+      !isTenantPrivileged(user.roles) &&
+      !user.roles.includes('platform-admin') &&
+      !(user.roles.includes('job-issuer') && (permit.createdBy === user.id || permit.submittedBy === user.id))
+    ) {
+      throw new ForbiddenException('Only the permit issuer can verify execution');
     }
 
     this.assertChecklistComplete(dto);
@@ -60,21 +70,24 @@ export class VerificationService {
           permitId,
           verifiedBy: user.id,
           comment: dto.comment ?? null,
-          checklist: dto.checklist,
+          checklist: { ...dto.checklist },
           createdBy: user.id,
         })
         .returning();
 
-      await tx.insert(permitStatusHistory).values({
-        permitId,
-        action: 'verified',
-        fromStatus: ACTIVE_STATUS,
-        toStatus: ACTIVE_STATUS,
-        actorId: user.id,
-        comment: dto.comment ?? null,
-        metadata: { checklist: dto.checklist },
-        createdBy: user.id,
-      });
+      await this.statusTransitionService.transition(
+        {
+          permitId,
+          tenantId,
+          action: 'verified',
+          fromStatus: EXECUTION_COMPLETED_STATUS,
+          toStatus: PENDING_CLOSURE_STATUS,
+          actorId: user.id,
+          comment: dto.comment.trim(),
+          metadata: { checklist: dto.checklist },
+        },
+        tx,
+      );
 
       await tx.insert(auditHistory).values({
         permitId,
@@ -118,7 +131,7 @@ export class VerificationService {
 
     return {
       verification: this.serializeVerification(verification),
-      permit,
+      permit: { ...permit, status: PENDING_CLOSURE_STATUS },
     };
   }
 

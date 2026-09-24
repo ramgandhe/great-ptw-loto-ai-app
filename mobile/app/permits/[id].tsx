@@ -133,9 +133,14 @@ export default function PermitDetailScreen() {
               {status === "approved" ? "Start execution" : "Open execution"}
             </Text>
           </Pressable>
-          <Pressable style={styles.button} onPress={() => router.push(`/lototo/new?permitId=${id}`)}>
-            <Text style={styles.buttonText}>Configure LOTOTO</Text>
-          </Pressable>
+          {detail?.permit.machineryId ? (
+            <Pressable
+              style={styles.button}
+              onPress={() => router.push(`/lototo/new?machineryId=${detail.permit.machineryId}`)}
+            >
+              <Text style={styles.buttonText}>Configure LOTOTO</Text>
+            </Pressable>
+          ) : null}
         </>
       ) : null}
     </ScrollView>

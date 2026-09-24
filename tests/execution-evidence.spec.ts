@@ -147,7 +147,7 @@ describe('EvidenceService MinIO upload (PUS-145)', () => {
     id: 'operator-id',
     username: 'operator',
     tenantId: 'tenant-1',
-    roles: ['org-admin'],
+    roles: ['tenant-owner'],
   };
 
   beforeEach(() => {

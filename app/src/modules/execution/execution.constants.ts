@@ -8,8 +8,24 @@ export const SUSPENDED_STATUS = 'suspended' as const;
 export const EXECUTION_ACTION_ROLES = [
   'operator',
   'hod',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
+] as const;
+
+/** Suspend approved/active work — Owner, Admin, HOD, Safety Officer. */
+export const EXECUTION_SUSPEND_ROLES = [
+  'hod',
+  'safety-officer',
+  'tenant-owner',
+  'tenant-admin',
+] as const;
+
+/** Revalidate after suspension — Owner, Admin, HOD, Issuer. */
+export const EXECUTION_REVALIDATE_ROLES = [
+  'job-issuer',
+  'hod',
+  'tenant-owner',
+  'tenant-admin',
 ] as const;
 
 export const EXECUTION_UPDATE_ROLES = [...EXECUTION_ACTION_ROLES] as const;

@@ -37,6 +37,7 @@ import {
   NAV_PERMITS_ROLES,
   NAV_SIMOPS_ROLES,
   NAV_WORKFORCE_ROLES,
+  PLATFORM_ADMIN_ROLES,
 } from "@/lib/auth/roles";
 import { hasAnyRole } from "@/lib/auth/rbac";
 
@@ -49,6 +50,7 @@ export type AppNavItem = {
 
 export const APP_NAV_ITEMS: AppNavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: DASHBOARD_READ_ROLES },
+  { href: "/platform/tenants", label: "Tenants", icon: Building2, roles: PLATFORM_ADMIN_ROLES },
   { href: "/analytics", label: "Analytics", icon: BarChart3, roles: DASHBOARD_ANALYTICS_ROLES },
   { href: "/organisation", label: "Organisation", icon: Building2, roles: NAV_ORGANISATION_ROLES },
   { href: "/permits", label: "Permits", icon: ClipboardList, roles: NAV_PERMITS_ROLES },

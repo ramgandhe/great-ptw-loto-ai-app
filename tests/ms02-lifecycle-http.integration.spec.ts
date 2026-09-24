@@ -72,9 +72,9 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
 
   const adminUser: AuthenticatedUser = {
     id: userId,
-    username: 'org-admin',
+    username: 'tenant-owner',
     tenantId,
-    roles: ['org-admin'],
+    roles: ['tenant-owner'],
     email: 'admin@example.com',
   };
 
@@ -243,13 +243,27 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
     expect(evidenceRes.status).toBe(201);
     expect(evidenceRes.body.success).toBe(true);
 
-    const verifyRes = await asIntegrationUser(supervisorUser, () =>
+    const completeRes = await request(app.getHttpServer())
+      .post(`/api/v1/permits/${permitId}/complete-execution`)
+      .send({
+        comment: 'Work finished',
+        checklist: {
+          workDescribedComplete: true,
+          procedureFollowed: true,
+          lototoDone: true,
+          gasTestingDone: true,
+        },
+      })
+      .expect(201);
+    expect(completeRes.body.data.permit.status).toBe('execution_completed');
+
+    const verifyRes = await asIntegrationUser(adminUser, () =>
       request(app.getHttpServer())
         .post(`/api/v1/permits/${permitId}/verify`)
         .send({ checklist: completeChecklist, comment: 'Area secured' })
         .expect(201),
     );
-    expect(verifyRes.body.data.verification.permitId).toBe(permitId);
+    expect(verifyRes.body.data.permit.status).toBe('pending_closure');
 
     const verificationGetRes = await request(app.getHttpServer())
       .get(`/api/v1/permits/${permitId}/verification`)
@@ -259,7 +273,7 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
     const closeRes = await asIntegrationUser(supervisorUser, () =>
       request(app.getHttpServer())
         .post(`/api/v1/permits/${permitId}/close`)
-        .send({ comment: 'Work complete' })
+        .send({ comment: 'Work complete', checklist: completeChecklist })
         .expect(201),
     );
     expect(closeRes.body.data.permit.status).toBe('closed');

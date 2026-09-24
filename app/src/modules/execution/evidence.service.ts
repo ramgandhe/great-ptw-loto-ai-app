@@ -10,6 +10,7 @@ import {
 import { randomUUID } from 'crypto';
 import { and, asc, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
+import { isTenantPrivileged } from '../../common/constants/tenant-roles';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   permitEvidence,
@@ -184,7 +185,7 @@ export class EvidenceService {
   }
 
   private async requireExecutor(permitId: string, user: AuthenticatedUser) {
-    if (user.roles.includes('platform-admin') || user.roles.includes('org-admin')) {
+    if (user.roles.includes('platform-admin') || isTenantPrivileged(user.roles)) {
       return;
     }
 

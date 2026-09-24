@@ -18,14 +18,14 @@ export const VERIFICATION_FAIL = 'fail' as const;
 export const ISOLATION_ACTION_ROLES = [
   'operator',
   'hod',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
 export const ISOLATION_VERIFY_ROLES = [
   'safety-officer',
   'hod',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
@@ -33,7 +33,7 @@ export const ISOLATION_READ_ROLES = [
   'operator',
   'safety-officer',
   'hod',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
   'job-issuer',
   'viewer',

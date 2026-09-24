@@ -1,4 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
+import { isTenantPrivileged } from '../../common/constants/tenant-roles';
 import type { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import {
   PERMIT_CREATE_ROLES,
@@ -8,7 +9,7 @@ import {
 import type { PermitDetail } from './permit.service';
 import type { UpdatePermitDto } from './dto/update-permit.dto';
 
-const ISSUER_ONLY_FIELDS = [
+export const ISSUER_ONLY_FIELDS = [
   'permitTypeId',
   'title',
   'workScope',
@@ -17,14 +18,20 @@ const ISSUER_ONLY_FIELDS = [
   'locationId',
   'plannedStartAt',
   'plannedEndAt',
+  'viewers',
 ] as const satisfies readonly (keyof UpdatePermitDto)[];
 
-const EXECUTOR_FIELDS = [
+export const EXECUTOR_FIELDS = [
   'workstationId',
   'machineryId',
   'hazards',
   'ppe',
+  'lototoRequired',
+  'lototo',
+  'gasTestingRequired',
+  'gasTesting',
   'executors',
+  'safetyOfficers',
   'currentStep',
   'formSnapshot',
 ] as const satisfies readonly (keyof UpdatePermitDto)[];
@@ -47,6 +54,28 @@ export function assertPermitSubmitAllowed(user: AuthenticatedUser): void {
 
 export function isAssignedExecutor(detail: PermitDetail, userId: string): boolean {
   return detail.executors.some((executor) => executor.workforceUserId === userId);
+}
+
+export function sanitizeDraftUpdateDto(
+  user: AuthenticatedUser,
+  dto: UpdatePermitDto,
+): UpdatePermitDto {
+  if (hasAnyRole(user, PERMIT_CREATE_ROLES)) {
+    return dto;
+  }
+
+  if (!hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES)) {
+    return dto;
+  }
+
+  const allowed = new Set<string>(EXECUTOR_FIELDS);
+  const sanitized: UpdatePermitDto = {};
+  for (const [key, value] of Object.entries(dto)) {
+    if (allowed.has(key) && value !== undefined) {
+      (sanitized as Record<string, unknown>)[key] = value;
+    }
+  }
+  return sanitized;
 }
 
 export function assertDraftUpdateAllowed(
@@ -87,7 +116,7 @@ export function canEditWizardStep(
   detail: PermitDetail,
 ): boolean {
   if (hasAnyRole(user, PERMIT_CREATE_ROLES)) {
-    if (user.roles.includes('org-admin')) {
+    if (isTenantPrivileged(user.roles)) {
       return true;
     }
     return step === 0 || step === 1 || step === 4;

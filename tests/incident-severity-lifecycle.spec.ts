@@ -122,7 +122,7 @@ describe('Incident severity lifecycle (FR-INC-011)', () => {
     );
   });
 
-  it('allows HOD and org-admin to take HOD incident decisions', () => {
+  it('allows HOD and tenant-owner to take HOD incident decisions', () => {
     const getAllAndOverride = jest.fn();
     const reflector = { getAllAndOverride } as unknown as Reflector;
     const guard = new RolesGuard(reflector);
@@ -144,7 +144,7 @@ describe('Incident severity lifecycle (FR-INC-011)', () => {
         getHandler: () => ({}),
         getClass: () => ({}),
         switchToHttp: () => ({
-          getRequest: () => ({ user: { roles: ['org-admin'] } }),
+          getRequest: () => ({ user: { roles: ['tenant-owner'] } }),
         }),
       } as never),
     ).toBe(true);

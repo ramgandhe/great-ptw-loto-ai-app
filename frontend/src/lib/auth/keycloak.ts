@@ -36,7 +36,7 @@ export function consumeAuthRedirect(): string {
 
 export async function startKeycloakLogin(
   redirectPath = "/",
-  options?: { forceLogin?: boolean },
+  options?: { forceLogin?: boolean; loginHint?: string },
 ): Promise<void> {
   storeAuthRedirect(redirectPath);
   const verifier = generateCodeVerifier();
@@ -47,12 +47,15 @@ export async function startKeycloakLogin(
     client_id: authConfig.clientId,
     redirect_uri: authConfig.redirectUri,
     response_type: "code",
-    scope: "openid profile email",
+    scope: "openid profile email tenant",
     code_challenge: challenge,
     code_challenge_method: "S256",
   });
   if (options?.forceLogin) {
     params.set("prompt", "login");
+  }
+  if (options?.loginHint) {
+    params.set("login_hint", options.loginHint);
   }
 
   window.location.assign(`${authConfig.authorizationEndpoint}?${params.toString()}`);

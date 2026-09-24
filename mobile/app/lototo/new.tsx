@@ -12,43 +12,49 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SelectField } from "@/components/ui/select-field";
 import { ApiError } from "@/lib/api";
 import { createLototoPlan } from "@/lib/lototo/api";
-import { loadLototoFormOptions } from "@/lib/lototo/form-options";
+import { filterMachineryByWorkstation, loadLototoFormOptions } from "@/lib/lototo/form-options";
 import { useTheme } from "@/providers/theme-provider";
 
 export default function NewLototoPlanScreen() {
-  const { permitId: initialPermitId } = useLocalSearchParams<{ permitId?: string }>();
+  const { machineryId: initialMachineryId } = useLocalSearchParams<{ machineryId?: string }>();
   const { tokens } = useTheme();
   const [options, setOptions] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>> | null>(
     null,
   );
-  const [permitId, setPermitId] = useState(initialPermitId ?? "");
+  const [workstationId, setWorkstationId] = useState("");
+  const [machineryId, setMachineryId] = useState(initialMachineryId ?? "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const permitOptions = useMemo(
+  const filteredMachinery = useMemo(
+    () => filterMachineryByWorkstation(options?.machinery ?? [], workstationId),
+    [options?.machinery, workstationId],
+  );
+
+  const machineryOptions = useMemo(
     () =>
-      (options?.permits ?? []).map((permit) => ({
-        value: permit.id,
-        label: permit.reference ? `${permit.title} (${permit.reference})` : permit.title,
+      filteredMachinery.map((item) => ({
+        value: item.id,
+        label: item.code ? `${item.name} (${item.code})` : item.name,
       })),
-    [options?.permits],
+    [filteredMachinery],
   );
 
   useEffect(() => {
     loadLototoFormOptions()
       .then(setOptions)
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : "Failed to load permits");
+        setError(err instanceof ApiError ? err.message : "Failed to load machinery");
       })
       .finally(() => setLoading(false));
   }, []);
 
   async function handleCreate() {
-    if (!permitId || !title.trim()) {
-      setError("Permit and title are required.");
+    if (!machineryId || !title.trim()) {
+      setError("Machinery and title are required.");
       return;
     }
 
@@ -56,9 +62,10 @@ export default function NewLototoPlanScreen() {
     setError(null);
     try {
       const plan = await createLototoPlan({
-        permitId,
+        machineryId,
         title: title.trim(),
         description: description.trim() || undefined,
+        workstationId: workstationId || undefined,
       });
       router.replace(`/lototo/${plan.id}`);
     } catch (err) {
@@ -82,17 +89,29 @@ export default function NewLototoPlanScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <SelectField
-        label="Permit"
-        value={permitId}
-        options={permitOptions}
-        placeholder="Select approved permit"
+        label="Workstation"
+        value={workstationId}
+        options={(options?.workstations ?? []).map((item) => ({
+          value: item.id,
+          label: item.code ? `${item.name} (${item.code})` : item.name,
+        }))}
+        placeholder="None"
+        hint="Optional — filters machinery below."
+        onChange={setWorkstationId}
+      />
+
+      <SelectField
+        label="Machinery"
+        value={machineryId}
+        options={machineryOptions}
+        placeholder="Select machinery"
         required
         hint={
-          permitOptions.length === 0
-            ? "No approved permits found. Approve a permit first."
+          machineryOptions.length === 0
+            ? "Add machinery under Organisation first."
             : undefined
         }
-        onChange={setPermitId}
+        onChange={setMachineryId}
       />
 
       <Text style={styles.label}>Title</Text>

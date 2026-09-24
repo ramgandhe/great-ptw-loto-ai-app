@@ -3,7 +3,7 @@ import type { EntityField } from "@/lib/organisation/types";
 
 const fields: EntityField[] = [
   { key: "name", label: "Workstation name", required: true },
-  { key: "code", label: "Code" },
+  { key: "code", label: "Code", required: true },
   { key: "locationId", label: "Location", select: "location" },
   { key: "description", label: "Description", multiline: true },
 ];

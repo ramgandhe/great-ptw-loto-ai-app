@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { closePermit, getPermitAudit, getPermitHistory, getPermitVerification, verifyPermit } from "@/lib/closure/api";
+import { sendBackToExecutor, sendBackToIssuer } from "@/lib/execution/api";
 import type { AuditLogEntry, PermitHistoryEntry, PermitVerification } from "@/lib/closure/types";
 import { getEvidenceDownloadUrl, listEvidence, listProgress } from "@/lib/execution/api";
 import type { EvidenceRecord, ProgressRecord } from "@/lib/execution/types";
@@ -22,10 +23,13 @@ import {
 import { ProgressFeed } from "@/components/execution/progress-feed";
 import { Button } from "@/components/ui/button";
 import { openPresignedDownload } from "@/lib/download";
+import { useAuthProfile } from "@/lib/auth/auth-profile-context";
+import { hasAnyRole } from "@/lib/auth/rbac";
 
 export default function PermitClosurePage() {
   const params = useParams<{ permitId: string }>();
   const router = useRouter();
+  const { roles } = useAuthProfile();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
   const [verification, setVerification] = useState<PermitVerification | null>(null);
   const [history, setHistory] = useState<PermitHistoryEntry[]>([]);
@@ -34,7 +38,9 @@ export default function PermitClosurePage() {
   const [evidence, setEvidence] = useState<EvidenceRecord[]>([]);
   const [checklist, setChecklist] = useState(defaultVerificationChecklist);
   const [comment, setComment] = useState("");
+  const [sendBackComment, setSendBackComment] = useState("");
   const [closureComment, setClosureComment] = useState("");
+  const [closeChecklist, setCloseChecklist] = useState(defaultVerificationChecklist);
   const [closeOpen, setCloseOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -76,6 +82,10 @@ export default function PermitClosurePage() {
   }
 
   async function handleVerify() {
+    if (!comment.trim()) {
+      setActionError("A verification comment is required.");
+      return;
+    }
     if (!isChecklistComplete(checklist)) {
       setActionError("Complete all verification checklist items before submitting.");
       return;
@@ -86,7 +96,7 @@ export default function PermitClosurePage() {
     try {
       const result = await verifyPermit(params.permitId, {
         checklist,
-        comment: comment.trim() || undefined,
+        comment: comment.trim(),
       });
       setVerification(result.verification);
       setDetail((current) => (current ? { ...current, permit: result.permit } : current));
@@ -98,16 +108,57 @@ export default function PermitClosurePage() {
   }
 
   async function handleClose() {
+    if (!closureComment.trim() || !isChecklistComplete(closeChecklist)) {
+      setCloseError("Complete the closure checklist and add a comment.");
+      return;
+    }
     setIsSubmitting(true);
     setCloseError(null);
     try {
       await closePermit(params.permitId, {
-        comment: closureComment.trim() || undefined,
+        comment: closureComment.trim(),
+        checklist: closeChecklist,
       });
       setCloseOpen(false);
       router.push("/closure/archive");
     } catch (err) {
       setCloseError(err instanceof ApiError ? err.message : "Closure failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSendBackToExecutor() {
+    if (!sendBackComment.trim()) {
+      setActionError("A send-back comment is required.");
+      return;
+    }
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      const updated = await sendBackToExecutor(params.permitId, sendBackComment.trim());
+      setDetail(updated);
+      setVerification(null);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Send back failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSendBackToIssuer() {
+    if (!sendBackComment.trim()) {
+      setActionError("A send-back comment is required.");
+      return;
+    }
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      const updated = await sendBackToIssuer(params.permitId, sendBackComment.trim());
+      setDetail(updated);
+      setVerification(null);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Send back failed");
     } finally {
       setIsSubmitting(false);
     }
@@ -125,7 +176,10 @@ export default function PermitClosurePage() {
     return <p className="p-8 text-sm text-muted-foreground">Loading permit closure...</p>;
   }
 
-  const canClose = Boolean(verification) && detail.permit.status === "active";
+  const canVerify = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["job-issuer", "tenant-owner", "tenant-admin", "platform-admin"]);
+  const canSendBackToExecutor = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["job-issuer", "tenant-owner", "tenant-admin", "platform-admin"]);
+  const canClose = Boolean(verification) && detail.permit.status === "pending_closure" && hasAnyRole(roles, ["hod", "tenant-owner", "tenant-admin", "platform-admin"]);
+  const canSendBackToIssuer = detail.permit.status === "pending_closure" && hasAnyRole(roles, ["hod", "tenant-owner", "tenant-admin", "platform-admin"]);
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-8">
@@ -173,9 +227,9 @@ export default function PermitClosurePage() {
         )}
       </section>
 
-      {!verification ? (
+      {canVerify ? (
         <section className="grid gap-3 rounded-lg border border-border p-4">
-          <h2 className="text-sm font-semibold">Verification checklist</h2>
+          <h2 className="text-sm font-semibold">Issuer verification</h2>
           <VerificationChecklistPanel
             value={checklist}
             disabled={isSubmitting}
@@ -185,7 +239,7 @@ export default function PermitClosurePage() {
             value={comment}
             disabled={isSubmitting}
             onChange={(event) => setComment(event.target.value)}
-            placeholder="Verification comments..."
+            placeholder="Verification comments (required)"
             rows={3}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
@@ -194,22 +248,62 @@ export default function PermitClosurePage() {
               {actionError}
             </p>
           ) : null}
-          <Button onClick={handleVerify} disabled={isSubmitting || !isChecklistComplete(checklist)}>
+          <Button onClick={handleVerify} disabled={isSubmitting || !isChecklistComplete(checklist) || !comment.trim()}>
             {isSubmitting ? "Submitting..." : "Submit verification"}
           </Button>
         </section>
-      ) : (
+      ) : verification ? (
         <section className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm">
           Verification submitted {new Date(verification.verifiedAt).toLocaleString()}.
         </section>
-      )}
+      ) : null}
+
+      {canSendBackToExecutor ? (
+        <section className="grid gap-3 rounded-lg border border-border p-4">
+          <h2 className="text-sm font-semibold">Send back to executor</h2>
+          <textarea
+            value={sendBackComment}
+            disabled={isSubmitting}
+            onChange={(event) => setSendBackComment(event.target.value)}
+            placeholder="Reason for sending back (required)"
+            rows={3}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+          <Button variant="outline" onClick={() => void handleSendBackToExecutor()} disabled={isSubmitting || !sendBackComment.trim()}>
+            Send back to executor
+          </Button>
+        </section>
+      ) : null}
+
+      {canSendBackToIssuer ? (
+        <section className="grid gap-3 rounded-lg border border-border p-4">
+          <h2 className="text-sm font-semibold">Send back to issuer</h2>
+          <textarea
+            value={sendBackComment}
+            disabled={isSubmitting}
+            onChange={(event) => setSendBackComment(event.target.value)}
+            placeholder="Reason for sending back (required)"
+            rows={3}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+          <Button variant="outline" onClick={() => void handleSendBackToIssuer()} disabled={isSubmitting || !sendBackComment.trim()}>
+            Send back to issuer
+          </Button>
+        </section>
+      ) : null}
 
       {canClose ? (
-        <div>
-          <Button onClick={() => setCloseOpen(true)} disabled={isSubmitting}>
+        <section className="grid gap-3 rounded-lg border border-border p-4">
+          <h2 className="text-sm font-semibold">HOD closure</h2>
+          <VerificationChecklistPanel
+            value={closeChecklist}
+            disabled={isSubmitting}
+            onChange={setCloseChecklist}
+          />
+          <Button onClick={() => setCloseOpen(true)} disabled={isSubmitting || !isChecklistComplete(closeChecklist)}>
             Close permit
           </Button>
-        </div>
+        </section>
       ) : null}
 
       <section className="grid gap-3">

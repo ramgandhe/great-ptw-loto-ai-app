@@ -19,6 +19,8 @@ describe('PermitValidationService', () => {
       locationId: 'location-id',
       workstationId: null,
       machineryId: null,
+      lototoRequired: false,
+      gasTestingRequired: false,
       plannedStartAt: new Date('2026-08-01T08:00:00Z'),
       plannedEndAt: new Date('2026-08-01T16:00:00Z'),
       submittedAt: null,
@@ -53,6 +55,8 @@ describe('PermitValidationService', () => {
         updatedBy: 'user-id',
       },
     ],
+    lototo: [],
+    gasTesting: [],
     executors: [
       {
         id: 'executor-id',
@@ -66,6 +70,8 @@ describe('PermitValidationService', () => {
       },
     ],
     attachments: [],
+    viewers: [],
+    safetyOfficers: [],
   });
 
   it('accepts a complete permit', () => {
@@ -89,6 +95,24 @@ describe('PermitValidationService', () => {
   it('rejects invalid date range', () => {
     const record = baseRecord();
     record.permit.plannedEndAt = new Date('2026-08-01T07:00:00Z');
+
+    expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
+  });
+
+  it('rejects LOTOTO required without a procedure', () => {
+    const record = baseRecord();
+    record.permit.lototoRequired = true;
+    record.permit.machineryId = 'machinery-id';
+    record.lototo = [];
+
+    expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
+  });
+
+  it('rejects gas testing required without an item', () => {
+    const record = baseRecord();
+    record.permit.gasTestingRequired = true;
+    record.permit.workstationId = 'workstation-id';
+    record.gasTesting = [];
 
     expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
   });

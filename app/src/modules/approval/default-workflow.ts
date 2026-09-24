@@ -49,3 +49,15 @@ export const DEFAULT_APPROVAL_WORKFLOW_STEPS = [
     approverRole: 'hod',
   },
 ] as const;
+
+export const PLATFORM_DEFAULT_WORKFLOW_CODE = 'PLATFORM_DEFAULT';
+
+export const PLATFORM_DEFAULT_WORKFLOW_NAME = 'Platform default';
+
+export const APPROVAL_APPROVER_ROLES = ['hod', 'job-issuer', 'safety-officer'] as const;
+
+export type ApprovalApproverRole = (typeof APPROVAL_APPROVER_ROLES)[number];
+
+export function isApprovalApproverRole(role: string): role is ApprovalApproverRole {
+  return (APPROVAL_APPROVER_ROLES as readonly string[]).includes(role);
+}

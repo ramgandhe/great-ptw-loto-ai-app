@@ -6,7 +6,7 @@ const sections = [
   { href: "/workforce/contractors", label: "Contractors", description: "Contractor registration" },
   { href: "/workforce/agencies", label: "Agencies", description: "Agency management" },
   { href: "/workforce/directory", label: "Workforce directory", description: "Combined workforce view" },
-  { href: "/workforce/roles", label: "User roles", description: "Assign organisational roles" },
+  { href: "/workforce/roles", label: "Users and roles", description: "Add logins and assign organisation roles" },
   { href: "/workforce/competencies", label: "Competencies", description: "Competency records" },
   { href: "/workforce/certifications", label: "Certifications", description: "Certification tracking" },
 ];

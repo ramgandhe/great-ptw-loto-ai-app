@@ -50,6 +50,7 @@ export const permitClosures = pgTable(
     closedAt: timestamp('closed_at', { withTimezone: true }).notNull().defaultNow(),
     actualEndAt: timestamp('actual_end_at', { withTimezone: true }).notNull(),
     comment: text('comment'),
+    checklist: jsonb('checklist').$type<Record<string, boolean>>(),
   },
   (table) => [
     uniqueIndex('permit_closures_permit_id_unique').on(table.permitId),

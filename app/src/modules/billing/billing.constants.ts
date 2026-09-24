@@ -7,10 +7,10 @@ export const BILLING_USAGE_AGGREGATE_JOB = 'billing.usage-aggregate';
 /** BullMQ: notify admins of upcoming renewals (FR-BIL-005). */
 export const BILLING_RENEWAL_NOTIFY_JOB = 'billing.renewal-notify';
 
-export const BILLING_ADMIN_ROLES = ['org-admin', 'platform-admin'] as const;
+export const BILLING_ADMIN_ROLES = ['tenant-owner', 'platform-admin'] as const;
 
 export const BILLING_READ_ROLES = [
-  'org-admin',
+  'tenant-owner',
   'platform-admin',
   'safety-officer',
   'hod',

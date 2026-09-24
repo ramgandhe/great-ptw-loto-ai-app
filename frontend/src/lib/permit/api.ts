@@ -30,6 +30,12 @@ export function submitPermit(id: string) {
   });
 }
 
+export function deleteDraftPermit(id: string) {
+  return fetchApi<{ id: string; deleted: boolean }>(`/permits/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export async function uploadPermitAttachment(permitId: string, file: File) {
   const formData = new FormData();
   formData.append("file", file);

@@ -157,6 +157,24 @@ describe('LOTOTO configuration schema (PUS-154)', () => {
     expect(plans).toHaveLength(2);
   });
 
+  dbTest('stores LOTOTO plan on machinery without a permit', async () => {
+    const { tenantId } = testIds();
+    const { machinery } = await seedEquipment(tenantId);
+
+    const [plan] = await db
+      .insert(schema.lototoPlans)
+      .values({
+        tenantId,
+        machineryId: machinery.id,
+        title: 'Machinery procedure',
+        createdBy: userId,
+      })
+      .returning();
+
+    expect(plan.permitId).toBeNull();
+    expect(plan.machineryId).toBe(machinery.id);
+  });
+
   dbTest('rejects LOTOTO plan for non-existent permit', async () => {
     const { tenantId } = testIds();
 

@@ -54,7 +54,19 @@ describe('Foundation integration (PUS-71)', () => {
     const referenceIntegrity = new ReferenceIntegrityService();
 
     organisationService = new OrganisationService(db, auditService);
-    workforceService = new WorkforceService(db, auditService);
+    workforceService = new WorkforceService(
+      db,
+      auditService,
+      {
+        ensureWorkforceLogin: jest.fn().mockResolvedValue({
+          keycloakUserId: randomUUID(),
+          created: false,
+          temporaryPassword: null,
+        }),
+      } as never,
+      { send: jest.fn().mockResolvedValue(undefined) } as never,
+      { get: () => 'http://localhost:3000' } as never,
+    );
     permitTypeService = new PermitTypeService(
       db,
       cacheService,
@@ -79,10 +91,10 @@ describe('Foundation integration (PUS-71)', () => {
     });
   };
 
-  function user(tenantId: string, roles: string[] = ['org-admin']): AuthenticatedUser {
+  function user(tenantId: string, roles: string[] = ['tenant-owner']): AuthenticatedUser {
     return {
       id: adminId,
-      username: 'org-admin',
+      username: 'tenant-owner',
       tenantId,
       roles,
       email: 'admin@example.com',
@@ -125,9 +137,12 @@ describe('Foundation integration (PUS-71)', () => {
       user(tenantA),
     );
 
-    const agency = await workforceService.createAgency({ name: 'SafeContract Ltd' }, user(tenantA));
+    const agency = await workforceService.createAgency(
+      { name: 'SafeContract Ltd', email: 'agency@example.com' },
+      user(tenantA),
+    );
     const contractor = await workforceService.createContractor(
-      { name: 'Bob Contractor', agencyId: agency.id },
+      { name: 'Bob Contractor', email: 'bob@example.com', agencyId: agency.id },
       user(tenantA),
     );
 

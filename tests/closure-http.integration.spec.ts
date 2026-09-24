@@ -63,9 +63,9 @@ describe('Closure HTTP integration (PUS-146 / PUS-147 / PUS-148)', () => {
 
   const supervisorUser: AuthenticatedUser = {
     id: supervisorId,
-    username: 'hod',
+    username: 'owner',
     tenantId,
-    roles: ['hod'],
+    roles: ['tenant-owner'],
     email: 'supervisor@example.com',
   };
 
@@ -115,7 +115,7 @@ describe('Closure HTTP integration (PUS-146 / PUS-147 / PUS-148)', () => {
       .insert(schema.permits)
       .values({
         tenantId,
-        status: 'active',
+        status: 'execution_completed',
         permitTypeId,
         title: 'Closure integration permit',
         reference: `PTW-CL-${randomUUID().slice(0, 8)}`,
@@ -141,7 +141,7 @@ describe('Closure HTTP integration (PUS-146 / PUS-147 / PUS-148)', () => {
 
     expect(verifyRes.body.success).toBe(true);
     expect(verifyRes.body.data.verification.permitId).toBe(permitId);
-    expect(verifyRes.body.data.permit.status).toBe('active');
+    expect(verifyRes.body.data.permit.status).toBe('pending_closure');
 
     const verificationRes = await request(app.getHttpServer())
       .get(`/api/v1/permits/${permitId}/verification`)
@@ -153,7 +153,7 @@ describe('Closure HTTP integration (PUS-146 / PUS-147 / PUS-148)', () => {
 
     const closeRes = await request(app.getHttpServer())
       .post(`/api/v1/permits/${permitId}/close`)
-      .send({ comment: 'Work complete' })
+      .send({ comment: 'Work complete', checklist: completeChecklist })
       .expect(201);
 
     expect(closeRes.body.data.permit.status).toBe('closed');
@@ -206,7 +206,7 @@ describe('Closure HTTP integration (PUS-146 / PUS-147 / PUS-148)', () => {
 
     await request(app.getHttpServer())
       .post(`/api/v1/permits/${permitId}/close`)
-      .send({})
+      .send({ comment: 'Done', checklist: completeChecklist })
       .expect(409);
   });
 });

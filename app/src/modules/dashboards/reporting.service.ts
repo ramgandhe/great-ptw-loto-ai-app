@@ -188,7 +188,7 @@ export class ReportingService {
     const systemUser: AuthenticatedUser = {
       id: report.requestedBy,
       username: 'system',
-      roles: ['org-admin'],
+      roles: ['tenant-owner'],
       tenantId: report.tenantId,
     };
 

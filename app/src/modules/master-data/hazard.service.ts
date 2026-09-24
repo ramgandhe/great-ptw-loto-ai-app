@@ -47,6 +47,30 @@ export class HazardService {
     }
   }
 
+  async update(id: string, dto: Partial<CreateHazardDto>, user: AuthenticatedUser) {
+    const tenantId = this.referenceIntegrity.requireTenant(user);
+    const [row] = await this.db
+      .update(hazardCategories)
+      .set({
+        ...(dto.code !== undefined ? { code: dto.code.trim() } : {}),
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.severity !== undefined ? { severity: dto.severity } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(hazardCategories.id, id), eq(hazardCategories.tenantId, tenantId)))
+      .returning();
+
+    if (!row) {
+      throw new ConflictException('Hazard category not found');
+    }
+
+    await this.afterMutation(tenantId, user, 'hazard.updated', row.id);
+    return row;
+  }
+
   async findAll(user: AuthenticatedUser) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
     const cached = await this.cacheService.get<(typeof hazardCategories.$inferSelect)[]>(

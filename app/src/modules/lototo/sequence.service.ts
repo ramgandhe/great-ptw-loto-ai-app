@@ -72,16 +72,16 @@ export class SequenceService {
         this.lototoLogService.logEvent({
           action: 'lototo.sequence.configured',
           planId,
-          permitId: plan.permitId,
+          permitId: plan.permitId ?? undefined,
           tenantId,
           userId: user.id,
           metadata: { stepCount: rows.length },
         });
 
-        await this.lototoCacheService.invalidatePlan(tenantId, planId, plan.permitId);
+        await this.lototoCacheService.invalidatePlan(tenantId, planId, plan.permitId ?? undefined);
         await this.notificationService.enqueuePlanningNotification({
           planId,
-          permitId: plan.permitId,
+          permitId: plan.permitId ?? undefined,
           tenantId,
           action: 'sequence_configured',
           actorId: user.id,

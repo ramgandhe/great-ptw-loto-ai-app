@@ -123,24 +123,50 @@ export class ChecklistService {
 
   async update(id: string, dto: Partial<CreateChecklistDto>, user: AuthenticatedUser) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
-    const [row] = await this.db
-      .update(safetyChecklists)
-      .set({
-        ...(dto.code !== undefined ? { code: dto.code.trim() } : {}),
-        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-        ...(dto.description !== undefined ? { description: dto.description } : {}),
-        updatedBy: user.id,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(safetyChecklists.id, id), eq(safetyChecklists.tenantId, tenantId)))
-      .returning();
 
-    if (!row) {
-      throw new NotFoundException('Checklist not found');
+    if (dto.items !== undefined && dto.items.length === 0) {
+      throw new BadRequestException('Checklist must contain at least one item');
     }
 
+    const result = await this.db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(safetyChecklists)
+        .set({
+          ...(dto.code !== undefined ? { code: dto.code.trim() } : {}),
+          ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+          ...(dto.description !== undefined ? { description: dto.description } : {}),
+          updatedBy: user.id,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(safetyChecklists.id, id), eq(safetyChecklists.tenantId, tenantId)))
+        .returning();
+
+      if (!row) {
+        throw new NotFoundException('Checklist not found');
+      }
+
+      if (dto.items) {
+        await tx.delete(safetyChecklistItems).where(eq(safetyChecklistItems.checklistId, id));
+        const items = await tx
+          .insert(safetyChecklistItems)
+          .values(
+            dto.items.map((item, index) => ({
+              checklistId: id,
+              sequence: index + 1,
+              description: item.description.trim(),
+              isMandatory: item.isMandatory ?? false,
+              createdBy: user.id,
+            })),
+          )
+          .returning();
+        return { checklist: row, items };
+      }
+
+      return { checklist: row };
+    });
+
     await this.afterMutation(tenantId, user, 'checklist.updated', id);
-    return row;
+    return result;
   }
 
   async archive(id: string, user: AuthenticatedUser) {

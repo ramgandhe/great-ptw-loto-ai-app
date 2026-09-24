@@ -7,6 +7,8 @@ import {
   permitExecutors,
   permitHazards,
   permitPpe,
+  permitLototo,
+  permitGasTesting,
   permits,
 } from '../../database/schema';
 
@@ -14,6 +16,8 @@ export interface PermitSubmissionRecord {
   permit: typeof permits.$inferSelect;
   hazards: (typeof permitHazards.$inferSelect)[];
   ppe: (typeof permitPpe.$inferSelect)[];
+  lototo: (typeof permitLototo.$inferSelect)[];
+  gasTesting: (typeof permitGasTesting.$inferSelect)[];
   executors: (typeof permitExecutors.$inferSelect)[];
   attachments: (typeof permitAttachments.$inferSelect)[];
 }
@@ -22,7 +26,7 @@ export interface PermitSubmissionRecord {
 export class PermitValidationService {
   validateForSubmit(record: PermitSubmissionRecord): void {
     const errors: string[] = [];
-    const { permit, hazards, ppe, executors } = record;
+    const { permit, hazards, ppe, lototo, gasTesting, executors } = record;
 
     if (!permit.permitTypeId) {
       errors.push('permitTypeId is required');
@@ -52,6 +56,24 @@ export class PermitValidationService {
 
     if (ppe.length === 0) {
       errors.push('at least one PPE item is required');
+    }
+
+    if (permit.lototoRequired) {
+      if (!permit.machineryId) {
+        errors.push('machinery is required when LOTOTO is required');
+      }
+      if (lototo.length === 0) {
+        errors.push('at least one LOTOTO procedure is required when LOTOTO is required');
+      }
+    }
+
+    if (permit.gasTestingRequired) {
+      if (!permit.workstationId) {
+        errors.push('workstation is required when gas testing is required');
+      }
+      if (gasTesting.length === 0) {
+        errors.push('at least one gas testing item is required when gas testing is required');
+      }
     }
 
     if (errors.length > 0) {

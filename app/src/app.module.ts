@@ -35,6 +35,8 @@ import { DashboardsModule } from './modules/dashboards/dashboards.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { ClosureModule } from './modules/closure/closure.module';
 import { LoggingModule } from './modules/logging/logging.module';
+import { MailModule } from './infrastructure/mail/mail.module';
+import { PlatformModule } from './modules/platform/platform.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -63,6 +65,7 @@ import { LoggingModule } from './modules/logging/logging.module';
         },
       ],
     }),
+    MailModule,
     DatabaseModule,
     RedisInfrastructureModule,
     StorageModule,
@@ -89,6 +92,7 @@ import { LoggingModule } from './modules/logging/logging.module';
     NotificationsModule,
     DashboardsModule,
     BillingModule,
+    PlatformModule,
   ],
   providers: [
     JwtAuthGuard,

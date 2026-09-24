@@ -8,7 +8,7 @@ import {
   listWorkstations,
 } from "@/lib/organisation/api";
 import type { MachineryRecord } from "@/lib/organisation/types";
-import { listWorkforceDirectory } from "@/lib/workforce/api";
+import { listPermitExecutors, type TenantUser } from "@/lib/workforce/api";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 
 export type PermitFormOptions = {
@@ -21,7 +21,28 @@ export type PermitFormOptions = {
   hazards: MasterDataRecord[];
   ppe: MasterDataRecord[];
   executors: WorkforceRecord[];
+  userRoles: string[];
 };
+
+function executorRoleLabel(kind?: TenantUser["executorKind"]) {
+  if (kind === "agency") {
+    return "Agency contact";
+  }
+  if (kind === "contractor") {
+    return "Contractor";
+  }
+  return "Job executor";
+}
+
+function tenantUsersToExecutors(users: TenantUser[]): WorkforceRecord[] {
+  return users.map((user) => ({
+    id: user.id,
+    name: user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email || user.username,
+    email: user.email,
+    role: executorRoleLabel(user.executorKind),
+    executorKind: user.executorKind ?? "internal",
+  }));
+}
 
 function mergeExecutors(
   directory: WorkforceRecord[],
@@ -30,16 +51,20 @@ function mergeExecutors(
   const byId = new Map<string, WorkforceRecord>();
   const profileName =
     [profile.firstName, profile.lastName].filter(Boolean).join(" ") || profile.username;
-
-  byId.set(profile.id, {
-    id: profile.id,
-    name: `${profileName} (you)`,
-    email: profile.email ?? null,
-    role: profile.roles[0] ?? "signed-in user",
-  });
+  const isOperator = profile.roles.includes("operator");
 
   for (const person of directory) {
     byId.set(person.id, person);
+  }
+
+  if (isOperator && !byId.has(profile.id)) {
+    byId.set(profile.id, {
+      id: profile.id,
+      name: `${profileName} (you)`,
+      email: profile.email ?? null,
+      role: "Job executor",
+      executorKind: "internal",
+    });
   }
 
   return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -74,7 +99,7 @@ export async function loadPermitFormOptions(): Promise<PermitFormOptions> {
     machinery,
     hazards,
     ppe,
-    workforce,
+    executorUsers,
     profile,
   ] = await Promise.all([
     masterDataApi.permitTypes(),
@@ -85,7 +110,7 @@ export async function loadPermitFormOptions(): Promise<PermitFormOptions> {
     listMachinery(),
     masterDataApi.hazards(),
     masterDataApi.ppe(),
-    listWorkforceDirectory().catch(() => [] as WorkforceRecord[]),
+    listPermitExecutors(),
     getProfile(),
   ]);
 
@@ -98,7 +123,8 @@ export async function loadPermitFormOptions(): Promise<PermitFormOptions> {
     machinery,
     hazards,
     ppe,
-    executors: mergeExecutors(workforce, profile),
+    executors: mergeExecutors(tenantUsersToExecutors(executorUsers), profile),
+    userRoles: profile.roles,
   };
 }
 

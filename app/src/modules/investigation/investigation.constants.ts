@@ -2,7 +2,7 @@ export const INVESTIGATION_OVERDUE_JOB = 'investigation.overdue-actions';
 
 export const INVESTIGATION_ASSIGN_ROLES = [
   'safety-officer',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 

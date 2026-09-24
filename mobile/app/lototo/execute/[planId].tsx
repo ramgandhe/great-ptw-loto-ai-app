@@ -371,7 +371,7 @@ export default function IsolationExecutionScreen() {
         </Pressable>
       ) : null}
 
-      {execution.status === "verified" && detail.plan ? (
+      {execution.status === "verified" && detail.plan?.permitId ? (
         <Pressable
           style={[styles.button, { backgroundColor: tokens.colors.primary }]}
           onPress={() => router.push(`/execution/${detail.plan!.permitId}`)}

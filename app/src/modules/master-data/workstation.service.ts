@@ -1,8 +1,8 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { workstationCatalogue } from '../../database/schema';
+import { locations, workstationCatalogue } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { CreateWorkstationDto } from './dto/create-workstation.dto';
 import { MasterDataCacheService } from './master-data-cache.service';
@@ -21,6 +21,9 @@ export class WorkstationService {
 
   async create(dto: CreateWorkstationDto, user: AuthenticatedUser) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
+    if (dto.locationId) {
+      await this.assertLocationExists(tenantId, dto.locationId);
+    }
 
     try {
       const [row] = await this.db
@@ -30,6 +33,7 @@ export class WorkstationService {
           code: dto.code.trim(),
           name: dto.name.trim(),
           description: dto.description,
+          locationId: dto.locationId,
           isActive: dto.isActive ?? true,
           createdBy: user.id,
           updatedBy: user.id,
@@ -67,12 +71,16 @@ export class WorkstationService {
 
   async update(id: string, dto: Partial<CreateWorkstationDto>, user: AuthenticatedUser) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
+    if (dto.locationId) {
+      await this.assertLocationExists(tenantId, dto.locationId);
+    }
     const [row] = await this.db
       .update(workstationCatalogue)
       .set({
         ...(dto.code !== undefined ? { code: dto.code.trim() } : {}),
         ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.locationId !== undefined ? { locationId: dto.locationId } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         updatedBy: user.id,
         updatedAt: new Date(),
@@ -126,5 +134,15 @@ export class WorkstationService {
       entityType: 'workstation_catalogue',
       entityId,
     });
+  }
+
+  private async assertLocationExists(tenantId: string, locationId: string) {
+    const [row] = await this.db
+      .select({ id: locations.id })
+      .from(locations)
+      .where(and(eq(locations.id, locationId), eq(locations.tenantId, tenantId)));
+    if (!row) {
+      throw new NotFoundException('Location not found for this tenant');
+    }
   }
 }

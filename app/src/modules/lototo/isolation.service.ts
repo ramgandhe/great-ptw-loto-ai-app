@@ -64,16 +64,16 @@ export class IsolationService {
       this.lototoLogService.logEvent({
         action: 'lototo.isolation_point.added',
         planId,
-        permitId: plan.permitId,
+        permitId: plan.permitId ?? undefined,
         tenantId,
         userId: user.id,
         metadata: { isolationPointId: point.id },
       });
 
-      await this.lototoCacheService.invalidatePlan(tenantId, planId, plan.permitId);
+      await this.lototoCacheService.invalidatePlan(tenantId, planId, plan.permitId ?? undefined);
       await this.notificationService.enqueuePlanningNotification({
         planId,
-        permitId: plan.permitId,
+        permitId: plan.permitId ?? undefined,
         tenantId,
         action: 'isolation_point_added',
         actorId: user.id,

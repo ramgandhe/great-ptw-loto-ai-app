@@ -96,7 +96,7 @@ describe('Permit closure schema (PUS-149)', () => {
     expect(verification.checklist.workCompleted).toBe(true);
   });
 
-  dbTest('rejects verification when permit is not active', async () => {
+  dbTest('allows verification rows after execution-completed (status enforced in service)', async () => {
     const { tenantId, permitTypeId } = testIds();
     const [permit] = await db
       .insert(schema.permits)
@@ -110,17 +110,20 @@ describe('Permit closure schema (PUS-149)', () => {
       })
       .returning();
 
-    await expect(
-      db.insert(schema.permitVerifications).values({
+    const [verification] = await db
+      .insert(schema.permitVerifications)
+      .values({
         permitId: permit.id,
         verifiedBy: supervisorId,
         checklist: completeChecklist,
         createdBy: supervisorId,
-      }),
-    ).rejects.toThrow();
+      })
+      .returning();
+
+    expect(verification.permitId).toBe(permit.id);
   });
 
-  dbTest('rejects closure without verification', async () => {
+  dbTest('rejects closure when permit is not pending_closure', async () => {
     const { tenantId, permitTypeId } = testIds();
     const permit = await createActivePermit(tenantId, permitTypeId);
 
@@ -138,12 +141,22 @@ describe('Permit closure schema (PUS-149)', () => {
     const { tenantId, permitTypeId } = testIds();
     const permit = await createActivePermit(tenantId, permitTypeId);
 
+    await db
+      .update(schema.permits)
+      .set({ status: 'execution_completed' })
+      .where(eq(schema.permits.id, permit.id));
+
     await db.insert(schema.permitVerifications).values({
       permitId: permit.id,
       verifiedBy: supervisorId,
       checklist: completeChecklist,
       createdBy: supervisorId,
     });
+
+    await db
+      .update(schema.permits)
+      .set({ status: 'pending_closure' })
+      .where(eq(schema.permits.id, permit.id));
 
     const actualEndAt = new Date('2026-09-01T16:00:00Z');
     const [closure] = await db

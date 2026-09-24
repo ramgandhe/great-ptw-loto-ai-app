@@ -11,11 +11,15 @@
     "realm": [
       {
         "name": "platform-admin",
-        "description": "Platform administrator"
+        "description": "Platform owner"
       },
       {
-        "name": "org-admin",
-        "description": "Organisation administrator (System Administrator)"
+        "name": "tenant-owner",
+        "description": "Tenant owner"
+      },
+      {
+        "name": "tenant-admin",
+        "description": "Tenant administrator"
       },
       {
         "name": "hod",
@@ -56,7 +60,83 @@
       "attributes": {
         "post.logout.redirect.uris": "http://localhost:3000/login"
       },
-      "protocol": "openid-connect"
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "full name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-full-name-mapper",
+          "consentRequired": false,
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "given name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "firstName",
+            "claim.name": "given_name",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "family name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "lastName",
+            "claim.name": "family_name",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "tenant_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenant_id",
+            "claim.name": "tenant_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ],
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "roles",
+        "tenant"
+      ]
     },
     {
       "clientId": "ptw-api",
@@ -92,8 +172,8 @@
       "username": "admin",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "Platform",
-      "lastName": "Admin",
+      "firstName": "James",
+      "lastName": "Anderson",
       "email": "admin@ptw.local",
       "attributes": {
         "tenant_id": [
@@ -116,8 +196,8 @@
       "username": "orgadmin",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "Org",
-      "lastName": "Admin",
+      "firstName": "John",
+      "lastName": "Doe",
       "email": "orgadmin@ptw.local",
       "attributes": {
         "tenant_id": [
@@ -132,7 +212,7 @@
         }
       ],
       "realmRoles": [
-        "org-admin"
+        "tenant-owner"
       ]
     },
     {
@@ -140,8 +220,8 @@
       "username": "issuer",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "Job",
-      "lastName": "Issuer",
+      "firstName": "Jane",
+      "lastName": "Doe",
       "email": "issuer@ptw.local",
       "attributes": {
         "tenant_id": [
@@ -164,8 +244,8 @@
       "username": "hod",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "Head",
-      "lastName": "Of Department",
+      "firstName": "Michael",
+      "lastName": "Smith",
       "email": "hod@ptw.local",
       "attributes": {
         "tenant_id": [
@@ -188,8 +268,8 @@
       "username": "operator",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "Field",
-      "lastName": "Operator",
+      "firstName": "David",
+      "lastName": "Brown",
       "email": "operator@ptw.local",
       "attributes": {
         "tenant_id": [
@@ -212,8 +292,8 @@
       "username": "safety",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "Safety",
-      "lastName": "Officer",
+      "firstName": "Sarah",
+      "lastName": "Johnson",
       "email": "safety@ptw.local",
       "attributes": {
         "tenant_id": [
@@ -236,8 +316,8 @@
       "username": "viewer",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "Read",
-      "lastName": "Only",
+      "firstName": "Robert",
+      "lastName": "Wilson",
       "email": "viewer@ptw.local",
       "attributes": {
         "tenant_id": [
@@ -287,7 +367,51 @@
       "attributes": {
         "include.in.token.scope": "true",
         "display.on.consent.screen": "true"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "given name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.model.property": "firstName",
+            "claim.name": "given_name",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "family name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.model.property": "lastName",
+            "claim.name": "family_name",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.model.property": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "email",
@@ -301,6 +425,10 @@
     {
       "name": "tenant",
       "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
       "protocolMappers": [
         {
           "name": "tenant_id",

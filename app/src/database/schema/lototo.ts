@@ -33,9 +33,9 @@ export const lototoPlans = pgTable(
   {
     ...auditColumns,
     tenantId: uuid('tenant_id').notNull(),
-    permitId: uuid('permit_id')
-      .notNull()
-      .references(() => permits.id, { onDelete: 'cascade' }),
+    permitId: uuid('permit_id').references(() => permits.id, {
+      onDelete: 'cascade',
+    }),
     workstationId: uuid('workstation_id').references(() => workstationCatalogue.id, {
       onDelete: 'restrict',
     }),
@@ -52,6 +52,24 @@ export const lototoPlans = pgTable(
     index('lototo_plans_permit_id_idx').on(table.permitId),
     index('lototo_plans_tenant_status_idx').on(table.tenantId, table.status),
     uniqueIndex('lototo_plans_tenant_reference_unique').on(table.tenantId, table.reference),
+    index('lototo_plans_machinery_id_idx').on(table.machineryId),
+  ],
+);
+
+export const permitLototo = pgTable(
+  'permit_lototo',
+  {
+    ...auditColumns,
+    permitId: uuid('permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    lototoPlanId: uuid('lototo_plan_id')
+      .notNull()
+      .references(() => lototoPlans.id, { onDelete: 'restrict' }),
+  },
+  (table) => [
+    uniqueIndex('permit_lototo_permit_plan_unique').on(table.permitId, table.lototoPlanId),
+    index('permit_lototo_permit_id_idx').on(table.permitId),
   ],
 );
 

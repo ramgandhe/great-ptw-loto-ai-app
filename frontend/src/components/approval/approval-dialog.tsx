@@ -61,7 +61,7 @@ export function ApprovalDialog({
     <dialog
       ref={dialogRef}
       aria-labelledby={titleId}
-      className="fixed top-1/2 left-1/2 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-0 shadow-lg backdrop:bg-black/50"
+      className="fixed top-1/2 left-1/2 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-0 shadow-lg backdrop:bg-black/50 text-muted-foreground"
       onClose={onClose}
     >
       <form
@@ -74,7 +74,7 @@ export function ApprovalDialog({
         }}
       >
         <div>
-          <h2 id={titleId} className="text-lg font-semibold">
+          <h2 id={titleId} className="text-lg font-semibold text-white">
             {title}
           </h2>
           {description ? (

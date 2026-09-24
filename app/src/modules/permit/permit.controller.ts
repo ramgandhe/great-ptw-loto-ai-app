@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -14,6 +15,7 @@ import { CreatePermitDto } from './dto/create-permit.dto';
 import { RenewPermitDto } from './dto/renew-permit.dto';
 import {
   PERMIT_CREATE_ROLES,
+  PERMIT_DELETE_ROLES,
   PERMIT_READ_ROLES,
   PERMIT_SUBMIT_ROLES,
   PERMIT_WRITE_ROLES,
@@ -46,6 +48,15 @@ export class PermitController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.permitService.findOne(id, user);
+  }
+
+  @Roles(...PERMIT_DELETE_ROLES)
+  @Delete(':id')
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.permitService.removeDraft(id, user);
   }
 
   @Roles(...PERMIT_WRITE_ROLES)

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Building2, CreditCard, LogOut, Settings } from "lucide-react";
+import { Bell, Building2, CreditCard, LogOut, Settings, Users } from "lucide-react";
 import { ThemeSettings } from "@/components/theme/theme-settings";
+import { ProfileSettingsForm } from "@/components/settings/profile-settings-form";
 import { Button } from "@/components/ui/button";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { signOut } from "@/lib/auth/keycloak";
-import { BILLING_READ_ROLES } from "@/lib/auth/roles";
+import { BILLING_READ_ROLES, PLATFORM_ADMIN_ROLES, WORKFORCE_WRITE_ROLES } from "@/lib/auth/roles";
 import { hasAnyRole } from "@/lib/auth/rbac";
 
 const organisationLinks = [
@@ -24,6 +25,13 @@ const organisationLinks = [
   },
 ];
 
+const usersLink = {
+  href: "/workforce/roles",
+  label: "Users and roles",
+  description: "Add organisation logins and assign roles",
+  icon: Users,
+};
+
 const billingLink = {
   href: "/billing",
   label: "Billing & subscription",
@@ -31,11 +39,21 @@ const billingLink = {
   icon: CreditCard,
 };
 
+const tenantsLink = {
+  href: "/platform/tenants",
+  label: "Tenants",
+  description: "Invite organisation owners and provision new tenants",
+  icon: Building2,
+};
+
 export default function SettingsPage() {
   const { roles } = useAuthProfile();
-  const links = hasAnyRole(roles, BILLING_READ_ROLES)
-    ? [...organisationLinks, billingLink]
-    : organisationLinks;
+  const showTenants = hasAnyRole(roles, PLATFORM_ADMIN_ROLES);
+  const links = [
+    ...organisationLinks,
+    ...(hasAnyRole(roles, WORKFORCE_WRITE_ROLES) ? [usersLink] : []),
+    ...(hasAnyRole(roles, BILLING_READ_ROLES) ? [billingLink] : []),
+  ];
 
   return (
     <main className="flex flex-1 flex-col gap-8 p-8">
@@ -58,6 +76,26 @@ export default function SettingsPage() {
           <ThemeSettings variant="form" />
         </div>
       </section>
+
+      <ProfileSettingsForm />
+
+      {showTenants ? (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold">Platform</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Link
+              href={tenantsLink.href}
+              className="flex items-start gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/40"
+            >
+              <tenantsLink.icon className="mt-0.5 size-5 shrink-0" aria-hidden />
+              <div>
+                <h3 className="font-semibold">{tenantsLink.label}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{tenantsLink.description}</p>
+              </div>
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       <section>
         <h2 className="mb-3 text-sm font-semibold">Organisation</h2>

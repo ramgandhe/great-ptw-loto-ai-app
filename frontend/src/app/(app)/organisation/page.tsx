@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { Building2 } from "lucide-react";
+import { TenantName } from "@/components/organisation/tenant-name";
 
 const sections = [
   { href: "/organisation/profile", label: "Organisation profile", description: "Tenant details and registration" },
+  { href: "/workforce/roles", label: "Users and roles", description: "Add organisation logins and assign roles" },
+  { href: "/organisation/permit-types", label: "Permit types", description: "Configure the permit types this organisation can issue" },
   { href: "/organisation/plants", label: "Plants", description: "Top-level operational sites" },
   { href: "/organisation/departments", label: "Departments", description: "Functional departments" },
   { href: "/organisation/locations", label: "Locations", description: "Work locations within plants" },
@@ -10,8 +13,10 @@ const sections = [
   { href: "/organisation/machinery", label: "Machinery", description: "Machinery and equipment" },
   { href: "/organisation/workflows", label: "Approval workflows", description: "Multi-stage approval routing" },
   { href: "/organisation/templates", label: "Permit templates", description: "Published permit templates" },
-  { href: "/organisation/checklists", label: "Safety checklists", description: "Reusable safety checklists" },
+  { href: "/organisation/checklists", label: "Safety checklists", description: "Reusable safety checklists and checklist items" },
+  { href: "/organisation/hazards", label: "Hazard Configuration", description: "Hazard categories used on permits" },
   { href: "/organisation/ppe", label: "PPE configuration", description: "Organisation PPE requirements" },
+  { href: "/organisation/gas-testing", label: "Gas Testing configuration", description: "Gas testing parameters and criteria by workstation" },
   { href: "/organisation/notifications", label: "Notification preferences", description: "Channel and event preferences" },
 ];
 
@@ -22,8 +27,9 @@ export default function OrganisationDashboardPage() {
         <Building2 className="size-6" aria-hidden />
         <div>
           <h1 className="text-2xl font-semibold">Organisation management</h1>
+          <TenantName className="mt-1 text-sm font-medium" />
           <p className="text-sm text-muted-foreground">
-            Configure tenant hierarchy and operational settings (SP-01.02).
+            Edit tenant details and configure operational settings.
           </p>
         </div>
       </div>

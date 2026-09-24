@@ -62,9 +62,9 @@ describe('Notifications HTTP API (PUS-201)', () => {
 
   const adminUser: AuthenticatedUser = {
     id: userId,
-    username: 'org-admin',
+    username: 'tenant-owner',
     tenantId,
-    roles: ['org-admin'],
+    roles: ['tenant-owner'],
     email: 'admin@example.com',
   };
 

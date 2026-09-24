@@ -10,6 +10,7 @@ services:
     environment:
       CORS_ORIGIN: ${DEMO_WEB_URL:?DEMO_WEB_URL is required}
       KEYCLOAK_ISSUER: ${DEMO_AUTH_URL:?DEMO_AUTH_URL is required}
+      APP_PUBLIC_URL: ${DEMO_WEB_URL:?DEMO_WEB_URL is required}
 
   frontend:
     build:

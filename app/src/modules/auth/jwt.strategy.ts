@@ -1,9 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { passportJwtSecret } from 'jwks-rsa';
+import { and, eq, or } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
+import { DATABASE_CONNECTION, Database } from '../../database/database.module';
+import { organisations, tenantInvites, tenantUsers } from '../../database/schema';
 
 interface KeycloakJwtPayload {
   sub: string;
@@ -12,12 +15,15 @@ interface KeycloakJwtPayload {
   given_name?: string;
   family_name?: string;
   realm_access?: { roles?: string[] };
-  tenant_id?: string;
+  tenant_id?: string | string[];
 }
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    @Inject(DATABASE_CONNECTION) private readonly db: Database,
+  ) {
     const keycloakUrl = configService.get<string>('keycloak.url')!;
     const keycloakIssuer = configService.get<string>('keycloak.issuer')!;
     const realm = configService.get<string>('keycloak.realm')!;
@@ -36,8 +42,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: KeycloakJwtPayload): AuthenticatedUser {
-    const defaultTenantId = this.configService.get<string>('auth.defaultTenantId');
+  async validate(payload: KeycloakJwtPayload): Promise<AuthenticatedUser> {
+    const tenantClaim = payload.tenant_id;
+    const claimedTenantId = Array.isArray(tenantClaim) ? tenantClaim[0] : tenantClaim;
+    const roles = (payload.realm_access?.roles ?? []).map((role) =>
+      role === 'org-admin' ? 'tenant-owner' : role,
+    );
+    const email = (payload.email ?? payload.preferred_username)?.trim().toLowerCase();
+    const tenantId = claimedTenantId || (await this.resolveTenantId(payload.sub, email));
+
+    if (tenantId && !roles.includes('platform-admin')) {
+      await this.assertTenantActive(tenantId);
+    }
 
     return {
       id: payload.sub,
@@ -45,8 +61,43 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       email: payload.email,
       firstName: payload.given_name,
       lastName: payload.family_name,
-      roles: payload.realm_access?.roles ?? [],
-      tenantId: payload.tenant_id ?? defaultTenantId,
+      roles,
+      tenantId: tenantId || undefined,
     };
+  }
+
+  private async resolveTenantId(keycloakUserId: string, email?: string): Promise<string | undefined> {
+    const [member] = await this.db
+      .select({ tenantId: tenantUsers.tenantId })
+      .from(tenantUsers)
+      .where(
+        and(
+          email
+            ? or(eq(tenantUsers.keycloakUserId, keycloakUserId), eq(tenantUsers.email, email))
+            : eq(tenantUsers.keycloakUserId, keycloakUserId),
+          eq(tenantUsers.status, 'active'),
+        ),
+      );
+    if (member?.tenantId) {
+      return member.tenantId;
+    }
+    if (!email) {
+      return undefined;
+    }
+    const [invite] = await this.db
+      .select({ tenantId: tenantInvites.tenantId })
+      .from(tenantInvites)
+      .where(eq(tenantInvites.ownerEmail, email));
+    return invite?.tenantId;
+  }
+
+  private async assertTenantActive(tenantId: string): Promise<void> {
+    const [org] = await this.db
+      .select({ status: organisations.status })
+      .from(organisations)
+      .where(eq(organisations.tenantId, tenantId));
+    if (org && org.status === 'disabled') {
+      throw new UnauthorizedException('This organisation is disabled');
+    }
   }
 }

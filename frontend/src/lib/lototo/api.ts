@@ -10,8 +10,11 @@ import type {
   LototoPlanDetail,
 } from "./types";
 
-export function listLototoPlans(permitId?: string) {
-  const query = permitId ? `?permitId=${encodeURIComponent(permitId)}` : "";
+export function listLototoPlans(filters?: { permitId?: string; machineryId?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.permitId) params.set("permitId", filters.permitId);
+  if (filters?.machineryId) params.set("machineryId", filters.machineryId);
+  const query = params.toString() ? `?${params.toString()}` : "";
   return fetchApi<LototoPlan[]>(`/lototo/plans${query}`);
 }
 

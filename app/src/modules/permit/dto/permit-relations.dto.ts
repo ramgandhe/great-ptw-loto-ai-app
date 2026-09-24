@@ -29,6 +29,16 @@ export class PermitPpeDto {
   quantity?: number;
 }
 
+export class PermitLototoDto {
+  @IsUUID()
+  lototoPlanId!: string;
+}
+
+export class PermitGasTestingDto {
+  @IsUUID()
+  gasTestingCatalogueId!: string;
+}
+
 export class PermitExecutorDto {
   @IsUUID()
   workforceUserId!: string;
@@ -36,6 +46,11 @@ export class PermitExecutorDto {
   @IsOptional()
   @IsBoolean()
   isPrimary?: boolean;
+}
+
+export class PermitAssigneeDto {
+  @IsUUID()
+  workforceUserId!: string;
 }
 
 export class PermitRelationsDto {
@@ -52,8 +67,40 @@ export class PermitRelationsDto {
   ppe?: PermitPpeDto[];
 
   @IsOptional()
+  @IsBoolean()
+  lototoRequired?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PermitLototoDto)
+  lototo?: PermitLototoDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  gasTestingRequired?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PermitGasTestingDto)
+  gasTesting?: PermitGasTestingDto[];
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PermitExecutorDto)
   executors?: PermitExecutorDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PermitAssigneeDto)
+  viewers?: PermitAssigneeDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PermitAssigneeDto)
+  safetyOfficers?: PermitAssigneeDto[];
 }

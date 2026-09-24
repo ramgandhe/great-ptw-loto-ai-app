@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { MASTER_DATA_READ_ROLES, MASTER_DATA_WRITE_ROLES } from './master-data.constants';
 import { CreatePermitTypeDto } from './dto/create-permit-type.dto';
+import { UpdatePermitTypeDto } from './dto/update-permit-type.dto';
 import { PermitTypeService } from './permit-type.service';
 
 @Controller('permit-types')
@@ -20,6 +21,16 @@ export class PermitTypeController {
   @Get()
   findAll(@CurrentUser() user: AuthenticatedUser) {
     return this.permitTypeService.findAll(user);
+  }
+
+  @Roles(...MASTER_DATA_WRITE_ROLES)
+  @Patch(':id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePermitTypeDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.permitTypeService.update(id, dto, user);
   }
 
   @Roles(...MASTER_DATA_WRITE_ROLES)

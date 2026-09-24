@@ -195,6 +195,12 @@ export class ApprovalWorkflowController {
   }
 
   @Roles(...ORGANISATION_WRITE_ROLES)
+  @Post(':id/activate')
+  activate(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.organisationService.activateWorkflow(id, user);
+  }
+
+  @Roles(...ORGANISATION_WRITE_ROLES)
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,

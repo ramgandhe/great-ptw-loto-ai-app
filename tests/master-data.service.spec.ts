@@ -81,9 +81,9 @@ describe('Master data services (PUS-70)', () => {
   function adminUser(tenantId: string): AuthenticatedUser {
     return {
       id: adminId,
-      username: 'org-admin',
+      username: 'tenant-owner',
       tenantId,
-      roles: ['org-admin'],
+      roles: ['tenant-owner'],
       email: 'admin@example.com',
     };
   }

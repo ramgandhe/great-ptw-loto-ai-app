@@ -8,6 +8,11 @@ export const agencies = pgTable(
     tenantId: uuid('tenant_id').notNull(),
     name: varchar('name', { length: 255 }).notNull(),
     code: varchar('code', { length: 64 }),
+    email: varchar('email', { length: 255 }),
+    phone: varchar('phone', { length: 64 }),
+    gstin: varchar('gstin', { length: 32 }),
+    address: text('address'),
+    keycloakUserId: varchar('keycloak_user_id', { length: 128 }),
     status: varchar('status', { length: 32 }).notNull().default('active'),
   },
   (table) => [
@@ -25,6 +30,7 @@ export const employees = pgTable(
     email: varchar('email', { length: 255 }),
     phone: varchar('phone', { length: 64 }),
     departmentId: uuid('department_id'),
+    keycloakUserId: varchar('keycloak_user_id', { length: 128 }),
     status: varchar('status', { length: 32 }).notNull().default('active'),
   },
   (table) => [
@@ -42,6 +48,7 @@ export const contractors = pgTable(
     email: varchar('email', { length: 255 }),
     phone: varchar('phone', { length: 64 }),
     agencyId: uuid('agency_id'),
+    keycloakUserId: varchar('keycloak_user_id', { length: 128 }),
     status: varchar('status', { length: 32 }).notNull().default('active'),
   },
   (table) => [

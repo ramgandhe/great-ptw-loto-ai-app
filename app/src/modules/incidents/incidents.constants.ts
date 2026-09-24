@@ -7,7 +7,7 @@ export const INCIDENT_REPORT_ROLES = [
   'job-issuer',
   'hod',
   'safety-officer',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
@@ -18,11 +18,11 @@ export const INCIDENT_READ_ROLES = [
 
 export const INCIDENT_SAFETY_ROLES = [
   'safety-officer',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
-export const INCIDENT_HOD_DECISION_ROLES = ['hod', 'org-admin'] as const;
+export const INCIDENT_HOD_DECISION_ROLES = ['hod', 'tenant-owner', 'tenant-admin'] as const;
 
 export const ALLOWED_INCIDENT_EVIDENCE_CONTENT_TYPES = [
   'image/jpeg',

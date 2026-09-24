@@ -4,7 +4,7 @@ import { LOTOTO_NOTIFICATION_JOB } from './lototo.constants';
 
 export interface LototoNotificationPayload {
   planId: string;
-  permitId: string;
+  permitId?: string;
   tenantId: string;
   action: string;
   actorId: string;

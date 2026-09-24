@@ -10,6 +10,7 @@ import {
 import { seedDemoWorkflows } from './seed-demo-workflows';
 import { seedDefaultWorkflow } from './seed-default-workflow';
 import { seedMasterCatalogue } from './seed-master-catalogue';
+import { ensureDefaultApprovalWorkflowForAllTenants } from '../modules/approval/ensure-default-workflow';
 import { DEMO_IDS, DEMO_TENANT_ID, SEED_ACTOR_ID } from './seed-ids';
 
 const DEMO_PERMIT_TYPES = [
@@ -18,54 +19,63 @@ const DEMO_PERMIT_TYPES = [
     code: 'HOT-WORK',
     name: 'Hot Work',
     description: 'Welding, grinding, and other ignition-source work',
+    color: '#DC2626',
   },
   {
     id: DEMO_IDS.permitTypeColdWork,
     code: 'COLD-WORK',
     name: 'Cold Work',
     description: 'General maintenance without ignition sources',
+    color: '#2563EB',
   },
   {
     id: DEMO_IDS.permitTypeConfinedSpace,
     code: 'CONFINED-SPACE',
     name: 'Confined Space',
     description: 'Entry into tanks, vessels, pits, and other confined spaces',
+    color: '#7C3AED',
   },
   {
     id: DEMO_IDS.permitTypeWorkingAtHeight,
     code: 'WORKING-AT-HEIGHT',
     name: 'Working at Height',
     description: 'Work above ground level requiring fall protection',
+    color: '#CA8A04',
   },
   {
     id: DEMO_IDS.permitTypeElectrical,
     code: 'ELECTRICAL',
     name: 'Electrical',
     description: 'Electrical installation, maintenance, and isolation work',
+    color: '#EA580C',
   },
   {
     id: DEMO_IDS.permitTypeExcavation,
     code: 'EXCAVATION',
     name: 'Excavation',
     description: 'Digging, trenching, and ground disturbance',
+    color: '#92400E',
   },
   {
     id: DEMO_IDS.permitTypeLifting,
     code: 'LIFTING',
     name: 'Lifting Operations',
     description: 'Crane, hoist, and critical lift activities',
+    color: '#0D9488',
   },
   {
     id: DEMO_IDS.permitTypeBreakingContainment,
     code: 'BREAKING-CONTAINMENT',
     name: 'Breaking Containment',
     description: 'Opening process lines, vessels, or equipment under residual hazard',
+    color: '#BE185D',
   },
   {
     id: DEMO_IDS.permitTypeGeneralWork,
     code: 'GENERAL-WORK',
     name: 'General Work',
     description: 'Routine non-hazardous work requiring permit control',
+    color: '#64748B',
   },
 ] as const;
 
@@ -109,6 +119,7 @@ async function seed(): Promise<void> {
         code: permitType.code,
         name: permitType.name,
         description: permitType.description,
+        color: permitType.color,
         createdBy: SEED_ACTOR_ID,
         updatedBy: SEED_ACTOR_ID,
       })),
@@ -118,6 +129,7 @@ async function seed(): Promise<void> {
       set: {
         name: sql`excluded.name`,
         description: sql`excluded.description`,
+        color: sql`excluded.color`,
         updatedBy: SEED_ACTOR_ID,
         updatedAt: sql`now()`,
       },
@@ -125,6 +137,7 @@ async function seed(): Promise<void> {
 
   await seedMasterCatalogue(db);
   await seedDefaultWorkflow(db);
+  await ensureDefaultApprovalWorkflowForAllTenants(db, SEED_ACTOR_ID);
   await seedDemoWorkflows(db);
 
   console.log('Seed completed.');

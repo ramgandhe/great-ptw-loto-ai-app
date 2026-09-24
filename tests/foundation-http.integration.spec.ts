@@ -64,9 +64,9 @@ describe('Foundation HTTP integration (PUS-71)', () => {
 
   const testUser: AuthenticatedUser = {
     id: userId,
-    username: 'org-admin',
+    username: 'tenant-owner',
     tenantId,
-    roles: ['org-admin'],
+    roles: ['tenant-owner'],
     email: 'admin@example.com',
   };
 

@@ -25,6 +25,7 @@ import {
   ORGANISATION_READ_ROLES,
   PERMIT_CREATE_ROLES,
   PERMIT_WRITE_ROLES,
+  PLATFORM_ADMIN_ROLES,
   RESTORATION_READ_ROLES,
   WORKFORCE_WRITE_ROLES,
 } from "@/lib/auth/roles";
@@ -38,6 +39,7 @@ const ORGANISATION_ADMIN_PATHS = ["/organisation/profile", "/organisation/workfl
 
 const ROUTE_RULES: RouteRule[] = [
   { test: (p) => p === "/unauthorized" || p === "/settings", roles: AUTHENTICATED_ROLES },
+  { test: (p) => p.startsWith("/platform/tenants"), roles: PLATFORM_ADMIN_ROLES },
   { test: (p) => p === "/billing", roles: BILLING_READ_ROLES },
   { test: (p) => p === "/analytics", roles: DASHBOARD_ANALYTICS_ROLES },
   { test: (p) => p === "/reports", roles: DASHBOARD_REPORT_ROLES },
@@ -104,6 +106,7 @@ export function getRequiredRolesForPath(pathname: string): readonly string[] | n
 export function getDefaultHomePath(userRoles: string[]): string {
   const candidates = [
     "/",
+    "/platform/tenants",
     "/permits",
     "/approvals",
     "/execution",
@@ -121,6 +124,14 @@ export function getDefaultHomePath(userRoles: string[]): string {
 }
 
 export function formatRoleLabel(role: string): string {
+  const labels: Record<string, string> = {
+    "platform-admin": "Platform Owner",
+    "tenant-owner": "Tenant Owner",
+    "tenant-admin": "Tenant Admin",
+  };
+  if (labels[role]) {
+    return labels[role];
+  }
   return role
     .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))

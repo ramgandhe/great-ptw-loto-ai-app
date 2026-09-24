@@ -63,6 +63,7 @@ export default function PermitPreviewPage() {
         form={form}
         status={detail.permit.status}
         reference={detail.permit.reference}
+        attachments={detail.attachments}
       />
 
       <section className="grid gap-3">

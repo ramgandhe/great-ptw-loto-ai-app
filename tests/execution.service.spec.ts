@@ -89,6 +89,10 @@ describe('ExecutionService integration (PUS-141)', () => {
           hazards: [],
           ppe: [],
           executors: [],
+          lototo: [],
+          gasTesting: [],
+          viewers: [],
+          safetyOfficers: [],
           attachments: [],
         };
       }),
@@ -103,6 +107,7 @@ describe('ExecutionService integration (PUS-141)', () => {
       permitCacheService,
       executionCacheService,
       executionLogService,
+      { initializeAtSubmit: jest.fn() } as never,
     );
 
     progressService = new ProgressService(

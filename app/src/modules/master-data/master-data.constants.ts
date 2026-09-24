@@ -1,6 +1,6 @@
 export const MASTER_DATA_IMPORT_JOB = 'master-data.import';
 
-export const MASTER_DATA_WRITE_ROLES = ['org-admin', 'platform-admin'] as const;
+export const MASTER_DATA_WRITE_ROLES = ['tenant-owner', 'tenant-admin', 'platform-admin'] as const;
 
 export const MASTER_DATA_READ_ROLES = [
   ...MASTER_DATA_WRITE_ROLES,
@@ -31,4 +31,5 @@ export const MASTER_DATA_CACHE_TYPES = [
   'workstations',
   'hazards',
   'checklists',
+  'gas-testing',
 ] as const;

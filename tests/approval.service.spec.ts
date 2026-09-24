@@ -87,6 +87,10 @@ describe('ApprovalService integration (PUS-136)', () => {
           hazards: [],
           ppe: [],
           executors: [],
+          lototo: [],
+          gasTesting: [],
+          viewers: [],
+          safetyOfficers: [],
           attachments: [],
         };
       }),
@@ -139,10 +143,10 @@ describe('ApprovalService integration (PUS-136)', () => {
 
     const orgAdminUser: AuthenticatedUser = {
       id: orgAdminId,
-      username: 'org-admin',
+      username: 'tenant-owner',
       tenantId,
-      roles: ['org-admin'],
-      email: 'org-admin@example.com',
+      roles: ['tenant-owner'],
+      email: 'tenant-owner@example.com',
     };
 
     async function createWorkflowSteps(stepCount: 1 | 2 = 2) {

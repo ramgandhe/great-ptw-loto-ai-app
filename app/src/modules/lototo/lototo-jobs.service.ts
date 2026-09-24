@@ -95,7 +95,7 @@ export class LototoJobsService implements OnModuleInit {
     for (const row of rows) {
       await queue.add(LOTOTO_NOTIFICATION_JOB, {
         planId: row.planId,
-        permitId: row.permitId,
+        permitId: row.permitId ?? undefined,
         tenantId: row.tenantId,
         action: 'planning_reminder',
         actorId: row.createdBy ?? row.tenantId,

@@ -1,10 +1,11 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { permitTypes } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { CreatePermitTypeDto } from './dto/create-permit-type.dto';
+import { UpdatePermitTypeDto } from './dto/update-permit-type.dto';
 import { MasterDataCacheService } from './master-data-cache.service';
 import { MasterDataLogService } from './master-data-log.service';
 import { ReferenceIntegrityService } from './reference-integrity.service';
@@ -30,6 +31,7 @@ export class PermitTypeService {
           code: dto.code.trim(),
           name: dto.name.trim(),
           description: dto.description,
+          color: dto.color ? dto.color.toUpperCase() : null,
           defaultAttributes: dto.defaultAttributes ?? null,
           isActive: dto.isActive ?? true,
           createdBy: user.id,
@@ -64,6 +66,36 @@ export class PermitTypeService {
 
     await this.cacheService.set(tenantId, 'permit-types', rows);
     return rows;
+  }
+
+  async update(id: string, dto: UpdatePermitTypeDto, user: AuthenticatedUser) {
+    const tenantId = this.referenceIntegrity.requireTenant(user);
+    try {
+      const [row] = await this.db
+        .update(permitTypes)
+        .set({
+          ...(dto.code !== undefined ? { code: dto.code.trim() } : {}),
+          ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+          ...(dto.description !== undefined ? { description: dto.description } : {}),
+          ...(dto.color !== undefined ? { color: dto.color ? dto.color.toUpperCase() : null } : {}),
+          ...(dto.defaultAttributes !== undefined ? { defaultAttributes: dto.defaultAttributes } : {}),
+          ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+          updatedBy: user.id,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(permitTypes.id, id), eq(permitTypes.tenantId, tenantId)))
+        .returning();
+      if (!row) {
+        throw new NotFoundException('Permit type not found');
+      }
+      await this.afterMutation(tenantId, user, 'permit-type.updated', id);
+      return row;
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        throw new ConflictException(`Permit type code '${dto.code}' already exists`);
+      }
+      throw error;
+    }
   }
 
   async remove(id: string, user: AuthenticatedUser) {

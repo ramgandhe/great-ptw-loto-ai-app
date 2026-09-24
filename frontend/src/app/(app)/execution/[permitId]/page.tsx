@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import {
   activatePermit,
   addProgress,
+  completeExecution,
   listEvidence,
   listProgress,
-  resumePermit,
+  revalidatePermitAfterSuspension,
   suspendPermit,
   uploadEvidence,
 } from "@/lib/execution/api";
@@ -25,9 +26,16 @@ import { SuspensionDialog } from "@/components/execution/suspension-dialog";
 import { PermitSummary } from "@/components/permit/permit-summary";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
+import { useAuthProfile } from "@/lib/auth/auth-profile-context";
+import { hasAnyRole } from "@/lib/auth/rbac";
+
+const SUSPEND_ROLES = ["tenant-owner", "tenant-admin", "hod", "safety-officer"] as const;
+const REVALIDATE_ROLES = ["tenant-owner", "tenant-admin", "hod", "job-issuer"] as const;
 
 export default function PermitExecutionPage() {
   const params = useParams<{ permitId: string }>();
+  const router = useRouter();
+  const { roles } = useAuthProfile();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
   const [progress, setProgress] = useState<ProgressRecord[]>([]);
   const [evidence, setEvidence] = useState<EvidenceRecord[]>([]);
@@ -41,6 +49,13 @@ export default function PermitExecutionPage() {
   const [suspendOpen, setSuspendOpen] = useState(false);
   const [suspendReason, setSuspendReason] = useState("");
   const [suspendError, setSuspendError] = useState<string | null>(null);
+  const [completeComment, setCompleteComment] = useState("");
+  const [completeChecklist, setCompleteChecklist] = useState({
+    workDescribedComplete: false,
+    procedureFollowed: false,
+    lototoDone: false,
+    gasTestingDone: false,
+  });
 
   async function loadData() {
     const permitDetail = await getPermit(params.permitId);
@@ -79,18 +94,20 @@ export default function PermitExecutionPage() {
     }
   }
 
-  async function handleResume() {
+  async function handleRevalidate() {
+    const confirmed = window.confirm(
+      "Revalidate this suspended permit? It will go through full approval again.",
+    );
+    if (!confirmed) {
+      return;
+    }
     setIsSubmitting(true);
     setActionError(null);
     try {
-      const result = await resumePermit(params.permitId);
-      setDetail((current) =>
-        current ? { ...current, permit: result.permit } : current,
-      );
-      setExecution(result.execution);
-      await loadData();
+      await revalidatePermitAfterSuspension(params.permitId);
+      router.push(`/approvals/${params.permitId}`);
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Resume failed");
+      setActionError(err instanceof ApiError ? err.message : "Revalidation failed");
     } finally {
       setIsSubmitting(false);
     }
@@ -110,6 +127,26 @@ export default function PermitExecutionPage() {
       await loadData();
     } catch (err) {
       setSuspendError(err instanceof ApiError ? err.message : "Suspension failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleCompleteExecution() {
+    if (!completeComment.trim() || !Object.values(completeChecklist).every(Boolean)) {
+      setActionError("Complete the checklist and add a comment before declaring execution complete.");
+      return;
+    }
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      const updated = await completeExecution(params.permitId, {
+        comment: completeComment.trim(),
+        checklist: completeChecklist,
+      });
+      setDetail(updated);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Could not complete execution");
     } finally {
       setIsSubmitting(false);
     }
@@ -209,16 +246,16 @@ export default function PermitExecutionPage() {
             {isSubmitting ? "Starting..." : "Start work"}
           </Button>
         ) : null}
-        {isActive ? (
-          <>
+        {isApproved || isActive ? (
+          hasAnyRole(roles, SUSPEND_ROLES) ? (
             <Button variant="destructive" onClick={() => setSuspendOpen(true)} disabled={isSubmitting}>
               Suspend work
             </Button>
-          </>
+          ) : null
         ) : null}
-        {isSuspended ? (
-          <Button onClick={handleResume} disabled={isSubmitting}>
-            {isSubmitting ? "Resuming..." : "Resume work"}
+        {isSuspended && hasAnyRole(roles, REVALIDATE_ROLES) ? (
+          <Button onClick={() => void handleRevalidate()} disabled={isSubmitting}>
+            {isSubmitting ? "Submitting..." : "Revalidate after suspension"}
           </Button>
         ) : null}
       </section>
@@ -261,6 +298,56 @@ export default function PermitExecutionPage() {
                   onUpload={handleUploadEvidence}
                 />
               </section>
+
+              {hasAnyRole(roles, ["operator", "tenant-owner", "tenant-admin", "platform-admin"]) ? (
+                <section className="grid gap-3 rounded-lg border border-border p-4">
+                  <h2 className="text-sm font-semibold">Declare execution completed</h2>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={completeChecklist.workDescribedComplete}
+                      onChange={(e) => setCompleteChecklist((current) => ({ ...current, workDescribedComplete: e.target.checked }))}
+                    />
+                    Work described in the permit is complete
+                  </label>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={completeChecklist.procedureFollowed}
+                      onChange={(e) => setCompleteChecklist((current) => ({ ...current, procedureFollowed: e.target.checked }))}
+                    />
+                    Procedure was followed
+                  </label>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={completeChecklist.lototoDone}
+                      onChange={(e) => setCompleteChecklist((current) => ({ ...current, lototoDone: e.target.checked }))}
+                    />
+                    LOTOTO is done
+                  </label>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={completeChecklist.gasTestingDone}
+                      onChange={(e) => setCompleteChecklist((current) => ({ ...current, gasTestingDone: e.target.checked }))}
+                    />
+                    Gas testing is done
+                  </label>
+                  <textarea
+                    value={completeComment}
+                    required
+                    disabled={isSubmitting}
+                    onChange={(event) => setCompleteComment(event.target.value)}
+                    placeholder="Completion comments (required)"
+                    rows={3}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                  <Button onClick={() => void handleCompleteExecution()} disabled={isSubmitting || !completeComment.trim()}>
+                    {isSubmitting ? "Submitting..." : "Mark execution completed"}
+                  </Button>
+                </section>
+              ) : null}
             </>
           ) : null}
 

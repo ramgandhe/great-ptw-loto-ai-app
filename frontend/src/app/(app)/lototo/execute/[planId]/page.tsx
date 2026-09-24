@@ -261,7 +261,7 @@ export default function IsolationExecutionPage() {
           </h1>
           <ExecutionStatusBadge status={execution.status} />
         </div>
-        {detail.plan ? (
+        {detail.plan?.permitId ? (
           <p className="mt-1 text-sm text-muted-foreground">
             <Link href={`/permits/${detail.plan.permitId}`} className="underline">
               View permit
@@ -459,7 +459,7 @@ export default function IsolationExecutionPage() {
             Isolation verified. {detail.locks.length} locks, {detail.tags.length} tags,{" "}
             {detail.verifications.length} verifications, {detail.evidence.length} evidence items.
           </p>
-          {detail.plan ? (
+          {detail.plan?.permitId ? (
             <Link href={`/execution/${detail.plan.permitId}`} className="mt-4 inline-block">
               <Button>Open permit execution</Button>
             </Link>

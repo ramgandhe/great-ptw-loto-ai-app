@@ -4,12 +4,15 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
+import { isTenantPrivileged } from '../../common/constants/tenant-roles';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { permitExecution, permitExecutors, permits } from '../../database/schema';
+import { permitExecution, permitExecutors, permitExecutionCompletions, permitVerifications, permits } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
+import { WorkflowEngineService } from '../approval/workflow-engine.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
 import {
@@ -18,6 +21,8 @@ import {
   SUSPENDED_STATUS,
 } from './execution.constants';
 import { ActivatePermitDto } from './dto/activate-permit.dto';
+import { CompleteExecutionDto, SendBackDto } from './dto/complete-execution.dto';
+import { isPrimaryExecutor, isPermitIssuer, isPrivilegedPermitViewer, visiblePermitFilter } from '../permit/permit-access';
 import { SuspendPermitDto } from './dto/suspend-permit.dto';
 import { ExecutionCacheService } from './execution-cache.service';
 import { ExecutionLogService } from './execution-log.service';
@@ -35,6 +40,8 @@ export class ExecutionService {
     private readonly permitCacheService: PermitCacheService,
     private readonly executionCacheService: ExecutionCacheService,
     private readonly executionLogService: ExecutionLogService,
+    @Inject(forwardRef(() => WorkflowEngineService))
+    private readonly workflowEngine: WorkflowEngineService,
   ) {}
 
   async activate(permitId: string, dto: ActivatePermitDto, user: AuthenticatedUser) {
@@ -50,17 +57,40 @@ export class ExecutionService {
 
     const actualStartAt = dto.actualStartAt ? new Date(dto.actualStartAt) : new Date();
 
+    const [existingExecution] = await this.db
+      .select()
+      .from(permitExecution)
+      .where(eq(permitExecution.permitId, permitId));
+
     const result = await this.db.transaction(async (tx) => {
-      const [execution] = await tx
-        .insert(permitExecution)
-        .values({
-          permitId,
-          activatedBy: user.id,
-          actualStartAt,
-          createdBy: user.id,
-          updatedBy: user.id,
-        })
-        .returning();
+      let execution = existingExecution;
+      if (execution) {
+        const [updated] = await tx
+          .update(permitExecution)
+          .set({
+            suspendedAt: null,
+            suspendedBy: null,
+            suspensionReason: null,
+            resumedAt: null,
+            resumedBy: null,
+            updatedBy: user.id,
+          })
+          .where(eq(permitExecution.id, execution.id))
+          .returning();
+        execution = updated;
+      } else {
+        const [created] = await tx
+          .insert(permitExecution)
+          .values({
+            permitId,
+            activatedBy: user.id,
+            actualStartAt,
+            createdBy: user.id,
+            updatedBy: user.id,
+          })
+          .returning();
+        execution = created;
+      }
 
       await this.statusTransitionService.transition(
         {
@@ -115,31 +145,38 @@ export class ExecutionService {
     const detail = await this.permitService.findOne(permitId, user);
     const { permit } = detail;
 
-    if (permit.status !== ACTIVE_STATUS) {
-      throw new ConflictException('Only active permits can be suspended');
+    if (permit.status !== ACTIVE_STATUS && permit.status !== APPROVED_STATUS) {
+      throw new ConflictException('Only approved or active permits can be suspended');
     }
 
-    const execution = await this.getExecution(permitId);
+    const [execution] = await this.db
+      .select()
+      .from(permitExecution)
+      .where(eq(permitExecution.permitId, permitId));
+
     const suspendedAt = new Date();
+    const fromStatus = permit.status;
 
     await this.db.transaction(async (tx) => {
-      await tx
-        .update(permitExecution)
-        .set({
-          suspendedAt,
-          suspendedBy: user.id,
-          suspensionReason: dto.reason,
-          updatedBy: user.id,
-        })
-        .where(eq(permitExecution.id, execution.id));
+      if (execution) {
+        await tx
+          .update(permitExecution)
+          .set({
+            suspendedAt,
+            suspendedBy: user.id,
+            suspensionReason: dto.reason,
+            updatedBy: user.id,
+          })
+          .where(eq(permitExecution.id, execution.id));
+      }
 
       await this.statusTransitionService.transition(
         {
           permitId,
           tenantId,
-          executionId: execution.id,
+          executionId: execution?.id,
           action: 'suspended',
-          fromStatus: ACTIVE_STATUS,
+          fromStatus,
           toStatus: SUSPENDED_STATUS,
           actorId: user.id,
           comment: dto.reason,
@@ -154,7 +191,7 @@ export class ExecutionService {
       entityId: permitId,
       userId: user.id,
       tenantId,
-      metadata: { executionId: execution.id, reason: dto.reason },
+      metadata: { executionId: execution?.id ?? null, reason: dto.reason, fromStatus },
     });
 
     await this.notificationService.enqueueExecutionNotification({
@@ -162,7 +199,7 @@ export class ExecutionService {
       tenantId,
       action: 'suspended',
       actorId: user.id,
-      metadata: { executionId: execution.id },
+      metadata: { executionId: execution?.id ?? null },
     });
 
     await this.permitCacheService.invalidatePermit(tenantId, permitId);
@@ -173,10 +210,86 @@ export class ExecutionService {
       permitId,
       tenantId,
       userId: user.id,
-      metadata: { executionId: execution.id, reason: dto.reason },
+      metadata: { executionId: execution?.id ?? null, reason: dto.reason },
     });
 
-    return { execution: { ...execution, suspendedAt, suspensionReason: dto.reason }, permit: { ...permit, status: SUSPENDED_STATUS } };
+    return {
+      execution: execution
+        ? { ...execution, suspendedAt, suspensionReason: dto.reason }
+        : null,
+      permit: { ...permit, status: SUSPENDED_STATUS },
+    };
+  }
+
+  async revalidateAfterSuspension(permitId: string, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const detail = await this.permitService.findOne(permitId, user);
+    const { permit } = detail;
+
+    if (permit.status !== SUSPENDED_STATUS) {
+      throw new ConflictException('Only suspended permits can be revalidated');
+    }
+
+    const [execution] = await this.db
+      .select()
+      .from(permitExecution)
+      .where(eq(permitExecution.permitId, permitId));
+
+    await this.db.transaction(async (tx) => {
+      if (execution) {
+        await tx
+          .update(permitExecution)
+          .set({
+            suspendedAt: null,
+            suspendedBy: null,
+            suspensionReason: null,
+            updatedBy: user.id,
+          })
+          .where(eq(permitExecution.id, execution.id));
+      }
+
+      await this.statusTransitionService.transition(
+        {
+          permitId,
+          tenantId,
+          executionId: execution?.id,
+          action: 'revalidated',
+          fromStatus: SUSPENDED_STATUS,
+          toStatus: 'pending_approval',
+          actorId: user.id,
+          comment: 'Revalidation after suspension — full approval required',
+        },
+        tx,
+      );
+
+      await this.workflowEngine.initializeAtSubmit(
+        permitId,
+        tenantId,
+        permit.permitTypeId,
+        user.id,
+        tx,
+      );
+    });
+
+    await this.auditService.log({
+      action: 'permit.revalidated_after_suspension',
+      entityType: 'permit',
+      entityId: permitId,
+      userId: user.id,
+      tenantId,
+    });
+
+    await this.permitCacheService.invalidatePermit(tenantId, permitId);
+    await this.executionCacheService.invalidatePermit(tenantId, permitId);
+
+    this.executionLogService.logEvent({
+      action: 'execution.revalidated',
+      permitId,
+      tenantId,
+      userId: user.id,
+    });
+
+    return this.permitService.findOne(permitId, user);
   }
 
   async resume(permitId: string, user: AuthenticatedUser) {
@@ -276,24 +389,29 @@ export class ExecutionService {
 
     const cached = await this.executionCacheService.getActiveList<
       Awaited<ReturnType<ExecutionService['loadActivePermits']>>
-    >(tenantId);
+    >(tenantId, user.id);
 
     if (cached) {
       return cached;
     }
 
-    const rows = await this.loadActivePermits(tenantId);
-    await this.executionCacheService.setActiveList(tenantId, rows);
+    const rows = await this.loadActivePermits(tenantId, user);
+    await this.executionCacheService.setActiveList(tenantId, user.id, rows);
     return rows;
   }
 
-  private async loadActivePermits(tenantId: string) {
+  private async loadActivePermits(tenantId: string, user: AuthenticatedUser) {
+    const visibility = await visiblePermitFilter(this.db, user, tenantId);
     return this.db
       .select()
       .from(permitExecution)
       .innerJoin(permits, eq(permitExecution.permitId, permits.id))
       .where(
-        and(eq(permits.tenantId, tenantId), eq(permits.status, ACTIVE_STATUS)),
+        and(
+          eq(permits.tenantId, tenantId),
+          eq(permits.status, ACTIVE_STATUS),
+          ...(visibility ? [visibility] : []),
+        ),
       );
   }
 
@@ -314,8 +432,133 @@ export class ExecutionService {
     return execution;
   }
 
+  async completeExecution(permitId: string, dto: CompleteExecutionDto, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const detail = await this.permitService.findOne(permitId, user);
+    if (detail.permit.status !== ACTIVE_STATUS) {
+      throw new ConflictException('Only active permits can be marked execution completed');
+    }
+
+    const checklist = dto.checklist;
+    if (
+      !checklist.workDescribedComplete ||
+      !checklist.procedureFollowed ||
+      !checklist.lototoDone ||
+      !checklist.gasTestingDone
+    ) {
+      throw new ConflictException('All execution completion checklist items must be completed');
+    }
+
+    if (
+      !isPrivilegedPermitViewer(user) &&
+      !(user.roles.includes('operator') && isPrimaryExecutor(detail, user.id))
+    ) {
+      throw new ForbiddenException('Only the primary executor can declare execution completed');
+    }
+
+    const [existing] = await this.db
+      .select({ id: permitExecutionCompletions.id })
+      .from(permitExecutionCompletions)
+      .where(eq(permitExecutionCompletions.permitId, permitId));
+    if (existing) {
+      await this.db.delete(permitExecutionCompletions).where(eq(permitExecutionCompletions.permitId, permitId));
+    }
+
+    await this.db.transaction(async (tx) => {
+      await tx.insert(permitExecutionCompletions).values({
+        permitId,
+        completedBy: user.id,
+        comment: dto.comment.trim(),
+        checklist: { ...dto.checklist },
+        createdBy: user.id,
+        updatedBy: user.id,
+      });
+      await this.statusTransitionService.transition(
+        {
+          permitId,
+          tenantId,
+          action: 'execution_completed',
+          fromStatus: ACTIVE_STATUS,
+          toStatus: 'execution_completed',
+          actorId: user.id,
+          comment: dto.comment.trim(),
+        },
+        tx,
+      );
+    });
+
+    await this.permitCacheService.invalidatePermit(tenantId, permitId);
+    await this.executionCacheService.invalidatePermit(tenantId, permitId);
+    return this.permitService.findOne(permitId, user);
+  }
+
+  async sendBackToExecutor(permitId: string, dto: SendBackDto, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const detail = await this.permitService.findOne(permitId, user);
+    if (detail.permit.status !== 'execution_completed') {
+      throw new ConflictException('Only execution-completed permits can be sent back to the executor');
+    }
+    if (
+      !isPrivilegedPermitViewer(user) &&
+      !(user.roles.includes('job-issuer') && isPermitIssuer(detail, user.id))
+    ) {
+      throw new ForbiddenException('Only the permit issuer can send this permit back to the executor');
+    }
+
+    await this.db.transaction(async (tx) => {
+      await tx.delete(permitExecutionCompletions).where(eq(permitExecutionCompletions.permitId, permitId));
+      await this.statusTransitionService.transition(
+        {
+          permitId,
+          tenantId,
+          action: 'sent_back',
+          fromStatus: 'execution_completed',
+          toStatus: ACTIVE_STATUS,
+          actorId: user.id,
+          comment: dto.comment.trim(),
+        },
+        tx,
+      );
+    });
+
+    await this.permitCacheService.invalidatePermit(tenantId, permitId);
+    await this.executionCacheService.invalidatePermit(tenantId, permitId);
+    return this.permitService.findOne(permitId, user);
+  }
+
+  async sendBackToIssuer(permitId: string, dto: SendBackDto, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const detail = await this.permitService.findOne(permitId, user);
+    if (detail.permit.status !== 'pending_closure') {
+      throw new ConflictException('Only pending-closure permits can be sent back to the issuer');
+    }
+    if (!isPrivilegedPermitViewer(user) && !user.roles.includes('hod')) {
+      throw new ForbiddenException('Only the HOD can send this permit back to the issuer');
+    }
+
+    await this.db.transaction(async (tx) => {
+      await tx.delete(permitVerifications).where(eq(permitVerifications.permitId, permitId));
+      await this.statusTransitionService.transition(
+        {
+          permitId,
+          tenantId,
+          action: 'sent_back',
+          fromStatus: 'pending_closure',
+          toStatus: 'execution_completed',
+          actorId: user.id,
+          comment: dto.comment.trim(),
+        },
+        tx,
+      );
+    });
+
+    await this.permitCacheService.invalidatePermit(tenantId, permitId);
+    await this.executionCacheService.invalidatePermit(tenantId, permitId);
+    return this.permitService.findOne(permitId, user);
+  }
+
   private async requireExecutor(permitId: string, user: AuthenticatedUser) {
-    if (user.roles.includes('platform-admin') || user.roles.includes('org-admin')) {
+    if (user.roles.includes('platform-admin') || isTenantPrivileged(user.roles)) {
       return;
     }
 

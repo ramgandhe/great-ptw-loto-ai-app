@@ -21,9 +21,9 @@ describe('Billing canon reconciliation (FR-BIL-002–005)', () => {
 
   const adminUser: AuthenticatedUser = {
     id: actorId,
-    username: 'org-admin',
+    username: 'tenant-owner',
     tenantId,
-    roles: ['org-admin'],
+    roles: ['tenant-owner'],
   };
 
   beforeAll(async () => {

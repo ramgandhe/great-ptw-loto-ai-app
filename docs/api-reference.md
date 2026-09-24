@@ -83,7 +83,7 @@ PTW permit/approval/execution/closure/SIMOPS routes remain under their existing 
 | GET | `/notifications` | Required | List current user's notifications (`unreadOnly` query optional) |
 | GET | `/notifications/{id}` | Required | View notification (recipient-scoped) |
 | PATCH | `/notifications/{id}/read` | Required | Mark notification as read |
-| POST | `/notifications/test` | Required | Test delivery (org-admin / platform-admin) |
+| POST | `/notifications/test` | Required | Test delivery (tenant-owner / platform-admin) |
 
 ## Dashboards & Analytics (MS-07 / SP-07.02)
 
@@ -102,10 +102,10 @@ PTW permit/approval/execution/closure/SIMOPS routes remain under their existing 
 | --- | --- | --- | --- |
 | GET | `/subscriptions/plans` | Required | List active subscription plans |
 | GET | `/subscriptions/current` | Required | Current tenant subscription + plan |
-| POST | `/subscriptions` | Required | Create tenant subscription (`planId`) — org-admin |
-| POST | `/subscriptions/change-plan` | Required | Change plan (`planId`, `reason?`) — org-admin |
+| POST | `/subscriptions` | Required | Create tenant subscription (`planId`) — tenant-owner |
+| POST | `/subscriptions/change-plan` | Required | Change plan (`planId`, `reason?`) — tenant-owner |
 | GET | `/subscriptions/plan-changes` | Required | Plan change history for tenant |
 | GET | `/billing/invoices` | Required | Billing history (`status` optional) |
 | GET | `/billing/usage` | Required | Usage records for tenant |
-| POST | `/billing/usage` | Required | Upsert usage metric — org-admin |
+| POST | `/billing/usage` | Required | Upsert usage metric — tenant-owner |
 

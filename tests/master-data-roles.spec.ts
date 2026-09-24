@@ -21,9 +21,9 @@ describe('Master data role enforcement (PUS-70)', () => {
       }),
     }) as never;
 
-  it('allows org-admin to modify master data', () => {
+  it('allows tenant-owner to modify master data', () => {
     mockRoleGuardReflector(getAllAndOverride, MASTER_DATA_WRITE_ROLES);
-    expect(guard.canActivate(buildContext({ roles: ['org-admin'] }))).toBe(true);
+    expect(guard.canActivate(buildContext({ roles: ['tenant-owner'] }))).toBe(true);
   });
 
   it('denies operator from modifying master data', () => {

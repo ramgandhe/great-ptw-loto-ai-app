@@ -22,13 +22,29 @@ export type SelectOption = {
 };
 
 export const ASSIGNABLE_ROLES: SelectOption[] = [
-  { value: "org-admin", label: "Organisation admin" },
+  { value: "tenant-owner", label: "Tenant Owner" },
+  { value: "tenant-admin", label: "Tenant Admin" },
   { value: "hod", label: "Head of Department" },
   { value: "job-issuer", label: "Job issuer" },
   { value: "operator", label: "Job executor" },
   { value: "safety-officer", label: "Safety officer" },
   { value: "viewer", label: "Viewer" },
 ];
+
+export function rolesAssignableBy(actorRoles: string[]): string[] {
+  if (actorRoles.includes("platform-admin")) {
+    return ASSIGNABLE_ROLES.map((option) => option.value);
+  }
+  if (actorRoles.includes("tenant-owner")) {
+    return ASSIGNABLE_ROLES.map((option) => option.value).filter((role) => role !== "tenant-owner");
+  }
+  if (actorRoles.includes("tenant-admin")) {
+    return ASSIGNABLE_ROLES.map((option) => option.value).filter(
+      (role) => role !== "tenant-owner" && role !== "tenant-admin",
+    );
+  }
+  return [];
+}
 
 export function formatOrgOptionLabel(item: { name: string; code?: string | null }): string {
   return item.code ? `${item.name} (${item.code})` : item.name;

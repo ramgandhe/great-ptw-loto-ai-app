@@ -59,7 +59,9 @@ export default function OrganisationProfilePage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Organisation profile</h1>
-          <p className="text-sm text-muted-foreground">Register and manage tenant organisation details.</p>
+          <p className="text-sm text-muted-foreground">
+            Tenant name is set when the organisation is invited. You can change it here.
+          </p>
         </div>
         <Link href="/organisation">
           <Button variant="outline">Back</Button>
@@ -83,6 +85,16 @@ export default function OrganisationProfilePage() {
         <p className="text-sm text-muted-foreground">Loading...</p>
       ) : (
         <form onSubmit={handleSave} className="grid max-w-xl gap-4 rounded-lg border border-border bg-card p-4">
+          {org?.ownerEmail ? (
+            <label className="grid gap-1.5 text-sm">
+              <span className="font-medium">Owner email</span>
+              <input
+                readOnly
+                value={org.ownerEmail}
+                className="h-9 rounded-lg border border-border bg-muted px-3 text-muted-foreground"
+              />
+            </label>
+          ) : null}
           {(["name", "legalName", "registrationNumber"] as const).map((key) => (
             <label key={key} className="grid gap-1.5 text-sm">
               <span className="font-medium capitalize">{key.replace(/([A-Z])/g, " $1")}{key === "name" ? " *" : ""}</span>

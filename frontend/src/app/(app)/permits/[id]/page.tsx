@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
-import { getPermit } from "@/lib/permit/api";
+import { deleteDraftPermit, getPermit } from "@/lib/permit/api";
 import { permitDetailToForm } from "@/lib/permit/form";
 import type { PermitDetail } from "@/lib/permit/types";
 import { isEditablePermitStatus } from "@/lib/permit/status";
@@ -12,11 +12,29 @@ import { PermitApprovalStatus } from "@/components/permit/permit-approval-status
 import { PermitSummary } from "@/components/permit/permit-summary";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
+import { useAuthProfile } from "@/lib/auth/auth-profile-context";
+import { hasAnyRole } from "@/lib/auth/rbac";
+import {
+  revalidatePermitAfterSuspension,
+  suspendPermit,
+} from "@/lib/execution/api";
+import { SuspensionDialog } from "@/components/execution/suspension-dialog";
+
+const DELETE_ROLES = ["tenant-owner", "tenant-admin"] as const;
+const SUSPEND_ROLES = ["tenant-owner", "tenant-admin", "hod", "safety-officer"] as const;
+const REVALIDATE_ROLES = ["tenant-owner", "tenant-admin", "hod", "job-issuer"] as const;
 
 export default function PermitDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const { roles } = useAuthProfile();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [suspendOpen, setSuspendOpen] = useState(false);
+  const [suspendReason, setSuspendReason] = useState("");
+  const [suspendError, setSuspendError] = useState<string | null>(null);
 
   useEffect(() => {
     getPermit(params.id)
@@ -40,6 +58,73 @@ export default function PermitDetailPage() {
   const canEdit = isEditablePermitStatus(detail.permit.status);
   const isResubmit =
     detail.permit.status === "deferred" || detail.permit.status === "rejected";
+  const canDelete =
+    detail.permit.status === "draft" && hasAnyRole(roles, DELETE_ROLES);
+  const canSuspend =
+    (detail.permit.status === "approved" || detail.permit.status === "active") &&
+    hasAnyRole(roles, SUSPEND_ROLES);
+  const canRevalidate =
+    detail.permit.status === "suspended" && hasAnyRole(roles, REVALIDATE_ROLES);
+
+  async function handleDelete() {
+    const confirmed = window.confirm(
+      "Permanently delete this draft permit? This cannot be undone.",
+    );
+    if (!confirmed) {
+      return;
+    }
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      await deleteDraftPermit(params.id);
+      router.push("/permits/drafts");
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Delete failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSuspend() {
+    if (!suspendReason.trim()) {
+      setSuspendError("A reason is required");
+      return;
+    }
+    setIsSubmitting(true);
+    setSuspendError(null);
+    try {
+      const result = await suspendPermit(params.id, suspendReason.trim());
+      setDetail((current) =>
+        current ? { ...current, permit: { ...current.permit, ...result.permit } } : current,
+      );
+      setSuspendOpen(false);
+      setSuspendReason("");
+    } catch (err) {
+      setSuspendError(err instanceof ApiError ? err.message : "Suspend failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleRevalidate() {
+    const confirmed = window.confirm(
+      "Revalidate this suspended permit? It will go through full approval again.",
+    );
+    if (!confirmed) {
+      return;
+    }
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      const updated = await revalidatePermitAfterSuspension(params.id);
+      setDetail(updated);
+      router.push(`/approvals/${params.id}`);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Revalidation failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-8">
@@ -62,6 +147,28 @@ export default function PermitDetailPage() {
               <Button>{isResubmit ? "Revise & resubmit" : "Edit draft"}</Button>
             </Link>
           ) : null}
+          {canDelete ? (
+            <Button variant="destructive" disabled={isSubmitting} onClick={() => void handleDelete()}>
+              Delete draft
+            </Button>
+          ) : null}
+          {canSuspend ? (
+            <Button
+              variant="destructive"
+              disabled={isSubmitting}
+              onClick={() => {
+                setSuspendError(null);
+                setSuspendOpen(true);
+              }}
+            >
+              Suspend permit
+            </Button>
+          ) : null}
+          {canRevalidate ? (
+            <Button disabled={isSubmitting} onClick={() => void handleRevalidate()}>
+              Revalidate after suspension
+            </Button>
+          ) : null}
           {["approved", "active", "suspended"].includes(detail.permit.status) ? (
             <>
               <Link href={`/execution/${detail.permit.id}`}>
@@ -79,6 +186,12 @@ export default function PermitDetailPage() {
           ) : null}
         </div>
       </div>
+
+      {actionError ? (
+        <p role="alert" className="text-sm text-destructive">
+          {actionError}
+        </p>
+      ) : null}
 
       <PermitSummary
         form={form}
@@ -102,6 +215,22 @@ export default function PermitDetailPage() {
           </ul>
         )}
       </section>
+
+      <SuspensionDialog
+        open={suspendOpen}
+        reason={suspendReason}
+        onReasonChange={setSuspendReason}
+        error={suspendError}
+        isSubmitting={isSubmitting}
+        onConfirm={() => void handleSuspend()}
+        onClose={() => {
+          if (!isSubmitting) {
+            setSuspendOpen(false);
+            setSuspendReason("");
+            setSuspendError(null);
+          }
+        }}
+      />
     </main>
   );
 }

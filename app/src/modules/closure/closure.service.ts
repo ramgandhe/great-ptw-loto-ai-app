@@ -17,7 +17,8 @@ import { AuditService } from '../logging/audit.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
 import { StatusTransitionService } from '../execution/status-transition.service';
-import { ACTIVE_STATUS, CLOSED_STATUS } from './closure.constants';
+import { isTenantPrivileged } from '../../common/constants/tenant-roles';
+import { CLOSED_STATUS, PENDING_CLOSURE_STATUS } from './closure.constants';
 import { ClosureCacheService } from './closure-cache.service';
 import { ClosureLogService } from './closure-log.service';
 import { ClosePermitDto } from './dto/close-permit.dto';
@@ -41,8 +42,21 @@ export class ClosureService {
     const detail = await this.permitService.findOne(permitId, user);
     const { permit } = detail;
 
-    if (permit.status !== ACTIVE_STATUS) {
-      throw new ConflictException('Only active permits can be closed');
+    if (permit.status !== PENDING_CLOSURE_STATUS) {
+      throw new ConflictException('Only pending-closure permits can be closed');
+    }
+
+    if (!isTenantPrivileged(user.roles) && !user.roles.includes('platform-admin') && !user.roles.includes('hod')) {
+      throw new ForbiddenException('Only the HOD can close this permit');
+    }
+
+    if (
+      !dto.checklist.workCompleted ||
+      !dto.checklist.evidenceReviewed ||
+      !dto.checklist.areaSecured ||
+      !dto.checklist.hazardsRemoved
+    ) {
+      throw new ConflictException('All closure checklist items must be completed');
     }
 
     const [verification] = await this.db
@@ -72,7 +86,8 @@ export class ClosureService {
           permitId,
           closedBy: user.id,
           actualEndAt,
-          comment: dto.comment ?? null,
+          comment: dto.comment.trim(),
+          checklist: { ...dto.checklist },
           createdBy: user.id,
         })
         .returning();
@@ -82,7 +97,7 @@ export class ClosureService {
           permitId,
           tenantId,
           action: 'closed',
-          fromStatus: ACTIVE_STATUS,
+          fromStatus: PENDING_CLOSURE_STATUS,
           toStatus: CLOSED_STATUS,
           actorId: user.id,
           comment: dto.comment,
@@ -166,6 +181,7 @@ export class ClosureService {
       closedAt: closure.closedAt.toISOString(),
       actualEndAt: closure.actualEndAt.toISOString(),
       comment: closure.comment,
+      checklist: closure.checklist,
     };
   }
 

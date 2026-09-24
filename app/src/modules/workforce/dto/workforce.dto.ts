@@ -1,17 +1,25 @@
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { TENANT_ASSIGNABLE_ROLES } from '../workforce.constants';
 
 export class CreateWorkforceDto {
   @IsString()
   @MinLength(1)
   name!: string;
 
-  @IsOptional()
-  @IsString()
-  email?: string;
+  @IsEmail()
+  email!: string;
 
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  gstin?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 
   @IsOptional()
   @IsString()
@@ -50,6 +58,29 @@ export class UpdateCompetencyDto extends CreateCompetencyDto {}
 
 export class AssignRoleDto {
   @IsString()
-  @MinLength(1)
+  @IsIn([...TENANT_ASSIGNABLE_ROLES])
   role!: string;
+}
+
+export class CreateTenantUserDto {
+  @IsString()
+  @MinLength(1)
+  name!: string;
+
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @IsIn([...TENANT_ASSIGNABLE_ROLES])
+  role!: string;
+
+  @IsOptional()
+  @IsString()
+  departmentId?: string;
+}
+
+export class UpdateTenantUserDto {
+  @IsOptional()
+  @IsString()
+  departmentId?: string;
 }

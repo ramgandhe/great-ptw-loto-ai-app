@@ -6,6 +6,7 @@ export type WorkforceRecord = {
   status?: string;
   departmentId?: string | null;
   role?: string | null;
+  executorKind?: "internal" | "contractor" | "agency";
 };
 
 export type CompetencyRecord = {

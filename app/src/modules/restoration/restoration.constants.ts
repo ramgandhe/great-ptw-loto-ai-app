@@ -1,14 +1,14 @@
 export const RESTORATION_ACTION_ROLES = [
   'operator',
   'hod',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
 export const RESTORATION_VERIFY_ROLES = [
   'safety-officer',
   'hod',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
@@ -16,7 +16,7 @@ export const RESTORATION_READ_ROLES = [
   'operator',
   'safety-officer',
   'hod',
-  'org-admin',
+  'tenant-owner', 'tenant-admin',
   'platform-admin',
   'job-issuer',
   'viewer',

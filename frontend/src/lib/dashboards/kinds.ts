@@ -4,16 +4,16 @@ import type { DashboardKind } from "@/lib/dashboards/types";
 const KIND_PRIORITY: DashboardKind[] = ["management", "safety", "hod", "personal"];
 
 const KIND_ROLE_ACCESS: Record<DashboardKind, readonly string[]> = {
-  management: ["org-admin", "platform-admin"],
-  safety: ["safety-officer", "org-admin", "platform-admin"],
-  hod: ["hod", "safety-officer", "org-admin", "platform-admin"],
+  management: ["tenant-owner", "tenant-admin", "platform-admin"],
+  safety: ["safety-officer", "tenant-owner", "tenant-admin", "platform-admin"],
+  hod: ["hod", "safety-officer", "tenant-owner", "tenant-admin", "platform-admin"],
   personal: [
     "operator",
     "job-issuer",
     "viewer",
     "hod",
     "safety-officer",
-    "org-admin",
+    "tenant-owner", "tenant-admin",
     "platform-admin",
   ],
 };
@@ -30,7 +30,10 @@ export function resolveDashboardKind(userRoles: string[]): DashboardKind {
 
 /** Kinds the user may view. Admins can switch between all kinds for full visibility. */
 export function getAllowedDashboardKinds(userRoles: string[]): DashboardKind[] {
-  const isAdmin = userRoles.includes("org-admin") || userRoles.includes("platform-admin");
+  const isAdmin =
+    userRoles.includes("tenant-owner") ||
+    userRoles.includes("tenant-admin") ||
+    userRoles.includes("platform-admin");
   if (isAdmin) {
     return KIND_PRIORITY.filter((kind) => hasAnyRole(userRoles, KIND_ROLE_ACCESS[kind]));
   }

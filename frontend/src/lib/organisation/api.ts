@@ -34,8 +34,13 @@ export const machineryApi = {
   ...crud<MachineryRecord>("/machinery"),
   list: () => fetchApi<MachineryRecord[]>("/machinery"),
 };
-export const approvalWorkflowsApi = crud<OrgRecord>("/approval-workflows");
+export const approvalWorkflowsApi = {
+  ...crud<OrgRecord>("/approval-workflows"),
+  activate: (id: string) =>
+    fetchApi<OrgRecord>(`/approval-workflows/${id}/activate`, { method: "POST" }),
+};
 export const permitTemplatesApi = crud<OrgRecord>("/permit-templates");
 export const safetyChecklistsApi = crud<OrgRecord>("/safety-checklists");
 export const ppeConfigurationsApi = crud<OrgRecord>("/ppe-configurations");
+export const hazardsApi = crud<OrgRecord>("/hazards");
 export const notificationPreferencesApi = crud<NotificationPreference>("/notification-preferences");
