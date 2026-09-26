@@ -7,8 +7,33 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api";
 import { startKeycloakLogin } from "@/lib/auth/keycloak";
-import { isAuthenticated } from "@/lib/auth/token-storage";
+import { getAccessToken, isAuthenticated } from "@/lib/auth/token-storage";
 import { platformTenantsApi, type PublicTenantInvite } from "@/lib/platform/api";
+
+function sessionMatchesInvite(ownerEmail: string): boolean {
+  const token = getAccessToken();
+  if (!token) {
+    return false;
+  }
+  const payload = token.split(".")[1];
+  if (!payload) {
+    return false;
+  }
+  try {
+    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as {
+      email?: string;
+      preferred_username?: string;
+      realm_access?: { roles?: string[] };
+    };
+    if (json.realm_access?.roles?.includes("platform-admin")) {
+      return false;
+    }
+    const signedIn = (json.email ?? json.preferred_username)?.trim().toLowerCase();
+    return Boolean(signedIn && signedIn === ownerEmail.toLowerCase());
+  } catch {
+    return false;
+  }
+}
 
 function JoinContent() {
   const router = useRouter();
@@ -34,7 +59,7 @@ function JoinContent() {
           return;
         }
         setInvite(nextInvite);
-        if (isAuthenticated()) {
+        if (isAuthenticated() && sessionMatchesInvite(nextInvite.ownerEmail)) {
           try {
             await platformTenantsApi.acceptInvite(token);
             if (!cancelled) {

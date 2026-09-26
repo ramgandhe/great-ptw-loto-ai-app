@@ -85,7 +85,11 @@ export class PlatformTenantsService {
     }
 
     const email = (user.email ?? user.username)?.trim().toLowerCase();
-    if (!email || email !== invite.ownerEmail.toLowerCase()) {
+    const invitedEmail = invite.ownerEmail.toLowerCase();
+    const isInvitedOwner =
+      Boolean(invite.keycloakUserId && user.id === invite.keycloakUserId) ||
+      Boolean(email && email === invitedEmail);
+    if (!isInvitedOwner) {
       throw new ForbiddenException('Sign in with the invited owner email to accept this invite');
     }
     if (user.tenantId && user.tenantId !== invite.tenantId) {
