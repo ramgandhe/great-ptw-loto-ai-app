@@ -26,7 +26,8 @@ describe('ExecutionCacheService (PUS-145)', () => {
     await service.invalidatePermit('tenant-1', 'permit-1');
 
     expect(del).toHaveBeenCalledWith('execution:detail:tenant-1:permit-1');
-    expect(del).toHaveBeenCalledWith('execution:active:tenant-1');
+    // Active lists are cached per user, so every user's list for the tenant is cleared.
+    expect(delByPattern).toHaveBeenCalledWith('execution:active:tenant-1*');
   });
 
   it('invalidates all execution cache keys for a tenant', async () => {

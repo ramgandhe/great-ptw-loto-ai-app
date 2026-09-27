@@ -31,11 +31,11 @@ export function storeAuthRedirect(path: string) {
 export function consumeAuthRedirect(): string {
   const path = sessionStorage.getItem(AUTH_REDIRECT_KEY);
   sessionStorage.removeItem(AUTH_REDIRECT_KEY);
-  return path && path.startsWith("/") ? path : "/";
+  return path && path.startsWith("/") ? path : "/dashboard";
 }
 
 export async function startKeycloakLogin(
-  redirectPath = "/",
+  redirectPath = "/dashboard",
   options?: { forceLogin?: boolean; loginHint?: string },
 ): Promise<void> {
   storeAuthRedirect(redirectPath);

@@ -31,6 +31,36 @@ export type PublicTenantInvite = {
   organisationName: string;
 };
 
+export const SITE_COUNT_OPTIONS = ["1", "2-5", "6-20", "20+"] as const;
+
+export type AccessRequestPayload = {
+  fullName: string;
+  workEmail: string;
+  phone?: string;
+  companyName: string;
+  jobTitle?: string;
+  siteCount?: (typeof SITE_COUNT_OPTIONS)[number];
+  message?: string;
+  consent: boolean;
+};
+
+export type AccessRequest = Omit<AccessRequestPayload, "consent"> & {
+  id: string;
+  status: string;
+  createdAt: string;
+  consentedAt: string;
+};
+
+export const accessRequestsApi = {
+  submit: (payload: AccessRequestPayload) =>
+    fetchApi<{ id: string; status: "received" }>("/access-requests", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      skipAuth: true,
+    }),
+  list: () => fetchApi<AccessRequest[]>("/platform/access-requests"),
+};
+
 export const platformTenantsApi = {
   list: () => fetchApi<PlatformTenant[]>("/platform/tenants"),
   create: (payload: {

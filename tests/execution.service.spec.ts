@@ -250,9 +250,9 @@ describe('ExecutionService integration (PUS-141)', () => {
     expect(history.some((entry) => entry.action === 'activated')).toBe(true);
   });
 
-  dbTest('rejects suspend when permit is not active', async () => {
+  dbTest('rejects suspend when permit is not approved or active', async () => {
     const { executorUser, createApprovedPermit } = testContext();
-    const permit = await createApprovedPermit();
+    const permit = await createApprovedPermit('draft');
 
     await expect(
       executionService.suspend(permit.id, { reason: 'Weather delay' }, executorUser),

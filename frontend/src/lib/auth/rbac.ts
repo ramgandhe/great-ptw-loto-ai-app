@@ -78,7 +78,7 @@ const ROUTE_RULES: RouteRule[] = [
   { test: (p) => p.startsWith("/simops"), roles: NAV_SIMOPS_ROLES },
   { test: (p) => p.startsWith("/notifications"), roles: NOTIFICATION_READ_ROLES },
   { test: (p) => p.startsWith("/closure"), roles: NAV_CLOSURE_ROLES },
-  { test: (p) => p === "/", roles: DASHBOARD_READ_ROLES },
+  { test: (p) => p === "/dashboard", roles: DASHBOARD_READ_ROLES },
 ];
 
 export function hasAnyRole(userRoles: string[], allowedRoles: readonly string[]): boolean {
@@ -105,7 +105,7 @@ export function getRequiredRolesForPath(pathname: string): readonly string[] | n
 /** First navigable route for this user (fallback when dashboard is denied). */
 export function getDefaultHomePath(userRoles: string[]): string {
   const candidates = [
-    "/",
+    "/dashboard",
     "/platform/tenants",
     "/permits",
     "/approvals",

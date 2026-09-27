@@ -27,7 +27,7 @@ export function RoleGate({ children }: { children: React.ReactNode }) {
     }
 
     if (!canAccessPath(pathname, roles)) {
-      if (pathname === "/") {
+      if (pathname === "/dashboard") {
         router.replace(getDefaultHomePath(roles));
         return;
       }

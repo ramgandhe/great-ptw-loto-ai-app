@@ -63,7 +63,7 @@ function JoinContent() {
           try {
             await platformTenantsApi.acceptInvite(token);
             if (!cancelled) {
-              router.replace("/");
+              router.replace("/dashboard");
             }
             return;
           } catch (err) {

@@ -49,7 +49,7 @@ export type AppNavItem = {
 };
 
 export const APP_NAV_ITEMS: AppNavItem[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: DASHBOARD_READ_ROLES },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: DASHBOARD_READ_ROLES },
   { href: "/platform/tenants", label: "Tenants", icon: Building2, roles: PLATFORM_ADMIN_ROLES },
   { href: "/analytics", label: "Analytics", icon: BarChart3, roles: DASHBOARD_ANALYTICS_ROLES },
   { href: "/organisation", label: "Organisation", icon: Building2, roles: NAV_ORGANISATION_ROLES },

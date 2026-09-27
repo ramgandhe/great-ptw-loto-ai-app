@@ -156,7 +156,7 @@ describe('Foundation HTTP integration (PUS-71)', () => {
 
     const empRes = await request(app.getHttpServer())
       .post('/api/v1/employees')
-      .send({ name: 'Alex Worker', email: 'alex@example.com', departmentId: deptRes.body.data.id })
+      .send({ name: 'Alex Worker', email: `alex+${tenantId.slice(0, 8)}@example.com`, departmentId: deptRes.body.data.id })
       .expect(201);
     expect(empRes.body.data.departmentId).toBe(deptRes.body.data.id);
 

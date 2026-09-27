@@ -3,11 +3,18 @@
 import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
 import { ApiError } from "@/lib/api";
-import { platformTenantsApi, type CreatedTenant, type PlatformTenant } from "@/lib/platform/api";
+import {
+  accessRequestsApi,
+  platformTenantsApi,
+  type AccessRequest,
+  type CreatedTenant,
+  type PlatformTenant,
+} from "@/lib/platform/api";
 import { Button } from "@/components/ui/button";
 
 export default function PlatformTenantsPage() {
   const [tenants, setTenants] = useState<PlatformTenant[]>([]);
+  const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [form, setForm] = useState({
     organisationName: "",
     ownerEmail: "",
@@ -28,8 +35,23 @@ export default function PlatformTenantsPage() {
   }
 
   useEffect(() => {
-    loadTenants().finally(() => setLoading(false));
+    const loadRequests = accessRequestsApi
+      .list()
+      .then(setRequests)
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load access requests"));
+    Promise.all([loadTenants(), loadRequests]).finally(() => setLoading(false));
   }, []);
+
+  function fillInviteFromRequest(request: AccessRequest) {
+    const [firstName, ...rest] = request.fullName.split(" ");
+    setForm({
+      organisationName: request.companyName,
+      ownerEmail: request.workEmail,
+      ownerFirstName: firstName ?? "",
+      ownerLastName: rest.join(" "),
+    });
+    document.getElementById("invite-form")?.scrollIntoView({ behavior: "smooth" });
+  }
 
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
@@ -141,7 +163,7 @@ export default function PlatformTenantsPage() {
         </div>
       ) : null}
 
-      <form onSubmit={handleCreate} className="grid max-w-xl gap-4 rounded-lg border border-border bg-card p-4">
+      <form id="invite-form" onSubmit={handleCreate} className="grid max-w-xl gap-4 rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-semibold">Invite organisation owner</h2>
         {(
           [
@@ -169,6 +191,54 @@ export default function PlatformTenantsPage() {
           {saving ? "Creating…" : "Invite tenant"}
         </Button>
       </form>
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold">Access requests</h2>
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : requests.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No access requests yet. Requests sent from the public Request access page appear here.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-border bg-muted/40">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Received</th>
+                  <th className="px-3 py-2 font-medium">Company</th>
+                  <th className="px-3 py-2 font-medium">Contact</th>
+                  <th className="px-3 py-2 font-medium">Sites</th>
+                  <th className="px-3 py-2 font-medium">Message</th>
+                  <th className="px-3 py-2 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map((request) => (
+                  <tr key={request.id} className="border-b border-border align-top last:border-0">
+                    <td className="whitespace-nowrap px-3 py-2">
+                      {new Date(request.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-3 py-2">{request.companyName}</td>
+                    <td className="px-3 py-2">
+                      <div>{request.fullName}{request.jobTitle ? `, ${request.jobTitle}` : ""}</div>
+                      <div className="text-muted-foreground">{request.workEmail}</div>
+                      {request.phone ? <div className="text-muted-foreground">{request.phone}</div> : null}
+                    </td>
+                    <td className="px-3 py-2">{request.siteCount ?? "—"}</td>
+                    <td className="max-w-xs px-3 py-2 text-muted-foreground">{request.message ?? "—"}</td>
+                    <td className="px-3 py-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => fillInviteFromRequest(request)}>
+                        Use for invite
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <section>
         <h2 className="mb-3 text-sm font-semibold">Organisations</h2>

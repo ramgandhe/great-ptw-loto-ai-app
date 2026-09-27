@@ -70,8 +70,6 @@ describe('PermitValidationService', () => {
       },
     ],
     attachments: [],
-    viewers: [],
-    safetyOfficers: [],
   });
 
   it('accepts a complete permit', () => {

@@ -65,7 +65,7 @@ export default function ReportsPage() {
             Request operational exports and review generation status.
           </p>
         </div>
-        <Link href="/">
+        <Link href="/dashboard">
           <Button type="button" variant="outline" size="sm">
             Back to dashboard
           </Button>

@@ -50,7 +50,7 @@ export default function AnalyticsPage() {
             Historical trends and live operational metrics by scope.
           </p>
         </div>
-        <Link href="/">
+        <Link href="/dashboard">
           <Button type="button" variant="outline" size="sm">
             Back to dashboard
           </Button>

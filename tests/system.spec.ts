@@ -75,9 +75,11 @@ describe('HealthService', () => {
 describe('AuthService', () => {
   it('maps authenticated user to profile', async () => {
     const { AuthService } = await import('../app/src/modules/auth/auth.service');
-    const authService = new AuthService();
+    // No stored profile row, so no avatar lookup is needed.
+    const db = { select: () => ({ from: () => ({ where: async () => [] }) }) };
+    const authService = new AuthService(db as never, {} as never);
 
-    const profile = authService.getProfile({
+    const profile = await authService.getProfile({
       id: 'user-1',
       username: 'admin',
       email: 'admin@ptw.local',

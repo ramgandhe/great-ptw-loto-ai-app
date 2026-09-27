@@ -149,8 +149,8 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
     return { permit, machinery };
   }
 
-  httpTest('creates LOTOTO plan linked to permit', async () => {
-    const { permit, machinery } = await seedPermitAndEquipment();
+  httpTest('creates LOTOTO plan for machinery', async () => {
+    const { machinery } = await seedPermitAndEquipment();
 
     const res = await request(app.getHttpServer())
       .post('/api/v1/lototo/plans')
@@ -189,7 +189,7 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
   });
 
   httpTest('configures isolation points, assignments, and sequence', async () => {
-    const { permit, machinery } = await seedPermitAndEquipment();
+    const { machinery } = await seedPermitAndEquipment();
 
     const planRes = await request(app.getHttpServer())
       .post('/api/v1/lototo/plans')
@@ -266,7 +266,7 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
   });
 
   httpTest('rejects duplicate isolation point number', async () => {
-    const { permit, machinery } = await seedPermitAndEquipment();
+    const { machinery } = await seedPermitAndEquipment();
 
     const planRes = await request(app.getHttpServer())
       .post('/api/v1/lototo/plans')

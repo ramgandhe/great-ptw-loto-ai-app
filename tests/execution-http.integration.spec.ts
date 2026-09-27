@@ -12,21 +12,21 @@ import { QueueService } from '../app/src/infrastructure/queue/queue.service';
 import * as schema from '../app/src/database/schema';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 
-function authGuardAs(user: AuthenticatedUser) {
+function authGuardAs(getUser: () => AuthenticatedUser) {
   return {
     canActivate: (context: ExecutionContext) => {
-      context.switchToHttp().getRequest().user = user;
+      context.switchToHttp().getRequest().user = getUser();
       return true;
     },
   };
 }
 
-async function createTestApp(user: AuthenticatedUser): Promise<INestApplication> {
+async function createTestApp(getUser: () => AuthenticatedUser): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
   })
     .overrideProvider(JwtAuthGuard)
-    .useValue(authGuardAs(user))
+    .useValue(authGuardAs(getUser))
     .overrideProvider(QueueService)
     .useValue({
       onModuleInit: jest.fn().mockResolvedValue(undefined),
@@ -69,6 +69,17 @@ describe('Execution HTTP integration (PUS-141 / PUS-142 / PUS-143)', () => {
     email: 'operator@example.com',
   };
 
+  // Suspension is restricted to HOD, safety officer and tenant owner/admin.
+  const hodUser: AuthenticatedUser = {
+    id: randomUUID(),
+    username: 'hod',
+    tenantId,
+    roles: ['hod'],
+    email: 'hod@example.com',
+  };
+
+  let actingUser = executorUser;
+
   beforeAll(async () => {
     pool = new Pool({ connectionString: testDatabaseUrl });
     try {
@@ -81,7 +92,7 @@ describe('Execution HTTP integration (PUS-141 / PUS-142 / PUS-143)', () => {
       return;
     }
 
-    app = await createTestApp(executorUser);
+    app = await createTestApp(() => actingUser);
   });
 
   afterAll(async () => {
@@ -98,6 +109,7 @@ describe('Execution HTTP integration (PUS-141 / PUS-142 / PUS-143)', () => {
       if (!canConnect) {
         return;
       }
+      actingUser = executorUser;
       await fn();
     });
   };
@@ -155,10 +167,12 @@ describe('Execution HTTP integration (PUS-141 / PUS-142 / PUS-143)', () => {
 
     expect(listProgressRes.body.data).toHaveLength(1);
 
+    actingUser = hodUser;
     const suspendRes = await request(app.getHttpServer())
       .post(`/api/v1/permits/${permitId}/suspend`)
       .send({ reason: 'Weather hold' })
       .expect(201);
+    actingUser = executorUser;
 
     expect(suspendRes.body.data.permit.status).toBe('suspended');
 

@@ -58,3 +58,27 @@ export const userProfiles = pgTable(
   },
   (table) => [uniqueIndex('user_profiles_user_id_unique').on(table.userId)],
 );
+
+export const ACCESS_REQUEST_STATUSES = ['new', 'invited', 'declined'] as const;
+export type AccessRequestStatus = (typeof ACCESS_REQUEST_STATUSES)[number];
+
+/** Public "Request access" submissions from the marketing site, reviewed by platform admins. */
+export const accessRequests = pgTable(
+  'access_requests',
+  {
+    ...auditColumns,
+    fullName: varchar('full_name', { length: 255 }).notNull(),
+    workEmail: varchar('work_email', { length: 255 }).notNull(),
+    phone: varchar('phone', { length: 32 }),
+    companyName: varchar('company_name', { length: 255 }).notNull(),
+    jobTitle: varchar('job_title', { length: 128 }),
+    siteCount: varchar('site_count', { length: 16 }),
+    message: text('message'),
+    status: varchar('status', { length: 32 }).notNull().default('new'),
+    consentedAt: timestamp('consented_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('access_requests_status_idx').on(table.status),
+    index('access_requests_work_email_idx').on(table.workEmail),
+  ],
+);
