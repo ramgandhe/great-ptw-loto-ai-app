@@ -8,6 +8,7 @@ import type { ArchivedPermitSummary, ArchiveSearchParams } from "@/lib/closure/t
 import { SearchFilters } from "@/components/closure/search-filters";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 export default function PermitArchivePage() {
   const [filters, setFilters] = useState<ArchiveSearchParams>({});
@@ -38,10 +39,10 @@ export default function PermitArchivePage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Permit archive</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Permit archive</h1>
           <p className="text-sm text-muted-foreground">
             Search closed permits and review historical records.
           </p>
@@ -79,8 +80,8 @@ export default function PermitArchivePage() {
                     <PermitStatusBadge status={item.permit.status} />
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {item.permit.reference ?? item.permit.id.slice(0, 8)} · Closed{" "}
-                    {new Date(item.closedAt).toLocaleString()}
+                    {item.permit.reference ?? "No reference"} · Closed{" "}
+                    {formatDateTime(item.closedAt)}
                   </p>
                 </div>
                 <Link href={`/closure/archive/${item.permit.id}`}>

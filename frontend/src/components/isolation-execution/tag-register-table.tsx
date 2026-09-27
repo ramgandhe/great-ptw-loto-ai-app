@@ -1,4 +1,5 @@
 import type { AppliedTag } from "@/lib/isolation-execution/types";
+import { formatDateTime } from "@/lib/format";
 
 type TagRegisterTableProps = {
   tags: AppliedTag[];
@@ -26,13 +27,13 @@ export function TagRegisterTable({ tags, pointLabels }: TagRegisterTableProps) {
           {tags.map((tag) => (
             <tr key={tag.id}>
               <td className="px-3 py-2">
-                {pointLabels[tag.isolationPointId] ?? tag.isolationPointId.slice(0, 8)}
+                {pointLabels[tag.isolationPointId] ?? "Unknown point"}
               </td>
               <td className="px-3 py-2">{tag.tagNumber}</td>
               <td className="px-3 py-2">{tag.tagType}</td>
               <td className="px-3 py-2 capitalize">{tag.status.replace(/_/g, " ")}</td>
               <td className="px-3 py-2 text-muted-foreground">
-                {new Date(tag.appliedAt).toLocaleString()}
+                {formatDateTime(tag.appliedAt)}
               </td>
             </tr>
           ))}

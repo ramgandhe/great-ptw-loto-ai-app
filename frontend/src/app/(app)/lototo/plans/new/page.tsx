@@ -87,7 +87,7 @@ function NewLototoPlanForm() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
         <Link href="/lototo" className="text-sm text-muted-foreground hover:text-foreground">
           ← Back to LOTOTO plans

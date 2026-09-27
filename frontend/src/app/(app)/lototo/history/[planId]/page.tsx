@@ -24,14 +24,14 @@ export default function LototoHistoryPage() {
   }, [params.planId]);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
         <Link href="/lototo/restoration" className="text-sm text-muted-foreground hover:text-foreground">
           ← Restoration
         </Link>
         <h1 className="mt-2 text-2xl font-semibold">LOTOTO history</h1>
         <p className="text-sm text-muted-foreground">
-          Append-only audit trail for plan {params.planId.slice(0, 8)}…
+          Append-only audit trail for this plan.
         </p>
       </div>
 

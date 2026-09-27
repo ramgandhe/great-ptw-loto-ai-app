@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Plus, X } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
+import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import {
   checklistsApi,
   type SafetyChecklistBundle,
@@ -20,10 +23,13 @@ const emptyForm = {
 export default function ChecklistsPage() {
   const [items, setItems] = useState<SafetyChecklistBundle[]>([]);
   const [form, setForm] = useState(emptyForm);
+  const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   function load() {
     return checklistsApi
@@ -38,26 +44,31 @@ export default function ChecklistsPage() {
     load().finally(() => setLoading(false));
   }, []);
 
-  function startEdit(bundle: SafetyChecklistBundle) {
-    setEditingId(bundle.checklist.id);
-    setForm({
-      name: bundle.checklist.name,
-      code: bundle.checklist.code,
-      description: bundle.checklist.description ?? "",
-      items:
-        bundle.items.length > 0
-          ? bundle.items.map((item) => ({
-              description: item.description,
-              isMandatory: item.isMandatory,
-            }))
-          : [{ description: "", isMandatory: true }],
-    });
+  function openForm(bundle?: SafetyChecklistBundle) {
+    setEditingId(bundle?.checklist.id ?? null);
+    setForm(
+      bundle
+        ? {
+            name: bundle.checklist.name,
+            code: bundle.checklist.code,
+            description: bundle.checklist.description ?? "",
+            items:
+              bundle.items.length > 0
+                ? bundle.items.map((item) => ({ description: item.description, isMandatory: item.isMandatory }))
+                : emptyForm.items,
+          }
+        : emptyForm,
+    );
     setError(null);
+    setSavedMessage(null);
+    setFormOpen(true);
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   }
 
   function resetForm() {
     setEditingId(null);
     setForm(emptyForm);
+    setFormOpen(false);
   }
 
   function setItem(index: number, patch: Partial<ItemDraft>) {
@@ -113,6 +124,7 @@ export default function ChecklistsPage() {
       } else {
         await checklistsApi.create(payload);
       }
+      setSavedMessage(`${editingId ? "Saved" : "Added"} ${payload.name}.`);
       resetForm();
       await load();
     } catch (err) {
@@ -123,8 +135,7 @@ export default function ChecklistsPage() {
   }
 
   async function handleArchive(id: string) {
-    const confirmed = window.confirm("Archive this checklist?");
-    if (!confirmed) {
+    if (!window.confirm("Archive this checklist?")) {
       return;
     }
     setError(null);
@@ -140,148 +151,186 @@ export default function ChecklistsPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Safety checklists</h1>
-        <p className="text-sm text-muted-foreground">
-          Configure reusable checklists and their items. Permits can attach published checklists.
+    <main className="flex flex-1 flex-col gap-5 p-4 sm:p-8">
+      <AdminPageHeader
+        title="Safety checklists"
+        description="Reusable checklists and their items. Permits can attach published checklists."
+        action={
+          !formOpen ? (
+            <Button type="button" size="lg" onClick={() => openForm()}>
+              <Plus aria-hidden />
+              Add checklist
+            </Button>
+          ) : null
+        }
+      />
+
+      {savedMessage ? (
+        <p role="status" className="text-sm font-medium text-(--status-success)">
+          {savedMessage}
         </p>
-      </div>
+      ) : null}
+
+      {formOpen ? (
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className="reveal-in grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2"
+        >
+          <h2 className="font-semibold sm:col-span-2">{editingId ? `Edit ${form.name || "checklist"}` : "New checklist"}</h2>
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-medium">Name</span>
+            <input
+              required
+              autoFocus
+              value={form.name}
+              className={FIELD_CLASS}
+              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-medium">Code</span>
+            <input
+              required
+              value={form.code}
+              className={`${FIELD_CLASS} font-mono`}
+              onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value }))}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm sm:col-span-2">
+            <span className="font-medium">
+              Description <span className="font-normal text-muted-foreground">(optional)</span>
+            </span>
+            <textarea
+              value={form.description}
+              rows={2}
+              className="rounded-lg border border-border bg-background px-3 py-2 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+            />
+          </label>
+
+          <fieldset className="grid gap-2 sm:col-span-2">
+            <legend className="mb-1.5 text-sm font-medium">Checklist items</legend>
+            {form.items.map((item, index) => (
+              <div key={index} className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
+                <input
+                  required
+                  value={item.description}
+                  aria-label={`Item ${index + 1}`}
+                  placeholder={`Item ${index + 1}`}
+                  className={`${FIELD_CLASS} text-sm`}
+                  onChange={(e) => setItem(index, { description: e.target.value })}
+                />
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={item.isMandatory}
+                    onChange={(e) => setItem(index, { isMandatory: e.target.checked })}
+                  />
+                  Mandatory
+                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Remove item ${index + 1}`}
+                  disabled={form.items.length === 1}
+                  onClick={() => removeItem(index)}
+                >
+                  <X aria-hidden />
+                </Button>
+              </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" className="justify-self-start" onClick={addItem}>
+              <Plus aria-hidden />
+              Add item
+            </Button>
+          </fieldset>
+
+          <div className="flex flex-wrap gap-2 sm:col-span-2">
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving…" : editingId ? "Save changes" : "Add checklist"}
+            </Button>
+            <Button type="button" variant="ghost" onClick={resetForm}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      ) : null}
 
       {error ? (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
+        <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       ) : null}
 
-      <form onSubmit={handleSubmit} className="grid max-w-2xl gap-4 rounded-lg border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold">{editingId ? "Edit checklist" : "Add checklist"}</h2>
-        <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Name *</span>
-          <input
-            required
-            value={form.name}
-            className="h-9 rounded-lg border border-border bg-background px-3"
-            onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-          />
-        </label>
-        <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Code *</span>
-          <input
-            required
-            value={form.code}
-            className="h-9 rounded-lg border border-border bg-background px-3"
-            onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value }))}
-          />
-        </label>
-        <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Description</span>
-          <textarea
-            value={form.description}
-            className="min-h-20 rounded-lg border border-border bg-background px-3 py-2"
-            onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-          />
-        </label>
-
-        <div className="grid gap-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Checklist items *</h3>
-            <Button type="button" variant="outline" size="sm" onClick={addItem}>
-              Add item
-            </Button>
-          </div>
-          {form.items.map((item, index) => (
-            <div key={index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-              <input
-                required
-                value={item.description}
-                placeholder={`Item ${index + 1}`}
-                className="h-9 rounded-lg border border-border bg-background px-3 text-sm"
-                onChange={(e) => setItem(index, { description: e.target.value })}
-              />
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={item.isMandatory}
-                  onChange={(e) => setItem(index, { isMandatory: e.target.checked })}
-                />
-                Mandatory
-              </label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={form.items.length === 1}
-                onClick={() => removeItem(index)}
-              >
-                Remove
-              </Button>
-            </div>
-          ))}
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : items.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border px-5 py-10 text-center">
+          <p className="font-medium">No safety checklists yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">Add the first checklist so it can be attached to permits.</p>
         </div>
-
-        <div className="flex gap-2">
-          <Button type="submit" disabled={saving}>
-            {saving ? "Saving…" : editingId ? "Save changes" : "Add checklist"}
-          </Button>
-          {editingId ? (
-            <Button type="button" variant="outline" onClick={resetForm}>
-              Cancel
-            </Button>
-          ) : null}
-        </div>
-      </form>
-
-      <section>
-        <h2 className="mb-3 text-sm font-semibold">Existing checklists</h2>
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No checklists yet.</p>
-        ) : (
-          <div className="grid gap-3">
-            {items.map((bundle) => (
-              <div key={bundle.checklist.id} className="rounded-lg border border-border p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{bundle.checklist.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {bundle.checklist.code}
-                      {bundle.checklist.status ? ` · ${bundle.checklist.status}` : ""}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => startEdit(bundle)}>
-                      Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void handleArchive(bundle.checklist.id)}
-                    >
-                      Archive
-                    </Button>
-                  </div>
-                </div>
-                <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm">
-                  {bundle.items.map((item) => (
-                    <li key={item.id}>
-                      {item.description}
-                      {item.isMandatory ? (
-                        <span className="ml-2 text-muted-foreground">(mandatory)</span>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <table className="min-w-full text-sm">
+            <thead className="text-left text-xs text-muted-foreground">
+              <tr className="border-b border-border">
+                <th className="px-4 py-2.5 font-medium">Name</th>
+                <th className="px-4 py-2.5 font-medium">Code</th>
+                <th className="px-4 py-2.5 font-medium">Items</th>
+                <th className="px-4 py-2.5 font-medium">Status</th>
+                <th className="px-4 py-2.5 text-right font-medium">
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((bundle) => {
+                const mandatory = bundle.items.filter((item) => item.isMandatory).length;
+                return (
+                  <tr
+                    key={bundle.checklist.id}
+                    className={`cursor-pointer border-t border-border first:border-t-0 hover:bg-muted/40 ${editingId === bundle.checklist.id ? "bg-muted/60" : ""}`}
+                    onClick={() => openForm(bundle)}
+                  >
+                    <td className="px-4 py-3">
+                      <span className="block font-medium">{bundle.checklist.name}</span>
+                      {bundle.items.length > 0 ? (
+                        <span className="block max-w-md truncate text-xs text-muted-foreground">
+                          {bundle.items.map((item) => item.description).join(", ")}
+                        </span>
                       ) : null}
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{bundle.checklist.code}</td>
+                    <td className="px-4 py-3 text-muted-foreground tabular-nums">
+                      {bundle.items.length}
+                      {mandatory ? ` (${mandatory} mandatory)` : ""}
+                    </td>
+                    <td className="px-4 py-3">
+                      <OrgStatusBadge status={bundle.checklist.status} />
+                    </td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end gap-3">
+                        <button type="button" className="text-primary hover:underline" onClick={() => openForm(bundle)}>
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-destructive hover:underline"
+                          onClick={() => void handleArchive(bundle.checklist.id)}
+                        >
+                          Archive
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </main>
   );
 }

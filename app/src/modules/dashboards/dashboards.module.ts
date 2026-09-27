@@ -3,6 +3,7 @@ import { StorageModule } from '../../infrastructure/storage/storage.module';
 import { LoggingModule } from '../logging/logging.module';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsService } from './analytics.service';
+import { InsightsService } from './insights.service';
 import { DashboardCacheService } from './dashboard-cache.service';
 import { DashboardController } from './dashboard.controller';
 import { DashboardJobsService } from './dashboard-jobs.service';
@@ -23,6 +24,7 @@ import { ReportingService } from './reporting.service';
     KpiService,
     ReportingService,
     AnalyticsService,
+    InsightsService,
   ],
   exports: [
     DashboardCacheService,

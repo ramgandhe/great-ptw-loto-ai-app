@@ -8,6 +8,7 @@ import { listPermits } from "@/lib/permit/api";
 import type { PermitRecord } from "@/lib/permit/types";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 export default function ActivePermitsPage() {
   const [permits, setPermits] = useState<PermitRecord[]>([]);
@@ -56,7 +57,7 @@ export default function ActivePermitsPage() {
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {permit.reference ?? "No reference"} · updated{" "}
-                  {new Date(permit.updatedAt).toLocaleString()}
+                  {formatDateTime(permit.updatedAt)}
                 </p>
               </div>
               <Link href={`/execution/${permit.id}`}>

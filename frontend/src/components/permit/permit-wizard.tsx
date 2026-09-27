@@ -19,6 +19,7 @@ import type { LototoPlan } from "@/lib/lototo/types";
 import { gasTestingApi, type GasTestingRecord } from "@/lib/master-data/api";
 import {
   createPermit,
+  getPermit,
   removePermitAttachment,
   savePermitDraft,
   submitPermit,
@@ -48,6 +49,10 @@ import {
 } from "@/lib/workforce/api";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { ensureEndAfterStart } from "@/lib/datetime";
+import { Copy } from "lucide-react";
+import { formatRelative } from "@/lib/format";
+import { useWorkQueue } from "@/lib/work-queue-context";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { FileUploadField } from "@/components/ui/file-upload-field";
 import { DraftBanner } from "./draft-banner";
@@ -132,8 +137,35 @@ type PermitWizardProps = {
   initialDetail?: PermitDetail;
 };
 
+/** Local "YYYY-MM-DDTHH:mm" for form fields. */
+function localInput(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** One-tap schedules for the common cases, instead of picking four date and time values. */
+function schedulePresets(now = new Date()): { label: string; start: string; end: string }[] {
+  const soon = new Date(now);
+  soon.setMinutes(soon.getMinutes() < 30 ? 30 : 60, 0, 0);
+  const soonEnd = new Date(soon.getTime() + 8 * 3_600_000);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(8, 0, 0, 0);
+  const tomorrowEnd = new Date(tomorrow);
+  tomorrowEnd.setHours(16, 0, 0, 0);
+  const weekEnd = new Date(tomorrowEnd);
+  weekEnd.setDate(weekEnd.getDate() + 4);
+  return [
+    { label: "Today, next 8 hours", start: localInput(soon), end: localInput(soonEnd) },
+    { label: "Tomorrow, 08:00 to 16:00", start: localInput(tomorrow), end: localInput(tomorrowEnd) },
+    { label: "5 days from tomorrow", start: localInput(tomorrow), end: localInput(weekEnd) },
+  ];
+}
+
 export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const router = useRouter();
+  const { permits: visiblePermits } = useWorkQueue();
+  const [copiedFrom, setCopiedFrom] = useState<string | null>(null);
   const [permitId, setPermitId] = useState<string | undefined>(
     initialDetail?.permit.id,
   );
@@ -363,6 +395,28 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     return permitId;
   }, [authRoles, form, permitId, router, userRoles]);
 
+  const recentPermits = [...visiblePermits]
+    // Drafts, cancelled and rejected permits make poor templates.
+    .filter((p) => !["draft", "cancelled", "rejected", "deferred"].includes(p.status))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 4);
+
+  /** Prefill from an earlier permit so repeat work isn't typed again; dates are left for the new job. */
+  const startFrom = async (sourceId: string) => {
+    setIsSaving(true);
+    setApiError(null);
+    try {
+      const source = await getPermit(sourceId);
+      const copy = permitDetailToForm(source);
+      setForm({ ...copy, plannedStartAt: "", plannedEndAt: "", currentStep: 0 });
+      setCopiedFrom(source.permit.reference ?? source.permit.title);
+    } catch (error) {
+      setApiError(error instanceof ApiError ? error.message : "That permit could not be copied. Fill in the form instead.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSaveDraft = async () => {
     setIsSaving(true);
     setApiError(null);
@@ -483,14 +537,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const isOperatorPhase = stepOwner === "operator";
   const isIssuerPhase = stepOwner === "job-issuer";
   const fieldDisabled = isReadOnly || !canEditStep;
-  const selectedPermitType = permitTypes.find(
-    (type) => type.id === form.permitTypeId,
-  );
 
   return (
-    <div className="flex flex-col gap-6 p-8">
+    <div className="flex flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">
+        <h1 className="font-heading text-3xl font-bold tracking-tight">
           {mode === "create"
             ? "Create permit"
             : isResubmit
@@ -532,42 +583,78 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         </div>
       ) : null}
 
+      {mode === "create" && !permitId && step === 0 && recentPermits.length > 0 && !fieldDisabled ? (
+        <section aria-labelledby="start-from" className="rounded-xl border border-border bg-card p-4">
+          <h2 id="start-from" className="text-sm font-semibold">
+            Repeat work? Start from a recent permit
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Copies the type, scope, place, crew and safety controls. You only set the new dates.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {recentPermits.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                disabled={isSaving}
+                onClick={() => void startFrom(p.id)}
+                className="flex max-w-full items-center gap-2 rounded-lg border border-border px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
+              >
+                <Copy className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="truncate">{p.title}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{formatRelative(p.createdAt)}</span>
+              </button>
+            ))}
+          </div>
+          {copiedFrom ? (
+            <p role="status" className="mt-3 text-sm font-medium text-(--status-success)">
+              Copied from {copiedFrom}. Check the title and scope, then continue.
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
       {step === 0 ? (
         <section className="grid gap-4 md:grid-cols-2">
-          <FormField
-            label="Permit type"
-            htmlFor="permitTypeId"
-            hint={
-              masterDataLoading
-                ? "Loading permit types…"
-                : permitTypes.length === 0
-                  ? "No permit types found. Run npm run db:seed or create one in Organisation."
-                  : undefined
-            }
-          >
-            <div className="flex items-center gap-2">
-              {selectedPermitType?.color ? (
-                <span
-                  className="h-9 w-9 shrink-0 rounded-md border border-border"
-                  style={{ backgroundColor: selectedPermitType.color }}
-                  title={selectedPermitType.color}
-                  aria-hidden
-                />
-              ) : null}
-              <div className="min-w-0 flex-1">
-                <MasterDataSelect
-                  id="permitTypeId"
-                  value={form.permitTypeId}
-                  options={permitTypes}
-                  disabled={fieldDisabled || masterDataLoading}
-                  placeholder="Select permit type"
-                  onChange={(permitTypeId) =>
-                    setForm({ ...form, permitTypeId })
-                  }
-                />
+          <div className="grid gap-2 md:col-span-2">
+            <p id="permit-type-label" className="text-sm font-medium">
+              Permit type
+            </p>
+            {masterDataLoading ? (
+              <p className="text-sm text-muted-foreground">Loading permit types…</p>
+            ) : permitTypes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No permit types yet. An administrator adds them under Organisation, Permit types.
+              </p>
+            ) : (
+              <div role="radiogroup" aria-labelledby="permit-type-label" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                {permitTypes.map((type) => {
+                  const selected = form.permitTypeId === type.id;
+                  return (
+                    <button
+                      key={type.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      disabled={fieldDisabled}
+                      onClick={() => setForm({ ...form, permitTypeId: type.id })}
+                      className={cn(
+                        "flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors disabled:opacity-60",
+                        selected ? "border-foreground bg-foreground/5 font-semibold" : "border-border bg-card hover:bg-muted",
+                      )}
+                    >
+                      <span
+                        aria-hidden
+                        className="size-3 shrink-0 rounded-full bg-border"
+                        style={type.color ? { backgroundColor: type.color } : undefined}
+                      />
+                      {type.name}
+                    </button>
+                  );
+                })}
               </div>
-            </div>
-          </FormField>
+            )}
+          </div>
           <FormField label="Title" htmlFor="title">
             <input
               id="title"
@@ -711,6 +798,21 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               onChange={(plannedEndAt) => setForm({ ...form, plannedEndAt })}
             />
           </FormField>
+          {!fieldDisabled ? (
+            <div className="flex flex-wrap items-center gap-2 md:col-span-2">
+              <span className="text-sm text-muted-foreground">Quick schedule:</span>
+              {schedulePresets().map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => setForm((current) => ({ ...current, plannedStartAt: preset.start, plannedEndAt: preset.end }))}
+                  className="rounded-full border border-border px-3 py-1 text-sm hover:bg-muted"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </section>
       ) : null}
 

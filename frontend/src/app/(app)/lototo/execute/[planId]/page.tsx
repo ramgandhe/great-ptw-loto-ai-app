@@ -21,6 +21,7 @@ import { LockRegisterTable } from "@/components/isolation-execution/lock-registe
 import { TagRegisterTable } from "@/components/isolation-execution/tag-register-table";
 import { EvidenceUpload } from "@/components/execution/evidence-upload";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 export default function IsolationExecutionPage() {
   const params = useParams<{ planId: string }>();
@@ -224,11 +225,11 @@ export default function IsolationExecutionPage() {
 
   if (!detail) {
     return (
-      <main className="flex flex-1 flex-col gap-6 p-8">
+      <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
         <Link href="/lototo/active" className="text-sm text-muted-foreground hover:text-foreground">
           ← Active LOTOTO
         </Link>
-        <h1 className="text-2xl font-semibold">Isolation execution</h1>
+        <h1 className="font-heading text-3xl font-bold tracking-tight">Isolation execution</h1>
         <p className="text-sm text-muted-foreground">
           No isolation execution has been started for this plan.
         </p>
@@ -250,13 +251,13 @@ export default function IsolationExecutionPage() {
     execution.status === "in_progress" || execution.status === "isolated";
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
         <Link href="/lototo/active" className="text-sm text-muted-foreground hover:text-foreground">
           ← Active LOTOTO
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold">
+          <h1 className="font-heading text-3xl font-bold tracking-tight">
             {detail.plan?.title ?? "Isolation execution"}
           </h1>
           <ExecutionStatusBadge status={execution.status} />
@@ -443,7 +444,7 @@ export default function IsolationExecutionPage() {
           <ul className="mt-4 space-y-2 text-sm">
             {detail.evidence.map((item) => (
               <li key={item.id}>
-                {item.fileName} · {new Date(item.capturedAt).toLocaleString()}
+                {item.fileName} · {formatDateTime(item.capturedAt)}
               </li>
             ))}
           </ul>

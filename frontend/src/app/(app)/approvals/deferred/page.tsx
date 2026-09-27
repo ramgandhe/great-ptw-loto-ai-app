@@ -7,6 +7,7 @@ import { listPermits } from "@/lib/permit/api";
 import type { PermitRecord } from "@/lib/permit/types";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 export default function DeferredPermitsPage() {
   const [permits, setPermits] = useState<PermitRecord[]>([]);
@@ -25,10 +26,10 @@ export default function DeferredPermitsPage() {
   }, []);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Deferred permits</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Deferred permits</h1>
           <p className="text-sm text-muted-foreground">
             Permits returned for clarification before approval can continue.
           </p>
@@ -72,7 +73,7 @@ export default function DeferredPermitsPage() {
                     <PermitStatusBadge status={permit.status} />
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {new Date(permit.updatedAt).toLocaleString()}
+                    {formatDateTime(permit.updatedAt)}
                   </td>
                   <td className="px-4 py-3">
                     <Link href={`/permits/${permit.id}`} className="text-primary hover:underline">

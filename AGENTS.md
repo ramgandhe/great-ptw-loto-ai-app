@@ -138,6 +138,27 @@ Discard:
 
 Always retain enough information to make correct implementation decisions.
 
+---
+
+## 6. Agent tooling
+
+The modes above are enforced by tools installed per developer (user scope, not in this repo).
+Install them once, then restart Claude Code.
+
+| Mode | Tool | Install | Use |
+|---|---|---|---|
+| Caveman | `caveman-distillate` skill ([ssv445/claude-skills](https://github.com/ssv445/claude-skills)) | `npx skills add ssv445/claude-skills --skill caveman-distillate` | `/caveman-distillate` for terse replies. Never shortens code, errors or commit messages. |
+| Ponytail | `ponytail` plugin ([DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)) | `/plugin marketplace add DietrichGebert/ponytail` then `/plugin install ponytail@ponytail` | Always on via SessionStart hook. `/ponytail-review` or `/ponytail-audit` to check a diff for unneeded code. |
+| RTK | `rtk` CLI ([rtk-ai/rtk](https://github.com/rtk-ai/rtk)) | Release binary to `~/.local/bin/rtk`, then `rtk init -g` | Bash commands (`git`, `npm`, `jest`, `docker`) are rewritten to compact output automatically. `rtk gain` shows savings. Built-in Read/Grep are not filtered. |
+| Context Mode | `context-mode` plugin ([mksglu/context-mode](https://github.com/mksglu/context-mode)) | `/plugin marketplace add mksglu/context-mode` then `/plugin install context-mode@context-mode` | Use `ctx_execute` / `ctx_batch_execute` for output you will filter or count (logs, test runs, JSON, `docker compose logs`); plain Bash for short output and state changes. `/ctx-stats` shows savings. |
+
+Rules:
+
+- Install `ponytail` only from `DietrichGebert/ponytail`. Similar names found online (for example `dietrichayala/ponytail`) are not the real repository.
+- RTK and Context Mode both compress output. If a result looks truncated twice, rerun the command with plain Bash or `rtk proxy <cmd>` for raw output.
+- Never let compression hide failures: test failures, type errors and stack traces must be read in full before acting.
+- Context Mode may create a routing `CLAUDE.md` block in the project root on first run; keep the project instructions above it intact and do not commit tool-generated noise.
+
 # Technology Stack
 
 This project follows a fixed technology stack. Unless explicitly instructed otherwise, use the technologies listed below and do not introduce alternative frameworks or libraries.

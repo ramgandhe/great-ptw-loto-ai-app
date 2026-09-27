@@ -38,11 +38,11 @@ export default function PermitPreviewPage() {
   const isDraft = detail.permit.status === "draft";
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="mb-2 flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">Permit preview</h1>
+            <h1 className="font-heading text-3xl font-bold tracking-tight">Permit preview</h1>
             <PermitStatusBadge status={detail.permit.status} />
           </div>
           <p className="text-sm text-muted-foreground">{detail.permit.title}</p>

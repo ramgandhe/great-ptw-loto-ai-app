@@ -1,4 +1,5 @@
 import type { AuditLogEntry } from "@/lib/closure/types";
+import { formatDateTime } from "@/lib/format";
 
 export function AuditTimeline({ entries }: { entries: AuditLogEntry[] }) {
   if (entries.length === 0) {
@@ -15,7 +16,7 @@ export function AuditTimeline({ entries }: { entries: AuditLogEntry[] }) {
         <li key={entry.id} className="rounded-lg border border-border px-3 py-2 text-sm">
           <p className="font-medium">{entry.action}</p>
           <p className="text-xs text-muted-foreground">
-            {entry.entityType} · {new Date(entry.createdAt).toLocaleString()}
+            {entry.entityType} · {formatDateTime(entry.createdAt)}
           </p>
         </li>
       ))}

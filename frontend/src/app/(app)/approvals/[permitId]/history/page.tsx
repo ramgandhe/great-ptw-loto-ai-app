@@ -8,6 +8,7 @@ import { getApprovalHistory, getApprovalReview } from "@/lib/approval/api";
 import type { ApprovalHistoryEntry } from "@/lib/approval/types";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 export default function ApprovalHistoryPage() {
   const params = useParams<{ permitId: string }>();
@@ -34,11 +35,11 @@ export default function ApprovalHistoryPage() {
   }, [params.permitId]);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="mb-2 flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">Approval history</h1>
+            <h1 className="font-heading text-3xl font-bold tracking-tight">Approval history</h1>
             {status ? <PermitStatusBadge status={status} /> : null}
           </div>
           <p className="text-sm text-muted-foreground">{title}</p>
@@ -68,7 +69,7 @@ export default function ApprovalHistoryPage() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium capitalize">{entry.action.replace(/_/g, " ")}</span>
                 <time className="text-xs text-muted-foreground">
-                  {new Date(entry.createdAt).toLocaleString()}
+                  {formatDateTime(entry.createdAt)}
                 </time>
               </div>
               {entry.fromStatus || entry.toStatus ? (

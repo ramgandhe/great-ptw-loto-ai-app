@@ -1,4 +1,5 @@
 import type { PermitExecution } from "@/lib/execution/types";
+import { formatDateTime } from "@/lib/format";
 
 type StatusEvent = {
   id: string;
@@ -53,7 +54,7 @@ export function StatusTimeline({ execution }: { execution: PermitExecution | nul
         <li key={event.id} className="mb-4 last:mb-0">
           <span className="absolute -left-1.5 mt-1.5 size-3 rounded-full border border-border bg-background" />
           <p className="text-sm font-medium">{event.label}</p>
-          <p className="text-xs text-muted-foreground">{new Date(event.at).toLocaleString()}</p>
+          <p className="text-xs text-muted-foreground">{formatDateTime(event.at)}</p>
           {event.detail ? (
             <p className="mt-1 text-sm text-muted-foreground">{event.detail}</p>
           ) : null}

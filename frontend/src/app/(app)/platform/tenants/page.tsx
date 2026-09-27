@@ -121,11 +121,11 @@ export default function PlatformTenantsPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-8 p-8">
+    <main className="flex flex-1 flex-col gap-8 p-4 sm:p-8">
       <div className="flex items-center gap-3">
         <Building2 className="size-6" aria-hidden />
         <div>
-          <h1 className="text-2xl font-semibold">Tenants</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Tenants</h1>
           <p className="text-sm text-muted-foreground">
             Invite an organisation owner. They receive a Keycloak login with the organisation-admin
             role and must change the temporary password on first sign-in.

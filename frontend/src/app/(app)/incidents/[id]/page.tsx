@@ -20,6 +20,7 @@ import { IncidentClosureWorkflow } from "@/components/incidents/incident-closure
 import { IncidentStatusBadge } from "@/components/incidents/incident-status-badge";
 import { InvestigationWorkflow } from "@/components/incidents/investigation-workflow";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 export default function IncidentDetailPage() {
   const params = useParams<{ id: string }>();
@@ -100,11 +101,11 @@ export default function IncidentDetailPage() {
     incident.status !== "closed";
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="mb-2 flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">{incident.title}</h1>
+            <h1 className="font-heading text-3xl font-bold tracking-tight">{incident.title}</h1>
             <IncidentStatusBadge status={incident.status} />
           </div>
           <p className="text-sm text-muted-foreground">
@@ -119,9 +120,31 @@ export default function IncidentDetailPage() {
       <section className="rounded-lg border border-border p-4 text-sm">
         <p>{incident.description}</p>
         <p className="mt-2 text-muted-foreground">
-          Occurred {new Date(incident.occurredAt).toLocaleString()}
+          Occurred {formatDateTime(incident.occurredAt)}
           {incident.locationDescription ? ` · ${incident.locationDescription}` : ""}
         </p>
+        {detail.permits.length > 0 || detail.equipment.length > 0 ? (
+          <dl className="mt-3 grid gap-2 border-t border-border pt-3 sm:grid-cols-2">
+            {detail.permits.length > 0 ? (
+              <div>
+                <dt className="text-xs text-muted-foreground">Related permits</dt>
+                <dd className="mt-0.5 flex flex-wrap gap-x-3">
+                  {detail.permits.map((link) => (
+                    <Link key={link.permitId} href={`/permits/${link.permitId}`} className="font-medium text-primary hover:underline">
+                      {link.permit.reference ?? link.permit.title}
+                    </Link>
+                  ))}
+                </dd>
+              </div>
+            ) : null}
+            {detail.equipment.length > 0 ? (
+              <div>
+                <dt className="text-xs text-muted-foreground">Equipment</dt>
+                <dd className="mt-0.5 font-medium">{detail.equipment.map((e) => e.machinery.name).join(", ")}</dd>
+              </div>
+            ) : null}
+          </dl>
+        ) : null}
       </section>
 
       {incident.status === "draft" ? (
@@ -163,7 +186,7 @@ export default function IncidentDetailPage() {
           <ul className="space-y-2 text-sm">
             {history.map((entry) => (
               <li key={entry.id}>
-                {entry.eventType.replace(/_/g, " ")} · {new Date(entry.createdAt).toLocaleString()}
+                {entry.eventType.replace(/_/g, " ")} · {formatDateTime(entry.createdAt)}
               </li>
             ))}
           </ul>

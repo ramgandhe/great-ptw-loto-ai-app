@@ -156,11 +156,11 @@ export default function BillingPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-8 p-8">
+    <main className="flex flex-1 flex-col gap-8 p-4 sm:p-8">
       <div className="flex items-center gap-3">
         <CreditCard className="size-6" aria-hidden />
         <div>
-          <h1 className="text-2xl font-semibold">Billing & subscription</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Billing & subscription</h1>
           <p className="text-sm text-muted-foreground">
             Manage tenant plans, usage and invoice history.
           </p>

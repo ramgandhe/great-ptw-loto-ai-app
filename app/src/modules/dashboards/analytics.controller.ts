@@ -3,12 +3,22 @@ import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { AnalyticsService } from './analytics.service';
+import { InsightsService } from './insights.service';
 import { DASHBOARD_ANALYTICS_ROLES } from './dashboards.constants';
-import { AnalyticsQueryDto, AnalyticsTrendsQueryDto } from './dto/dashboard.dto';
+import { AnalyticsQueryDto, AnalyticsTrendsQueryDto, InsightsQueryDto } from './dto/dashboard.dto';
 
 @Controller('analytics')
 export class AnalyticsController {
-  constructor(private readonly analyticsService: AnalyticsService) {}
+  constructor(
+    private readonly analyticsService: AnalyticsService,
+    private readonly insightsService: InsightsService,
+  ) {}
+
+  @Roles(...DASHBOARD_ANALYTICS_ROLES)
+  @Get('insights')
+  getInsights(@Query() query: InsightsQueryDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.insightsService.getInsights(user, query.days ?? 30);
+  }
 
   @Roles(...DASHBOARD_ANALYTICS_ROLES)
   @Get()

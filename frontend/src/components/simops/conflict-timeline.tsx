@@ -1,8 +1,10 @@
+import Link from "next/link";
 import type { ConflictParticipant } from "@/lib/simops/types";
+import { formatDateTime } from "@/lib/format";
 
 function formatDate(value: string | null) {
   if (!value) return "Not scheduled";
-  return new Date(value).toLocaleString();
+  return formatDateTime(value);
 }
 
 export function ConflictTimeline({ participants }: { participants: ConflictParticipant[] }) {
@@ -10,9 +12,11 @@ export function ConflictTimeline({ participants }: { participants: ConflictParti
     <div className="space-y-3">
       {participants.map((participant) => (
         <div key={participant.id} className="rounded-lg border border-border p-4">
-          <p className="font-medium">{participant.permit.title}</p>
+          <Link href={`/permits/${participant.permit.id}`} className="font-medium text-primary hover:underline">
+            {participant.permit.title}
+          </Link>
           <p className="text-xs text-muted-foreground">
-            {participant.permit.reference ?? participant.permit.id.slice(0, 8)} ·{" "}
+            {participant.permit.reference ?? participant.permit.title} ·{" "}
             {participant.permit.status.replace(/_/g, " ")}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">

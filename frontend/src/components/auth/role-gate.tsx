@@ -70,7 +70,7 @@ export function UnauthorizedMessage({ from }: { from?: string | null }) {
   const required = from ? getRequiredRolesForPath(from) : null;
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-4 p-8">
+    <div className="mx-auto flex max-w-lg flex-col gap-4 p-4 sm:p-8">
       <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold">Access denied</h1>
       <p className="text-sm text-muted-foreground">
         Your account does not have permission to open this screen. Access is determined by the

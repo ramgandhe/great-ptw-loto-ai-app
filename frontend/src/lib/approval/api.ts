@@ -34,6 +34,14 @@ export function deferPermit(permitId: string, comment: string) {
   });
 }
 
+/** Safety officer stops a permit; the reason is required and the issuer is notified. */
+export function safetyVetoPermit(permitId: string, comment: string) {
+  return fetchApi<unknown>(`/approvals/${permitId}/safety-veto`, {
+    method: "POST",
+    body: JSON.stringify({ comment }),
+  });
+}
+
 export function getApprovalHistory(permitId: string) {
   return fetchApi<ApprovalHistoryEntry[]>(`/approvals/${permitId}/history`);
 }

@@ -9,6 +9,7 @@ import type { ConflictDetail } from "@/lib/simops/types";
 import { ConflictSeverityBadge } from "@/components/simops/conflict-severity-badge";
 import { ConflictTimeline } from "@/components/simops/conflict-timeline";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 export default function SimopsHistoryDetailPage() {
   const params = useParams<{ id: string }>();
@@ -28,10 +29,10 @@ export default function SimopsHistoryDetailPage() {
   }, [params.id]);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Conflict history record</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Conflict history record</h1>
           <p className="text-sm text-muted-foreground">Immutable resolution record for audit.</p>
         </div>
         <Link href="/simops/history">
@@ -88,7 +89,7 @@ export default function SimopsHistoryDetailPage() {
             <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
               {detail.history.map((entry) => (
                 <li key={entry.id}>
-                  {entry.action.replace(/_/g, " ")} · {new Date(entry.createdAt).toLocaleString()}
+                  {entry.action.replace(/_/g, " ")} · {formatDateTime(entry.createdAt)}
                 </li>
               ))}
             </ul>

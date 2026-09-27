@@ -1,168 +1,81 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Activity,
-  BarChart3,
-  CheckSquare,
-  ClipboardList,
-  FileText,
-  Lock,
-  LockKeyhole,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { ApiError } from "@/lib/api";
+import { FilePlus2, Siren } from "lucide-react";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
-import {
-  DASHBOARD_ANALYTICS_ROLES,
-  DASHBOARD_REPORT_ROLES,
-  NAV_APPROVALS_ROLES,
-  NAV_CLOSURE_ROLES,
-  NAV_EXECUTION_ROLES,
-  NAV_LOTOTO_ROLES,
-  PERMIT_WRITE_ROLES,
-} from "@/lib/auth/roles";
-import { getDashboard } from "@/lib/dashboards/api";
-import { getAllowedDashboardKinds, resolveDashboardKind } from "@/lib/dashboards/kinds";
-import type { DashboardKind, DashboardPayload } from "@/lib/dashboards/types";
-import { TenantName } from "@/components/organisation/tenant-name";
-import { DashboardKindSelector } from "@/components/dashboards/dashboard-kind-selector";
+import { INCIDENT_REPORT_ROLES, PERMIT_CREATE_ROLES } from "@/lib/auth/roles";
 import { DashboardNotificationsPanel } from "@/components/dashboards/dashboard-notifications-panel";
-import { KpiGrid } from "@/components/dashboards/kpi-grid";
-import { Icon } from "@/components/icons";
-import { FadeIn } from "@/components/motion/fade-in";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { HomeInsights } from "@/components/work/home-insights";
+import { WorkQueuePanel } from "@/components/work/work-queue-panel";
+import { useWorkQueue } from "@/lib/work-queue-context";
 
-const SHORTCUTS: { href: string; label: string; icon: LucideIcon; roles: readonly string[] }[] = [
-  { href: "/permits/new", label: "Create permit", icon: ClipboardList, roles: PERMIT_WRITE_ROLES },
-  { href: "/approvals", label: "Review approvals", icon: CheckSquare, roles: NAV_APPROVALS_ROLES },
-  { href: "/execution", label: "Monitor execution", icon: Activity, roles: NAV_EXECUTION_ROLES },
-  { href: "/lototo", label: "LOTOTO plans", icon: LockKeyhole, roles: NAV_LOTOTO_ROLES },
-  { href: "/closure", label: "Close permits", icon: Lock, roles: NAV_CLOSURE_ROLES },
-  { href: "/analytics", label: "Analytics", icon: BarChart3, roles: DASHBOARD_ANALYTICS_ROLES },
-  { href: "/reports", label: "Reports", icon: FileText, roles: DASHBOARD_REPORT_ROLES },
-];
+function greeting(date = new Date()): string {
+  const hour = date.getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
 
+/** Home: what needs you first, then the figures for your role, then messages. */
 export default function DashboardPage() {
-  const { roles } = useAuthProfile();
-  const allowedKinds = useMemo(() => getAllowedDashboardKinds(roles), [roles]);
-  const defaultKind = useMemo(() => resolveDashboardKind(roles), [roles]);
-  const [kind, setKind] = useState<DashboardKind>(defaultKind);
-  const [dashboard, setDashboard] = useState<DashboardPayload | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const shortcuts = useMemo(
-    () => SHORTCUTS.filter((item) => hasAnyRole(roles, item.roles)),
-    [roles],
-  );
-
-  useEffect(() => {
-    setKind(defaultKind);
-  }, [defaultKind]);
-
-  const loadDashboard = useCallback(() => {
-    setIsLoading(true);
-    setError(null);
-
-    getDashboard(kind)
-      .then(setDashboard)
-      .catch((err) => {
-        setDashboard(null);
-        setError(err instanceof ApiError ? err.message : "Failed to load dashboard");
-      })
-      .finally(() => setIsLoading(false));
-  }, [kind]);
-
-  useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+  const { roles, profile } = useAuthProfile();
+  const { items, loaded } = useWorkQueue();
+  const canCreate = hasAnyRole(roles, PERMIT_CREATE_ROLES);
+  const canReport = hasAnyRole(roles, INCIDENT_REPORT_ROLES);
+  const firstName = profile?.firstName || profile?.displayName?.split(" ")[0] || "";
 
   return (
-    <FadeIn className="flex flex-1 flex-col gap-8 p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <main className="flex flex-1 flex-col gap-10 p-4 sm:p-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <TenantName className="mt-1 text-sm font-medium" />
-          <p className="mt-1 text-sm text-muted-foreground">
-            KPIs and operational summary for this organisation.
+          <h1 className="font-heading text-3xl font-bold tracking-tight">
+            {greeting()}
+            {firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="mt-1.5 text-muted-foreground">
+            {!loaded
+              ? "Checking your work…"
+              : items.length === 0
+                ? "You are all caught up."
+                : `${items.length} ${items.length === 1 ? "item needs" : "items need"} your action.`}
           </p>
-          {dashboard?.refreshedAt ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Refreshed {new Date(dashboard.refreshedAt).toLocaleString()}
-            </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {canReport ? (
+            <Link href="/incidents/new" className={buttonVariants({ variant: "outline", size: "lg" })}>
+              <Siren aria-hidden />
+              Report incident
+            </Link>
+          ) : null}
+          {canCreate ? (
+            <Link href="/permits/new" className={buttonVariants({ size: "lg" })}>
+              <FilePlus2 aria-hidden />
+              Create permit
+            </Link>
           ) : null}
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={loadDashboard} disabled={isLoading}>
-          Refresh
-        </Button>
       </div>
 
-      <DashboardKindSelector value={kind} allowedKinds={allowedKinds} onChange={setKind} />
-
-      {error ? (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          {error}
-        </div>
-      ) : null}
-
-      <section aria-label="Summary">
-        <h2 className="mb-3 text-sm font-semibold">Summary</h2>
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading summary…</p>
-        ) : dashboard ? (
-          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {dashboard.summary.myOpenPermits !== undefined ? (
-              <div className="rounded-lg border border-border bg-card p-4">
-                <dt className="text-xs text-muted-foreground">My open permits</dt>
-                <dd className="mt-1 text-2xl font-semibold">{dashboard.summary.myOpenPermits}</dd>
-              </div>
-            ) : null}
-            <div className="rounded-lg border border-border bg-card p-4">
-              <dt className="text-xs text-muted-foreground">Active permits</dt>
-              <dd className="mt-1 text-2xl font-semibold">{dashboard.summary.activePermits ?? 0}</dd>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <dt className="text-xs text-muted-foreground">Pending approvals</dt>
-              <dd className="mt-1 text-2xl font-semibold">{dashboard.summary.pendingApprovals ?? 0}</dd>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <dt className="text-xs text-muted-foreground">Open incidents</dt>
-              <dd className="mt-1 text-2xl font-semibold">{dashboard.summary.openIncidents ?? 0}</dd>
-            </div>
-          </dl>
-        ) : null}
+      <section aria-labelledby="needs-you">
+        <h2 id="needs-you" className="mb-3 text-lg font-semibold">
+          Needs you
+        </h2>
+        <WorkQueuePanel
+          emptyAction={
+            canCreate ? (
+              <Link href="/permits/new" className={buttonVariants({ variant: "outline" })}>
+                Create permit
+              </Link>
+            ) : null
+          }
+        />
       </section>
 
-      <section aria-label="Key performance indicators">
-        <h2 className="mb-3 text-sm font-semibold">KPIs</h2>
-        <KpiGrid items={dashboard?.kpis.items ?? []} isLoading={isLoading} />
-      </section>
+      <HomeInsights />
 
       <DashboardNotificationsPanel />
-
-      {shortcuts.length > 0 ? (
-        <section aria-label="Workflow shortcuts">
-          <h2 className="mb-3 text-sm font-semibold">Jump to workflow</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {shortcuts.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/40"
-              >
-                <Icon icon={item.icon} size="sm" />
-                <span className="text-sm font-medium">{item.label}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
-    </FadeIn>
+    </main>
   );
 }

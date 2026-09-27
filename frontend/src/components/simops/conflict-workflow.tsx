@@ -10,6 +10,7 @@ import {
 } from "@/lib/simops/api";
 import type { ConflictDetail, ConflictSeverity } from "@/lib/simops/types";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 type ConflictWorkflowProps = {
   detail: ConflictDetail;
@@ -220,7 +221,7 @@ export function ConflictWorkflow({ detail, onUpdated }: ConflictWorkflowProps) {
           <ul className="space-y-2 text-sm text-muted-foreground">
             {detail.history.map((entry) => (
               <li key={entry.id}>
-                {entry.action.replace(/_/g, " ")} · {new Date(entry.createdAt).toLocaleString()}
+                {entry.action.replace(/_/g, " ")} · {formatDateTime(entry.createdAt)}
               </li>
             ))}
           </ul>

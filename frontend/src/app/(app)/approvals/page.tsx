@@ -17,7 +17,8 @@ export default function ApprovalQueuePage() {
     setIsLoading(true);
     setError(null);
     listPendingApprovals()
-      .then(setItems)
+      // Longest-waiting first.
+      .then((rows) => setItems([...rows].sort((a, b) => (a.permit.submittedAt ?? "").localeCompare(b.permit.submittedAt ?? ""))))
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : "Failed to load approval queue");
       })
@@ -25,12 +26,12 @@ export default function ApprovalQueuePage() {
   }, []);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Approval queue</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Approvals</h1>
           <p className="text-sm text-muted-foreground">
-            Review permits assigned to you for approval.
+            {isLoading ? "Permits waiting for your decision." : items.length === 0 ? "Nothing is waiting for your decision." : `${items.length} permit${items.length === 1 ? "" : "s"} waiting for your decision, longest-waiting first.`}
           </p>
         </div>
         <Link href="/approvals/deferred">
@@ -50,9 +51,9 @@ export default function ApprovalQueuePage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading approval queue...</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No pending approvals assigned to you.</p>
+        <p className="rounded-xl border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">You are all caught up. New permits routed to you will appear here.</p>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {items.map((item) => (
             <ApprovalCard key={item.assignment.id} item={item} />
           ))}

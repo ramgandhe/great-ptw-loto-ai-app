@@ -52,9 +52,9 @@ export default function NewIncidentPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-1 flex-col gap-6 p-8">
+    <main className="mx-auto flex max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
-        <h1 className="text-2xl font-semibold">Report incident</h1>
+        <h1 className="font-heading text-3xl font-bold tracking-tight">Report incident</h1>
         <p className="text-sm text-muted-foreground">Record an incident, near miss or unsafe condition.</p>
       </div>
 

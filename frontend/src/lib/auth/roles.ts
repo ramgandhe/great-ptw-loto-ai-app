@@ -55,6 +55,7 @@ export const MASTER_DATA_READ_ROLES = [
   "operator",
   "job-issuer",
   "viewer",
+  "safety-officer",
 ] as const;
 
 export const WORKFORCE_READ_ROLES = [
@@ -76,6 +77,7 @@ export const PERMIT_READ_ROLES = [
   "tenant-owner", "tenant-admin",
   "platform-admin",
   "viewer",
+  "safety-officer",
 ] as const;
 
 export const PERMIT_CREATE_ROLES = ["job-issuer", "tenant-owner", "tenant-admin", "platform-admin"] as const;
@@ -88,15 +90,16 @@ export const PERMIT_WRITE_ROLES = [
   "hod",
 ] as const;
 
+/** Matches the API: safety officers use the safety veto, not the approval queue. */
 export const APPROVAL_READ_ROLES = [
   "job-issuer",
-  "operator",
   "hod",
-  "safety-officer",
   "tenant-owner", "tenant-admin",
   "platform-admin",
   "viewer",
 ] as const;
+
+export const SAFETY_VETO_ROLES = ["safety-officer"] as const;
 
 export const EXECUTION_READ_ROLES = [
   "operator",
@@ -151,8 +154,12 @@ export const SIMOPS_READ_ROLES = [
   "tenant-owner", "tenant-admin",
   "platform-admin",
   "job-issuer",
+  "safety-officer",
   "viewer",
 ] as const;
+
+/** Roles that can run SIMOPS analysis (matches the API). */
+export const SIMOPS_ANALYSE_ROLES = ["hod", "tenant-owner", "tenant-admin", "platform-admin", "job-issuer"] as const;
 
 export const INCIDENT_READ_ROLES = [
   "operator",
@@ -206,11 +213,11 @@ export const SAFETY_HUB_ROLES = [
 /** Sidebar visibility — tenant-owner sees every operational and admin tab. */
 export const NAV_ORGANISATION_ROLES = ["tenant-owner", "tenant-admin", "platform-admin"] as const;
 export const NAV_WORKFORCE_ROLES = ["tenant-owner", "tenant-admin", "platform-admin"] as const;
-export const NAV_PERMITS_ROLES = ["job-issuer", "operator", "hod", "tenant-owner", "tenant-admin", "viewer"] as const;
+export const NAV_PERMITS_ROLES = ["job-issuer", "operator", "hod", "safety-officer", "tenant-owner", "tenant-admin", "viewer"] as const;
 export const NAV_DRAFTS_ROLES = ["job-issuer", "tenant-owner", "tenant-admin"] as const;
 export const NAV_ACTIVE_WORK_ROLES = ["job-issuer", "operator", "hod", "tenant-owner", "tenant-admin", "viewer"] as const;
-export const NAV_APPROVALS_ROLES = ["hod", "safety-officer", "job-issuer", "tenant-owner", "tenant-admin", "viewer"] as const;
-export const NAV_DEFERRED_ROLES = ["hod", "safety-officer", "job-issuer", "tenant-owner", "tenant-admin"] as const;
+export const NAV_APPROVALS_ROLES = ["hod", "job-issuer", "tenant-owner", "tenant-admin", "viewer"] as const;
+export const NAV_DEFERRED_ROLES = ["hod", "job-issuer", "tenant-owner", "tenant-admin"] as const;
 export const NAV_OPERATOR_DRAFTS_ROLES = ["operator"] as const;
 export const NAV_EXECUTION_ROLES = ["operator", "hod", "job-issuer", "tenant-owner", "tenant-admin", "viewer"] as const;
 export const NAV_LOTOTO_ROLES = ["hod", "operator", "tenant-owner", "tenant-admin", "viewer"] as const;

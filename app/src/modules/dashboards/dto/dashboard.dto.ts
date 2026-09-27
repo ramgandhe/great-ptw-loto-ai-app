@@ -81,6 +81,29 @@ export class AnalyticsTrendsQueryDto {
   limit?: number;
 }
 
+export class InsightsQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(7)
+  @Max(365)
+  days?: number;
+}
+
+export const REPORT_VIEW_TYPES = ['permit_summary', 'incident_summary'] as const;
+
+export class ReportViewQueryDto {
+  @IsIn([...REPORT_VIEW_TYPES])
+  type!: (typeof REPORT_VIEW_TYPES)[number];
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(7)
+  @Max(365)
+  days?: number;
+}
+
 export class ListReportsQueryDto {
   @IsOptional()
   @IsString()

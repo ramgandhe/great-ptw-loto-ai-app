@@ -28,10 +28,10 @@ export default function LototoPlansPage() {
   }, []);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">LOTOTO plans</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">LOTOTO plans</h1>
           <p className="text-sm text-muted-foreground">
             Configure hazardous energy isolation before permit execution.
           </p>

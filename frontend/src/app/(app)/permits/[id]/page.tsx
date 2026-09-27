@@ -19,6 +19,37 @@ import {
   suspendPermit,
 } from "@/lib/execution/api";
 import { SuspensionDialog } from "@/components/execution/suspension-dialog";
+import { ArrowLeft, ArrowRight, CalendarDays, Eye, History, LockKeyhole, Wrench } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { formatRelative } from "@/lib/format";
+import { useWorkQueue } from "@/lib/work-queue-context";
+import { safetyVetoPermit } from "@/lib/approval/api";
+import { SAFETY_VETO_ROLES } from "@/lib/auth/roles";
+
+const VETO_STATUSES = ["pending_approval", "approved", "active", "suspended", "deferred", "pending_closure"];
+const VETO_REASONS = [
+  "Site conditions are not safe",
+  "Gas test readings out of limits",
+  "Isolation not verified",
+  "PPE not adequate for the hazards",
+];
+
+/** One plain sentence per status saying where the permit is and who moves it on. */
+const STATUS_EXPLAINER: Record<string, string> = {
+  draft: "Being prepared. It goes to approval once the issuer submits it.",
+  pending_approval: "Waiting for approval. Approvers are notified in order.",
+  deferred: "Sent back for changes. The issuer revises and resubmits it.",
+  rejected: "Rejected. The issuer can revise it and submit again.",
+  approved: "Approved. The executor can start work once isolations are in place.",
+  active: "Work is in progress on site.",
+  suspended: "Work is suspended. It needs revalidation before it can restart.",
+  execution_completed: "Work is finished. The issuer confirms completion next.",
+  pending_closure: "Waiting for the HOD's final sign-off.",
+  closed: "Closed. The full record is kept for audit.",
+  expired: "The permit window ended before it was closed.",
+  cancelled: "Cancelled. No further work is allowed under this permit.",
+};
 
 const DELETE_ROLES = ["tenant-owner", "tenant-admin"] as const;
 const SUSPEND_ROLES = ["tenant-owner", "tenant-admin", "hod", "safety-officer"] as const;
@@ -28,6 +59,7 @@ export default function PermitDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { roles } = useAuthProfile();
+  const { items } = useWorkQueue();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -35,6 +67,8 @@ export default function PermitDetailPage() {
   const [suspendOpen, setSuspendOpen] = useState(false);
   const [suspendReason, setSuspendReason] = useState("");
   const [suspendError, setSuspendError] = useState<string | null>(null);
+  const [vetoOpen, setVetoOpen] = useState(false);
+  const [vetoReason, setVetoReason] = useState("");
 
   useEffect(() => {
     getPermit(params.id)
@@ -63,8 +97,28 @@ export default function PermitDetailPage() {
   const canSuspend =
     (detail.permit.status === "approved" || detail.permit.status === "active") &&
     hasAnyRole(roles, SUSPEND_ROLES);
+  const canVeto = VETO_STATUSES.includes(detail.permit.status) && hasAnyRole(roles, SAFETY_VETO_ROLES);
   const canRevalidate =
     detail.permit.status === "suspended" && hasAnyRole(roles, REVALIDATE_ROLES);
+
+  async function handleVeto() {
+    if (!vetoReason.trim()) {
+      setActionError("Give the reason for stopping this permit. The issuer and approvers will see it.");
+      return;
+    }
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      await safetyVetoPermit(params.id, vetoReason.trim());
+      setVetoOpen(false);
+      setVetoReason("");
+      setDetail(await getPermit(params.id));
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "The veto was not recorded. Try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   async function handleDelete() {
     const confirmed = window.confirm(
@@ -126,34 +180,60 @@ export default function PermitDetailPage() {
     }
   }
 
+  const nextAction = items.find((item) => item.permit?.id === detail.permit.id);
+  const inExecution = ["approved", "active", "suspended"].includes(detail.permit.status);
+  const related = [
+    { href: `/approvals/${detail.permit.id}/history`, label: "Approval history", icon: History, show: detail.permit.status !== "draft" },
+    { href: `/execution/${detail.permit.id}`, label: "Execution", icon: Wrench, show: inExecution && nextAction?.href !== `/execution/${detail.permit.id}` },
+    { href: `/permits/${detail.permit.id}/multi-day`, label: "Daily progress", icon: CalendarDays, show: inExecution },
+    { href: `/lototo/plans/new?permitId=${detail.permit.id}`, label: "Configure LOTOTO", icon: LockKeyhole, show: inExecution },
+    { href: `/permits/${detail.permit.id}/preview`, label: "Print view", icon: Eye, show: true },
+  ].filter((link) => link.show);
+
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="mb-2 flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">{detail.permit.title}</h1>
-            <PermitStatusBadge status={detail.permit.status} />
-          </div>
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+      <div>
+        <Link href="/permits" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-4" aria-hidden />
+          Permits
+        </Link>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">{detail.permit.title}</h1>
+          <PermitStatusBadge status={detail.permit.status} />
+        </div>
+        <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-muted-foreground">
+          <span className="font-mono">{detail.permit.reference ?? "No reference until submitted"}</span>
+          <span>Updated {formatRelative(detail.permit.updatedAt)}</span>
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-border bg-card px-5 py-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">{nextAction ? `Your next step: ${nextAction.label.toLowerCase()}` : "What happens next"}</p>
           <p className="text-sm text-muted-foreground">
-            {detail.permit.reference ? `Reference ${detail.permit.reference}` : "Draft permit"}
+            {nextAction?.note ? `${nextAction.note}. ` : ""}
+            {STATUS_EXPLAINER[detail.permit.status] ?? ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href={`/permits/${detail.permit.id}/preview`}>
-            <Button variant="outline">Preview</Button>
-          </Link>
-          {canEdit ? (
-            <Link href={`/permits/${detail.permit.id}/edit`}>
-              <Button>{isResubmit ? "Revise & resubmit" : "Edit draft"}</Button>
+          {nextAction ? (
+            <Link href={nextAction.href} className={cn(buttonVariants({ size: "lg" }))}>
+              {nextAction.label}
+              <ArrowRight aria-hidden />
+            </Link>
+          ) : canEdit ? (
+            <Link href={`/permits/${detail.permit.id}/edit`} className={buttonVariants({ size: "lg" })}>
+              {isResubmit ? "Revise and resubmit" : "Edit draft"}
             </Link>
           ) : null}
-          {canDelete ? (
-            <Button variant="destructive" disabled={isSubmitting} onClick={() => void handleDelete()}>
-              Delete draft
+          {canRevalidate && nextAction?.action !== "revalidate" ? (
+            <Button size="lg" disabled={isSubmitting} onClick={() => void handleRevalidate()}>
+              Revalidate
             </Button>
           ) : null}
           {canSuspend ? (
             <Button
+              size="lg"
               variant="destructive"
               disabled={isSubmitting}
               onClick={() => {
@@ -161,31 +241,60 @@ export default function PermitDetailPage() {
                 setSuspendOpen(true);
               }}
             >
-              Suspend permit
+              Suspend work
             </Button>
           ) : null}
-          {canRevalidate ? (
-            <Button disabled={isSubmitting} onClick={() => void handleRevalidate()}>
-              Revalidate after suspension
+          {canVeto ? (
+            <Button size="lg" variant="destructive" disabled={isSubmitting} onClick={() => setVetoOpen((v) => !v)}>
+              Stop work (safety veto)
             </Button>
           ) : null}
-          {["approved", "active", "suspended"].includes(detail.permit.status) ? (
-            <>
-              <Link href={`/execution/${detail.permit.id}`}>
-                <Button>
-                  {detail.permit.status === "approved" ? "Start execution" : "Open execution"}
-                </Button>
-              </Link>
-              <Link href={`/permits/${detail.permit.id}/multi-day`}>
-                <Button variant="outline">Multi-day</Button>
-              </Link>
-              <Link href={`/lototo/plans/new?permitId=${detail.permit.id}`}>
-                <Button variant="outline">Configure LOTOTO</Button>
-              </Link>
-            </>
+          {canDelete ? (
+            <Button size="lg" variant="ghost" disabled={isSubmitting} onClick={() => void handleDelete()}>
+              Delete draft
+            </Button>
           ) : null}
         </div>
       </div>
+
+      {vetoOpen ? (
+        <section aria-labelledby="veto-heading" className="grid gap-3 rounded-xl border border-(--status-danger) bg-(--status-danger-bg) p-5">
+          <h2 id="veto-heading" className="font-semibold text-(--status-danger)">
+            Stop this permit
+          </h2>
+          <p className="text-sm">The permit is rejected immediately. The issuer can revise it and submit it again.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {VETO_REASONS.map((reason) => (
+              <button
+                key={reason}
+                type="button"
+                onClick={() => setVetoReason((c) => (c.trim() ? `${c.trim()}\n${reason}` : reason))}
+                className="rounded-full border border-border bg-card px-2.5 py-1 text-xs hover:bg-muted"
+              >
+                {reason}
+              </button>
+            ))}
+          </div>
+          <label htmlFor="veto-reason" className="text-sm font-medium">
+            Reason
+          </label>
+          <textarea
+            id="veto-reason"
+            rows={3}
+            value={vetoReason}
+            onChange={(e) => setVetoReason(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button variant="destructive" disabled={isSubmitting} onClick={() => void handleVeto()}>
+              {isSubmitting ? "Stopping…" : "Stop permit"}
+            </Button>
+            <Button variant="ghost" onClick={() => setVetoOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+        </section>
+      ) : null}
 
       {actionError ? (
         <p role="alert" className="text-sm text-destructive">
@@ -193,28 +302,24 @@ export default function PermitDetailPage() {
         </p>
       ) : null}
 
-      <PermitSummary
-        form={form}
-        status={detail.permit.status}
-        reference={detail.permit.reference}
-      />
-
-      <PermitApprovalStatus permitId={detail.permit.id} status={detail.permit.status} />
-
-      <section className="grid gap-3">
-        <h2 className="text-sm font-semibold">Attachments</h2>
-        {detail.attachments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No attachments uploaded.</p>
-        ) : (
-          <ul className="grid gap-2 text-sm">
-            {detail.attachments.map((attachment) => (
-              <li key={attachment.id} className="rounded-lg border border-border px-3 py-2">
-                {attachment.fileName} ({Math.round(attachment.fileSize / 1024)} KB)
-              </li>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <PermitSummary form={form} status={detail.permit.status} attachments={detail.attachments} showHeader={false} />
+        <aside className="grid gap-4">
+          <nav aria-label="Related records" className="rounded-xl border border-border bg-card p-2">
+            {related.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm hover:bg-muted"
+              >
+                <link.icon className="size-4 text-muted-foreground" aria-hidden />
+                {link.label}
+              </Link>
             ))}
-          </ul>
-        )}
-      </section>
+          </nav>
+          <PermitApprovalStatus permitId={detail.permit.id} status={detail.permit.status} />
+        </aside>
+      </div>
 
       <SuspensionDialog
         open={suspendOpen}

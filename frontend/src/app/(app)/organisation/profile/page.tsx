@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { ApiError } from "@/lib/api";
 import { organisationsApi } from "@/lib/organisation/api";
 import type { Organisation } from "@/lib/organisation/types";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { Button } from "@/components/ui/button";
+import { AdminPageHeader } from "@/components/layout/admin-page-header";
 
 export default function OrganisationProfilePage() {
   const [org, setOrg] = useState<Organisation | null>(null);
@@ -55,18 +55,11 @@ export default function OrganisationProfilePage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Organisation profile</h1>
-          <p className="text-sm text-muted-foreground">
-            Tenant name is set when the organisation is invited. You can change it here.
-          </p>
-        </div>
-        <Link href="/organisation">
-          <Button variant="outline">Back</Button>
-        </Link>
-      </div>
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+      <AdminPageHeader
+        title="Organisation profile"
+        description="Tenant name is set when the organisation is invited. You can change it here."
+      />
 
       {org ? (
         <div className="flex items-center gap-3">

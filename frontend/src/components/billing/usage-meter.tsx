@@ -1,5 +1,6 @@
 import { formatMetricKey } from "@/lib/billing/labels";
 import type { UsageRecord } from "@/lib/billing/types";
+import { formatDateTime } from "@/lib/format";
 
 type UsageMeterProps = {
   records: UsageRecord[];
@@ -62,15 +63,15 @@ export function UsageMeter({ records, limits }: UsageMeterProps) {
                   aria-label={`${formatMetricKey(record.metricKey)} usage`}
                 >
                   <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{ width: `${percent}%` }}
+                    className="h-full origin-left bg-primary transition-transform duration-300 ease-out"
+                    style={{ transform: `scaleX(${Math.min(percent, 100) / 100})` }}
                   />
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{percent}% of plan limit</p>
               </div>
             ) : (
               <p className="mt-2 text-xs text-muted-foreground">
-                Last recorded {new Date(record.recordedAt).toLocaleString()}
+                Last recorded {formatDateTime(record.recordedAt)}
               </p>
             )}
           </li>

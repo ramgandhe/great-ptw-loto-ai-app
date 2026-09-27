@@ -33,6 +33,13 @@ describe('Master data role enforcement (PUS-70)', () => {
     );
   });
 
+  it('allows safety officer to read master data but not change it', () => {
+    mockRoleGuardReflector(getAllAndOverride, MASTER_DATA_READ_ROLES);
+    expect(guard.canActivate(buildContext({ roles: ['safety-officer'] }))).toBe(true);
+    mockRoleGuardReflector(getAllAndOverride, MASTER_DATA_WRITE_ROLES);
+    expect(() => guard.canActivate(buildContext({ roles: ['safety-officer'] }))).toThrow(ForbiddenException);
+  });
+
   it('allows viewer to read master data catalogues', () => {
     mockRoleGuardReflector(getAllAndOverride, MASTER_DATA_READ_ROLES);
     expect(guard.canActivate(buildContext({ roles: ['viewer'] }))).toBe(true);

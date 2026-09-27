@@ -8,6 +8,8 @@ export const MASTER_DATA_READ_ROLES = [
   'operator',
   'job-issuer',
   'viewer',
+  // Safety officers review hazards, PPE and places on the permits they check.
+  'safety-officer',
 ] as const;
 
 export const PPE_CATEGORIES = [

@@ -1,4 +1,5 @@
 import type { AppliedLock } from "@/lib/isolation-execution/types";
+import { formatDateTime } from "@/lib/format";
 
 type LockRegisterTableProps = {
   locks: AppliedLock[];
@@ -26,13 +27,13 @@ export function LockRegisterTable({ locks, pointLabels }: LockRegisterTableProps
           {locks.map((lock) => (
             <tr key={lock.id}>
               <td className="px-3 py-2">
-                {pointLabels[lock.isolationPointId] ?? lock.isolationPointId.slice(0, 8)}
+                {pointLabels[lock.isolationPointId] ?? "Unknown point"}
               </td>
               <td className="px-3 py-2">{lock.lockTag}</td>
               <td className="px-3 py-2">{lock.lockMethod}</td>
               <td className="px-3 py-2 capitalize">{lock.status.replace(/_/g, " ")}</td>
               <td className="px-3 py-2 text-muted-foreground">
-                {new Date(lock.appliedAt).toLocaleString()}
+                {formatDateTime(lock.appliedAt)}
               </td>
             </tr>
           ))}

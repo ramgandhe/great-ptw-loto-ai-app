@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, Search } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { agenciesApi, competenciesApi, contractorsApi, employeesApi } from "@/lib/workforce/api";
 import type { CompetencyRecord, EntityField, WorkforceRecord } from "@/lib/workforce/types";
 import { loadEntitySelectOptions, type EntitySelectResource } from "@/lib/form-options";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { Button } from "@/components/ui/button";
+import { AdminPageHeader } from "@/components/layout/admin-page-header";
 
 const workforceApis = {
   employees: employeesApi,
@@ -42,6 +44,10 @@ export function WorkforceCrudPage({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const singular = title.replace(/ management$/i, "").replace(/ies$/, "y").replace(/s$/, "").toLowerCase();
+  const parentField = fields.find((field) => field.select);
   const [createdLogin, setCreatedLogin] = useState<{
     temporaryPassword?: string | null;
     loginCreated?: boolean;
@@ -95,6 +101,7 @@ export function WorkforceCrudPage({
       }
       setForm(emptyForm(fields));
       setEditingId(null);
+      setFormOpen(false);
       load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Save failed");
@@ -103,16 +110,57 @@ export function WorkforceCrudPage({
     }
   }
 
+  const parentLabels = useMemo(
+    () => new Map((parentField?.select ? (selectOptions[parentField.select] ?? []) : []).map((o) => [o.value, o.label])),
+    [parentField, selectOptions],
+  );
+  const parentOf = (item: WorkforceItem) =>
+    parentField ? parentLabels.get(String((item as Record<string, unknown>)[parentField.key] ?? "")) : undefined;
+
+  const visibleItems = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((item) =>
+      [item.name, "email" in item ? item.email : null, "role" in item ? item.role : null, parentOf(item)]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(q)),
+    );
+    // parentOf only reads parentLabels
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, query, parentLabels]);
+
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
-      <div>
-        <h1 className="text-2xl font-semibold">{title}</h1>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-      <form onSubmit={handleSubmit} className="grid gap-4 rounded-lg border border-border bg-card p-4 sm:grid-cols-2">
+    <main className="flex flex-1 flex-col gap-5 p-4 sm:p-8">
+      <AdminPageHeader
+        title={title}
+        description={description}
+        action={
+          !formOpen ? (
+            <Button
+              type="button"
+              size="lg"
+              onClick={() => {
+                setEditingId(null);
+                setForm(emptyForm(fields));
+                setCreatedLogin(null);
+                setFormOpen(true);
+              }}
+            >
+              <Plus aria-hidden />
+              Add {singular}
+            </Button>
+          ) : null
+        }
+      />
+      {formOpen ? (
+      <form onSubmit={handleSubmit} className="reveal-in grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
+        <h2 className="font-semibold sm:col-span-2">{editingId ? `Edit ${form.name || singular}` : `New ${singular}`}</h2>
         {fields.map((field) => (
           <label key={field.key} className="grid gap-1.5 text-sm">
-            <span className="font-medium">{field.label}{field.required ? " *" : ""}</span>
+            <span className="font-medium">
+              {field.label}
+              {field.required ? "" : <span className="font-normal text-muted-foreground"> (optional)</span>}
+            </span>
             {field.select ? (
               <select
                 required={field.required}
@@ -138,10 +186,24 @@ export function WorkforceCrudPage({
             )}
           </label>
         ))}
-        <div className="sm:col-span-2">
-          <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : editingId ? "Update" : "Create"}</Button>
+        <div className="flex flex-wrap gap-2 sm:col-span-2">
+          <Button type="submit" disabled={submitting}>
+            {submitting ? "Saving…" : editingId ? "Save changes" : `Add ${singular}`}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setFormOpen(false);
+              setEditingId(null);
+              setForm(emptyForm(fields));
+            }}
+          >
+            Cancel
+          </Button>
         </div>
       </form>
+      ) : null}
       {createdLogin?.temporaryPassword ? (
         <div className="rounded-lg border border-border bg-card p-4 text-sm">
           <p className="font-medium">Login created for {createdLogin.email}</p>
@@ -156,23 +218,46 @@ export function WorkforceCrudPage({
         </p>
       ) : null}
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-      {loading ? <p className="text-sm text-muted-foreground">Loading...</p> : (
-        <table className="min-w-full text-sm border border-border rounded-lg overflow-hidden">
-          <thead className="bg-muted/50 text-left">
-            <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Status</th>
+      {items.length > 5 ? (
+        <label className="relative flex h-10 items-center sm:w-80">
+          <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
+          <span className="sr-only">Search {title.toLowerCase()}</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={`Search ${items.length} by name, email or ${parentField?.label.toLowerCase() ?? "role"}`}
+            className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          />
+        </label>
+      ) : null}
+      {loading ? <p className="text-sm text-muted-foreground">Loading…</p> : items.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border px-5 py-10 text-center">
+          <p className="font-medium">No {title.toLowerCase()} yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">Add the first {singular} so they can be assigned to permits.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <table className="min-w-full text-sm">
+          <thead className="text-left text-xs text-muted-foreground">
+            <tr className="border-b border-border">
+              <th className="px-4 py-2.5 font-medium">Name</th>
+              {parentField ? <th className="px-4 py-2.5 font-medium">{parentField.label}</th> : null}
+              <th className="px-4 py-2.5 font-medium">Email</th>
+              <th className="px-4 py-2.5 font-medium">Status</th>
               {resource !== "competencies" && resource !== "certifications" ? (
-                <th className="px-4 py-3">Actions</th>
+                <th className="px-4 py-2.5 font-medium">
+                  <span className="sr-only">Actions</span>
+                </th>
               ) : null}
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <tr key={item.id} className="border-t border-border">
-                <td className="px-4 py-3">{item.name}</td>
-                <td className="px-4 py-3 text-muted-foreground">{"email" in item ? item.email ?? "—" : "—"}</td>
+            {visibleItems.map((item) => (
+              <tr key={item.id} className="border-t border-border first:border-t-0">
+                <td className="px-4 py-3 font-medium">{item.name}</td>
+                {parentField ? <td className="px-4 py-3 text-muted-foreground">{parentOf(item) ?? "Not set"}</td> : null}
+                <td className="px-4 py-3 text-muted-foreground">{"email" in item ? item.email ?? "" : ""}</td>
                 <td className="px-4 py-3"><OrgStatusBadge status={item.status} /></td>
                 {resource !== "competencies" && resource !== "certifications" ? (
                   <td className="px-4 py-3">
@@ -183,7 +268,9 @@ export function WorkforceCrudPage({
                         size="sm"
                         onClick={() => {
                           setEditingId(item.id);
+                          setCreatedLogin(null);
                           setForm(Object.fromEntries(fields.map((field) => [field.key, String((item as Record<string, unknown>)[field.key] ?? "")])));
+                          setFormOpen(true);
                         }}
                       >
                         Edit
@@ -231,6 +318,7 @@ export function WorkforceCrudPage({
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </main>
   );

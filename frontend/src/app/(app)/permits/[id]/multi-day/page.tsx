@@ -27,6 +27,7 @@ import { HandoverForm } from "@/components/multi-day/handover-form";
 import { RevalidationWorkflow } from "@/components/multi-day/revalidation-workflow";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 export default function MultiDayPermitPage() {
   const params = useParams<{ id: string }>();
@@ -78,11 +79,11 @@ export default function MultiDayPermitPage() {
   const canManage = ["active", "suspended"].includes(detail.permit.status);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="mb-2 flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">Multi-day operations</h1>
+            <h1 className="font-heading text-3xl font-bold tracking-tight">Multi-day operations</h1>
             <PermitStatusBadge status={detail.permit.status} />
           </div>
           <p className="text-sm text-muted-foreground">{detail.permit.title}</p>
@@ -143,7 +144,7 @@ export default function MultiDayPermitPage() {
             <ul className="space-y-3 text-sm">
               {handovers.map((handover) => (
                 <li key={handover.id} className="rounded-md border border-border px-3 py-2">
-                  <p className="font-medium">{new Date(handover.handedOverAt).toLocaleString()}</p>
+                  <p className="font-medium">{formatDateTime(handover.handedOverAt)}</p>
                   <p className="text-muted-foreground">{handover.completedActivities}</p>
                 </li>
               ))}

@@ -27,10 +27,10 @@ export default function ClosureQueuePage() {
   }, []);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Permit closure</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Permit closure</h1>
           <p className="text-sm text-muted-foreground">
             Verify completed work and close permits.
           </p>
@@ -61,7 +61,7 @@ export default function ClosureQueuePage() {
                     <PermitStatusBadge status={permit.status} />
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {permit.reference ?? permit.id.slice(0, 8)}
+                    {permit.reference ?? "No reference"}
                   </p>
                 </div>
                 <Link href={`/closure/${permit.id}`}>

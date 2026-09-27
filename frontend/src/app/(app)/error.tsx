@@ -16,7 +16,7 @@ export default function AppError({
 
   return (
     <main className="flex flex-1 flex-col items-start justify-center gap-4 p-8">
-      <h1 className="text-2xl font-semibold">Unable to load this page</h1>
+      <h1 className="font-heading text-3xl font-bold tracking-tight">Unable to load this page</h1>
       <p className="max-w-xl text-sm text-muted-foreground">{error.message}</p>
       <Button type="button" onClick={reset}>
         Retry

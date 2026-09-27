@@ -9,6 +9,7 @@ import type { EvidenceRecord } from "@/lib/execution/types";
 import { getPermit } from "@/lib/permit/api";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 export default function EvidenceGalleryPage() {
   const params = useParams<{ permitId: string }>();
@@ -30,11 +31,11 @@ export default function EvidenceGalleryPage() {
   }, [params.permitId]);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="mb-2 flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">{title || "Evidence gallery"}</h1>
+            <h1 className="font-heading text-3xl font-bold tracking-tight">{title || "Evidence gallery"}</h1>
             {status ? <PermitStatusBadge status={status} /> : null}
           </div>
           <p className="text-sm text-muted-foreground">Photographs and documents captured during execution</p>
@@ -62,7 +63,7 @@ export default function EvidenceGalleryPage() {
                 <p className="mt-2 text-sm text-muted-foreground">{item.comment}</p>
               ) : null}
               <p className="mt-2 text-xs text-muted-foreground">
-                {new Date(item.createdAt).toLocaleString()}
+                {formatDateTime(item.createdAt)}
               </p>
             </li>
           ))}

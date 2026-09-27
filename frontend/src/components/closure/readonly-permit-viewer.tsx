@@ -3,6 +3,7 @@ import type { PermitDetail } from "@/lib/permit/types";
 import type { PermitClosure, PermitVerification } from "@/lib/closure/types";
 import { PermitSummary } from "@/components/permit/permit-summary";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
+import { formatDateTime } from "@/lib/format";
 
 type ReadonlyPermitViewerProps = {
   detail: PermitDetail;
@@ -28,7 +29,7 @@ export function ReadonlyPermitViewer({
         <section className="rounded-lg border border-border p-4 text-sm">
           <h3 className="font-semibold">Verification</h3>
           <p className="mt-1 text-muted-foreground">
-            Verified {new Date(verification.verifiedAt).toLocaleString()}
+            Verified {formatDateTime(verification.verifiedAt)}
           </p>
           {verification.comment ? <p className="mt-2">{verification.comment}</p> : null}
         </section>
@@ -37,7 +38,7 @@ export function ReadonlyPermitViewer({
         <section className="rounded-lg border border-border p-4 text-sm">
           <h3 className="font-semibold">Closure</h3>
           <p className="mt-1 text-muted-foreground">
-            Closed {new Date(closure.closedAt).toLocaleString()}
+            Closed {formatDateTime(closure.closedAt)}
           </p>
           {closure.comment ? <p className="mt-2">{closure.comment}</p> : null}
         </section>

@@ -56,11 +56,11 @@ export default function SettingsPage() {
   ];
 
   return (
-    <main className="flex flex-1 flex-col gap-8 p-8">
+    <main className="flex flex-1 flex-col gap-8 p-4 sm:p-8">
       <div className="flex items-center gap-3">
         <Settings className="size-6" aria-hidden />
         <div>
-          <h1 className="text-2xl font-semibold">Settings</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Settings</h1>
           <p className="text-sm text-muted-foreground">
             Appearance, organisation configuration and account controls.
           </p>

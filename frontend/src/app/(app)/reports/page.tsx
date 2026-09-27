@@ -1,155 +1,402 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { motion } from "motion/react";
+import { ArrowDown, ArrowUp, Search } from "lucide-react";
+import { AnimatedNumber } from "@/components/analytics/animated-number";
+import { ChartCard } from "@/components/analytics/chart-card";
+import { RankedBars, SegmentedBar, StatTile } from "@/components/analytics/charts";
+import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { ApiError } from "@/lib/api";
-import { generateReport, listReports } from "@/lib/dashboards/api";
-import { REPORT_TYPE_LABELS } from "@/lib/dashboards/labels";
-import type { GenerateReportPayload, ReportExport, ReportFormat, ReportType } from "@/lib/dashboards/types";
-import { Button } from "@/components/ui/button";
+import { INCIDENT_TYPES, PERIODS, PERMIT_STAGES, PRIORITIES } from "@/lib/analytics/labels";
+import { getInsights, getReportView } from "@/lib/dashboards/api";
+import type { IncidentReportRow, InsightsPayload, PermitReportRow } from "@/lib/dashboards/types";
+import { formatDateTime, formatStatus, formatWindow } from "@/lib/format";
+import { staggerContainer, staggerItem } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 
-const REPORT_TYPES: ReportType[] = ["operational_kpis", "permit_summary", "incident_summary"];
-const FORMATS: ReportFormat[] = ["csv", "pdf", "xlsx"];
+const TABS = [
+  { key: "permits", label: "Permit register" },
+  { key: "incidents", label: "Incident register" },
+  { key: "summary", label: "Operational summary" },
+] as const;
+type TabKey = (typeof TABS)[number]["key"];
 
-export default function ReportsPage() {
-  const [reports, setReports] = useState<ReportExport[]>([]);
-  const [reportType, setReportType] = useState<ReportType>("operational_kpis");
-  const [format, setFormat] = useState<ReportFormat>("csv");
+type SortState = { column: string; dir: "asc" | "desc" };
+
+function compare(a: unknown, b: unknown): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return String(a).localeCompare(String(b), undefined, { numeric: true });
+}
+
+function SortHeader({ column, label, sort, onSort }: { column: string; label: string; sort: SortState; onSort: (c: string) => void }) {
+  const active = sort.column === column;
+  return (
+    <th scope="col" aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"} className="px-4 py-2.5 font-medium">
+      <button type="button" onClick={() => onSort(column)} className="inline-flex items-center gap-1 hover:text-foreground">
+        {label}
+        {active ? sort.dir === "asc" ? <ArrowUp className="size-3" aria-hidden /> : <ArrowDown className="size-3" aria-hidden /> : null}
+      </button>
+    </th>
+  );
+}
+
+function ReportsView() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const tab = (params.get("tab") as TabKey | null) ?? "permits";
+  const days = Number(params.get("days") ?? 90);
+  const [query, setQuery] = useState(params.get("q") ?? "");
+  const [filter, setFilter] = useState(params.get("filter") ?? "all");
+  const [sort, setSort] = useState<SortState>({ column: "date", dir: "desc" });
+  const [permitRows, setPermitRows] = useState<PermitReportRow[] | null>(null);
+  const [incidentRows, setIncidentRows] = useState<IncidentReportRow[] | null>(null);
+  const [insights, setInsights] = useState<InsightsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isGenerating, setIsGenerating] = useState(false);
 
-  const loadReports = useCallback(() => {
-    setIsLoading(true);
-    setError(null);
-
-    listReports()
-      .then(setReports)
-      .catch((err) => {
-        setReports([]);
-        setError(err instanceof ApiError ? err.message : "Failed to load reports");
-      })
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  useEffect(() => {
-    loadReports();
-  }, [loadReports]);
-
-  async function handleGenerate(event: React.FormEvent) {
-    event.preventDefault();
-    setIsGenerating(true);
-    setError(null);
-    setSuccess(null);
-
-    const payload: GenerateReportPayload = { reportType, format };
-
-    try {
-      const created = await generateReport(payload);
-      setSuccess(`Report queued (${created.status}).`);
-      loadReports();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to generate report");
-    } finally {
-      setIsGenerating(false);
+  function setParams(next: Record<string, string>) {
+    const search = new URLSearchParams(params.toString());
+    for (const [key, value] of Object.entries(next)) {
+      if (value && value !== "all") search.set(key, value);
+      else search.delete(key);
     }
+    router.replace(`${pathname}${search.size ? `?${search}` : ""}`, { scroll: false });
   }
 
+  useEffect(() => {
+    let cancelled = false;
+    const done = (fn: () => void) => !cancelled && fn();
+    const fail = (err: unknown) =>
+      done(() => setError(err instanceof ApiError ? err.message : "This report could not be loaded. Try again."));
+    if (tab === "permits") {
+      getReportView<PermitReportRow>("permit_summary", days).then((r) => done(() => { setPermitRows(r.rows); setError(null); }), fail);
+    } else if (tab === "incidents") {
+      getReportView<IncidentReportRow>("incident_summary", days).then((r) => done(() => { setIncidentRows(r.rows); setError(null); }), fail);
+    } else {
+      getInsights(days).then((r) => done(() => { setInsights(r); setError(null); }), fail);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, days]);
+
+  function onSort(column: string) {
+    setSort((s) => ({ column, dir: s.column === column && s.dir === "desc" ? "asc" : "desc" }));
+  }
+
+  const permitView = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const rows = (permitRows ?? []).filter(
+      (r) =>
+        (filter === "all" || r.status === filter) &&
+        (!q || [r.reference, r.title, r.type, r.place, r.department].some((v) => v?.toLowerCase().includes(q))),
+    );
+    const key = (r: PermitReportRow) =>
+      sort.column === "date" ? r.createdAt : sort.column === "start" ? r.plannedStartAt : (r as Record<string, unknown>)[sort.column];
+    return [...rows].sort((a, b) => compare(key(a), key(b)) * (sort.dir === "asc" ? 1 : -1));
+  }, [permitRows, query, filter, sort]);
+
+  const incidentView = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const rows = (incidentRows ?? []).filter(
+      (r) =>
+        (filter === "all" || r.priority === filter) &&
+        (!q || [r.reference, r.title, r.place, INCIDENT_TYPES[r.type]?.label].some((v) => v?.toLowerCase().includes(q))),
+    );
+    const key = (r: IncidentReportRow) => (sort.column === "date" ? r.occurredAt : (r as Record<string, unknown>)[sort.column]);
+    return [...rows].sort((a, b) => compare(key(a), key(b)) * (sort.dir === "asc" ? 1 : -1));
+  }, [incidentRows, query, filter, sort]);
+
+  const periodLabel = PERIODS.find((p) => p.days === days)?.label ?? `${days} days`;
+
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Reports</h1>
-          <p className="text-sm text-muted-foreground">
-            Request operational exports and review generation status.
-          </p>
-        </div>
-        <Link href="/dashboard">
-          <Button type="button" variant="outline" size="sm">
-            Back to dashboard
-          </Button>
-        </Link>
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+      <div>
+        <h1 className="font-heading text-3xl font-bold tracking-tight">Reports</h1>
+        <p className="mt-1 text-muted-foreground">Read registers and summaries here. Filter, sort and open any record straight from the report.</p>
       </div>
 
-      <form
-        onSubmit={handleGenerate}
-        className="grid max-w-xl gap-4 rounded-lg border border-border p-5"
-      >
-        <h2 className="text-sm font-semibold">Generate report</h2>
-
-        <label className="flex flex-col gap-1 text-sm">
-          Report type
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div role="tablist" aria-label="Report" className="flex gap-1 overflow-x-auto border-b border-border">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.key}
+              onClick={() => {
+                setFilter("all");
+                setQuery("");
+                setParams({ tab: t.key, filter: "", q: "" });
+              }}
+              className={cn(
+                "-mb-px shrink-0 border-b-2 px-4 py-2.5 text-sm transition-colors",
+                tab === t.key ? "border-primary font-semibold text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Period</span>
           <select
-            className="rounded-md border border-border bg-background px-3 py-2"
-            value={reportType}
-            onChange={(event) => setReportType(event.target.value as ReportType)}
+            value={days}
+            onChange={(e) => setParams({ days: e.target.value })}
+            className="h-9 rounded-lg border border-border bg-card px-3 text-sm"
           >
-            {REPORT_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {REPORT_TYPE_LABELS[type]}
+            {PERIODS.map((p) => (
+              <option key={p.days} value={p.days}>
+                Last {p.label}
               </option>
             ))}
           </select>
         </label>
-
-        <label className="flex flex-col gap-1 text-sm">
-          Format
-          <select
-            className="rounded-md border border-border bg-background px-3 py-2"
-            value={format}
-            onChange={(event) => setFormat(event.target.value as ReportFormat)}
-          >
-            {FORMATS.map((value) => (
-              <option key={value} value={value}>
-                {value.toUpperCase()}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <Button type="submit" disabled={isGenerating}>
-          {isGenerating ? "Generating…" : "Generate report"}
-        </Button>
-      </form>
+      </div>
 
       {error ? (
-        <div role="alert" className="text-sm text-destructive">
+        <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
+        </p>
+      ) : null}
+
+      {tab !== "summary" ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <label className="relative flex h-10 items-center sm:w-80">
+            <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
+            <span className="sr-only">Search the report</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setParams({ q: e.target.value });
+              }}
+              placeholder={tab === "permits" ? "Reference, title, type, place" : "Reference, title, place"}
+              className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">{tab === "permits" ? "Stage" : "Priority"}</span>
+            <select
+              value={filter}
+              onChange={(e) => {
+                setFilter(e.target.value);
+                setParams({ filter: e.target.value });
+              }}
+              className="h-10 rounded-lg border border-border bg-card px-3 text-sm"
+            >
+              <option value="all">All</option>
+              {(tab === "permits" ? PERMIT_STAGES : PRIORITIES).map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       ) : null}
-      {success ? <p className="text-sm text-muted-foreground">{success}</p> : null}
 
-      <section>
-        <h2 className="mb-3 text-sm font-semibold">Your exports</h2>
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading reports…</p>
-        ) : reports.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No reports generated yet.</p>
+      {tab === "permits" ? (
+        permitRows === null ? (
+          <p className="text-sm text-muted-foreground">Loading report…</p>
         ) : (
-          <ul className="divide-y divide-border rounded-lg border border-border">
-            {reports.map((report) => (
-              <li key={report.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                <div>
-                  <p className="font-medium">
-                    {REPORT_TYPE_LABELS[report.reportType] ?? report.reportType} ·{" "}
-                    {report.format.toUpperCase()}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {report.status} · {new Date(report.createdAt).toLocaleString()}
-                  </p>
-                  {report.errorMessage ? (
-                    <p className="text-xs text-destructive">{report.errorMessage}</p>
-                  ) : null}
-                </div>
-                {report.fileName ? (
-                  <span className="text-xs text-muted-foreground">{report.fileName}</span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+          <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid gap-5">
+            <motion.div variants={staggerItem} className="grid gap-3 md:grid-cols-[14rem_1fr]">
+              <StatTile label={`Permits in the last ${periodLabel}`} value={<AnimatedNumber value={permitView.length} />} hint={filter !== "all" || query ? "Matching your filters" : undefined} />
+              <div className="rounded-xl border border-border bg-card px-5 py-4">
+                <SegmentedBar
+                  emptyMessage="No permits match."
+                  segments={PERMIT_STAGES.map((s) => ({ ...s, count: permitView.filter((r) => r.status === s.key).length })).filter((s) => s.count > 0)}
+                />
+              </div>
+            </motion.div>
+            <motion.div variants={staggerItem} className="overflow-x-auto rounded-xl border border-border bg-card">
+              {permitView.length === 0 ? (
+                <p className="px-5 py-10 text-center text-sm text-muted-foreground">No permits match. Widen the period or clear the filters.</p>
+              ) : (
+                <>
+                <ul className="divide-y divide-border md:hidden">
+                  {permitView.map((r) => (
+                    <li key={r.id} className="relative px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <Link href={`/permits/${r.id}`} className="font-medium after:absolute after:inset-0">
+                          {r.title}
+                        </Link>
+                        <PermitStatusBadge status={r.status} />
+                      </div>
+                      <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                        <span className="font-mono">{r.reference ?? "Draft"}</span>
+                        {r.type ? <span>{r.type}</span> : null}
+                        {r.place ? <span>{r.place}</span> : null}
+                        <span>{formatWindow(r.plannedStartAt, r.plannedEndAt)}</span>
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                <table className="hidden min-w-[56rem] w-full text-left text-sm md:table">
+                  <caption className="sr-only">Permit register, last {periodLabel}</caption>
+                  <thead className="sticky top-0 bg-card text-xs text-muted-foreground">
+                    <tr className="border-b border-border">
+                      <SortHeader column="reference" label="Reference" sort={sort} onSort={onSort} />
+                      <SortHeader column="title" label="Permit" sort={sort} onSort={onSort} />
+                      <SortHeader column="type" label="Type" sort={sort} onSort={onSort} />
+                      <SortHeader column="place" label="Place" sort={sort} onSort={onSort} />
+                      <SortHeader column="start" label="Planned" sort={sort} onSort={onSort} />
+                      <SortHeader column="status" label="Status" sort={sort} onSort={onSort} />
+                      <SortHeader column="date" label="Raised" sort={sort} onSort={onSort} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {permitView.map((r) => (
+                      <tr key={r.id} className="relative border-t border-border first:border-t-0 hover:bg-muted/40">
+                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">{r.reference ?? "Draft"}</td>
+                        <td className="px-4 py-3">
+                          <Link href={`/permits/${r.id}`} className="font-medium after:absolute after:inset-0 hover:underline">
+                            {r.title}
+                          </Link>
+                          {r.department ? <p className="text-xs text-muted-foreground">{r.department}</p> : null}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="flex items-center gap-2">
+                            <span aria-hidden className="size-2.5 rounded-full bg-border" style={r.typeColor ? { backgroundColor: r.typeColor } : undefined} />
+                            {r.type ?? "Not set"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{r.place ?? "Not set"}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{formatWindow(r.plannedStartAt, r.plannedEndAt)}</td>
+                        <td className="px-4 py-3">
+                          <PermitStatusBadge status={r.status} />
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{formatDateTime(r.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )
+      ) : null}
+
+      {tab === "incidents" ? (
+        incidentRows === null ? (
+          <p className="text-sm text-muted-foreground">Loading report…</p>
+        ) : (
+          <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid gap-5">
+            <motion.div variants={staggerItem} className="grid gap-3 md:grid-cols-[14rem_1fr]">
+              <StatTile label={`Incidents in the last ${periodLabel}`} value={<AnimatedNumber value={incidentView.length} />} />
+              <div className="rounded-xl border border-border bg-card px-5 py-4">
+                <SegmentedBar
+                  emptyMessage="No incidents match."
+                  segments={PRIORITIES.map((p) => ({ ...p, count: incidentView.filter((r) => r.priority === p.key).length }))}
+                />
+              </div>
+            </motion.div>
+            <motion.div variants={staggerItem} className="overflow-x-auto rounded-xl border border-border bg-card">
+              {incidentView.length === 0 ? (
+                <p className="px-5 py-10 text-center text-sm text-muted-foreground">
+                  No incidents in the last {periodLabel}. Widen the period to see older records.
+                </p>
+              ) : (
+                <>
+                <ul className="divide-y divide-border md:hidden">
+                  {incidentView.map((r) => (
+                    <li key={r.id} className="relative px-4 py-3">
+                      <Link href={`/incidents/${r.id}`} className="font-medium after:absolute after:inset-0">
+                        {r.title}
+                      </Link>
+                      <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                        <span className="font-mono">{r.reference}</span>
+                        <span>{INCIDENT_TYPES[r.type]?.label ?? formatStatus(r.type)}</span>
+                        <span>{formatStatus(r.priority)} priority</span>
+                        <span>{formatStatus(r.status)}</span>
+                        <span>{formatDateTime(r.occurredAt)}</span>
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                <table className="hidden min-w-[48rem] w-full text-left text-sm md:table">
+                  <caption className="sr-only">Incident register, last {periodLabel}</caption>
+                  <thead className="text-xs text-muted-foreground">
+                    <tr className="border-b border-border">
+                      <SortHeader column="reference" label="Reference" sort={sort} onSort={onSort} />
+                      <SortHeader column="title" label="Incident" sort={sort} onSort={onSort} />
+                      <SortHeader column="type" label="Type" sort={sort} onSort={onSort} />
+                      <SortHeader column="priority" label="Priority" sort={sort} onSort={onSort} />
+                      <SortHeader column="status" label="Status" sort={sort} onSort={onSort} />
+                      <SortHeader column="date" label="Occurred" sort={sort} onSort={onSort} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {incidentView.map((r) => (
+                      <tr key={r.id} className="relative border-t border-border first:border-t-0 hover:bg-muted/40">
+                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">{r.reference}</td>
+                        <td className="px-4 py-3">
+                          <Link href={`/incidents/${r.id}`} className="font-medium after:absolute after:inset-0 hover:underline">
+                            {r.title}
+                          </Link>
+                          {r.place ? <p className="text-xs text-muted-foreground">{r.place}</p> : null}
+                        </td>
+                        <td className="px-4 py-3">{INCIDENT_TYPES[r.type]?.label ?? formatStatus(r.type)}</td>
+                        <td className="px-4 py-3">
+                          <span className="flex items-center gap-2">
+                            <span aria-hidden className="size-2.5 rounded-full" style={{ backgroundColor: PRIORITIES.find((p) => p.key === r.priority)?.color }} />
+                            {formatStatus(r.priority)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{formatStatus(r.status)}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{formatDateTime(r.occurredAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )
+      ) : null}
+
+      {tab === "summary" ? (
+        insights === null ? (
+          <p className="text-sm text-muted-foreground">Loading summary…</p>
+        ) : (
+          <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <ChartCard title="Permits by stage" insight="Current position of every permit.">
+              <RankedBars
+                emptyMessage="No permits."
+                rows={PERMIT_STAGES.map((s) => ({ key: s.key, label: s.label, color: s.color, count: insights.permits.byStatus.find((b) => b.key === s.key)?.count ?? 0 })).filter((r) => r.count > 0)}
+              />
+            </ChartCard>
+            <ChartCard title="Permits by type" insight={`Raised in the last ${periodLabel}.`}>
+              <RankedBars emptyMessage="No permits raised." rows={insights.permits.byType.map((r) => ({ key: r.key, label: r.label ?? "Unknown", count: r.count, color: r.color }))} />
+            </ChartCard>
+            <ChartCard title="Safety follow-up">
+              <div className="grid grid-cols-2 gap-3">
+                <StatTile label="Incidents open" value={insights.incidents.open} tone={insights.incidents.open > 0 ? "warning" : "neutral"} href="/reports?tab=incidents" />
+                <StatTile label="SIMOPS clashes open" value={insights.simops.open} tone={insights.simops.open > 0 ? "danger" : "neutral"} href="/simops/conflicts" />
+                <StatTile label="Actions overdue" value={insights.actions.overdue} tone={insights.actions.overdue > 0 ? "danger" : "neutral"} />
+                <StatTile label="Approvals waiting over a day" value={insights.attention.approvalsWaitingOverDay} tone={insights.attention.approvalsWaitingOverDay > 0 ? "warning" : "neutral"} href="/approvals" />
+              </div>
+            </ChartCard>
+          </motion.div>
+        )
+      ) : null}
     </main>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense fallback={<main className="p-8 text-sm text-muted-foreground">Loading reports…</main>}>
+      <ReportsView />
+    </Suspense>
   );
 }

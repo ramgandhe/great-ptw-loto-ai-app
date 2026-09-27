@@ -9,6 +9,7 @@ import { getNotificationEntityHref } from "@/lib/notifications/routes";
 import type { Notification } from "@/lib/notifications/types";
 import { NotificationPriorityLabel } from "@/components/notifications/notification-priority-label";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 const CATEGORY_LABELS: Record<Notification["category"], string> = {
   workflow: "Workflow",
@@ -60,7 +61,7 @@ export default function NotificationDetailPage() {
   const entityHref = notification ? getNotificationEntityHref(notification) : null;
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button type="button" variant="outline" size="sm" onClick={() => router.push("/notifications")}>
           Back to centre
@@ -81,14 +82,14 @@ export default function NotificationDetailPage() {
       ) : notification ? (
         <article className="max-w-2xl space-y-4 rounded-lg border border-border p-6">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold">{notification.title}</h1>
+            <h1 className="font-heading text-3xl font-bold tracking-tight">{notification.title}</h1>
             {notification.readAt === null ? (
               <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
                 Unread
               </span>
             ) : (
               <span className="text-xs text-muted-foreground">
-                Read {new Date(notification.readAt).toLocaleString()}
+                Read {formatDateTime(notification.readAt)}
               </span>
             )}
           </div>
@@ -105,12 +106,12 @@ export default function NotificationDetailPage() {
           <dl className="grid gap-2 text-sm text-muted-foreground">
             <div>
               <dt className="font-medium text-foreground">Received</dt>
-              <dd>{new Date(notification.createdAt).toLocaleString()}</dd>
+              <dd>{formatDateTime(notification.createdAt)}</dd>
             </div>
             {notification.deliveredAt ? (
               <div>
                 <dt className="font-medium text-foreground">Delivered</dt>
-                <dd>{new Date(notification.deliveredAt).toLocaleString()}</dd>
+                <dd>{formatDateTime(notification.deliveredAt)}</dd>
               </div>
             ) : null}
             {notification.eventType ? (

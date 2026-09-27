@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { departmentsApi } from "@/lib/organisation/api";
 import {
@@ -18,6 +18,7 @@ import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { ASSIGNABLE_ROLES, rolesAssignableBy } from "@/lib/form-options";
 import { formatRoleLabel } from "@/lib/auth/rbac";
 import { Button } from "@/components/ui/button";
+import { AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 
 export default function UserRolesPage() {
   const { profile, roles: actorRoles } = useAuthProfile();
@@ -31,6 +32,7 @@ export default function UserRolesPage() {
     role: "",
     departmentId: "",
   });
+  const [formOpen, setFormOpen] = useState(false);
   const [created, setCreated] = useState<CreatedTenantUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +73,7 @@ export default function UserRolesPage() {
       });
       setCreated(result);
       setForm({ name: "", email: "", role: "", departmentId: "" });
+      setFormOpen(false);
       await loadUsers();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to create user");
@@ -153,19 +156,26 @@ export default function UserRolesPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Users and roles</h1>
-          <p className="text-sm text-muted-foreground">
-            Add people to this organisation with a name, email, and login role. Share the
-            temporary password once; they must change it on first sign-in.
-          </p>
-        </div>
-        <Link href="/workforce">
-          <Button variant="outline">Back</Button>
-        </Link>
-      </div>
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+      <AdminPageHeader
+        title="Users and roles"
+        description="Add people with a name, email and login role. Share the temporary password once; they change it on first sign-in."
+        action={
+          !formOpen ? (
+            <Button
+              type="button"
+              size="lg"
+              onClick={() => {
+                setCreated(null);
+                setFormOpen(true);
+              }}
+            >
+              <Plus aria-hidden />
+              Add user
+            </Button>
+          ) : null
+        }
+      />
 
       {error ? (
         <div
@@ -177,10 +187,10 @@ export default function UserRolesPage() {
       ) : null}
 
       {created ? (
-        <div className="rounded-lg border border-border bg-card p-4 text-sm">
+        <div role="status" className="rounded-xl border border-(--status-success)/40 bg-card p-5 text-sm">
           <p className="font-semibold">User created</p>
           <p className="mt-2 text-muted-foreground">{created.signInHint}</p>
-          <dl className="mt-3 grid gap-2">
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
             <div>
               <dt className="text-muted-foreground">Name</dt>
               <dd className="font-medium">{created.name}</dd>
@@ -211,33 +221,34 @@ export default function UserRolesPage() {
         </div>
       ) : null}
 
-      <form onSubmit={handleCreate} className="grid max-w-md gap-4 rounded-lg border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold">Add user</h2>
+      {formOpen ? (
+      <form onSubmit={handleCreate} className="reveal-in grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
+        <h2 className="font-semibold sm:col-span-2">New user</h2>
         <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Name *</span>
+          <span className="font-medium">Name</span>
           <input
             required
             value={form.name}
-            className="h-9 rounded-lg border border-border bg-background px-3"
+            className={FIELD_CLASS}
             onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
           />
         </label>
         <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Email *</span>
+          <span className="font-medium">Email</span>
           <input
             required
             type="email"
             value={form.email}
-            className="h-9 rounded-lg border border-border bg-background px-3"
+            className={FIELD_CLASS}
             onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
           />
         </label>
         <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Role *</span>
+          <span className="font-medium">Role</span>
           <select
             required
             value={form.role}
-            className="h-9 rounded-lg border border-border bg-background px-3"
+            className={FIELD_CLASS}
             onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value }))}
           >
             <option value="">Select role</option>
@@ -249,10 +260,12 @@ export default function UserRolesPage() {
           </select>
         </label>
         <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Department (optional, used for HOD permit visibility)</span>
+          <span className="font-medium">
+            Department <span className="font-normal text-muted-foreground">(optional, limits what an HOD sees)</span>
+          </span>
           <select
             value={form.departmentId}
-            className="h-9 rounded-lg border border-border bg-background px-3"
+            className={FIELD_CLASS}
             onChange={(e) => setForm((prev) => ({ ...prev, departmentId: e.target.value }))}
           >
             <option value="">All departments</option>
@@ -263,28 +276,36 @@ export default function UserRolesPage() {
             ))}
           </select>
         </label>
-        <Button type="submit" disabled={saving}>
-          {saving ? "Creating…" : "Add user"}
-        </Button>
+        <div className="flex flex-wrap gap-2 sm:col-span-2">
+          <Button type="submit" disabled={saving}>
+            {saving ? "Adding…" : "Add user"}
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => setFormOpen(false)}>
+            Cancel
+          </Button>
+        </div>
       </form>
+      ) : null}
 
-      <section>
-        <h2 className="mb-3 text-sm font-semibold">Organisation users</h2>
-        {loading ? (
+      {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : users.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No users in this tenant yet.</p>
+          <div className="rounded-xl border border-dashed border-border px-5 py-10 text-center">
+            <p className="font-medium">No users yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">Add the first user so they can sign in.</p>
+          </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-border bg-muted/40">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Email</th>
-                  <th className="px-3 py-2 font-medium">Name</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Role</th>
-                  <th className="px-3 py-2 font-medium">Department</th>
-                  <th className="px-3 py-2 font-medium">Actions</th>
+          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+            <table className="min-w-full text-sm">
+              <thead className="text-left text-xs text-muted-foreground">
+                <tr className="border-b border-border">
+                  <th className="px-4 py-2.5 font-medium">Name</th>
+                  <th className="px-4 py-2.5 font-medium">Status</th>
+                  <th className="px-4 py-2.5 font-medium">Role</th>
+                  <th className="px-4 py-2.5 font-medium">Department</th>
+                  <th className="px-4 py-2.5 text-right font-medium">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -294,26 +315,26 @@ export default function UserRolesPage() {
                   const manageable = canManageUser(user);
                   const busy = updatingId === user.id;
                   return (
-                    <tr key={user.id} className="border-b border-border last:border-0">
-                      <td className="px-3 py-2">{user.email ?? user.username}</td>
-                      <td className="px-3 py-2">
-                        {user.name ||
-                          [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-                          "—"}
+                    <tr key={user.id} className="border-t border-border first:border-t-0">
+                      <td className="px-4 py-3">
+                        <span className="block font-medium">
+                          {user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">{user.email ?? user.username}</span>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-3">
                         {user.enabled ? (
                           <span className="text-foreground">Active</span>
                         ) : (
                           <span className="text-muted-foreground">Inactive</span>
                         )}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-3">
                         {canChangeRole && user.enabled ? (
                           <select
                             value={currentRole}
                             disabled={busy}
-                            className="h-9 rounded-lg border border-border bg-background px-3"
+                            className={FIELD_CLASS}
                             onChange={(e) => handleRoleChange(user.id, e.target.value)}
                           >
                             {assignableRoles.map((option) => (
@@ -326,12 +347,12 @@ export default function UserRolesPage() {
                           formatRoleLabel(currentRole)
                         )}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-3">
                         {manageable ? (
                           <select
                             value={user.departmentId ?? ""}
                             disabled={busy}
-                            className="h-9 rounded-lg border border-border bg-background px-3"
+                            className={FIELD_CLASS}
                             onChange={(e) => {
                               const departmentId = e.target.value;
                               setUpdatingId(user.id);
@@ -352,42 +373,39 @@ export default function UserRolesPage() {
                           departments.find((department) => department.id === user.departmentId)?.name || "All"
                         )}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-3">
                         {manageable ? (
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex justify-end gap-3">
                             {user.enabled ? (
-                              <Button
+                              <button
                                 type="button"
-                                variant="outline"
-                                size="sm"
+                                className="text-primary hover:underline disabled:opacity-50"
                                 disabled={busy}
                                 onClick={() => void handleDeactivate(user)}
                               >
                                 Deactivate
-                              </Button>
+                              </button>
                             ) : (
-                              <Button
+                              <button
                                 type="button"
-                                variant="outline"
-                                size="sm"
+                                className="text-primary hover:underline disabled:opacity-50"
                                 disabled={busy}
                                 onClick={() => void handleReactivate(user)}
                               >
                                 Reactivate
-                              </Button>
+                              </button>
                             )}
-                            <Button
+                            <button
                               type="button"
-                              variant="destructive"
-                              size="sm"
+                              className="text-muted-foreground hover:text-destructive hover:underline disabled:opacity-50"
                               disabled={busy}
                               onClick={() => void handleDelete(user)}
                             >
                               Delete
-                            </Button>
+                            </button>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">—</span>
+                          <span className="sr-only">No actions</span>
                         )}
                       </td>
                     </tr>
@@ -397,7 +415,6 @@ export default function UserRolesPage() {
             </table>
           </div>
         )}
-      </section>
     </main>
   );
 }

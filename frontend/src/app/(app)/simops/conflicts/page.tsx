@@ -7,6 +7,7 @@ import { listSimopsConflicts } from "@/lib/simops/api";
 import type { ConflictSeverity, SimopsConflict } from "@/lib/simops/types";
 import { ConflictSeverityBadge } from "@/components/simops/conflict-severity-badge";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 export default function ActiveConflictsPage() {
   const [conflicts, setConflicts] = useState<SimopsConflict[]>([]);
@@ -33,10 +34,10 @@ export default function ActiveConflictsPage() {
       : conflicts.filter((item) => item.severity === severity);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Active conflicts</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Active conflicts</h1>
           <p className="text-sm text-muted-foreground">
             Review open SIMOPS conflicts before work proceeds.
           </p>
@@ -86,7 +87,7 @@ export default function ActiveConflictsPage() {
                   <p className="font-medium">{conflict.summary}</p>
                   <p className="text-xs text-muted-foreground">
                     {conflict.conflictType.replace(/_/g, " ")} · Detected{" "}
-                    {new Date(conflict.detectedAt).toLocaleString()}
+                    {formatDateTime(conflict.detectedAt)}
                   </p>
                 </div>
                 <ConflictSeverityBadge severity={conflict.severity} />

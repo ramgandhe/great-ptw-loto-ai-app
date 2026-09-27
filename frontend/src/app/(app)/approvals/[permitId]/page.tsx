@@ -1,233 +1,273 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Check, History, RotateCcw, X } from "lucide-react";
 import { ApiError } from "@/lib/api";
-import {
-  approvePermit,
-  deferPermit,
-  getApprovalReview,
-  rejectPermit,
-} from "@/lib/approval/api";
+import { approvePermit, deferPermit, getApprovalReview, rejectPermit } from "@/lib/approval/api";
 import type { ApprovalReview } from "@/lib/approval/types";
+import { formatDateTime, formatStatus } from "@/lib/format";
 import { permitDetailToForm } from "@/lib/permit/form";
-import { ApprovalDialog } from "@/components/approval/approval-dialog";
-import { ApprovalProgressIndicator } from "@/components/approval/approval-progress";
+import { cn } from "@/lib/utils";
+import { useWorkQueue } from "@/lib/work-queue-context";
 import { WorkflowTimeline } from "@/components/approval/workflow-timeline";
-import { PermitSummary } from "@/components/permit/permit-summary";
+import { PermitSummary, permitGaps } from "@/components/permit/permit-summary";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 
-type DialogMode = "approve" | "reject" | "defer" | null;
+type Decision = "approve" | "defer" | "reject";
+
+const DECISIONS: Record<Decision, { label: string; done: string; prompt: string; placeholder: string }> = {
+  approve: {
+    label: "Approve",
+    done: "Approved",
+    prompt: "Comment for the record",
+    placeholder: "Optional note for the next approver and the issuer",
+  },
+  defer: {
+    label: "Send back for changes",
+    done: "Sent back",
+    prompt: "What needs to change?",
+    placeholder: "The issuer sees this and can resubmit",
+  },
+  reject: {
+    label: "Reject",
+    done: "Rejected",
+    prompt: "Why is it rejected?",
+    placeholder: "The issuer sees this reason",
+  },
+};
+
+/** Common reasons so a reviewer can pick instead of typing. */
+const COMMON_REASONS = [
+  "Hazard assessment incomplete",
+  "PPE does not match the hazards",
+  "Isolation plan missing or unclear",
+  "Clashes with other work in the area",
+  "Work scope needs more detail",
+];
 
 export default function PermitReviewPage() {
   const params = useParams<{ permitId: string }>();
   const router = useRouter();
+  const { items } = useWorkQueue();
   const [review, setReview] = useState<ApprovalReview | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [dialogMode, setDialogMode] = useState<DialogMode>(null);
+  const [decision, setDecision] = useState<Decision | null>(null);
   const [comment, setComment] = useState("");
-  const [dialogError, setDialogError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     getApprovalReview(params.permitId)
       .then(setReview)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load review"));
+      .catch((err) => setError(err instanceof ApiError ? err.message : "This permit could not be loaded."));
   }, [params.permitId]);
 
-  const canAct =
-    review?.permit.status === "pending_approval" && review.activeAssignment !== null;
+  const nextReview = useMemo(
+    () => items.find((item) => item.action === "review" && item.permit && item.permit.id !== params.permitId),
+    [items, params.permitId],
+  );
 
-  const activeStep = review?.activeAssignment?.step;
-
-  function openDialog(mode: DialogMode) {
-    setComment("");
-    setDialogError(null);
-    setDialogMode(mode);
+  if (error) {
+    return (
+      <main className="p-8">
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+        <Link href="/approvals" className={cn(buttonVariants({ variant: "outline" }), "mt-4")}>
+          Back to approvals
+        </Link>
+      </main>
+    );
   }
 
-  function closeDialog() {
-    if (!isSubmitting) {
-      setDialogMode(null);
-      setComment("");
-      setDialogError(null);
-    }
+  if (!review) {
+    return <p className="p-8 text-sm text-muted-foreground">Loading permit…</p>;
   }
 
-  async function submitAction() {
-    if (!dialogMode) {
+  const form = permitDetailToForm(review);
+  const gaps = permitGaps(form);
+  const step = review.activeAssignment?.step;
+  const canAct = review.permit.status === "pending_approval" && review.activeAssignment !== null;
+  const commentRequired =
+    decision === "approve"
+      ? Boolean(step?.commentRequiredOnApprove)
+      : decision === "reject"
+        ? (step?.commentRequiredOnReject ?? true)
+        : decision === "defer"
+          ? (step?.commentRequiredOnDefer ?? true)
+          : false;
+  const suggestions = decision && decision !== "approve" ? [...(gaps.length ? [`Missing: ${gaps.join(", ")}`] : []), ...COMMON_REASONS] : [];
+
+  async function submit() {
+    if (!decision) return;
+    if (commentRequired && !comment.trim()) {
+      setActionError("Add a comment before confirming. The issuer needs to know what to change.");
       return;
     }
-
     setIsSubmitting(true);
-    setDialogError(null);
-
+    setActionError(null);
     try {
-      let updated: ApprovalReview;
-      if (dialogMode === "approve") {
-        updated = await approvePermit(params.permitId, comment);
-      } else if (dialogMode === "reject") {
-        updated = await rejectPermit(params.permitId, comment);
-      } else {
-        updated = await deferPermit(params.permitId, comment);
-      }
-
+      const run = decision === "approve" ? approvePermit : decision === "reject" ? rejectPermit : deferPermit;
+      const updated = await run(params.permitId, comment.trim());
       setReview(updated);
-      setDialogMode(null);
+      setDecision(null);
       setComment("");
-
-      if (dialogMode !== "approve" || updated.permit.status !== "pending_approval") {
-        router.push("/approvals");
+      // Another stage of this permit may also be yours; otherwise move on to the next permit.
+      if (!(decision === "approve" && updated.permit.status === "pending_approval" && updated.activeAssignment)) {
+        router.push(nextReview ? nextReview.href : "/approvals");
       }
     } catch (err) {
-      setDialogError(err instanceof ApiError ? err.message : "Action failed");
+      setActionError(err instanceof ApiError ? err.message : "The decision was not saved. Try again.");
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  if (error) {
-    return (
-      <div className="p-8 text-sm text-destructive" role="alert">
-        {error}
-      </div>
-    );
-  }
-
-  if (!review) {
-    return <p className="p-8 text-sm text-muted-foreground">Loading permit review...</p>;
-  }
-
-  const form = permitDetailToForm(review);
-
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="mb-2 flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">{review.permit.title}</h1>
-            <PermitStatusBadge status={review.permit.status} />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {review.permit.reference ? `Reference ${review.permit.reference}` : "Permit review"}
-          </p>
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+      <div>
+        <Link href="/approvals" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-4" aria-hidden />
+          Approvals
+        </Link>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">{review.permit.title}</h1>
+          <PermitStatusBadge status={review.permit.status} />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/approvals/${review.permit.id}/history`}>
-            <Button variant="outline">Approval history</Button>
+        <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-muted-foreground">
+          {review.permit.reference ? <span className="font-mono">{review.permit.reference}</span> : null}
+          {review.permit.submittedAt ? <span>Submitted {formatDateTime(review.permit.submittedAt)}</span> : null}
+          <Link href={`/permits/${review.permit.id}`} className="underline-offset-4 hover:underline">
+            Open full permit
           </Link>
-          <Link href="/approvals">
-            <Button variant="ghost">Back to queue</Button>
-          </Link>
-        </div>
+        </p>
       </div>
 
-      <ApprovalProgressIndicator workflow={review.workflow} />
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <PermitSummary form={form} status={review.permit.status} attachments={review.attachments} showHeader={false} />
 
-      <section className="grid gap-3">
-        <h2 className="text-sm font-semibold">Workflow timeline</h2>
-        <WorkflowTimeline workflow={review.workflow} />
-      </section>
+        <aside className="grid gap-4 lg:sticky lg:top-20">
+          <section className="rounded-xl border border-border bg-card p-5" aria-labelledby="decision-heading">
+            <h2 id="decision-heading" className="font-semibold">
+              {canAct ? "Your decision" : "Decision"}
+            </h2>
+            {step ? <p className="mt-0.5 text-sm text-muted-foreground">Stage: {step.name}</p> : null}
 
-      <PermitSummary
-        form={form}
-        status={review.permit.status}
-        reference={review.permit.reference}
-      />
+            {!canAct ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Nothing to decide here. The permit is {formatStatus(review.permit.status).toLowerCase()}.
+              </p>
+            ) : (
+              <>
+                <div className="mt-4 grid gap-2" role="radiogroup" aria-label="Decision">
+                  {(Object.keys(DECISIONS) as Decision[]).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      role="radio"
+                      aria-checked={decision === key}
+                      onClick={() => {
+                        setDecision(key);
+                        setActionError(null);
+                      }}
+                      className={cn(
+                        "flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                        decision === key
+                          ? key === "reject"
+                            ? "border-(--status-danger) bg-(--status-danger-bg) text-(--status-danger)"
+                            : "border-primary bg-primary/10 text-foreground"
+                          : "border-border hover:bg-muted",
+                      )}
+                    >
+                      {key === "approve" ? <Check className="size-4" aria-hidden /> : key === "defer" ? <RotateCcw className="size-4" aria-hidden /> : <X className="size-4" aria-hidden />}
+                      {DECISIONS[key].label}
+                    </button>
+                  ))}
+                </div>
 
-      <section className="grid gap-3">
-        <h2 className="text-sm font-semibold">Attachments</h2>
-        {review.attachments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No attachments uploaded.</p>
-        ) : (
-          <ul className="grid gap-2 text-sm">
-            {review.attachments.map((attachment) => (
-              <li key={attachment.id} className="rounded-lg border border-border px-3 py-2">
-                {attachment.fileName} ({Math.round(attachment.fileSize / 1024)} KB)
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {review.decisions.length > 0 ? (
-        <section className="grid gap-3">
-          <h2 className="text-sm font-semibold">Previous decisions</h2>
-          <ul className="grid gap-2 text-sm">
-            {review.decisions.map((decision) => (
-              <li key={decision.id} className="rounded-lg border border-border px-3 py-2">
-                <span className="font-medium capitalize">{decision.decision}</span>
-                {decision.comment ? (
-                  <p className="mt-1 text-muted-foreground">{decision.comment}</p>
+                {decision ? (
+                  <div className="mt-4 grid gap-2">
+                    <label htmlFor="decision-comment" className="text-sm font-medium">
+                      {DECISIONS[decision].prompt}
+                      {commentRequired ? "" : <span className="font-normal text-muted-foreground"> (optional)</span>}
+                    </label>
+                    {suggestions.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {suggestions.map((reason) => (
+                          <button
+                            key={reason}
+                            type="button"
+                            onClick={() => setComment((c) => (c.trim() ? `${c.trim()}\n${reason}` : reason))}
+                            className="rounded-full border border-border px-2.5 py-1 text-left text-xs hover:bg-muted"
+                          >
+                            {reason}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    <textarea
+                      id="decision-comment"
+                      rows={3}
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder={DECISIONS[decision].placeholder}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    />
+                    {actionError ? (
+                      <p role="alert" className="text-sm text-destructive">
+                        {actionError}
+                      </p>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant={decision === "reject" ? "destructive" : "default"}
+                      className="h-10"
+                      disabled={isSubmitting}
+                      onClick={submit}
+                    >
+                      {isSubmitting ? "Saving…" : `${DECISIONS[decision].label}${nextReview ? " and open next" : ""}`}
+                    </Button>
+                  </div>
                 ) : null}
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {new Date(decision.decidedAt).toLocaleString()}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+              </>
+            )}
+          </section>
 
-      {canAct ? (
-        <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-          <Button onClick={() => openDialog("approve")}>Approve</Button>
-          <Button variant="destructive" onClick={() => openDialog("reject")}>
-            Reject
-          </Button>
-          <Button variant="outline" onClick={() => openDialog("defer")}>
-            Defer
-          </Button>
-        </div>
-      ) : null}
-
-      <ApprovalDialog
-        open={dialogMode === "approve"}
-        title="Approve permit"
-        description="Confirm approval for this permit request."
-        confirmLabel="Approve"
-        comment={comment}
-        commentRequired={activeStep?.commentRequiredOnApprove}
-        commentLabel="Approval comment"
-        isSubmitting={isSubmitting}
-        error={dialogError}
-        onCommentChange={setComment}
-        onConfirm={submitAction}
-        onClose={closeDialog}
-      />
-
-      <ApprovalDialog
-        open={dialogMode === "reject"}
-        title="Reject permit"
-        description="Provide a reason for rejection. The job issuer will be notified."
-        confirmLabel="Reject"
-        confirmVariant="destructive"
-        comment={comment}
-        commentRequired={activeStep?.commentRequiredOnReject ?? true}
-        commentLabel="Rejection reason"
-        isSubmitting={isSubmitting}
-        error={dialogError}
-        onCommentChange={setComment}
-        onConfirm={submitAction}
-        onClose={closeDialog}
-      />
-
-      <ApprovalDialog
-        open={dialogMode === "defer"}
-        title="Defer permit"
-        description="Request clarification from the job issuer before approval can continue."
-        confirmLabel="Defer"
-        comment={comment}
-        commentRequired={activeStep?.commentRequiredOnDefer ?? true}
-        commentLabel="Clarification request"
-        isSubmitting={isSubmitting}
-        error={dialogError}
-        onCommentChange={setComment}
-        onConfirm={submitAction}
-        onClose={closeDialog}
-      />
+          <section className="rounded-xl border border-border bg-card p-5" aria-labelledby="flow-heading">
+            <div className="flex items-center justify-between gap-2">
+              <h2 id="flow-heading" className="font-semibold">
+                Approval route
+              </h2>
+              <Link
+                href={`/approvals/${review.permit.id}/history`}
+                className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <History className="size-3.5" aria-hidden />
+                History
+              </Link>
+            </div>
+            <div className="mt-3">
+              <WorkflowTimeline workflow={review.workflow} />
+            </div>
+            {review.decisions.length > 0 ? (
+              <ul className="mt-4 grid gap-3 border-t border-border pt-4 text-sm">
+                {review.decisions.map((d) => (
+                  <li key={d.id}>
+                    <p className="font-medium">
+                      {formatStatus(d.decision)}
+                      <span className="ml-2 font-normal text-muted-foreground">{formatDateTime(d.decidedAt)}</span>
+                    </p>
+                    {d.comment ? <p className="mt-0.5 text-muted-foreground">{d.comment}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+        </aside>
+      </div>
     </main>
   );
 }

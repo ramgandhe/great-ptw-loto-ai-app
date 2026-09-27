@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { gasTestingApi, type GasTestingRecord } from "@/lib/master-data/api";
 import { workstationsApi } from "@/lib/organisation/api";
 import type { OrgRecord } from "@/lib/organisation/types";
 import { formatOrgOptionLabel } from "@/lib/form-options";
 import { Button } from "@/components/ui/button";
+import { AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 
 const emptyForm = {
   workstationId: "",
@@ -20,10 +23,14 @@ export default function GasTestingConfigPage() {
   const [items, setItems] = useState<GasTestingRecord[]>([]);
   const [workstations, setWorkstations] = useState<OrgRecord[]>([]);
   const [form, setForm] = useState(emptyForm);
+  const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const addAnother = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   function load() {
     return Promise.all([gasTestingApi.list(), workstationsApi.list()])
@@ -40,21 +47,29 @@ export default function GasTestingConfigPage() {
     load().finally(() => setLoading(false));
   }, []);
 
-  function startEdit(item: GasTestingRecord) {
-    setEditingId(item.id);
-    setForm({
-      workstationId: item.workstationId,
-      parameter: item.parameter,
-      unit: item.unit,
-      minimum: String(item.minimum),
-      maximum: String(item.maximum),
-    });
+  function openForm(item?: GasTestingRecord) {
+    setEditingId(item?.id ?? null);
+    setForm(
+      item
+        ? {
+            workstationId: item.workstationId,
+            parameter: item.parameter,
+            unit: item.unit,
+            minimum: String(item.minimum),
+            maximum: String(item.maximum),
+          }
+        : emptyForm,
+    );
     setError(null);
+    setSavedMessage(null);
+    setFormOpen(true);
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   }
 
   function resetForm() {
     setEditingId(null);
     setForm(emptyForm);
+    setFormOpen(false);
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -89,7 +104,13 @@ export default function GasTestingConfigPage() {
       } else {
         await gasTestingApi.create(payload);
       }
-      resetForm();
+      setSavedMessage(`${editingId ? "Saved" : "Added"} ${payload.parameter}.`);
+      if (addAnother.current && !editingId) {
+        // Keep the workstation so several parameters for the same place can be added in a row.
+        setForm({ ...emptyForm, workstationId: form.workstationId });
+      } else {
+        resetForm();
+      }
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to save gas testing item");
@@ -99,8 +120,7 @@ export default function GasTestingConfigPage() {
   }
 
   async function handleDelete(id: string) {
-    const confirmed = window.confirm("Delete this gas testing item?");
-    if (!confirmed) {
+    if (!window.confirm("Delete this gas testing item?")) {
       return;
     }
     setError(null);
@@ -117,149 +137,179 @@ export default function GasTestingConfigPage() {
 
   function workstationLabel(id: string) {
     const workstation = workstations.find((item) => item.id === id);
-    return workstation ? formatOrgOptionLabel(workstation) : id;
+    return workstation ? formatOrgOptionLabel(workstation) : "Unknown workstation";
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Gas Testing configuration</h1>
-        <p className="text-sm text-muted-foreground">
-          Configure gas testing parameters and criteria by workstation. Permits can select these
-          items when gas testing is required.
-        </p>
-      </div>
+    <main className="flex flex-1 flex-col gap-5 p-4 sm:p-8">
+      <AdminPageHeader
+        title="Gas testing"
+        description="Gas testing parameters and safe limits by workstation. Permits pick these when gas testing is required."
+        action={
+          !formOpen ? (
+            <Button type="button" size="lg" onClick={() => openForm()} disabled={!loading && workstations.length === 0}>
+              <Plus aria-hidden />
+              Add parameter
+            </Button>
+          ) : null
+        }
+      />
 
-      {error ? (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          {error}
-        </div>
+      {!loading && workstations.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Add a{" "}
+          <Link href="/organisation/workstations" className="text-primary hover:underline">
+            workstation
+          </Link>{" "}
+          first; gas testing limits are set per workstation.
+        </p>
       ) : null}
 
-      <form onSubmit={handleSubmit} className="grid max-w-xl gap-4 rounded-lg border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold">{editingId ? "Edit item" : "Add item"}</h2>
-        <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Workstation *</span>
-          <select
-            required
-            value={form.workstationId}
-            className="h-9 rounded-lg border border-border bg-background px-3"
-            onChange={(e) => setForm((prev) => ({ ...prev, workstationId: e.target.value }))}
-          >
-            <option value="">Select workstation</option>
-            {workstations.map((item) => (
-              <option key={item.id} value={item.id}>
-                {formatOrgOptionLabel(item)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Parameter *</span>
-          <input
-            required
-            value={form.parameter}
-            className="h-9 rounded-lg border border-border bg-background px-3"
-            onChange={(e) => setForm((prev) => ({ ...prev, parameter: e.target.value }))}
-            placeholder="Oxygen"
-          />
-        </label>
-        <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Unit *</span>
-          <input
-            required
-            value={form.unit}
-            className="h-9 rounded-lg border border-border bg-background px-3"
-            onChange={(e) => setForm((prev) => ({ ...prev, unit: e.target.value }))}
-            placeholder="%"
-          />
-        </label>
-        <div className="grid gap-4 sm:grid-cols-2">
+      {savedMessage ? (
+        <p role="status" className="text-sm font-medium text-(--status-success)">
+          {savedMessage}
+        </p>
+      ) : null}
+
+      {formOpen ? (
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className="reveal-in grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2"
+        >
+          <h2 className="font-semibold sm:col-span-2">{editingId ? `Edit ${form.parameter || "parameter"}` : "New parameter"}</h2>
+          <label className="grid gap-1.5 text-sm sm:col-span-2">
+            <span className="font-medium">Workstation</span>
+            <select
+              required
+              value={form.workstationId}
+              className={FIELD_CLASS}
+              onChange={(e) => setForm((prev) => ({ ...prev, workstationId: e.target.value }))}
+            >
+              <option value="">Select workstation</option>
+              {workstations.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {formatOrgOptionLabel(item)}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="grid gap-1.5 text-sm">
-            <span className="font-medium">Minimum *</span>
+            <span className="font-medium">Parameter</span>
+            <input
+              required
+              value={form.parameter}
+              className={FIELD_CLASS}
+              onChange={(e) => setForm((prev) => ({ ...prev, parameter: e.target.value }))}
+              placeholder="Oxygen"
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-medium">Unit</span>
+            <input
+              required
+              value={form.unit}
+              className={FIELD_CLASS}
+              onChange={(e) => setForm((prev) => ({ ...prev, unit: e.target.value }))}
+              placeholder="%"
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-medium">Minimum</span>
             <input
               required
               type="number"
               step="any"
               value={form.minimum}
-              className="h-9 rounded-lg border border-border bg-background px-3"
+              className={FIELD_CLASS}
               onChange={(e) => setForm((prev) => ({ ...prev, minimum: e.target.value }))}
             />
           </label>
           <label className="grid gap-1.5 text-sm">
-            <span className="font-medium">Maximum *</span>
+            <span className="font-medium">Maximum</span>
             <input
               required
               type="number"
               step="any"
               value={form.maximum}
-              className="h-9 rounded-lg border border-border bg-background px-3"
+              className={FIELD_CLASS}
               onChange={(e) => setForm((prev) => ({ ...prev, maximum: e.target.value }))}
             />
           </label>
-        </div>
-        <div className="flex gap-2">
-          <Button type="submit" disabled={saving || workstations.length === 0}>
-            {saving ? "Saving…" : editingId ? "Save changes" : "Add item"}
-          </Button>
-          {editingId ? (
-            <Button type="button" variant="outline" onClick={resetForm}>
+          <div className="flex flex-wrap gap-2 sm:col-span-2">
+            <Button type="submit" disabled={saving} onClick={() => (addAnother.current = false)}>
+              {saving ? "Saving…" : editingId ? "Save changes" : "Add parameter"}
+            </Button>
+            {!editingId ? (
+              <Button type="submit" variant="outline" disabled={saving} onClick={() => (addAnother.current = true)}>
+                Add and add another
+              </Button>
+            ) : null}
+            <Button type="button" variant="ghost" onClick={resetForm}>
               Cancel
             </Button>
-          ) : null}
-        </div>
-        {workstations.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Add workstations first under Organisation → Workstations.</p>
-        ) : null}
-      </form>
-
-      <section>
-        <h2 className="mb-3 text-sm font-semibold">Gas Testing Session</h2>
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No gas testing items yet.</p>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-border bg-muted/40">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Workstation</th>
-                  <th className="px-3 py-2 font-medium">Parameter</th>
-                  <th className="px-3 py-2 font-medium">Unit</th>
-                  <th className="px-3 py-2 font-medium">Minimum</th>
-                  <th className="px-3 py-2 font-medium">Maximum</th>
-                  <th className="px-3 py-2 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2">{workstationLabel(item.workstationId)}</td>
-                    <td className="px-3 py-2">{item.parameter}</td>
-                    <td className="px-3 py-2">{item.unit}</td>
-                    <td className="px-3 py-2">{item.minimum}</td>
-                    <td className="px-3 py-2">{item.maximum}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex gap-2">
-                        <Button type="button" variant="outline" size="sm" onClick={() => startEdit(item)}>
-                          Edit
-                        </Button>
-                        <Button type="button" variant="outline" size="sm" onClick={() => void handleDelete(item.id)}>
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
-        )}
-      </section>
+        </form>
+      ) : null}
+
+      {error ? (
+        <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      ) : null}
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : items.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border px-5 py-10 text-center">
+          <p className="font-medium">No gas testing parameters yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">Add the first parameter so permits can record gas readings.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <table className="min-w-full text-sm">
+            <thead className="text-left text-xs text-muted-foreground">
+              <tr className="border-b border-border">
+                <th className="px-4 py-2.5 font-medium">Parameter</th>
+                <th className="px-4 py-2.5 font-medium">Workstation</th>
+                <th className="px-4 py-2.5 font-medium">Safe range</th>
+                <th className="px-4 py-2.5 text-right font-medium">
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr
+                  key={item.id}
+                  className={`cursor-pointer border-t border-border first:border-t-0 hover:bg-muted/40 ${editingId === item.id ? "bg-muted/60" : ""}`}
+                  onClick={() => openForm(item)}
+                >
+                  <td className="px-4 py-3 font-medium">{item.parameter}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{workstationLabel(item.workstationId)}</td>
+                  <td className="px-4 py-3 tabular-nums">
+                    {item.minimum} to {item.maximum} {item.unit}
+                  </td>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-end gap-3">
+                      <button type="button" className="text-primary hover:underline" onClick={() => openForm(item)}>
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-destructive hover:underline"
+                        onClick={() => void handleDelete(item.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </main>
   );
 }

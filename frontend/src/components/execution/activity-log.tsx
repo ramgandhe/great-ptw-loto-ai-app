@@ -1,4 +1,5 @@
 import type { EvidenceRecord, PermitExecution, ProgressRecord } from "@/lib/execution/types";
+import { formatDateTime } from "@/lib/format";
 
 type ActivityEntry = {
   id: string;
@@ -95,7 +96,7 @@ export function ActivityLog({
           <div className="min-w-0 flex-1">
             <p className="font-medium">{entry.label}</p>
             {entry.detail ? <p className="text-muted-foreground">{entry.detail}</p> : null}
-            <p className="text-xs text-muted-foreground">{new Date(entry.at).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">{formatDateTime(entry.at)}</p>
           </div>
         </li>
       ))}

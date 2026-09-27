@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { openPresignedDownload } from "@/lib/download";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
+import { formatDateTime } from "@/lib/format";
 
 export default function PermitClosurePage() {
   const params = useParams<{ permitId: string }>();
@@ -182,10 +183,10 @@ export default function PermitClosurePage() {
   const canSendBackToIssuer = detail.permit.status === "pending_closure" && hasAnyRole(roles, ["hod", "tenant-owner", "tenant-admin", "platform-admin"]);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Verify & close</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Verify & close</h1>
           <p className="text-sm text-muted-foreground">{detail.permit.title}</p>
         </div>
         <Link href="/closure">
@@ -254,7 +255,7 @@ export default function PermitClosurePage() {
         </section>
       ) : verification ? (
         <section className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm">
-          Verification submitted {new Date(verification.verifiedAt).toLocaleString()}.
+          Verification submitted {formatDateTime(verification.verifiedAt)}.
         </section>
       ) : null}
 

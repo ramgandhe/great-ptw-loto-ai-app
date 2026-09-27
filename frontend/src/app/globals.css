@@ -53,6 +53,26 @@
   --radius-4xl: var(--radius-xl);
 }
 
+/* Inline panels that open in place (admin add/edit forms): settle in from just above instead of popping in. */
+.reveal-in {
+  transition:
+    opacity 200ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-in {
+    @starting-style {
+      transform: none;
+    }
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -22,7 +22,10 @@ export function ApprovalProgressIndicator({ workflow }: { workflow: WorkflowAssi
         aria-valuemax={100}
         aria-label="Approval progress"
       >
-        <div className="h-full bg-primary transition-all" style={{ width: `${percent}%` }} />
+        <div
+          className="h-full origin-left bg-primary transition-transform duration-300 ease-out"
+          style={{ transform: `scaleX(${percent / 100})` }}
+        />
       </div>
       {active ? (
         <p className="mt-2 text-sm text-muted-foreground">

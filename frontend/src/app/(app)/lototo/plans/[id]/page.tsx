@@ -203,13 +203,13 @@ export default function LototoPlanDetailPage() {
       : isolationPoints;
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
         <Link href="/lototo" className="text-sm text-muted-foreground hover:text-foreground">
           ← LOTOTO plans
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold">{plan.title}</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">{plan.title}</h1>
           <PlanStatusBadge status={plan.status} />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -342,7 +342,7 @@ export default function LototoPlanDetailPage() {
                   <li key={item.id} className="rounded-md bg-muted/50 px-3 py-2">
                     <span className="font-medium capitalize">{item.role.replace(/_/g, " ")}</span>
                     {" · "}
-                    {person ? formatWorkforceOptionLabel(person) : item.workforceUserId.slice(0, 8)}
+                    {person ? formatWorkforceOptionLabel(person) : "Unknown person"}
                   </li>
                 );
               })}

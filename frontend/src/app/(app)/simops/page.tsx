@@ -8,8 +8,13 @@ import type { AlertListItem, SimopsConflict } from "@/lib/simops/types";
 import { ConflictSeverityBadge } from "@/components/simops/conflict-severity-badge";
 import { ConflictSummaryCards } from "@/components/simops/conflict-summary-cards";
 import { Button } from "@/components/ui/button";
+import { useAuthProfile } from "@/lib/auth/auth-profile-context";
+import { hasAnyRole } from "@/lib/auth/rbac";
+import { SIMOPS_ANALYSE_ROLES } from "@/lib/auth/roles";
 
 export default function SimopsDashboardPage() {
+  const { roles } = useAuthProfile();
+  const canAnalyse = hasAnyRole(roles, SIMOPS_ANALYSE_ROLES);
   const [conflicts, setConflicts] = useState<SimopsConflict[]>([]);
   const [alerts, setAlerts] = useState<AlertListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -50,18 +55,20 @@ export default function SimopsDashboardPage() {
   const mediumCount = conflicts.filter((item) => item.severity === "medium").length;
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">SIMOPS dashboard</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">SIMOPS dashboard</h1>
           <p className="text-sm text-muted-foreground">
             Monitor simultaneous operations conflicts across active permits.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={handleAnalyse} disabled={isAnalysing}>
-            {isAnalysing ? "Analysing…" : "Run analysis"}
-          </Button>
+          {canAnalyse ? (
+            <Button onClick={handleAnalyse} disabled={isAnalysing}>
+              {isAnalysing ? "Analysing…" : "Run analysis"}
+            </Button>
+          ) : null}
           <Link href="/simops/conflicts">
             <Button variant="outline">Active conflicts</Button>
           </Link>

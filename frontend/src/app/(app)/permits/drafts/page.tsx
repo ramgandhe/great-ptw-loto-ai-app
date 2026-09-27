@@ -9,6 +9,7 @@ import { listPermits } from "@/lib/permit/api";
 import type { PermitRecord } from "@/lib/permit/types";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 export default function DraftPermitsPage() {
   const [permits, setPermits] = useState<PermitRecord[]>([]);
@@ -30,10 +31,10 @@ export default function DraftPermitsPage() {
   }, []);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Draft permits</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Draft permits</h1>
           <p className="text-sm text-muted-foreground">
             {canCreate
               ? "Resume incomplete permits before submission."
@@ -71,7 +72,7 @@ export default function DraftPermitsPage() {
                     <PermitStatusBadge status={permit.status} />
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Updated {new Date(permit.updatedAt).toLocaleString()}
+                    Updated {formatDateTime(permit.updatedAt)}
                   </p>
                 </div>
                 <div className="flex gap-2">

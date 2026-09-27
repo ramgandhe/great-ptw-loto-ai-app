@@ -1,4 +1,5 @@
 import type { PermitHistoryEntry } from "@/lib/closure/types";
+import { formatDateTime } from "@/lib/format";
 
 export function HistoryTimeline({ entries }: { entries: PermitHistoryEntry[] }) {
   if (entries.length === 0) {
@@ -18,7 +19,7 @@ export function HistoryTimeline({ entries }: { entries: PermitHistoryEntry[] }) 
           {entry.comment ? (
             <p className="text-sm text-muted-foreground">{entry.comment}</p>
           ) : null}
-          <p className="text-xs text-muted-foreground">{new Date(entry.createdAt).toLocaleString()}</p>
+          <p className="text-xs text-muted-foreground">{formatDateTime(entry.createdAt)}</p>
         </li>
       ))}
     </ol>

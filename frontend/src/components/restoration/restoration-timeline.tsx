@@ -1,4 +1,5 @@
 import type { LototoHistoryEntry } from "@/lib/restoration/types";
+import { formatDateTime } from "@/lib/format";
 
 export function RestorationTimeline({ entries }: { entries: LototoHistoryEntry[] }) {
   if (entries.length === 0) {
@@ -12,7 +13,7 @@ export function RestorationTimeline({ entries }: { entries: LototoHistoryEntry[]
           <span className="absolute -left-[1.3rem] top-1.5 h-2 w-2 rounded-full bg-primary" aria-hidden />
           <p className="text-sm font-medium">{entry.action.replace(/\./g, " · ")}</p>
           <p className="text-xs text-muted-foreground">
-            {new Date(entry.occurredAt).toLocaleString()} · {entry.entityType}
+            {formatDateTime(entry.occurredAt)} · {entry.entityType}
           </p>
         </li>
       ))}

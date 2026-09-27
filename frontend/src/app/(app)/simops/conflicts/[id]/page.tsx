@@ -33,10 +33,10 @@ export default function ConflictDetailPage() {
   }, [load]);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Conflict details</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Conflict details</h1>
           <p className="text-sm text-muted-foreground">Assess, plan mitigation, and resolve SIMOPS conflicts.</p>
         </div>
         <div className="flex gap-2">

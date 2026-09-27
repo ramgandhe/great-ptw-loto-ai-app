@@ -7,6 +7,7 @@ import { listSimopsHistory } from "@/lib/simops/api";
 import type { HistoryListItem } from "@/lib/simops/types";
 import { ConflictSeverityBadge } from "@/components/simops/conflict-severity-badge";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 export default function SimopsHistoryPage() {
   const [records, setRecords] = useState<HistoryListItem[]>([]);
@@ -23,10 +24,10 @@ export default function SimopsHistoryPage() {
   }, []);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Conflict history</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Conflict history</h1>
           <p className="text-sm text-muted-foreground">Resolved SIMOPS conflicts and decisions.</p>
         </div>
         <Link href="/simops">
@@ -58,7 +59,7 @@ export default function SimopsHistoryPage() {
                 <div>
                   <p className="font-medium">{conflict.summary}</p>
                   <p className="text-xs text-muted-foreground">
-                    {resolution.outcome} · {new Date(resolution.resolvedAt).toLocaleString()}
+                    {resolution.outcome} · {formatDateTime(resolution.resolvedAt)}
                   </p>
                 </div>
                 <ConflictSeverityBadge severity={conflict.severity} />

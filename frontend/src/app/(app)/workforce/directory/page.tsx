@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { ApiError } from "@/lib/api";
 import { listWorkforceDirectory } from "@/lib/workforce/api";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
-import { Button } from "@/components/ui/button";
+import { AdminPageHeader } from "@/components/layout/admin-page-header";
 
 export default function WorkforceDirectoryPage() {
   const [items, setItems] = useState<WorkforceRecord[]>([]);
@@ -19,14 +18,8 @@ export default function WorkforceDirectoryPage() {
   }, []);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Workforce directory</h1>
-          <p className="text-sm text-muted-foreground">All active workforce members.</p>
-        </div>
-        <Link href="/workforce"><Button variant="outline">Back</Button></Link>
-      </div>
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+      <AdminPageHeader title="Workforce directory" description="All active workforce members." />
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       <table className="min-w-full text-sm border border-border rounded-lg overflow-hidden">
         <thead className="bg-muted/50 text-left">

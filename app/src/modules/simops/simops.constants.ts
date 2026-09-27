@@ -5,7 +5,8 @@ export const SIMOPS_WRITE_ROLES = [
   'job-issuer',
 ] as const;
 
-export const SIMOPS_READ_ROLES = [...SIMOPS_WRITE_ROLES, 'viewer'] as const;
+/** Safety officers review conflicts (PRD 4.6) but do not run analysis or resolve them. */
+export const SIMOPS_READ_ROLES = [...SIMOPS_WRITE_ROLES, 'safety-officer', 'viewer'] as const;
 
 export const ANALYSABLE_PERMIT_STATUSES = [
   'pending_approval',

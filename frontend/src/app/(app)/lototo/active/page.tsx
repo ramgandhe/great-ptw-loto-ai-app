@@ -25,7 +25,7 @@ export default function ActiveLototoPage() {
   }, []);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <Link href="/lototo" className="text-sm text-muted-foreground hover:text-foreground">

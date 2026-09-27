@@ -114,13 +114,13 @@ export default function RestorationWorkspacePage() {
   );
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
         <Link href="/lototo/restoration" className="text-sm text-muted-foreground hover:text-foreground">
           ← Restoration queue
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold">
+          <h1 className="font-heading text-3xl font-bold tracking-tight">
             {executionDetail.plan?.title ?? "Equipment restoration"}
           </h1>
           <ExecutionStatusBadge status={restoration.execution.status} />
@@ -166,7 +166,7 @@ export default function RestorationWorkspacePage() {
                 {activeLocks.map((lock) => (
                   <li key={lock.id} className="flex items-center justify-between gap-2 text-sm">
                     <span>
-                      {pointLabels[lock.isolationPointId] ?? lock.isolationPointId.slice(0, 8)} ·{" "}
+                      {pointLabels[lock.isolationPointId] ?? "Unknown point"} ·{" "}
                       {lock.lockTag}
                     </span>
                     <Button
@@ -196,7 +196,7 @@ export default function RestorationWorkspacePage() {
                 {activeTags.map((tag) => (
                   <li key={tag.id} className="flex items-center justify-between gap-2 text-sm">
                     <span>
-                      {pointLabels[tag.isolationPointId] ?? tag.isolationPointId.slice(0, 8)} ·{" "}
+                      {pointLabels[tag.isolationPointId] ?? "Unknown point"} ·{" "}
                       {tag.tagNumber}
                     </span>
                     <Button

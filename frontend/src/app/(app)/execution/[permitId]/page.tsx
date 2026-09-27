@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { formatWindow } from "@/lib/format";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
@@ -31,6 +33,15 @@ import { hasAnyRole } from "@/lib/auth/rbac";
 
 const SUSPEND_ROLES = ["tenant-owner", "tenant-admin", "hod", "safety-officer"] as const;
 const REVALIDATE_ROLES = ["tenant-owner", "tenant-admin", "hod", "job-issuer"] as const;
+
+/** Common site updates, so logging progress on a phone needs little typing. */
+const PROGRESS_PHRASES = [
+  "Work started",
+  "Isolations verified before start",
+  "Work progressing as planned",
+  "Paused for shift handover",
+  "Area cleaned and tools removed",
+];
 
 export default function PermitExecutionPage() {
   const params = useParams<{ permitId: string }>();
@@ -205,33 +216,28 @@ export default function PermitExecutionPage() {
   const isSuspended = permit.status === "suspended";
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="mb-2 flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">{permit.title}</h1>
-            <PermitStatusBadge status={permit.status} />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {permit.reference ? `Reference ${permit.reference}` : "Permit execution"}
-          </p>
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+      <div>
+        <Link href="/execution" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-4" aria-hidden />
+          Active work
+        </Link>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">{permit.title}</h1>
+          <PermitStatusBadge status={permit.status} />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/execution/${permit.id}/progress`}>
-            <Button variant="outline">Progress timeline</Button>
-          </Link>
-          <Link href={`/execution/${permit.id}/evidence`}>
-            <Button variant="outline">Evidence gallery</Button>
-          </Link>
-          {(isActive || isSuspended) ? (
-            <Link href={`/permits/${permit.id}/multi-day`}>
-              <Button variant="outline">Multi-day</Button>
-            </Link>
+        <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          {permit.reference ? <span className="font-mono">{permit.reference}</span> : null}
+          <span>{formatWindow(permit.plannedStartAt, permit.plannedEndAt)}</span>
+        </p>
+        <nav aria-label="Execution records" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          <Link href={`/permits/${permit.id}`} className="text-primary hover:underline">Permit</Link>
+          <Link href={`/execution/${permit.id}/progress`} className="text-primary hover:underline">Progress timeline</Link>
+          <Link href={`/execution/${permit.id}/evidence`} className="text-primary hover:underline">Evidence photos</Link>
+          {isActive || isSuspended ? (
+            <Link href={`/permits/${permit.id}/multi-day`} className="text-primary hover:underline">Daily progress</Link>
           ) : null}
-          <Link href="/execution">
-            <Button variant="ghost">Back to list</Button>
-          </Link>
-        </div>
+        </nav>
       </div>
 
       {actionError ? (
@@ -260,7 +266,6 @@ export default function PermitExecutionPage() {
         ) : null}
       </section>
 
-      <PermitSummary form={form} status={permit.status} reference={permit.reference} />
 
       {(isActive || isSuspended) && (
         <>
@@ -274,6 +279,19 @@ export default function PermitExecutionPage() {
               <section className="grid gap-3">
                 <h2 className="text-sm font-semibold">Add progress update</h2>
                 <form className="grid gap-3 rounded-lg border border-border p-4" onSubmit={handleAddProgress}>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PROGRESS_PHRASES.map((phrase) => (
+                      <button
+                        key={phrase}
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => setProgressSummary((c) => (c.trim() ? `${c.trim()}. ${phrase}` : phrase))}
+                        className="rounded-full border border-border px-2.5 py-1 text-xs hover:bg-muted"
+                      >
+                        {phrase}
+                      </button>
+                    ))}
+                  </div>
                   <textarea
                     value={progressSummary}
                     required
@@ -362,6 +380,14 @@ export default function PermitExecutionPage() {
           </section>
         </>
       )}
+
+      {/* Once work is under way the crew knows the permit; keep it one tap away instead of in the way. */}
+      <details open={isApproved} className="group rounded-xl border border-border bg-card open:border-transparent open:bg-transparent">
+        <summary className="cursor-pointer list-none px-5 py-3 text-sm font-semibold group-open:px-0 group-open:pb-3">
+          Permit details <span className="font-normal text-muted-foreground group-open:hidden">(tap to open)</span>
+        </summary>
+        <PermitSummary form={form} status={permit.status} showHeader={false} />
+      </details>
 
       <SuspensionDialog
         open={suspendOpen}

@@ -10,6 +10,7 @@ import { WorkflowTimeline } from "@/components/approval/workflow-timeline";
 import { PermitLifecycleTimeline } from "@/components/permit/permit-lifecycle-timeline";
 import { resolveLifecyclePhases } from "@/lib/permit/lifecycle";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 
 const APPROVAL_STATUSES = new Set([
   "pending_approval",
@@ -114,7 +115,7 @@ export function PermitApprovalStatus({
               <span className="font-medium capitalize">{entry.action.replace(/_/g, " ")}</span>
               <span className="text-muted-foreground">
                 {" "}
-                · {new Date(entry.createdAt).toLocaleString()}
+                · {formatDateTime(entry.createdAt)}
               </span>
             </li>
           ))}
