@@ -27,6 +27,7 @@ describe('ApprovalService integration (PUS-136)', () => {
   let db: ReturnType<typeof drizzle<typeof schema>>;
   let canConnect = false;
   let approvalService: ApprovalService;
+  let workflowEngine: WorkflowEngineService;
   let approvalCacheService: ApprovalCacheService;
 
   const issuerId = randomUUID();
@@ -50,7 +51,7 @@ describe('ApprovalService integration (PUS-136)', () => {
       return;
     }
 
-    const workflowEngine = new WorkflowEngineService(db);
+    workflowEngine = new WorkflowEngineService(db);
     const approvalHistoryService = new ApprovalHistoryService(db);
     const notificationService = {
       enqueueApprovalNotification: jest.fn().mockResolvedValue(undefined),
@@ -335,5 +336,20 @@ describe('ApprovalService integration (PUS-136)', () => {
     );
 
     expect(result.permit.status).toBe('deferred');
+  });
+
+  dbTest('restarts approval after a deferral without touching earlier decisions', async () => {
+    const { supervisorUser, createPendingPermit, createWorkflowSteps, tenantId, permitTypeId } = testContext();
+    const permit = await createPendingPermit();
+    await createWorkflowSteps();
+    await approvalService.defer(permit.id, { comment: 'Need updated gas test' }, supervisorUser);
+
+    // Resubmission resets the workflow; approval_history rows are immutable, so it must not rewrite them.
+    await workflowEngine.initializeAtSubmit(permit.id, tenantId, permitTypeId, supervisorUser.id);
+
+    const active = await workflowEngine.getActiveAssignments(permit.id);
+    expect(active).toHaveLength(1);
+    const decisions = await db.select().from(schema.permitApprovals).where(eq(schema.permitApprovals.permitId, permit.id));
+    expect(decisions.map((d) => d.decision)).toEqual(['defer']);
   });
 });

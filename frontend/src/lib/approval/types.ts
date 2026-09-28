@@ -35,6 +35,8 @@ export type PermitApprovalDecision = {
   id: string;
   permitId: string;
   workflowStepId: string;
+  /** Null for decisions made before the permit was last resubmitted. */
+  workflowAssignmentId: string | null;
   decision: string;
   comment: string | null;
   decidedBy: string;

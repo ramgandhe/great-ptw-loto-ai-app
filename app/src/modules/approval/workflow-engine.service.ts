@@ -9,7 +9,6 @@ import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   workflowAssignments,
   workflowSteps,
-  permitApprovals,
   type AssignmentStatus,
 } from '../../database/schema';
 
@@ -108,9 +107,12 @@ export class WorkflowEngineService {
     return this.client(db).insert(workflowAssignments).values(values).returning();
   }
 
+  /**
+   * Clears assignments so a resubmitted permit starts approval again. Earlier decisions stay:
+   * they are audit records, and approval_history rows that point at them may not be changed.
+   */
   async resetWorkflow(permitId: string, db?: DbClient) {
     const client = this.client(db);
-    await client.delete(permitApprovals).where(eq(permitApprovals.permitId, permitId));
     await client.delete(workflowAssignments).where(eq(workflowAssignments.permitId, permitId));
   }
 

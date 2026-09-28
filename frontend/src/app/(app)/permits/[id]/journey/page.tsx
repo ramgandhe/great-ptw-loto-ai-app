@@ -410,7 +410,7 @@ export default function PermitJourneyPage() {
               </h2>
               <ol className="grid gap-2 px-5 py-3 text-sm">
                 {workflowRows.map((row) => {
-                  const decision = review?.decisions.find((d) => d.workflowStepId === row.step.id);
+                  const decision = review?.decisions.find((d) => d.workflowAssignmentId === row.assignment.id);
                   return (
                     <li key={row.assignment.id} className="flex flex-wrap items-baseline justify-between gap-x-3">
                       <span>
