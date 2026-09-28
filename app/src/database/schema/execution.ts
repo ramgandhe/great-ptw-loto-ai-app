@@ -22,6 +22,7 @@ export const PERMIT_STATUS_HISTORY_ACTIONS = [
   'sent_back',
   'closed',
   'cancelled',
+  'expired',
 ] as const;
 export type PermitStatusHistoryAction = (typeof PERMIT_STATUS_HISTORY_ACTIONS)[number];
 

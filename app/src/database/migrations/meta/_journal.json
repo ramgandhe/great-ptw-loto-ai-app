@@ -323,6 +323,13 @@
       "when": 1759200000000,
       "tag": "0045_permit_template_all_types",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1759300000000,
+      "tag": "0046_permit_expiry_history",
+      "breakpoints": true
     }
   ]
 }

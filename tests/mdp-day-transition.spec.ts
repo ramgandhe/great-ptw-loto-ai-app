@@ -172,6 +172,16 @@ describe('MDP day-transition and renewal (SP-09.03 / FR-MDP-009)', () => {
       .where(eq(schema.revalidationHistory.permitId, permit.id));
 
     expect(history.some((row) => row.eventType === 'validity_expired')).toBe(true);
+
+    const statusHistory = await db
+      .select()
+      .from(schema.permitStatusHistory)
+      .where(eq(schema.permitStatusHistory.permitId, permit.id));
+    expect(statusHistory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ action: 'expired', fromStatus: 'active', toStatus: 'expired' }),
+      ]),
+    );
   });
 
   dbTest('day-transition expiry is idempotent on repeated runs', async () => {

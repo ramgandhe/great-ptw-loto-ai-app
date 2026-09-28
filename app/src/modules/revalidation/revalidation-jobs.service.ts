@@ -6,6 +6,7 @@ import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   organisations,
   permitExtensions,
+  permitStatusHistory,
   permits,
   revalidationHistory,
 } from '../../database/schema';
@@ -246,6 +247,16 @@ export class RevalidationJobsService implements OnModuleInit {
           operationalDate,
           timezone,
         },
+        createdBy: permit.submittedBy ?? permit.tenantId,
+      });
+
+      await this.db.insert(permitStatusHistory).values({
+        permitId: permit.id,
+        action: 'expired',
+        fromStatus: permit.status,
+        toStatus: 'expired',
+        actorId: permit.submittedBy ?? permit.tenantId,
+        metadata: { system: true, operationalDate },
         createdBy: permit.submittedBy ?? permit.tenantId,
       });
 

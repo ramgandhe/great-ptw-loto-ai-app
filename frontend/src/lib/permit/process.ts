@@ -326,6 +326,7 @@ type HistoryLike = {
   createdAt: string;
   fromStatus?: string | null;
   toStatus?: string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 type PermitLike = {
@@ -350,7 +351,8 @@ export function buildJourney(permit: PermitLike, history: HistoryLike[]): Journe
       from: h.fromStatus ?? null,
       to: h.toStatus ?? null,
       action: h.action,
-      actorId: h.actorId,
+      // Moves made by scheduled jobs are logged against the issuer; show them as the system's.
+      actorId: h.metadata?.system ? null : h.actorId,
       comment: h.comment,
     })),
   ];
