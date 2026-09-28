@@ -77,6 +77,20 @@ const DEMO_PERMIT_TYPES = [
     description: 'Routine non-hazardous work requiring permit control',
     color: '#64748B',
   },
+  {
+    id: DEMO_IDS.permitTypeHazardousArea,
+    code: 'HAZARDOUS-AREA',
+    name: 'Hazardous Area Work',
+    description: 'Hazardous material handling and tank cleaning',
+    color: '#65A30D',
+  },
+  {
+    id: DEMO_IDS.permitTypeEquipmentShifting,
+    code: 'EQUIPMENT-SHIFTING',
+    name: 'Machine / Equipment Shifting',
+    description: 'Moving machines and equipment, including isolation and load handling',
+    color: '#0369A1',
+  },
 ] as const;
 
 async function seed(): Promise<void> {

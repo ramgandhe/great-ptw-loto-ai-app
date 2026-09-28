@@ -249,12 +249,12 @@ export default function PermitTypesPage() {
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{item.code ?? ""}</td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    {templates.filter((t) => t.permitTypeIds.includes(item.id)).length === 0 ? (
+                    {templates.filter((t) => t.appliesToAllTypes || t.permitTypeIds.includes(item.id)).length === 0 ? (
                       <span className="text-xs text-muted-foreground">None linked</span>
                     ) : (
                       <span className="flex flex-wrap gap-1">
                         {templates
-                          .filter((t) => t.permitTypeIds.includes(item.id))
+                          .filter((t) => t.appliesToAllTypes || t.permitTypeIds.includes(item.id))
                           .map((t) => (
                             <Link
                               key={t.id}

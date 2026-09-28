@@ -25,7 +25,7 @@ import { TemplateFormPreview } from "@/components/permit-template/template-form-
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type Draft = Pick<PermitTemplate, "name" | "code" | "description" | "status" | "permitTypeIds"> & { config: TemplateConfig };
+type Draft = Pick<PermitTemplate, "name" | "code" | "description" | "status" | "permitTypeIds" | "appliesToAllTypes"> & { config: TemplateConfig };
 
 const EMPTY_CONFIG: TemplateConfig = { kind: "check-sheet", sections: [] };
 
@@ -58,6 +58,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
           description: template.description,
           status: template.status,
           permitTypeIds: template.permitTypeIds,
+          appliesToAllTypes: template.appliesToAllTypes,
           config: template.config ?? EMPTY_CONFIG,
         };
         setDraft(loaded);
@@ -156,7 +157,8 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
         code: draft.code?.trim() ?? "",
         description: draft.description?.trim() ?? "",
         status: draft.status,
-        permitTypeIds: draft.permitTypeIds,
+        permitTypeIds: draft.appliesToAllTypes ? [] : draft.permitTypeIds,
+        appliesToAllTypes: draft.appliesToAllTypes,
         config,
       });
       const next: Draft = { ...draft, name: updated.name, code: updated.code, description: updated.description, config };
@@ -179,8 +181,6 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
       setError(err instanceof ApiError ? err.message : "Could not duplicate");
     }
   }
-
-  const allLinked = types.length > 0 && types.every((type) => draft.permitTypeIds.includes(type.id));
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
@@ -285,20 +285,32 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
           </section>
 
           <section className="rounded-xl border border-border bg-card p-5" aria-labelledby="types">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 id="types" className="font-semibold">
-                Permit types
-              </h2>
-              <button
-                type="button"
-                className="text-sm text-primary hover:underline"
-                onClick={() => setDraft({ ...draft, permitTypeIds: allLinked ? [] : types.map((t) => t.id) })}
-              >
-                {allLinked ? "Clear all" : "Select all"}
-              </button>
-            </div>
-            <p className="mb-3 text-sm text-muted-foreground">Permits of the ticked types use this template.</p>
-            {types.length === 0 ? (
+            <h2 id="types" className="font-semibold">
+              Permit types
+            </h2>
+            <p className="mb-3 text-sm text-muted-foreground">Which permits use this template.</p>
+            <fieldset className="mb-3 grid gap-2 text-sm">
+              <legend className="sr-only">Applies to</legend>
+              {[
+                { all: true, label: "All permit types", hint: "Including permit types added later. Suits the main permit form." },
+                { all: false, label: "Only the types I pick", hint: "Suits a check sheet for one kind of work." },
+              ].map((option) => (
+                <label key={option.label} className="flex items-start gap-2">
+                  <input
+                    type="radio"
+                    name="applies-to"
+                    className="mt-1"
+                    checked={draft.appliesToAllTypes === option.all}
+                    onChange={() => setDraft({ ...draft, appliesToAllTypes: option.all })}
+                  />
+                  <span>
+                    {option.label}
+                    <span className="block text-xs text-muted-foreground">{option.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+            {draft.appliesToAllTypes ? null : types.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No permit types yet.{" "}
                 <Link href="/organisation/permit-types" className="text-primary hover:underline">

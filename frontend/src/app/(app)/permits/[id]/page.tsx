@@ -20,13 +20,14 @@ import {
   suspendPermit,
 } from "@/lib/execution/api";
 import { SuspensionDialog } from "@/components/execution/suspension-dialog";
-import { ArrowLeft, ArrowRight, CalendarDays, Eye, History, LockKeyhole, Wrench } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, Eye, History, LockKeyhole, Route, Wrench } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatRelative } from "@/lib/format";
 import { useWorkQueue } from "@/lib/work-queue-context";
 import { safetyVetoPermit } from "@/lib/approval/api";
 import { SAFETY_VETO_ROLES } from "@/lib/auth/roles";
+import { NODE_BY_ID } from "@/lib/permit/process";
 
 const VETO_STATUSES = ["pending_approval", "approved", "active", "suspended", "deferred", "pending_closure"];
 const VETO_REASONS = [
@@ -36,21 +37,6 @@ const VETO_REASONS = [
   "PPE not adequate for the hazards",
 ];
 
-/** One plain sentence per status saying where the permit is and who moves it on. */
-const STATUS_EXPLAINER: Record<string, string> = {
-  draft: "Being prepared. It goes to approval once the issuer submits it.",
-  pending_approval: "Waiting for approval. Approvers are notified in order.",
-  deferred: "Sent back for changes. The issuer revises and resubmits it.",
-  rejected: "Rejected. The issuer can revise it and submit again.",
-  approved: "Approved. The executor can start work once isolations are in place.",
-  active: "Work is in progress on site.",
-  suspended: "Work is suspended. It needs revalidation before it can restart.",
-  execution_completed: "Work is finished. The issuer confirms completion next.",
-  pending_closure: "Waiting for the HOD's final sign-off.",
-  closed: "Closed. The full record is kept for audit.",
-  expired: "The permit window ended before it was closed.",
-  cancelled: "Cancelled. No further work is allowed under this permit.",
-};
 
 const DELETE_ROLES = ["tenant-owner", "tenant-admin"] as const;
 const SUSPEND_ROLES = ["tenant-owner", "tenant-admin", "hod", "safety-officer"] as const;
@@ -184,6 +170,7 @@ export default function PermitDetailPage() {
   const nextAction = items.find((item) => item.permit?.id === detail.permit.id);
   const inExecution = ["approved", "active", "suspended"].includes(detail.permit.status);
   const related = [
+    { href: `/permits/${detail.permit.id}/journey`, label: "Journey and current state", icon: Route, show: true },
     { href: `/approvals/${detail.permit.id}/history`, label: "Approval history", icon: History, show: detail.permit.status !== "draft" },
     { href: `/execution/${detail.permit.id}`, label: "Execution", icon: Wrench, show: inExecution && nextAction?.href !== `/execution/${detail.permit.id}` },
     { href: `/permits/${detail.permit.id}/multi-day`, label: "Daily progress", icon: CalendarDays, show: inExecution },
@@ -213,7 +200,7 @@ export default function PermitDetailPage() {
           <p className="text-sm font-semibold">{nextAction ? `Your next step: ${nextAction.label.toLowerCase()}` : "What happens next"}</p>
           <p className="text-sm text-muted-foreground">
             {nextAction?.note ? `${nextAction.note}. ` : ""}
-            {STATUS_EXPLAINER[detail.permit.status] ?? ""}
+            {NODE_BY_ID.get(detail.permit.status)?.meaning ?? ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

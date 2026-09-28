@@ -189,7 +189,7 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
 /** Published templates linked to the permit's type, permit forms first. */
 export function applicableTemplates(templates: PermitTemplate[], permitTypeId: string): PermitTemplate[] {
   return templates
-    .filter((t) => t.status === "published" && t.config && t.permitTypeIds.includes(permitTypeId))
+    .filter((t) => t.status === "published" && t.config && (t.appliesToAllTypes || t.permitTypeIds.includes(permitTypeId)))
     .sort((a, b) => Number(b.config?.kind === "permit") - Number(a.config?.kind === "permit") || a.name.localeCompare(b.name));
 }
 

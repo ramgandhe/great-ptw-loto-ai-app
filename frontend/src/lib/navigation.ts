@@ -15,6 +15,7 @@ import {
   ListChecks,
   Lock,
   LockKeyhole,
+  Route,
   TriangleAlert,
   Users,
 } from "lucide-react";
@@ -67,6 +68,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { href: "/lototo", label: "LOTOTO", icon: LockKeyhole, roles: NAV_LOTOTO_ROLES, group: "Safety" },
   { href: "/simops", label: "SIMOPS", icon: TriangleAlert, roles: NAV_SIMOPS_ROLES, group: "Safety" },
   { href: "/incidents", label: "Incidents", icon: AlertTriangle, roles: NAV_INCIDENTS_ROLES, group: "Safety" },
+  { href: "/permits/process", label: "Permit process", icon: Route, roles: NAV_PERMITS_ROLES, group: "Insights" },
   { href: "/analytics", label: "Analytics", icon: BarChart3, roles: DASHBOARD_ANALYTICS_ROLES, group: "Insights" },
   { href: "/reports", label: "Reports", icon: FileText, roles: DASHBOARD_REPORT_ROLES, group: "Insights" },
   { href: "/organisation", label: "Organisation", icon: Building2, roles: NAV_ORGANISATION_ROLES, group: "Administration" },

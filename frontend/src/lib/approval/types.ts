@@ -5,6 +5,9 @@ export type WorkflowStep = {
   stepSequence: number;
   name: string;
   approverRole: string;
+  stageMode?: string;
+  quorumMode?: string;
+  slaHours?: number | null;
   commentRequiredOnApprove: boolean;
   commentRequiredOnReject: boolean;
   commentRequiredOnDefer: boolean;
@@ -18,6 +21,8 @@ export type WorkflowAssignment = {
   status: string;
   assignedAt: string;
   completedAt: string | null;
+  assignmentSlot?: string | null;
+  slaDeadlineAt?: string | null;
 };
 
 export type PendingApprovalItem = {

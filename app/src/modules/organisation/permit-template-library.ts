@@ -376,7 +376,7 @@ export const REFERENCE_TEMPLATES: ReferenceTemplate[] = [
     code: 'SOP-ES-023-F7',
     name: 'Check sheet: work in hazardous area',
     description: 'Hazardous material handling and tank cleaning.',
-    permitTypeCodes: [],
+    permitTypeCodes: ['HAZARDOUS-AREA'],
     config: {
       kind: 'check-sheet',
       reference: 'SOP/ES/023-F7',
@@ -416,7 +416,7 @@ export const REFERENCE_TEMPLATES: ReferenceTemplate[] = [
     code: 'SOP-ES-023-F8',
     name: 'Check sheet: machine / equipment shifting',
     description: 'Moving machines and equipment, including supervision and load handling.',
-    permitTypeCodes: [],
+    permitTypeCodes: ['EQUIPMENT-SHIFTING'],
     config: {
       kind: 'check-sheet',
       reference: 'SOP/ES/023-F8',

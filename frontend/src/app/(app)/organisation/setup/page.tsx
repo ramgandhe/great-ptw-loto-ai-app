@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, CircleDashed, Lightbulb, SkipForward } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, CircleDashed, Lightbulb, SkipForward } from "lucide-react";
 import { organisationsApi } from "@/lib/organisation/api";
 import type { Organisation } from "@/lib/organisation/types";
 import {
@@ -89,6 +89,20 @@ const STATUS_LABEL: Record<StepStatus, string> = {
   partial: "Partly done",
   skipped: "Skipped",
   todo: "Not started",
+};
+
+const SEGMENT_CLASS: Record<StepStatus, string> = {
+  complete: "bg-(--status-success)",
+  partial: "bg-[repeating-linear-gradient(135deg,var(--status-warning)_0_3px,transparent_3px_6px)] bg-(--status-warning-bg)",
+  skipped: "bg-(--status-warning)",
+  todo: "bg-(--border-strong)",
+};
+
+const BADGE_CLASS: Record<StepStatus, string> = {
+  complete: "bg-(--status-success-bg) text-(--status-success)",
+  partial: "bg-(--status-warning-bg) text-(--status-warning)",
+  skipped: "bg-(--status-warning-bg) text-(--status-warning)",
+  todo: "bg-muted text-muted-foreground",
 };
 
 function measureLabel(step: SetupStep, value: number | undefined): string | null {
@@ -188,17 +202,16 @@ function SetupWizard() {
   const currentStatus = statuses[step.key];
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <Link href="/organisation" className="mb-1 -ml-1 inline-flex items-center gap-0.5 rounded text-sm text-muted-foreground hover:text-foreground">
+    <main className="flex flex-1 flex-col gap-5 p-4 sm:gap-6 sm:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0">
+          <Link href="/organisation" className="-ml-1 inline-flex items-center gap-0.5 rounded text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="size-4" aria-hidden />
             Organisation
           </Link>
-          <h1 className="font-heading text-3xl font-bold tracking-tight">Organisation setup</h1>
-          <p className="mt-1 max-w-2xl text-muted-foreground">
-            Everything your site needs before the first permit, in the order it builds up. Skip anything and come back
-            later; progress is saved as you go.
+          <h1 className="font-heading text-2xl font-bold tracking-tight">Organisation setup</h1>
+          <p className="mt-1 hidden max-w-2xl text-muted-foreground sm:block">
+            Everything your site needs before the first permit, in the order it builds up. Skip anything and come back later.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -211,47 +224,75 @@ function SetupWizard() {
         </div>
       </div>
 
-      <section aria-label="Setup progress" className="rounded-xl border border-border bg-card p-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <p className="font-heading text-2xl font-bold tabular-nums">
-            {loaded ? `${percent}%` : "…"} <span className="text-base font-medium text-muted-foreground">set up</span>
+      <section aria-label="Setup progress" className="rounded-xl border border-border bg-card px-5 py-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+          <p className="flex items-baseline gap-2">
+            <span className="font-heading text-3xl font-bold tabular-nums">{loaded ? `${percent}%` : "…"}</span>
+            <span className="text-sm text-muted-foreground">of setup information in place</span>
           </p>
-          <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <span>
-              <strong className="tabular-nums">{counts.complete}</strong> of {SETUP_STEPS.length} steps done
-            </span>
-            <span className="text-(--status-warning)">
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm" aria-label="Steps by status">
+            <li className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-(--status-success)" aria-hidden />
+              <strong className="tabular-nums">{counts.complete}</strong> done
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-(--status-warning)" aria-hidden />
               <strong className="tabular-nums">{counts.skipped}</strong> skipped
-            </span>
-            <span className="text-muted-foreground">
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-(--border-strong)" aria-hidden />
               <strong className="tabular-nums">{counts.remaining}</strong> to go
-            </span>
-          </p>
+            </li>
+          </ul>
         </div>
-        <div
-          className="mt-3 h-2 overflow-hidden rounded-full bg-muted"
-          role="progressbar"
-          aria-valuenow={percent}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label="Organisation setup completion"
-        >
-          <div className="h-full origin-left bg-(--status-success) transition-transform duration-300 ease-out" style={{ transform: `scaleX(${percent / 100})` }} />
-        </div>
+        {/* One segment per step, coloured by status: progress at a glance, and a way to jump to any step. */}
+        <ol className="mt-3 flex gap-1" aria-label="Steps">
+          {SETUP_STEPS.map((s, i) => {
+            const current = !reviewing && s.key === step.key;
+            return (
+              <li key={s.key} className="flex-1">
+                <button
+                  type="button"
+                  onClick={() => goTo(s.key)}
+                  title={`${i + 1}. ${s.title}: ${STATUS_LABEL[statuses[s.key]]}`}
+                  aria-label={`Step ${i + 1}, ${s.title}: ${STATUS_LABEL[statuses[s.key]]}`}
+                  aria-current={current ? "step" : undefined}
+                  className="group block w-full py-1.5 outline-none"
+                >
+                  <span
+                    className={cn(
+                      "block h-2 rounded-full transition-opacity group-hover:opacity-80 group-focus-visible:ring-3 group-focus-visible:ring-ring/50",
+                      SEGMENT_CLASS[statuses[s.key]],
+                      current && "outline-2 outline-offset-2 outline-foreground/70",
+                      !loaded && "opacity-40",
+                    )}
+                  />
+                </button>
+              </li>
+            );
+          })}
+        </ol>
         {loaded && essentialsLeft.length > 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Essential steps left: {essentialsLeft.map((s) => s.title).join(", ")}.
+          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            Essential steps left:
+            {essentialsLeft.map((s) => (
+              <button key={s.key} type="button" onClick={() => goTo(s.key)} className="font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground">
+                {s.title}
+              </button>
+            ))}
           </p>
+        ) : loaded ? (
+          <p className="mt-2 text-sm text-(--status-success)">All essential steps are done. Permits can be raised and approved.</p>
         ) : null}
       </section>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
         <nav aria-label="Setup steps" className="hidden lg:block">
-          <ol className="sticky top-4 flex flex-col gap-4">
+          <ol className="sticky top-4 flex max-h-[calc(100dvh-2rem)] flex-col gap-3 overflow-y-auto pr-1">
             {[...new Set(SETUP_STEPS.map((s) => s.group))].map((group) => (
               <li key={group}>
-                <p className="mb-1 px-2 text-xs font-medium text-muted-foreground">{group}</p>
-                <ol className="flex flex-col gap-0.5">
+                <p className="mb-0.5 px-2 text-xs font-medium text-muted-foreground">{group}</p>
+                <ol className="flex flex-col">
                   {SETUP_STEPS.filter((s) => s.group === group).map((s) => {
                     const current = !reviewing && s.key === step.key;
                     return (
@@ -261,13 +302,13 @@ function SetupWizard() {
                           aria-current={current ? "step" : undefined}
                           onClick={() => goTo(s.key)}
                           className={cn(
-                            "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted",
-                            current && "bg-muted font-medium",
+                            "relative flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-muted",
+                            current && "bg-muted font-medium before:absolute before:inset-y-1 before:-left-1 before:w-0.5 before:rounded-full before:bg-primary",
                           )}
                         >
-                          <StatusIcon status={statuses[s.key]} />
-                          <span className="min-w-0 flex-1 truncate">{s.title}</span>
-                          {s.optional ? <span className="shrink-0 text-xs text-muted-foreground">optional</span> : null}
+                          <StatusIcon status={statuses[s.key]} className="size-4" />
+                          <span className={cn("min-w-0 flex-1 truncate", statuses[s.key] === "complete" && !current && "text-muted-foreground")}>{s.title}</span>
+                          {s.optional ? <span className="shrink-0 text-[11px] text-muted-foreground">Optional</span> : null}
                           <span className="sr-only">, {STATUS_LABEL[statuses[s.key]]}</span>
                         </button>
                       </li>
@@ -281,9 +322,9 @@ function SetupWizard() {
                 type="button"
                 aria-current={reviewing ? "step" : undefined}
                 onClick={() => goTo(REVIEW)}
-                className={cn("flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted", reviewing && "bg-muted font-medium")}
+                className={cn("flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm font-medium hover:bg-muted", reviewing && "bg-muted")}
               >
-                <Check className="size-5 text-muted-foreground" aria-hidden />
+                <Check className="size-4 text-muted-foreground" aria-hidden />
                 Review and finish
               </button>
             </li>
@@ -291,7 +332,7 @@ function SetupWizard() {
         </nav>
 
         <label className="grid gap-1.5 text-sm lg:hidden">
-          <span className="font-medium">Step</span>
+          <span className="font-medium">Go to step</span>
           <select
             value={reviewing ? REVIEW : step.key}
             onChange={(e) => goTo(e.target.value)}
@@ -315,27 +356,32 @@ function SetupWizard() {
                 Step {index + 1} of {SETUP_STEPS.length} · {step.group}
                 {step.optional ? " · Optional" : ""}
               </p>
-              <h2 className="mt-1 font-heading text-2xl font-bold tracking-tight">{step.title}</h2>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h2 className="font-heading text-xl font-bold tracking-tight sm:text-2xl">{step.title}</h2>
+                <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium", BADGE_CLASS[currentStatus])}>
+                  <StatusIcon status={currentStatus} className="size-3.5" />
+                  {STATUS_LABEL[currentStatus]}
+                  {measureLabel(step, measures[step.key]) ? <span className="font-normal">· {measureLabel(step, measures[step.key])}</span> : null}
+                </span>
+              </div>
               <p className="mt-1 text-muted-foreground">{step.summary}</p>
-              <p className="mt-2 flex items-center gap-2 text-sm">
-                <StatusIcon status={currentStatus} />
-                {STATUS_LABEL[currentStatus]}
-                {measureLabel(step, measures[step.key]) ? <span className="text-muted-foreground">· {measureLabel(step, measures[step.key])}</span> : null}
-              </p>
             </header>
 
-            <aside className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
-              <p className="flex items-center gap-2 font-medium">
+            <details open className="group rounded-xl border border-border border-l-4 border-l-(--status-warning) bg-card text-sm">
+              <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-medium">
                 <Lightbulb className="size-4 text-(--status-warning)" aria-hidden />
                 Why this matters
-              </p>
-              <p className="mt-1 text-muted-foreground">{step.why}</p>
-              <ul className="mt-2 grid gap-1 pl-6 [list-style:disc] text-muted-foreground">
-                {step.tips.map((tip) => (
-                  <li key={tip}>{tip}</li>
-                ))}
-              </ul>
-            </aside>
+                <ChevronDown className="ml-auto size-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+              </summary>
+              <div className="px-4 pb-3">
+                <p className="text-muted-foreground">{step.why}</p>
+                <ul className="mt-2 grid gap-1 pl-5 [list-style:disc] text-muted-foreground marker:text-(--status-warning)">
+                  {step.tips.map((tip) => (
+                    <li key={tip}>{tip}</li>
+                  ))}
+                </ul>
+              </div>
+            </details>
 
             {missing.length > 0 ? (
               <div role="note" className="flex flex-wrap items-center gap-3 rounded-xl border border-(--status-warning)/40 bg-(--status-warning-bg) px-4 py-3 text-sm">
@@ -356,20 +402,28 @@ function SetupWizard() {
               <StepPage />
             </AdminEmbedContext.Provider>
 
-            <div className="sticky bottom-0 -mx-4 mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:px-0">
-              <Button variant="ghost" disabled={index === 0} onClick={() => goTo(SETUP_STEPS[index - 1].key)}>
+            <div className="sticky bottom-0 z-10 -mx-4 mt-2 flex items-center justify-between gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:px-0">
+              <Button variant="ghost" disabled={index === 0} onClick={() => goTo(SETUP_STEPS[index - 1].key)} aria-label="Previous step">
                 <ArrowLeft aria-hidden />
-                Back
+                <span className="hidden sm:inline">Back</span>
               </Button>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 {currentStatus !== "complete" ? (
-                  <Button variant="outline" onClick={skipStep}>
+                  <Button variant="ghost" onClick={skipStep}>
                     <SkipForward aria-hidden />
-                    Skip for now
+                    Skip<span className="hidden sm:inline"> for now</span>
                   </Button>
                 ) : null}
-                <Button onClick={() => goTo(next?.key ?? REVIEW)}>
-                  {next ? `Next: ${next.title}` : "Review and finish"}
+                <Button onClick={() => goTo(next?.key ?? REVIEW)} className="min-w-0">
+                  <span className="truncate">
+                    {next ? (
+                      <>
+                        Next<span className="hidden sm:inline">: {next.title}</span>
+                      </>
+                    ) : (
+                      "Review and finish"
+                    )}
+                  </span>
                   <ArrowRight aria-hidden />
                 </Button>
               </div>
@@ -401,7 +455,7 @@ function Review({
   return (
     <div className="reveal-in flex min-w-0 flex-col gap-6">
       <header>
-        <h2 className="font-heading text-2xl font-bold tracking-tight">
+        <h2 className="font-heading text-xl font-bold tracking-tight sm:text-2xl">
           {percent === 100 ? "Your organisation is fully set up" : `Your organisation is ${percent}% set up`}
         </h2>
         <p className="mt-1 text-muted-foreground">
@@ -431,7 +485,7 @@ function Review({
                     <span className="min-w-0 flex-1">
                       <span className="block font-medium">
                         {s.title}
-                        {s.optional ? <span className="font-normal text-muted-foreground"> · optional</span> : null}
+                        {s.optional ? <span className="font-normal text-muted-foreground"> · Optional</span> : null}
                       </span>
                       <span className="block truncate text-sm text-muted-foreground">
                         {measureLabel(s, measures[s.key]) ?? s.summary}

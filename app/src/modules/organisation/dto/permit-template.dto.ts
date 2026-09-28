@@ -117,6 +117,10 @@ export class CreatePermitTemplateDto {
   permitTypeIds?: string[];
 
   @IsOptional()
+  @IsBoolean()
+  appliesToAllTypes?: boolean;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => TemplateConfigDto)
   config?: TemplateConfigDto;
@@ -148,6 +152,10 @@ export class UpdatePermitTemplateDto {
   @ArrayMaxSize(100)
   @IsUUID('all', { each: true })
   permitTypeIds?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  appliesToAllTypes?: boolean;
 
   @IsOptional()
   @ValidateNested()

@@ -158,10 +158,10 @@ export default function TemplatesPage() {
                       {` · ${template.config?.sections.length ?? 0} sections, ${fieldCount(template.config)} fields`}
                     </span>
                     <span className="mt-2 flex flex-wrap gap-1.5">
-                      {linked.length === 0 ? (
-                        <span className="text-xs text-(--status-warning)">Not linked to a permit type</span>
-                      ) : linked.length === types.length && types.length > 1 ? (
+                      {template.appliesToAllTypes ? (
                         <span className="rounded-full bg-muted px-2 py-0.5 text-xs">All permit types</span>
+                      ) : linked.length === 0 ? (
+                        <span className="text-xs text-(--status-warning)">Not linked to a permit type</span>
                       ) : (
                         linked.map((type) => (
                           <span key={type.id} className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-xs">

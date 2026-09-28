@@ -8,7 +8,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, arrayContains, desc, eq, inArray, ne } from 'drizzle-orm';
+import { and, arrayContains, desc, eq, inArray, ne, or } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { generatePermitReference } from '../../database/permit-reference';
@@ -423,7 +423,10 @@ export class PermitService {
         and(
           eq(permitTemplates.tenantId, tenantId),
           eq(permitTemplates.status, 'published'),
-          arrayContains(permitTemplates.permitTypeIds, [detail.permit.permitTypeId]),
+          or(
+            eq(permitTemplates.appliesToAllTypes, true),
+            arrayContains(permitTemplates.permitTypeIds, [detail.permit.permitTypeId]),
+          ),
         ),
       );
     this.validationService.validateForSubmit(
@@ -449,19 +452,17 @@ export class PermitService {
         })
         .where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
 
-      if (isResubmit) {
-        await this.approvalHistoryService.record(
-          {
-            permitId: id,
-            action: 'resubmitted',
-            fromStatus,
-            toStatus: 'pending_approval',
-            actorId: user.id,
-            createdBy: user.id,
-          },
-          tx,
-        );
-      }
+      await this.approvalHistoryService.record(
+        {
+          permitId: id,
+          action: isResubmit ? 'resubmitted' : 'submitted',
+          fromStatus,
+          toStatus: 'pending_approval',
+          actorId: user.id,
+          createdBy: user.id,
+        },
+        tx,
+      );
 
       await this.workflowEngine.initializeAtSubmit(
         id,

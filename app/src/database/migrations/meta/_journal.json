@@ -316,6 +316,13 @@
       "when": 1759100000000,
       "tag": "0044_permit_form_responses",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1759200000000,
+      "tag": "0045_permit_template_all_types",
+      "breakpoints": true
     }
   ]
 }

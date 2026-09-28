@@ -37,7 +37,11 @@ export class HistoryService {
       ...approvalRows.map((row) => ({
         id: row.id,
         permitId: row.permitId,
+        source: 'approval' as const,
         action: row.action,
+        fromStatus: row.fromStatus,
+        toStatus: row.toStatus,
+        workflowStepId: row.workflowStepId,
         actorId: row.actorId,
         comment: row.comment,
         createdAt: row.createdAt.toISOString(),
@@ -46,7 +50,11 @@ export class HistoryService {
       ...statusRows.map((row) => ({
         id: row.id,
         permitId: row.permitId,
+        source: 'status' as const,
         action: row.action,
+        fromStatus: row.fromStatus,
+        toStatus: row.toStatus,
+        workflowStepId: null,
         actorId: row.actorId,
         comment: row.comment,
         createdAt: row.createdAt.toISOString(),

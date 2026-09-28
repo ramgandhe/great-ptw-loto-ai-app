@@ -4,6 +4,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import {
   CLOSURE_CLOSE_ROLES,
+  CLOSURE_AUDIT_READ_ROLES,
   CLOSURE_HISTORY_READ_ROLES,
   CLOSURE_VERIFY_ROLES,
 } from './closure.constants';
@@ -53,7 +54,7 @@ export class ClosureController {
     return this.historyService.getHistory(id, user);
   }
 
-  @Roles(...CLOSURE_HISTORY_READ_ROLES)
+  @Roles(...CLOSURE_AUDIT_READ_ROLES)
   @Get(':id/audit')
   audit(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.historyService.getAudit(id, user);

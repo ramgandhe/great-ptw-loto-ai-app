@@ -65,7 +65,30 @@
   }
 }
 
+/* Process map: the current stage breathes, the path this permit took flows toward it. */
+@keyframes pm-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+@keyframes pm-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+.pm-pulse {
+  animation: pm-pulse 1.8s ease-in-out infinite;
+}
+.pm-flow {
+  stroke-dasharray: 8 4;
+  animation: pm-flow 1.2s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .pm-pulse,
+  .pm-flow {
+    animation: none;
+  }
   .reveal-in {
     @starting-style {
       transform: none;

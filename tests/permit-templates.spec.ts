@@ -71,7 +71,8 @@ describe('Permit templates against the database', () => {
 
       const templates = await service.listTemplates(user);
       const byCode = new Map(templates.map((t) => [t.code, t]));
-      expect(byCode.get('SOP-ES-023-F1')!.permitTypeIds.sort()).toEqual([hotWork.id, electrical.id].sort());
+      expect(byCode.get('SOP-ES-023-F1')).toMatchObject({ appliesToAllTypes: true, permitTypeIds: [] });
+      expect(byCode.get('SOP-ES-023-F4')!.appliesToAllTypes).toBe(false);
       expect(byCode.get('SOP-ES-023-F4')!.permitTypeIds).toEqual([hotWork.id]);
       expect(byCode.get('SOP-ES-023-F7')!.permitTypeIds).toEqual([]);
 
@@ -97,6 +98,12 @@ describe('Permit templates against the database', () => {
       expect(((await service.getTemplate(hot.id, user)).config as { sections: unknown[] }).sections.length).toBeGreaterThan(1);
 
       await expect(service.updateTemplate(copy.id, { permitTypeIds: [randomUUID()] }, user)).rejects.toThrow('permit types');
+
+      // "All permit types" drops per-type links; switching it off takes the links given.
+      const all = await service.updateTemplate(copy.id, { appliesToAllTypes: true, permitTypeIds: [hotWork.id] }, user);
+      expect(all).toMatchObject({ appliesToAllTypes: true, permitTypeIds: [] });
+      const some = await service.updateTemplate(copy.id, { appliesToAllTypes: false, permitTypeIds: [hotWork.id] }, user);
+      expect(some).toMatchObject({ appliesToAllTypes: false, permitTypeIds: [hotWork.id] });
     } finally {
       await db.delete(schema.permitTemplates).where(eq(schema.permitTemplates.tenantId, tenantId));
       await db.delete(schema.permitTypes).where(eq(schema.permitTypes.tenantId, tenantId));

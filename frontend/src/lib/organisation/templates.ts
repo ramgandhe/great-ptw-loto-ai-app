@@ -48,11 +48,13 @@ export type PermitTemplate = {
   description: string | null;
   status: "draft" | "published" | string;
   permitTypeIds: string[];
+  /** Applies to every permit type, including types added later. */
+  appliesToAllTypes: boolean;
   config: TemplateConfig | null;
   updatedAt: string;
 };
 
-export type PermitTemplateInput = Partial<Pick<PermitTemplate, "name" | "code" | "description" | "status" | "permitTypeIds">> & {
+export type PermitTemplateInput = Partial<Pick<PermitTemplate, "name" | "code" | "description" | "status" | "permitTypeIds" | "appliesToAllTypes">> & {
   config?: TemplateConfig;
 };
 

@@ -21,7 +21,10 @@ export const CLOSURE_ARCHIVE_READ_ROLES = [
   'viewer',
 ] as const;
 
-export const CLOSURE_HISTORY_READ_ROLES = [...CLOSURE_ARCHIVE_READ_ROLES] as const;
+/** Anyone on the permit may follow its journey; per-permit access is still checked by PermitService.findOne. */
+export const CLOSURE_HISTORY_READ_ROLES = [...CLOSURE_ARCHIVE_READ_ROLES, 'operator', 'safety-officer'] as const;
+
+export const CLOSURE_AUDIT_READ_ROLES = [...CLOSURE_ARCHIVE_READ_ROLES] as const;
 
 export const CLOSURE_NOTIFICATION_JOB = 'closure.notification';
 export const CLOSURE_ARCHIVE_JOB = 'closure.archive';

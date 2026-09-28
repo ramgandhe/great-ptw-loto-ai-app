@@ -122,8 +122,10 @@ export const permitTemplates = pgTable(
     status: varchar('status', { length: 32 }).notNull().default('draft'),
     /** Form definition: see TemplateConfig in modules/organisation/permit-template-library.ts. */
     config: jsonb('config').$type<Record<string, unknown>>(),
-    /** Permit types this template applies to. */
+    /** Permit types this template applies to; ignored when appliesToAllTypes is set. */
     permitTypeIds: uuid('permit_type_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    /** Applies to every permit type, including types added later. */
+    appliesToAllTypes: boolean('applies_to_all_types').notNull().default(false),
   },
   (table) => [
     uniqueIndex('permit_templates_tenant_code_unique').on(table.tenantId, table.code),

@@ -329,14 +329,16 @@ export class OrganisationService {
       code: dto.code?.trim() || null,
       description: dto.description,
       status: 'draft',
-      permitTypeIds: (await this.tenantPermitTypeIds(dto.permitTypeIds, tenantId)) ?? [],
+      permitTypeIds: dto.appliesToAllTypes ? [] : ((await this.tenantPermitTypeIds(dto.permitTypeIds, tenantId)) ?? []),
+      appliesToAllTypes: dto.appliesToAllTypes ?? false,
       config: dto.config ?? { kind: 'check-sheet', sections: [] },
     });
   }
 
   async updateTemplate(id: string, dto: UpdatePermitTemplateDto, user: AuthenticatedUser) {
     const tenantId = requireTenant(user);
-    const permitTypeIds = await this.tenantPermitTypeIds(dto.permitTypeIds, tenantId);
+    // An "all types" template keeps no per-type links; they would be stale the moment a type is added.
+    const permitTypeIds = dto.appliesToAllTypes ? [] : await this.tenantPermitTypeIds(dto.permitTypeIds, tenantId);
     let row: PermitTemplateRow | undefined;
     try {
       [row] = await this.db
@@ -347,6 +349,7 @@ export class OrganisationService {
           ...(dto.description !== undefined ? { description: dto.description } : {}),
           ...(dto.status !== undefined ? { status: dto.status } : {}),
           ...(permitTypeIds !== undefined ? { permitTypeIds } : {}),
+          ...(dto.appliesToAllTypes !== undefined ? { appliesToAllTypes: dto.appliesToAllTypes } : {}),
           ...(dto.config !== undefined ? { config: { ...dto.config } } : {}),
           updatedBy: user.id,
           updatedAt: new Date(),
@@ -396,6 +399,7 @@ export class OrganisationService {
       description: source.description,
       status: 'draft',
       permitTypeIds: source.permitTypeIds,
+      appliesToAllTypes: source.appliesToAllTypes,
       config: source.config,
     });
   }
@@ -417,15 +421,15 @@ export class OrganisationService {
     let created = 0;
     for (const template of REFERENCE_TEMPLATES) {
       if (have.has(template.code)) continue;
-      const linked = template.permitTypeCodes.includes('*')
-        ? types
-        : types.filter((type) => template.permitTypeCodes.includes(type.code));
+      const allTypes = template.permitTypeCodes.includes('*');
+      const linked = allTypes ? [] : types.filter((type) => template.permitTypeCodes.includes(type.code));
       await this.createEntity(permitTemplates, 'permit_template', user, {
         name: template.name,
         code: template.code,
         description: template.description,
         status: 'published',
         permitTypeIds: linked.map((type) => type.id),
+        appliesToAllTypes: allTypes,
         config: template.config,
       });
       created += 1;

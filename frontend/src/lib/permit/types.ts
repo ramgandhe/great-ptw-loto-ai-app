@@ -25,6 +25,9 @@ export type PermitRecord = {
   plannedStartAt: string | null;
   plannedEndAt: string | null;
   submittedAt: string | null;
+  submittedBy?: string | null;
+  createdBy?: string | null;
+  updatedBy?: string | null;
   formResponses?: StoredFormResponse[];
   createdAt: string;
   updatedAt: string;

@@ -34,7 +34,12 @@ export type ArchivedPermitSummary = {
 export type PermitHistoryEntry = {
   id: string;
   permitId: string;
+  /** Which log the entry came from: approval decisions or execution/closure status changes. */
+  source?: "approval" | "status";
   action: string;
+  fromStatus?: string | null;
+  toStatus?: string | null;
+  workflowStepId?: string | null;
   actorId: string;
   comment: string | null;
   createdAt: string;
