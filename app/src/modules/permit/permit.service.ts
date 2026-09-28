@@ -8,7 +8,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, arrayContains, desc, eq, inArray, ne } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { generatePermitReference } from '../../database/permit-reference';
@@ -23,6 +23,7 @@ import {
   permitViewers,
   permitSafetyOfficers,
   permits,
+  permitTemplates,
   lototoPlans,
   gasTestingCatalogue,
   revalidationHistory,
@@ -33,6 +34,7 @@ import { AuditService } from '../logging/audit.service';
 import { ApprovalHistoryService } from '../approval/approval-history.service';
 import { WorkflowEngineService } from '../approval/workflow-engine.service';
 import { CreatePermitDto } from './dto/create-permit.dto';
+import { buildFormResponses, missingFormAnswers, type PermitFormResponse } from './permit-forms';
 import { RenewPermitDto } from './dto/renew-permit.dto';
 import { UpdatePermitDto } from './dto/update-permit.dto';
 import { isEditablePermitStatus, isSubmittablePermitStatus } from './permit.constants';
@@ -83,12 +85,14 @@ export class PermitService {
   async create(dto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
     assertPermitCreateAllowed(user);
     const tenantId = this.requireTenant(user);
+    const formResponses = dto.formResponses ? await this.resolveFormResponses(tenantId, dto.formResponses) : [];
 
     const created = await this.db.transaction(async (tx) => {
       const [permit] = await tx
         .insert(permits)
         .values({
           tenantId,
+          formResponses,
           status: 'draft',
           permitTypeId: dto.permitTypeId,
           title: dto.title,
@@ -263,10 +267,13 @@ export class PermitService {
     assertDraftUpdateAllowed(user, existing, dto);
 
     const previousExecutorIds = new Set(existing.executors.map((row) => row.workforceUserId));
+    const formResponses =
+      dto.formResponses !== undefined ? await this.resolveFormResponses(tenantId, dto.formResponses) : undefined;
     const updated = await this.db.transaction(async (tx) => {
       const permitUpdates: Partial<typeof permits.$inferInsert> = {
         updatedBy: user.id,
       };
+      if (formResponses !== undefined) permitUpdates.formResponses = formResponses;
 
       if (dto.permitTypeId !== undefined) permitUpdates.permitTypeId = dto.permitTypeId;
       if (dto.title !== undefined) permitUpdates.title = dto.title;
@@ -409,7 +416,20 @@ export class PermitService {
       throw new ConflictException('Permit cannot be submitted in its current status');
     }
 
-    this.validationService.validateForSubmit(detail);
+    const applicable = await this.db
+      .select({ id: permitTemplates.id, name: permitTemplates.name, config: permitTemplates.config })
+      .from(permitTemplates)
+      .where(
+        and(
+          eq(permitTemplates.tenantId, tenantId),
+          eq(permitTemplates.status, 'published'),
+          arrayContains(permitTemplates.permitTypeIds, [detail.permit.permitTypeId]),
+        ),
+      );
+    this.validationService.validateForSubmit(
+      detail,
+      missingFormAnswers(applicable, detail.permit.formResponses as PermitFormResponse[]),
+    );
 
     const isResubmit = detail.permit.status === 'deferred' || detail.permit.status === 'rejected';
     const reference =
@@ -923,6 +943,28 @@ export class PermitService {
           }),
         ),
     );
+  }
+
+  /** Copies each answered template's current form in with its answers; the template must belong to the tenant. */
+  private async resolveFormResponses(
+    tenantId: string,
+    input: { templateId: string; answers: Record<string, unknown> }[],
+  ): Promise<PermitFormResponse[]> {
+    if (input.length === 0) return [];
+    const templates = await this.db
+      .select({ id: permitTemplates.id, name: permitTemplates.name, config: permitTemplates.config })
+      .from(permitTemplates)
+      .where(
+        and(
+          eq(permitTemplates.tenantId, tenantId),
+          ne(permitTemplates.status, 'archived'),
+          inArray(
+            permitTemplates.id,
+            input.map((response) => response.templateId),
+          ),
+        ),
+      );
+    return buildFormResponses(input, templates);
   }
 
   private requireTenant(user: AuthenticatedUser): string {

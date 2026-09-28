@@ -26,6 +26,7 @@ import { ProgressFeed } from "@/components/execution/progress-feed";
 import { StatusTimeline } from "@/components/execution/status-timeline";
 import { SuspensionDialog } from "@/components/execution/suspension-dialog";
 import { PermitSummary } from "@/components/permit/permit-summary";
+import { PermitFormResponses } from "@/components/permit/permit-form-responses";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -386,7 +387,10 @@ export default function PermitExecutionPage() {
         <summary className="cursor-pointer list-none px-5 py-3 text-sm font-semibold group-open:px-0 group-open:pb-3">
           Permit details <span className="font-normal text-muted-foreground group-open:hidden">(tap to open)</span>
         </summary>
-        <PermitSummary form={form} status={permit.status} showHeader={false} />
+        <div className="grid gap-4">
+          <PermitSummary form={form} status={permit.status} showHeader={false} />
+          <PermitFormResponses responses={permit.formResponses ?? []} />
+        </div>
       </details>
 
       <SuspensionDialog

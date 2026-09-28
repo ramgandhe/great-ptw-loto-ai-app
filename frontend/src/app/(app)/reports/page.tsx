@@ -216,7 +216,7 @@ function ReportsView() {
                 />
               </div>
             </motion.div>
-            <motion.div variants={staggerItem} className="overflow-x-auto rounded-xl border border-border bg-card">
+            <motion.div variants={staggerItem} className="relative overflow-x-auto rounded-xl border border-border bg-card">
               {permitView.length === 0 ? (
                 <p className="px-5 py-10 text-center text-sm text-muted-foreground">No permits match. Widen the period or clear the filters.</p>
               ) : (
@@ -299,7 +299,7 @@ function ReportsView() {
                 />
               </div>
             </motion.div>
-            <motion.div variants={staggerItem} className="overflow-x-auto rounded-xl border border-border bg-card">
+            <motion.div variants={staggerItem} className="relative overflow-x-auto rounded-xl border border-border bg-card">
               {incidentView.length === 0 ? (
                 <p className="px-5 py-10 text-center text-sm text-muted-foreground">
                   No incidents in the last {periodLabel}. Widen the period to see older records.

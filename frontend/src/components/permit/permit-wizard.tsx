@@ -14,6 +14,7 @@ import {
   workstationsApi,
 } from "@/lib/organisation/api";
 import type { MachineryRecord } from "@/lib/organisation/types";
+import { permitTemplatesApi, type PermitTemplate, type TemplatePrefillSource } from "@/lib/organisation/templates";
 import { listLototoPlans } from "@/lib/lototo/api";
 import type { LototoPlan } from "@/lib/lototo/types";
 import { gasTestingApi, type GasTestingRecord } from "@/lib/master-data/api";
@@ -26,17 +27,20 @@ import {
   uploadPermitAttachment,
 } from "@/lib/permit/api";
 import {
+  applicableTemplates,
   canRoleEditWizardStep,
   canRoleSubmitPermit,
   createEmptyPermitForm,
   formToSavePayload,
   getWizardStepOwner,
+  missingRequired,
   PERMIT_WIZARD_STEPS,
   permitDetailToForm,
   shouldSaveExecutorPayload,
   validateStep,
 } from "@/lib/permit/form";
 import type {
+  FormAnswer,
   PermitAttachment,
   PermitDetail,
   PermitFormState,
@@ -62,6 +66,7 @@ import { formatWorkforceOptionLabel } from "@/components/lototo/select-field";
 import { PlannedDateTimeField } from "./planned-datetime-field";
 import { PermitStepNav } from "./permit-step-nav";
 import { PermitSummary } from "./permit-summary";
+import { TemplateFormFill } from "./template-form-fill";
 import { ValidationSummary } from "./validation-summary";
 
 function executorRoleLabel(kind?: "internal" | "contractor" | "agency") {
@@ -197,7 +202,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [workstationGasTesting, setWorkstationGasTesting] = useState<
     GasTestingRecord[]
   >([]);
-  const { roles: authRoles } = useAuthProfile();
+  const { roles: authRoles, profile: authProfile } = useAuthProfile();
+  const [templates, setTemplates] = useState<PermitTemplate[]>([]);
+  // Until templates load, saves leave stored answers alone rather than pruning them.
+  const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const [executorOptions, setExecutorOptions] = useState<WorkforceRecord[]>([]);
   const [viewerOptions, setViewerOptions] = useState<WorkforceRecord[]>([]);
   const [safetyOfficerOptions, setSafetyOfficerOptions] = useState<
@@ -227,6 +235,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       listPermitViewers().catch(() => []),
       listPermitSafetyOfficers().catch(() => []),
       getProfile(),
+      permitTemplatesApi.list().then(
+        (rows) => ({ rows, ok: true }),
+        () => ({ rows: [] as PermitTemplate[], ok: false }),
+      ),
     ])
       .then(
         ([
@@ -242,7 +254,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           viewerUsers,
           safetyOfficerUsers,
           profile,
+          templateResult,
         ]) => {
+          setTemplates(templateResult.rows);
+          setTemplatesLoaded(templateResult.ok);
           setPermitTypes(permitTypeRows);
           setPlants(plantRows);
           setDepartments(departmentRows);
@@ -377,6 +392,13 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     const payload = formToSavePayload(form, {
       executorOnly: shouldSaveExecutorPayload(roles),
     });
+    if (templatesLoaded) {
+      // Answers for templates that no longer apply (the permit type changed) are dropped.
+      const ids = new Set(applicableTemplates(templates, form.permitTypeId).map((t) => t.id));
+      payload.formResponses = payload.formResponses?.filter((response) => ids.has(response.templateId));
+    } else {
+      delete payload.formResponses;
+    }
 
     if (!permitId) {
       const created = await createPermit({
@@ -393,7 +415,47 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
     await savePermitDraft(permitId, payload);
     return permitId;
-  }, [authRoles, form, permitId, router, userRoles]);
+  }, [authRoles, form, permitId, router, templates, templatesLoaded, userRoles]);
+
+  const forms = applicableTemplates(templates, form.permitTypeId);
+  const signerName =
+    [authProfile?.firstName, authProfile?.lastName].filter(Boolean).join(" ") || authProfile?.displayName || "";
+
+  /** Fills empty "fill from permit" fields from what the permit already says, so nothing is typed twice. */
+  const withPrefill = (current: PermitFormState): PermitFormState => {
+    const nameOf = (list: { id: string; name: string }[], id: string) => list.find((row) => row.id === id)?.name ?? "";
+    const crew = current.executors
+      .map((e) => executorOptions.find((o) => o.id === e.workforceUserId)?.name.replace(/ \(you\)$/, ""))
+      .filter((name): name is string => Boolean(name));
+    const sources: Record<TemplatePrefillSource, string | number | undefined> = {
+      department: nameOf(departments, current.departmentId) || undefined,
+      location: [nameOf(locations, current.locationId), nameOf(workstations, current.workstationId)].filter(Boolean).join(", ") || undefined,
+      equipment: nameOf(machinery, current.machineryId) || undefined,
+      "job-description": [current.title, current.workScope].filter((v) => v.trim()).join("\n\n") || undefined,
+      "valid-from": current.plannedStartAt.slice(0, 10) || undefined,
+      "valid-to": current.plannedEndAt.slice(0, 10) || undefined,
+      "crew-names": crew.join(", ") || undefined,
+      "crew-count": crew.length || undefined,
+    };
+    const formResponses = { ...current.formResponses };
+    for (const template of applicableTemplates(templates, current.permitTypeId)) {
+      const answers = { ...(formResponses[template.id] ?? {}) };
+      for (const field of template.config?.sections.flatMap((section) => section.fields) ?? []) {
+        const source = field.prefill ? sources[field.prefill] : undefined;
+        if (source === undefined || answers[field.id] !== undefined) continue;
+        const value: FormAnswer = field.type === "number" ? Number(source) : String(source);
+        if (typeof value === "number" && !Number.isFinite(value)) continue;
+        answers[field.id] = value;
+      }
+      formResponses[template.id] = answers;
+    }
+    return { ...current, formResponses };
+  };
+
+  const goToStep = (current: PermitFormState, nextStep: number): PermitFormState => {
+    const next = { ...current, currentStep: nextStep };
+    return nextStep === 4 ? withPrefill(next) : next;
+  };
 
   const recentPermits = [...visiblePermits]
     // Drafts, cancelled and rejected permits make poor templates.
@@ -408,7 +470,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     try {
       const source = await getPermit(sourceId);
       const copy = permitDetailToForm(source);
-      setForm({ ...copy, plannedStartAt: "", plannedEndAt: "", currentStep: 0 });
+      // Check sheets and signatures are never copied: every job is checked and signed afresh.
+      setForm({ ...copy, plannedStartAt: "", plannedEndAt: "", formResponses: {}, currentStep: 0 });
       setCopiedFrom(source.permit.reference ?? source.permit.title);
     } catch (error) {
       setApiError(error instanceof ApiError ? error.message : "That permit could not be copied. Fill in the form instead.");
@@ -432,7 +495,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   };
 
   const handleNext = async () => {
-    const stepErrors = validateStep(form, form.currentStep);
+    const stepErrors = validateStep(form, form.currentStep, forms);
     setErrors(stepErrors);
     if (stepErrors.length > 0) {
       return;
@@ -442,13 +505,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     setApiError(null);
     try {
       await persistDraft();
-      setForm((current) => ({
-        ...current,
-        currentStep: Math.min(
-          current.currentStep + 1,
-          PERMIT_WIZARD_STEPS.length - 1,
-        ),
-      }));
+      setForm((current) =>
+        goToStep(current, Math.min(current.currentStep + 1, PERMIT_WIZARD_STEPS.length - 1)),
+      );
     } catch (error) {
       setApiError(
         error instanceof ApiError ? error.message : "Failed to save progress",
@@ -468,7 +527,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
   const handleSubmit = async () => {
     const allErrors = PERMIT_WIZARD_STEPS.flatMap((_, index) =>
-      validateStep(form, index),
+      validateStep(form, index, forms),
     );
     setErrors(allErrors);
     if (allErrors.length > 0) {
@@ -551,7 +610,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         <p className="text-sm text-muted-foreground">
           {isOperatorPhase
             ? "Complete on-site operational details. Executors do not approve permits."
-            : isIssuerPhase && step < 4
+            : step === 4
+              ? "Fill in the permit form and check sheets for this type of work. The issuer or the assigned executor can complete them."
+              : isIssuerPhase && step < 4
               ? "Enter core permit information, assign an executor, then hand off for on-site details."
               : "Review executor details and submit the permit for HOD approval."}
         </p>
@@ -569,7 +630,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         currentStep={step}
         onStepClick={(nextStep) => {
           if (canRoleEditWizardStep(userRoles, nextStep) || !isReadOnly) {
-            setForm((current) => ({ ...current, currentStep: nextStep }));
+            setForm((current) => goToStep(current, nextStep));
           }
         }}
       />
@@ -1236,7 +1297,67 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       ) : null}
 
       {step === 4 ? (
+        <section className="grid gap-4" aria-label="Forms and check sheets">
+          {!templatesLoaded && !masterDataLoading ? (
+            <p role="alert" className="text-sm text-destructive">The forms for this permit could not be loaded. Reload the page to try again.</p>
+          ) : forms.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
+              No permit forms or check sheets are linked to{" "}
+              {permitTypes.find((type) => type.id === form.permitTypeId)?.name ?? "this permit type"}. Continue to review.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                {forms.length === 1 ? "One form applies" : `${forms.length} forms apply`} to{" "}
+                {permitTypes.find((type) => type.id === form.permitTypeId)?.name ?? "this permit type"}. Details the permit already holds
+                are filled in for you. Questions marked * must be answered before the permit can be submitted.
+              </p>
+              {forms.map((template) => (
+                <TemplateFormFill
+                  key={template.id}
+                  name={template.name}
+                  config={template.config!}
+                  answers={form.formResponses[template.id] ?? {}}
+                  disabled={fieldDisabled}
+                  signerName={signerName}
+                  onChange={(answers) =>
+                    setForm((current) => ({ ...current, formResponses: { ...current.formResponses, [template.id]: answers } }))
+                  }
+                />
+              ))}
+            </>
+          )}
+        </section>
+      ) : null}
+
+      {step === 5 ? (
         <section className="grid gap-6">
+          {forms.length ? (
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h2 className="text-sm font-semibold">Forms and check sheets</h2>
+              <ul className="mt-2 grid gap-1.5 text-sm">
+                {forms.map((template) => {
+                  const missing = missingRequired(template, form);
+                  return (
+                    <li key={template.id} className="flex flex-wrap items-center justify-between gap-2">
+                      <span>{template.name}</span>
+                      {missing.length ? (
+                        <button
+                          type="button"
+                          className="text-(--status-warning) hover:underline"
+                          onClick={() => setForm((current) => goToStep(current, 4))}
+                        >
+                          {missing.length} required {missing.length === 1 ? "answer" : "answers"} missing
+                        </button>
+                      ) : (
+                        <span className="text-(--status-success)">Complete</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : null}
           <PermitSummary
             form={form}
             status={status}

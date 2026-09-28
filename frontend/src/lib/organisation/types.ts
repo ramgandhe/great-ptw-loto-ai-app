@@ -25,7 +25,12 @@ export type Organisation = OrgRecord & {
   legalName?: string | null;
   registrationNumber?: string | null;
   ownerEmail?: string | null;
+  timezone?: string;
+  setupProgress?: OrganisationSetupProgress;
 };
+
+/** Organisation setup wizard state saved on the organisation. */
+export type OrganisationSetupProgress = { skipped?: string[]; lastStep?: string };
 
 export type NotificationPreference = OrgRecord & {
   channel?: string | null;

@@ -8,6 +8,7 @@ import { getPermit } from "@/lib/permit/api";
 import { permitDetailToForm } from "@/lib/permit/form";
 import type { PermitDetail } from "@/lib/permit/types";
 import { PermitSummary } from "@/components/permit/permit-summary";
+import { PermitFormResponses } from "@/components/permit/permit-form-responses";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
 
@@ -65,6 +66,8 @@ export default function PermitPreviewPage() {
         reference={detail.permit.reference}
         attachments={detail.attachments}
       />
+
+      <PermitFormResponses responses={detail.permit.formResponses ?? []} expanded />
 
       <section className="grid gap-3">
         <h2 className="text-sm font-semibold">Attachments</h2>

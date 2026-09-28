@@ -10,13 +10,25 @@ export type HubLink = { href: string; label: string; description: string; icon: 
 export type HubGroup = { title: string; description: string; links: HubLink[] };
 
 /** Settings hubs: links grouped by job, in the order an admin sets things up. */
-export function HubPage({ title, intro, groups }: { title: string; intro: React.ReactNode; groups: HubGroup[] }) {
+export function HubPage({
+  title,
+  intro,
+  groups,
+  children,
+}: {
+  title: string;
+  intro: React.ReactNode;
+  groups: HubGroup[];
+  /** Shown above the groups, e.g. a setup progress card. */
+  children?: React.ReactNode;
+}) {
   return (
     <main className="flex flex-1 flex-col gap-8 p-4 sm:p-8">
       <div>
         <h1 className="font-heading text-3xl font-bold tracking-tight">{title}</h1>
         <div className="mt-1 text-muted-foreground">{intro}</div>
       </div>
+      {children}
       <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid gap-8">
         {groups.map((group) => (
           <motion.section key={group.title} variants={staggerItem} aria-labelledby={`hub-${group.title}`}>

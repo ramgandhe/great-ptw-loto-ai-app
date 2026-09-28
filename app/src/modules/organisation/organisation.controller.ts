@@ -14,6 +14,7 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { ORGANISATION_READ_ROLES, ORGANISATION_WRITE_ROLES } from './organisation.constants';
 import { CreateOrgEntityDto, UpdateOrgEntityDto } from './dto/org-entity.dto';
 import { CreateOrganisationDto, UpdateOrganisationDto } from './dto/organisation.dto';
+import { CreatePermitTemplateDto, UpdatePermitTemplateDto } from './dto/permit-template.dto';
 import { OrganisationService } from './organisation.service';
 
 @Controller('organisations')
@@ -235,15 +236,27 @@ export class PermitTemplateController {
 
   @Roles(...ORGANISATION_WRITE_ROLES)
   @Post()
-  create(@Body() dto: CreateOrgEntityDto, @CurrentUser() user: AuthenticatedUser) {
+  create(@Body() dto: CreatePermitTemplateDto, @CurrentUser() user: AuthenticatedUser) {
     return this.organisationService.createTemplate(dto, user);
+  }
+
+  @Roles(...ORGANISATION_WRITE_ROLES)
+  @Post('import-reference')
+  importReference(@CurrentUser() user: AuthenticatedUser) {
+    return this.organisationService.importReferenceTemplates(user);
+  }
+
+  @Roles(...ORGANISATION_WRITE_ROLES)
+  @Post(':id/duplicate')
+  duplicate(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.organisationService.duplicateTemplate(id, user);
   }
 
   @Roles(...ORGANISATION_WRITE_ROLES)
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateOrgEntityDto,
+    @Body() dto: UpdatePermitTemplateDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.organisationService.updateTemplate(id, dto, user);

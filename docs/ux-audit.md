@@ -64,6 +64,54 @@ Demo data note: every seeded permit was created on the day of seeding, so time-s
 single spike until real history accumulates. Repeated SIMOPS analysis runs have also created duplicate
 conflicts in the local database.
 
+## Organisation setup wizard (third pass)
+
+Setting up an organisation meant visiting 19 separate pages with no order, no sense of progress and no
+guidance. `/organisation/setup` now walks the admin through them in dependency order: profile, site
+structure (plants, departments, locations, workstations, machinery), safety catalogues (hazards, PPE),
+permits (types, checklists, gas testing, templates), approval workflow, people (users, employees,
+agencies, contractors, competencies) and notifications.
+
+- Each step embeds the existing list page for the same records, so existing data is shown and can be
+  added, edited, archived or deleted in place; the standalone pages are unchanged.
+- Every step explains why it matters, gives typical examples, and warns when a step it depends on
+  (for example Locations needing Plants) has nothing yet, with a link to fix it.
+- Steps can be skipped; skipped steps and the last step are saved on the organisation
+  (`organisations.setup_progress`, migration `0042`) so the wizard resumes where the admin left off.
+- Progress shows steps done, skipped and to go, and a completion percentage (each step counts
+  equally; the profile counts by fields filled). Optional steps are labelled. A review screen lists
+  what is skipped, unfinished and done, and names the essential steps still blocking permits.
+- The Organisation hub shows a progress card with Start, Continue or Open setup; the search palette
+  has "Set up the organisation" for owners and admins.
+
+## Permit templates from the reference permit pack
+
+Templates were a name and code only. They now hold a form definition (sections of fields: yes / no /
+not applicable checks, text, numbers with units, dates, times, single or multiple choice, and
+name-date-time-signature blocks), are linked to the permit types they apply to
+(`permit_templates.permit_type_ids`, migration `0043`), and can be duplicated as a draft.
+
+- **Import reference set** adds the Fresenius Kabi Ranjangaon pack (SOP/ES/023-F1 to F9): the safe
+  work permit (linked to every type) and eight check sheets. Electrical, height, hot work, confined
+  space, excavation and EOT crane are linked by permit type code; hazardous area and machine shifting
+  have no matching type yet and are flagged "Not linked". Duplicate items in the scanned excavation
+  and civil sheets were merged. Importing again only adds templates that are missing.
+- The editor adds, renames, reorders and deletes sections and fields, with help text, units and
+  options, and a live preview of the form; draft or published status; unsaved-change guard.
+- Permit types list the templates linked to them.
+- Permits fill them in: the wizard has a **Forms & check sheets** step (between crew and review) showing the
+  published templates linked to the permit type, permit forms first. Either the issuer or the assigned
+  executor can complete it. Yes / No / N/A is one tap, "All yes" answers a section's open checks, and
+  signatures have "Me, now". Fields marked "Fill from permit" (department, location, equipment, job
+  description, dates, crew) start from what the permit already holds.
+- Answers are stored on the permit (`permits.form_responses`, migration `0044`) with a copy of each
+  form, so editing a template later never changes an issued permit. Submission is refused while any
+  required answer is missing. The permit, approval and active-work pages show the filled forms, and
+  any check answered "No" is flagged for the approver.
+- Every Yes / No / N/A row in the reference set is required, as on the paper sheets. Starting a permit from a
+  recent one copies the job but never its check-sheet answers or signatures. The print preview shows every
+  form expanded.
+
 ## Open items that need a product decision
 
 1. **Safety officer assignment.** No demo permit has a safety officer assigned, so the safety queue is empty in demo data. Decide whether safety officers see all permits in their plant or only those they are assigned to.

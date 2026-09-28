@@ -9,7 +9,6 @@ import {
   locationsApi,
   machineryApi,
   notificationPreferencesApi,
-  permitTemplatesApi,
   plantsApi,
   hazardsApi,
   ppeConfigurationsApi,
@@ -20,7 +19,7 @@ import type { EntityField, OrgRecord } from "@/lib/organisation/types";
 import { loadEntitySelectOptions, type EntitySelectResource } from "@/lib/form-options";
 import { OrgStatusBadge } from "./org-status-badge";
 import { Button } from "@/components/ui/button";
-import { AdminPageHeader } from "@/components/layout/admin-page-header";
+import { AdminPage, AdminPageHeader } from "@/components/layout/admin-page-header";
 
 const entityApis = {
   plants: plantsApi,
@@ -29,7 +28,6 @@ const entityApis = {
   workstations: workstationsApi,
   machinery: machineryApi,
   workflows: approvalWorkflowsApi,
-  templates: permitTemplatesApi,
   checklists: safetyChecklistsApi,
   ppe: ppeConfigurationsApi,
   hazards: hazardsApi,
@@ -216,7 +214,7 @@ export function EntityCrudPage({
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-5 p-4 sm:p-8">
+    <AdminPage>
       <AdminPageHeader
         title={title}
         description={description}
@@ -337,7 +335,7 @@ export function EntityCrudPage({
       ) : visibleItems.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nothing matches &ldquo;{query}&rdquo;.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
           <table className="min-w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr className="border-b border-border">
@@ -420,6 +418,6 @@ export function EntityCrudPage({
           </table>
         </div>
       )}
-    </main>
+    </AdminPage>
   );
 }

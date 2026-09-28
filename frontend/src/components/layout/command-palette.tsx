@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardList, CornerDownLeft, FilePlus2, Search, Siren } from "lucide-react";
+import { ClipboardList, CornerDownLeft, FilePlus2, ListChecks, Search, Siren } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
-import { INCIDENT_REPORT_ROLES, PERMIT_CREATE_ROLES } from "@/lib/auth/roles";
+import { INCIDENT_REPORT_ROLES, ORGANISATION_WRITE_ROLES, PERMIT_CREATE_ROLES } from "@/lib/auth/roles";
 import { getNavItemsForRoles } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { useWorkQueue } from "@/lib/work-queue-context";
@@ -61,6 +61,9 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     }
     if (hasAnyRole(roles, INCIDENT_REPORT_ROLES)) {
       actions.push({ key: "act:incident", section: "Actions", label: "Report an incident or near miss", href: "/incidents/new", icon: Siren });
+    }
+    if (hasAnyRole(roles, ORGANISATION_WRITE_ROLES)) {
+      actions.push({ key: "act:org-setup", section: "Actions", label: "Set up the organisation", href: "/organisation/setup", icon: ListChecks });
     }
 
     const pages: Result[] = getNavItemsForRoles(roles).map((item) => ({

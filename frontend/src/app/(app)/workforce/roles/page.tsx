@@ -18,7 +18,7 @@ import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { ASSIGNABLE_ROLES, rolesAssignableBy } from "@/lib/form-options";
 import { formatRoleLabel } from "@/lib/auth/rbac";
 import { Button } from "@/components/ui/button";
-import { AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
+import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 
 export default function UserRolesPage() {
   const { profile, roles: actorRoles } = useAuthProfile();
@@ -156,7 +156,7 @@ export default function UserRolesPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+    <AdminPage>
       <AdminPageHeader
         title="Users and roles"
         description="Add people with a name, email and login role. Share the temporary password once; they change it on first sign-in."
@@ -295,7 +295,7 @@ export default function UserRolesPage() {
             <p className="mt-1 text-sm text-muted-foreground">Add the first user so they can sign in.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
             <table className="min-w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">
                 <tr className="border-b border-border">
@@ -415,6 +415,6 @@ export default function UserRolesPage() {
             </table>
           </div>
         )}
-    </main>
+    </AdminPage>
   );
 }

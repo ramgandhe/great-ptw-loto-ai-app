@@ -6,12 +6,21 @@ import { organisationsApi } from "@/lib/organisation/api";
 import type { Organisation } from "@/lib/organisation/types";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { Button } from "@/components/ui/button";
-import { AdminPageHeader } from "@/components/layout/admin-page-header";
+import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
+
+const TIME_ZONES = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : ["UTC"];
+
+const FIELDS = [
+  { key: "name", label: "Organisation name", hint: "Shown to everyone in the app and on printed permits.", required: true },
+  { key: "legalName", label: "Legal name", hint: "As registered, for permit records and audits." },
+  { key: "registrationNumber", label: "Registration number", hint: "Company or factory licence number (e.g. CIN)." },
+] as const;
 
 export default function OrganisationProfilePage() {
   const [org, setOrg] = useState<Organisation | null>(null);
-  const [form, setForm] = useState({ name: "", legalName: "", registrationNumber: "" });
+  const [form, setForm] = useState({ name: "", legalName: "", registrationNumber: "", timezone: "UTC" });
   const [error, setError] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -26,6 +35,7 @@ export default function OrganisationProfilePage() {
             name: first.name ?? "",
             legalName: first.legalName ?? "",
             registrationNumber: first.registrationNumber ?? "",
+            timezone: first.timezone ?? "UTC",
           });
         }
       })
@@ -37,16 +47,19 @@ export default function OrganisationProfilePage() {
     event.preventDefault();
     setSaving(true);
     setError(null);
+    setSavedMessage(null);
     try {
       const payload = {
         name: form.name.trim(),
         legalName: form.legalName.trim() || undefined,
         registrationNumber: form.registrationNumber.trim() || undefined,
       };
+      // Time zone can only be set once the organisation exists.
       const updated = org
-        ? await organisationsApi.update(org.id, payload)
+        ? await organisationsApi.update(org.id, { ...payload, timezone: form.timezone })
         : await organisationsApi.create(payload);
       setOrg(updated);
+      setSavedMessage(org ? "Saved organisation details." : "Registered organisation.");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Save failed");
     } finally {
@@ -55,7 +68,7 @@ export default function OrganisationProfilePage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+    <AdminPage>
       <AdminPageHeader
         title="Organisation profile"
         description="Tenant name is set when the organisation is invited. You can change it here."
@@ -64,8 +77,14 @@ export default function OrganisationProfilePage() {
       {org ? (
         <div className="flex items-center gap-3">
           <OrgStatusBadge status={org.status} />
-          <span className="text-sm text-muted-foreground">ID {org.id.slice(0, 8)}</span>
+          {org.ownerEmail ? <span className="text-sm text-muted-foreground">Owner {org.ownerEmail}</span> : null}
         </div>
+      ) : null}
+
+      {savedMessage ? (
+        <p role="status" className="text-sm font-medium text-(--status-success)">
+          {savedMessage}
+        </p>
       ) : null}
 
       {error ? (
@@ -75,35 +94,48 @@ export default function OrganisationProfilePage() {
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
-        <form onSubmit={handleSave} className="grid max-w-xl gap-4 rounded-lg border border-border bg-card p-4">
-          {org?.ownerEmail ? (
-            <label className="grid gap-1.5 text-sm">
-              <span className="font-medium">Owner email</span>
+        <form onSubmit={handleSave} className="grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
+          {FIELDS.map((field) => (
+            <label key={field.key} className="grid content-start gap-1.5 text-sm">
+              <span className="font-medium">
+                {field.label}
+                {"required" in field ? "" : <span className="font-normal text-muted-foreground"> (optional)</span>}
+              </span>
               <input
-                readOnly
-                value={org.ownerEmail}
-                className="h-9 rounded-lg border border-border bg-muted px-3 text-muted-foreground"
+                required={"required" in field}
+                value={form[field.key]}
+                className={FIELD_CLASS}
+                onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
               />
-            </label>
-          ) : null}
-          {(["name", "legalName", "registrationNumber"] as const).map((key) => (
-            <label key={key} className="grid gap-1.5 text-sm">
-              <span className="font-medium capitalize">{key.replace(/([A-Z])/g, " $1")}{key === "name" ? " *" : ""}</span>
-              <input
-                required={key === "name"}
-                value={form[key]}
-                className="h-9 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))}
-              />
+              <span className="text-xs text-muted-foreground">{field.hint}</span>
             </label>
           ))}
-          <Button type="submit" disabled={saving}>
-            {saving ? "Saving..." : org ? "Update organisation" : "Register organisation"}
-          </Button>
+          {org ? (
+            <label className="grid content-start gap-1.5 text-sm">
+              <span className="font-medium">Time zone</span>
+              <select
+                value={form.timezone}
+                className={FIELD_CLASS}
+                onChange={(e) => setForm((prev) => ({ ...prev, timezone: e.target.value }))}
+              >
+                {TIME_ZONES.map((zone) => (
+                  <option key={zone} value={zone}>
+                    {zone}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-muted-foreground">Used for permit validity windows and reports.</span>
+            </label>
+          ) : null}
+          <div className="sm:col-span-2">
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving…" : org ? "Save changes" : "Register organisation"}
+            </Button>
+          </div>
         </form>
       )}
-    </main>
+    </AdminPage>
   );
 }

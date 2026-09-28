@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { masterDataApi, type MasterDataRecord } from "@/lib/master-data/api";
+import { permitTemplatesApi, type PermitTemplate } from "@/lib/organisation/templates";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
+import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 
 const DEFAULT_COLOR = "#2563EB";
 const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
@@ -13,6 +15,7 @@ const EMPTY_FORM = { code: "", name: "", description: "", color: DEFAULT_COLOR, 
 
 export default function PermitTypesPage() {
   const [items, setItems] = useState<MasterDataRecord[]>([]);
+  const [templates, setTemplates] = useState<PermitTemplate[]>([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -31,6 +34,7 @@ export default function PermitTypesPage() {
 
   useEffect(() => {
     load().finally(() => setLoading(false));
+    permitTemplatesApi.list().then(setTemplates).catch(() => setTemplates([]));
   }, []);
 
   function openForm(item?: MasterDataRecord) {
@@ -102,7 +106,7 @@ export default function PermitTypesPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-5 p-4 sm:p-8">
+    <AdminPage>
       <AdminPageHeader
         title="Permit types"
         description="The permit types this organisation can issue, such as hot work or confined space."
@@ -212,12 +216,13 @@ export default function PermitTypesPage() {
           <p className="mt-1 text-sm text-muted-foreground">Add the first permit type so people can raise permits.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
           <table className="min-w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr className="border-b border-border">
                 <th className="px-4 py-2.5 font-medium">Name</th>
                 <th className="px-4 py-2.5 font-medium">Code</th>
+                <th className="px-4 py-2.5 font-medium">Templates</th>
                 <th className="px-4 py-2.5 font-medium">Colour</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
                 <th className="px-4 py-2.5 text-right font-medium">
@@ -243,6 +248,25 @@ export default function PermitTypesPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{item.code ?? ""}</td>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    {templates.filter((t) => t.permitTypeIds.includes(item.id)).length === 0 ? (
+                      <span className="text-xs text-muted-foreground">None linked</span>
+                    ) : (
+                      <span className="flex flex-wrap gap-1">
+                        {templates
+                          .filter((t) => t.permitTypeIds.includes(item.id))
+                          .map((t) => (
+                            <Link
+                              key={t.id}
+                              href={`/organisation/templates/${t.id}`}
+                              className="rounded-full bg-muted px-2 py-0.5 text-xs hover:underline"
+                            >
+                              {t.name}
+                            </Link>
+                          ))}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{item.color ?? ""}</td>
                   <td className="px-4 py-3">{item.isActive === false ? "Inactive" : "Active"}</td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -265,6 +289,6 @@ export default function PermitTypesPage() {
           </table>
         </div>
       )}
-    </main>
+    </AdminPage>
   );
 }

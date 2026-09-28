@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useWorkQueue } from "@/lib/work-queue-context";
 import { WorkflowTimeline } from "@/components/approval/workflow-timeline";
 import { PermitSummary, permitGaps } from "@/components/permit/permit-summary";
+import { PermitFormResponses } from "@/components/permit/permit-form-responses";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 
@@ -147,7 +148,10 @@ export default function PermitReviewPage() {
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <PermitSummary form={form} status={review.permit.status} attachments={review.attachments} showHeader={false} />
+        <div className="grid min-w-0 gap-6">
+          <PermitSummary form={form} status={review.permit.status} attachments={review.attachments} showHeader={false} />
+          <PermitFormResponses responses={review.permit.formResponses ?? []} />
+        </div>
 
         <aside className="grid gap-4 lg:sticky lg:top-20">
           <section className="rounded-xl border border-border bg-card p-5" aria-labelledby="decision-heading">

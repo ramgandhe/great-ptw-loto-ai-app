@@ -8,7 +8,7 @@ import type { CompetencyRecord, EntityField, WorkforceRecord } from "@/lib/workf
 import { loadEntitySelectOptions, type EntitySelectResource } from "@/lib/form-options";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { Button } from "@/components/ui/button";
-import { AdminPageHeader } from "@/components/layout/admin-page-header";
+import { AdminPage, AdminPageHeader } from "@/components/layout/admin-page-header";
 
 const workforceApis = {
   employees: employeesApi,
@@ -130,7 +130,7 @@ export function WorkforceCrudPage({
   }, [items, query, parentLabels]);
 
   return (
-    <main className="flex flex-1 flex-col gap-5 p-4 sm:p-8">
+    <AdminPage>
       <AdminPageHeader
         title={title}
         description={description}
@@ -237,7 +237,7 @@ export function WorkforceCrudPage({
           <p className="mt-1 text-sm text-muted-foreground">Add the first {singular} so they can be assigned to permits.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
           <thead className="text-left text-xs text-muted-foreground">
             <tr className="border-b border-border">
@@ -320,6 +320,6 @@ export function WorkforceCrudPage({
         </table>
         </div>
       )}
-    </main>
+    </AdminPage>
   );
 }

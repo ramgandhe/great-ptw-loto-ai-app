@@ -1,12 +1,15 @@
-import type { PermitDetail, PermitFormState, SaveDraftPayload } from "./types";
+import type { PermitTemplate } from "@/lib/organisation/templates";
+import type { FormAnswer, PermitDetail, PermitFormState, SaveDraftPayload } from "./types";
 
-export type WizardParticipant = "job-issuer" | "operator";
+/** "shared": either the issuer or the assigned executor fills it in. */
+export type WizardParticipant = "job-issuer" | "operator" | "shared";
 
 export const PERMIT_WIZARD_STEPS = [
   { label: "Basic information", owner: "job-issuer" satisfies WizardParticipant },
   { label: "Location & schedule", owner: "job-issuer" satisfies WizardParticipant },
   { label: "On-site details", owner: "operator" satisfies WizardParticipant },
   { label: "Crew assignment", owner: "operator" satisfies WizardParticipant },
+  { label: "Forms & check sheets", owner: "shared" satisfies WizardParticipant },
   { label: "Review & submit", owner: "job-issuer" satisfies WizardParticipant },
 ] as const;
 
@@ -18,6 +21,9 @@ export function canRoleEditWizardStep(roles: string[], step: number): boolean {
   const owner = getWizardStepOwner(step);
   const privileged =
     roles.includes("tenant-owner") || roles.includes("tenant-admin") || roles.includes("platform-admin");
+  if (owner === "shared") {
+    return roles.includes("job-issuer") || roles.includes("operator") || privileged;
+  }
   if (owner === "job-issuer") {
     return roles.includes("job-issuer") || privileged;
   }
@@ -54,6 +60,7 @@ export function createEmptyPermitForm(): PermitFormState {
     executors: [{ workforceUserId: "", isPrimary: true }],
     viewers: [],
     safetyOfficers: [],
+    formResponses: {},
     currentStep: 0,
   };
 }
@@ -121,6 +128,7 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
         : [{ workforceUserId: "", isPrimary: true }],
     viewers: (viewers ?? []).map((row) => ({ workforceUserId: row.workforceUserId })),
     safetyOfficers: (safetyOfficers ?? []).map((row) => ({ workforceUserId: row.workforceUserId })),
+    formResponses: Object.fromEntries((permit.formResponses ?? []).map((response) => [response.templateId, response.answers])),
     currentStep: draft?.currentStep ?? 0,
   };
 }
@@ -155,6 +163,7 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
     executors: form.executors.filter((e) => (e.workforceUserId ?? "").trim()),
     viewers: form.viewers.filter((e) => (e.workforceUserId ?? "").trim()),
     safetyOfficers: form.safetyOfficers.filter((e) => (e.workforceUserId ?? "").trim()),
+    formResponses: Object.entries(form.formResponses).map(([templateId, answers]) => ({ templateId, answers })),
   };
 
   if (!options?.executorOnly) {
@@ -173,10 +182,35 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
     gasTesting: payload.gasTesting,
     executors: payload.executors,
     safetyOfficers: payload.safetyOfficers,
+    formResponses: payload.formResponses,
   };
 }
 
-export function validateStep(form: PermitFormState, step: number): string[] {
+/** Published templates linked to the permit's type, permit forms first. */
+export function applicableTemplates(templates: PermitTemplate[], permitTypeId: string): PermitTemplate[] {
+  return templates
+    .filter((t) => t.status === "published" && t.config && t.permitTypeIds.includes(permitTypeId))
+    .sort((a, b) => Number(b.config?.kind === "permit") - Number(a.config?.kind === "permit") || a.name.localeCompare(b.name));
+}
+
+export function isAnswered(value: FormAnswer | undefined): boolean {
+  if (value === undefined || value === "") return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Boolean(value.name?.trim());
+  return String(value).trim() !== "";
+}
+
+/** Required fields not yet answered on a template, as labels. */
+export function missingRequired(template: PermitTemplate, form: PermitFormState): string[] {
+  const answers = form.formResponses[template.id] ?? {};
+  return (template.config?.sections ?? [])
+    .flatMap((section) => section.fields)
+    .filter((field) => field.required && !isAnswered(answers[field.id]))
+    .map((field) => field.label);
+}
+
+/** `templates`: the templates that apply to this permit (see applicableTemplates). */
+export function validateStep(form: PermitFormState, step: number, templates: PermitTemplate[] = []): string[] {
   const errors: string[] = [];
 
   if (step === 0) {
@@ -224,6 +258,15 @@ export function validateStep(form: PermitFormState, step: number): string[] {
   if (step === 3) {
     if (!form.executors.some((e) => (e.workforceUserId ?? "").trim())) {
       errors.push("At least one executor is required");
+    }
+  }
+
+  if (step === 4) {
+    for (const template of templates) {
+      const missing = missingRequired(template, form);
+      if (missing.length) {
+        errors.push(`${template.name}: answer ${missing.length === 1 ? `“${missing[0]}”` : `${missing.length} required questions`}`);
+      }
     }
   }
 

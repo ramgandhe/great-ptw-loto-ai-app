@@ -24,8 +24,9 @@ export interface PermitSubmissionRecord {
 
 @Injectable()
 export class PermitValidationService {
-  validateForSubmit(record: PermitSubmissionRecord): void {
-    const errors: string[] = [];
+  /** `formErrors`: required answers missing from the permit templates that apply (see permit-forms.ts). */
+  validateForSubmit(record: PermitSubmissionRecord, formErrors: string[] = []): void {
+    const errors: string[] = [...formErrors];
     const { permit, hazards, ppe, lototo, gasTesting, executors } = record;
 
     if (!permit.permitTypeId) {

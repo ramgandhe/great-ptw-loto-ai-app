@@ -34,6 +34,7 @@ export const EXECUTOR_FIELDS = [
   'safetyOfficers',
   'currentStep',
   'formSnapshot',
+  'formResponses',
 ] as const satisfies readonly (keyof UpdatePermitDto)[];
 
 function hasAnyRole(user: AuthenticatedUser, roles: readonly string[]): boolean {
@@ -119,11 +120,11 @@ export function canEditWizardStep(
     if (isTenantPrivileged(user.roles)) {
       return true;
     }
-    return step === 0 || step === 1 || step === 4;
+    return step === 0 || step === 1 || step === 4 || step === 5;
   }
 
   if (hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES) && isAssignedExecutor(detail, user.id)) {
-    return step === 2 || step === 3;
+    return step === 2 || step === 3 || step === 4;
   }
 
   return false;

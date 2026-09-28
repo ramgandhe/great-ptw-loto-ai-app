@@ -9,7 +9,7 @@ import { workstationsApi } from "@/lib/organisation/api";
 import type { OrgRecord } from "@/lib/organisation/types";
 import { formatOrgOptionLabel } from "@/lib/form-options";
 import { Button } from "@/components/ui/button";
-import { AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
+import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 
 const emptyForm = {
   workstationId: "",
@@ -141,7 +141,7 @@ export default function GasTestingConfigPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-5 p-4 sm:p-8">
+    <AdminPage>
       <AdminPageHeader
         title="Gas testing"
         description="Gas testing parameters and safe limits by workstation. Permits pick these when gas testing is required."
@@ -266,7 +266,7 @@ export default function GasTestingConfigPage() {
           <p className="mt-1 text-sm text-muted-foreground">Add the first parameter so permits can record gas readings.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
           <table className="min-w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr className="border-b border-border">
@@ -310,6 +310,6 @@ export default function GasTestingConfigPage() {
           </table>
         </div>
       )}
-    </main>
+    </AdminPage>
   );
 }

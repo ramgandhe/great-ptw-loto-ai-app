@@ -10,6 +10,7 @@ import type { PermitDetail } from "@/lib/permit/types";
 import { isEditablePermitStatus } from "@/lib/permit/status";
 import { PermitApprovalStatus } from "@/components/permit/permit-approval-status";
 import { PermitSummary } from "@/components/permit/permit-summary";
+import { PermitFormResponses } from "@/components/permit/permit-form-responses";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -303,7 +304,10 @@ export default function PermitDetailPage() {
       ) : null}
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <PermitSummary form={form} status={detail.permit.status} attachments={detail.attachments} showHeader={false} />
+        <div className="grid min-w-0 gap-6">
+          <PermitSummary form={form} status={detail.permit.status} attachments={detail.attachments} showHeader={false} />
+          <PermitFormResponses responses={detail.permit.formResponses ?? []} />
+        </div>
         <aside className="grid gap-4">
           <nav aria-label="Related records" className="rounded-xl border border-border bg-card p-2">
             {related.map((link) => (

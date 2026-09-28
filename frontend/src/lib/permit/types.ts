@@ -1,3 +1,12 @@
+import type { TemplateConfig } from "@/lib/organisation/templates";
+
+export type SignatureAnswer = { name: string; date?: string; time?: string };
+export type FormAnswer = string | number | string[] | SignatureAnswer;
+export type FormAnswers = Record<string, FormAnswer>;
+
+/** A permit template filled in on a permit, with the form as it was when filled in. */
+export type StoredFormResponse = { templateId: string; name: string; config: TemplateConfig; answers: FormAnswers };
+
 export type PermitRecord = {
   id: string;
   tenantId: string;
@@ -16,6 +25,7 @@ export type PermitRecord = {
   plannedStartAt: string | null;
   plannedEndAt: string | null;
   submittedAt: string | null;
+  formResponses?: StoredFormResponse[];
   createdAt: string;
   updatedAt: string;
 };
@@ -67,6 +77,8 @@ export type PermitFormState = {
   executors: PermitExecutorInput[];
   viewers: PermitAssigneeInput[];
   safetyOfficers: PermitAssigneeInput[];
+  /** Answers per permit template id. */
+  formResponses: Record<string, FormAnswers>;
   currentStep: number;
 };
 
@@ -121,6 +133,7 @@ export type CreatePermitPayload = {
   executors?: PermitExecutorInput[];
   viewers?: PermitAssigneeInput[];
   safetyOfficers?: PermitAssigneeInput[];
+  formResponses?: { templateId: string; answers: FormAnswers }[];
 };
 
 export type SaveDraftPayload = Partial<CreatePermitPayload>;

@@ -3,9 +3,11 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
+  ArrayMaxSize,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -53,7 +55,23 @@ export class PermitAssigneeDto {
   workforceUserId!: string;
 }
 
+/** Answers to one permit template, keyed by the template's field ids. */
+export class PermitFormResponseDto {
+  @IsUUID()
+  templateId!: string;
+
+  @IsObject()
+  answers!: Record<string, unknown>;
+}
+
 export class PermitRelationsDto {
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => PermitFormResponseDto)
+  formResponses?: PermitFormResponseDto[];
+
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })

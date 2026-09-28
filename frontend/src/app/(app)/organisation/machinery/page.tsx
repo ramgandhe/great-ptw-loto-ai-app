@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import Link from "next/link";
+import { AdminEmbedContext } from "@/components/layout/admin-page-header";
 import { EntityCrudPage } from "@/components/organisation/entity-crud-page";
 import { machineryApi } from "@/lib/organisation/api";
 import { listLototoPlans } from "@/lib/lototo/api";
@@ -39,7 +40,7 @@ function MachineryLototoList() {
   }, []);
 
   return (
-    <section className="px-8 pb-8">
+    <section className={useContext(AdminEmbedContext) ? "" : "px-4 pb-8 sm:px-8"}>
       <h2 className="mb-3 text-sm font-semibold">LOTOTO by machinery</h2>
       {machinery.length === 0 ? (
         <p className="text-sm text-muted-foreground">Add machinery above, then attach LOTOTO procedures.</p>

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { HubPage, type HubGroup } from "@/components/layout/hub-page";
 import { TenantName } from "@/components/organisation/tenant-name";
+import { SetupProgressCard } from "@/components/organisation/setup-progress-card";
 
 const GROUPS: HubGroup[] = [
   {
@@ -57,5 +58,9 @@ const GROUPS: HubGroup[] = [
 ];
 
 export default function OrganisationDashboardPage() {
-  return <HubPage title="Organisation" intro={<TenantName className="font-medium" />} groups={GROUPS} />;
+  return (
+    <HubPage title="Organisation" intro={<TenantName className="font-medium" />} groups={GROUPS}>
+      <SetupProgressCard />
+    </HubPage>
+  );
 }

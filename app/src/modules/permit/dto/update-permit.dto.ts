@@ -18,6 +18,7 @@ import {
   PermitLototoDto,
   PermitGasTestingDto,
   PermitPpeDto,
+  PermitFormResponseDto,
 } from './permit-relations.dto';
 import { PermitAssigneeDto } from './permit-relations.dto';
 
@@ -73,6 +74,12 @@ export class UpdatePermitDto {
   @IsOptional()
   @IsObject()
   formSnapshot?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PermitFormResponseDto)
+  formResponses?: PermitFormResponseDto[];
 
   @IsOptional()
   @IsArray()

@@ -295,6 +295,27 @@
       "when": 1758800000000,
       "tag": "0041_access_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1758900000000,
+      "tag": "0042_organisation_setup_progress",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1759000000000,
+      "tag": "0043_permit_template_types",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1759100000000,
+      "tag": "0044_permit_form_responses",
+      "breakpoints": true
     }
   ]
 }

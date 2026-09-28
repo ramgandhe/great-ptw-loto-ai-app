@@ -25,6 +25,7 @@ describe('PermitValidationService', () => {
       plannedEndAt: new Date('2026-08-01T16:00:00Z'),
       submittedAt: null,
       submittedBy: null,
+      formResponses: [],
       renewedFromPermitId: null,
       createdAt: new Date(),
       updatedAt: new Date(),

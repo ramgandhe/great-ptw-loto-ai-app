@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
+import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import {
   checklistsApi,
@@ -151,7 +151,7 @@ export default function ChecklistsPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-5 p-4 sm:p-8">
+    <AdminPage>
       <AdminPageHeader
         title="Safety checklists"
         description="Reusable checklists and their items. Permits can attach published checklists."
@@ -272,7 +272,7 @@ export default function ChecklistsPage() {
           <p className="mt-1 text-sm text-muted-foreground">Add the first checklist so it can be attached to permits.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
           <table className="min-w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr className="border-b border-border">
@@ -331,6 +331,6 @@ export default function ChecklistsPage() {
           </table>
         </div>
       )}
-    </main>
+    </AdminPage>
   );
 }

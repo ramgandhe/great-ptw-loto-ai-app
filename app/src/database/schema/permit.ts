@@ -52,6 +52,8 @@ export const permits = pgTable(
     renewedFromPermitId: uuid('renewed_from_permit_id'),
     submittedAt: timestamp('submitted_at', { withTimezone: true }),
     submittedBy: uuid('submitted_by'),
+    /** Permit templates filled in on this permit: see PermitFormResponse in modules/permit/permit-forms.ts. */
+    formResponses: jsonb('form_responses').$type<unknown[]>().notNull().default([]),
   },
   (table) => [
     uniqueIndex('permits_tenant_reference_unique').on(table.tenantId, table.reference),

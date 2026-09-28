@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, inArray, ne } from 'drizzle-orm';
 import { requireTenant } from '../../common/helpers/tenant-context';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
@@ -10,6 +10,7 @@ import {
   notificationPreferences,
   organisations,
   permitTemplates,
+  permitTypes,
   plants,
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
@@ -21,6 +22,10 @@ import {
 import { optionalUuid } from '../../common/helpers/optional-uuid';
 import { CreateOrgEntityDto, UpdateOrgEntityDto } from './dto/org-entity.dto';
 import { CreateOrganisationDto, UpdateOrganisationDto } from './dto/organisation.dto';
+import { CreatePermitTemplateDto, UpdatePermitTemplateDto } from './dto/permit-template.dto';
+import { REFERENCE_TEMPLATES } from './permit-template-library';
+
+type PermitTemplateRow = typeof permitTemplates.$inferSelect;
 
 type OrgStatusTable =
   | typeof plants
@@ -86,6 +91,15 @@ export class OrganisationService {
         ...(dto.legalName !== undefined ? { legalName: dto.legalName.trim() } : {}),
         ...(dto.registrationNumber !== undefined
           ? { registrationNumber: dto.registrationNumber.trim() }
+          : {}),
+        ...(dto.timezone !== undefined ? { timezone: dto.timezone.trim() || 'UTC' } : {}),
+        ...(dto.setupProgress !== undefined
+          ? {
+              setupProgress: {
+                skipped: [...new Set(dto.setupProgress.skipped ?? [])],
+                lastStep: dto.setupProgress.lastStep,
+              },
+            }
           : {}),
         updatedBy: user.id,
         updatedAt: new Date(),
@@ -300,25 +314,138 @@ export class OrganisationService {
     return this.archiveEntity(approvalWorkflows, 'approval_workflow', id, user);
   }
 
-  listTemplates(user: AuthenticatedUser) {
-    return this.listActive(permitTemplates, user);
+  async listTemplates(user: AuthenticatedUser) {
+    return (await this.listActive(permitTemplates, user)) as PermitTemplateRow[];
   }
 
-  getTemplate(id: string, user: AuthenticatedUser) {
-    return this.getActive(permitTemplates, id, user);
+  async getTemplate(id: string, user: AuthenticatedUser) {
+    return (await this.getActive(permitTemplates, id, user)) as PermitTemplateRow;
   }
 
-  createTemplate(dto: CreateOrgEntityDto, user: AuthenticatedUser) {
+  async createTemplate(dto: CreatePermitTemplateDto, user: AuthenticatedUser) {
+    const tenantId = requireTenant(user);
     return this.createEntity(permitTemplates, 'permit_template', user, {
       name: dto.name.trim(),
-      code: dto.code?.trim(),
+      code: dto.code?.trim() || null,
       description: dto.description,
       status: 'draft',
+      permitTypeIds: (await this.tenantPermitTypeIds(dto.permitTypeIds, tenantId)) ?? [],
+      config: dto.config ?? { kind: 'check-sheet', sections: [] },
     });
   }
 
-  updateTemplate(id: string, dto: UpdateOrgEntityDto, user: AuthenticatedUser) {
-    return this.updateEntity(permitTemplates, 'permit_template', id, user, dto);
+  async updateTemplate(id: string, dto: UpdatePermitTemplateDto, user: AuthenticatedUser) {
+    const tenantId = requireTenant(user);
+    const permitTypeIds = await this.tenantPermitTypeIds(dto.permitTypeIds, tenantId);
+    let row: PermitTemplateRow | undefined;
+    try {
+      [row] = await this.db
+        .update(permitTemplates)
+        .set({
+          ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+          ...(dto.code !== undefined ? { code: dto.code.trim() || null } : {}),
+          ...(dto.description !== undefined ? { description: dto.description } : {}),
+          ...(dto.status !== undefined ? { status: dto.status } : {}),
+          ...(permitTypeIds !== undefined ? { permitTypeIds } : {}),
+          ...(dto.config !== undefined ? { config: { ...dto.config } } : {}),
+          updatedBy: user.id,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(permitTemplates.id, id),
+            eq(permitTemplates.tenantId, tenantId),
+            ne(permitTemplates.status, 'archived'),
+          ),
+        )
+        .returning();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('unique')) {
+        throw new ConflictException('Duplicate code within tenant');
+      }
+      throw error;
+    }
+    if (!row) {
+      throw new NotFoundException('Record not found');
+    }
+    await this.audit('permit_template.updated', 'permit_template', id, user, tenantId);
+    return row;
+  }
+
+  /** Copies a template as a new draft, so a variant can be edited without touching the original. */
+  async duplicateTemplate(id: string, user: AuthenticatedUser) {
+    const tenantId = requireTenant(user);
+    const source = await this.getTemplate(id, user);
+    const taken = new Set(
+      (
+        await this.db
+          .select({ code: permitTemplates.code })
+          .from(permitTemplates)
+          .where(eq(permitTemplates.tenantId, tenantId))
+      ).map((row) => row.code),
+    );
+    let code: string | null = null;
+    if (source.code) {
+      for (let n = 1; code === null || taken.has(code); n++) {
+        code = `${source.code}-COPY${n > 1 ? `-${n}` : ''}`.slice(0, 64);
+      }
+    }
+    return this.createEntity(permitTemplates, 'permit_template', user, {
+      name: `${source.name} (copy)`.slice(0, 255),
+      code,
+      description: source.description,
+      status: 'draft',
+      permitTypeIds: source.permitTypeIds,
+      config: source.config,
+    });
+  }
+
+  /** Adds the reference permit and check sheet templates this tenant does not have yet (matched by code). */
+  async importReferenceTemplates(user: AuthenticatedUser) {
+    const tenantId = requireTenant(user);
+    const [existing, types] = await Promise.all([
+      this.db
+        .select({ code: permitTemplates.code })
+        .from(permitTemplates)
+        .where(eq(permitTemplates.tenantId, tenantId)),
+      this.db
+        .select({ id: permitTypes.id, code: permitTypes.code })
+        .from(permitTypes)
+        .where(and(eq(permitTypes.tenantId, tenantId), eq(permitTypes.isActive, true))),
+    ]);
+    const have = new Set(existing.map((row) => row.code));
+    let created = 0;
+    for (const template of REFERENCE_TEMPLATES) {
+      if (have.has(template.code)) continue;
+      const linked = template.permitTypeCodes.includes('*')
+        ? types
+        : types.filter((type) => template.permitTypeCodes.includes(type.code));
+      await this.createEntity(permitTemplates, 'permit_template', user, {
+        name: template.name,
+        code: template.code,
+        description: template.description,
+        status: 'published',
+        permitTypeIds: linked.map((type) => type.id),
+        config: template.config,
+      });
+      created += 1;
+    }
+    return { created, alreadyPresent: REFERENCE_TEMPLATES.length - created };
+  }
+
+  /** Validates that the permit types belong to this tenant; undefined means "leave unchanged". */
+  private async tenantPermitTypeIds(ids: string[] | undefined, tenantId: string) {
+    if (ids === undefined) return undefined;
+    const unique = [...new Set(ids)];
+    if (unique.length === 0) return [];
+    const rows = await this.db
+      .select({ id: permitTypes.id })
+      .from(permitTypes)
+      .where(and(eq(permitTypes.tenantId, tenantId), inArray(permitTypes.id, unique)));
+    if (rows.length !== unique.length) {
+      throw new BadRequestException('One or more permit types were not found');
+    }
+    return unique;
   }
 
   archiveTemplate(id: string, user: AuthenticatedUser) {

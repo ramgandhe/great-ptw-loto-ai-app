@@ -14,6 +14,8 @@ import { auditColumns } from './base';
 export const RECORD_STATUSES = ['active', 'archived'] as const;
 export type RecordStatus = (typeof RECORD_STATUSES)[number];
 
+export type OrganisationSetupProgress = { skipped?: string[]; lastStep?: string };
+
 export const organisations = pgTable(
   'organisations',
   {
@@ -25,6 +27,8 @@ export const organisations = pgTable(
     timezone: varchar('timezone', { length: 64 }).notNull().default('UTC'),
     status: varchar('status', { length: 32 }).notNull().default('active'),
     ownerEmail: varchar('owner_email', { length: 255 }),
+    /** Organisation setup wizard: steps the admin skipped and where they left off. */
+    setupProgress: jsonb('setup_progress').$type<OrganisationSetupProgress>().notNull().default({}),
   },
   (table) => [
     uniqueIndex('organisations_tenant_unique').on(table.tenantId),
@@ -116,7 +120,10 @@ export const permitTemplates = pgTable(
     code: varchar('code', { length: 64 }),
     description: text('description'),
     status: varchar('status', { length: 32 }).notNull().default('draft'),
+    /** Form definition: see TemplateConfig in modules/organisation/permit-template-library.ts. */
     config: jsonb('config').$type<Record<string, unknown>>(),
+    /** Permit types this template applies to. */
+    permitTypeIds: uuid('permit_type_ids').array().notNull().default(sql`'{}'::uuid[]`),
   },
   (table) => [
     uniqueIndex('permit_templates_tenant_code_unique').on(table.tenantId, table.code),
