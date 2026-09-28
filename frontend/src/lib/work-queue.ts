@@ -40,23 +40,30 @@ export type WorkItem = {
 };
 
 /** Action group heading and the button label used for each item in it. */
-export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string }> = {
-  "incident-decision": { group: "Incidents waiting for your decision", verb: "Decide" },
-  "resolve-conflict": { group: "Clashing work to resolve (SIMOPS)", verb: "Resolve" },
-  review: { group: "Waiting for your approval", verb: "Review" },
-  "safety-check": { group: "Safety check before work starts", verb: "Check" },
-  "final-approval": { group: "Waiting for final sign-off", verb: "Sign off" },
-  "approve-completion": { group: "Work finished, confirm completion", verb: "Confirm" },
-  revalidate: { group: "Suspended, needs revalidation", verb: "Revalidate" },
-  "start-work": { group: "Approved, ready to start", verb: "Start work" },
-  "log-progress": { group: "In progress", verb: "Update" },
-  "site-details": { group: "Add your on-site details", verb: "Add details" },
-  revise: { group: "Sent back to you", verb: "Revise" },
-  "finish-draft": { group: "Drafts to finish", verb: "Continue" },
-  "assign-investigation": { group: "Incidents needing an investigator", verb: "Assign" },
-  investigate: { group: "Investigations in progress", verb: "Continue" },
-  "verify-incident": { group: "Investigations to verify", verb: "Verify" },
-  "close-incident": { group: "Incidents ready to close", verb: "Close" },
+/**
+ * What kind of move an action is. Buttons are coloured by kind, so the same kind of job looks
+ * the same everywhere: decide (approve, sign off, confirm), fix (something came back or clashes),
+ * do (carry the work forward), admin (route or close records).
+ */
+export type ActionKind = "decide" | "fix" | "do" | "admin";
+
+export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string; kind: ActionKind }> = {
+  "incident-decision": { group: "Incidents waiting for your decision", verb: "Decide", kind: "decide" },
+  "resolve-conflict": { group: "Clashing work to resolve (SIMOPS)", verb: "Resolve", kind: "fix" },
+  review: { group: "Waiting for your approval", verb: "Review", kind: "decide" },
+  "safety-check": { group: "Safety check before work starts", verb: "Check", kind: "decide" },
+  "final-approval": { group: "Waiting for final sign-off", verb: "Sign off", kind: "decide" },
+  "approve-completion": { group: "Work finished, confirm completion", verb: "Confirm", kind: "decide" },
+  revalidate: { group: "Suspended, needs revalidation", verb: "Revalidate", kind: "fix" },
+  "start-work": { group: "Approved, ready to start", verb: "Start work", kind: "do" },
+  "log-progress": { group: "In progress", verb: "Update", kind: "do" },
+  "site-details": { group: "Add your on-site details", verb: "Add details", kind: "do" },
+  revise: { group: "Sent back to you", verb: "Revise", kind: "fix" },
+  "finish-draft": { group: "Drafts to finish", verb: "Continue", kind: "do" },
+  "assign-investigation": { group: "Incidents needing an investigator", verb: "Assign", kind: "admin" },
+  investigate: { group: "Investigations in progress", verb: "Continue", kind: "do" },
+  "verify-incident": { group: "Investigations to verify", verb: "Verify", kind: "decide" },
+  "close-incident": { group: "Incidents ready to close", verb: "Close", kind: "admin" },
 };
 
 const ACTION_ORDER = Object.keys(WORK_ACTIONS) as WorkAction[];
@@ -139,7 +146,8 @@ export function buildWorkQueue(
         break;
       case "deferred":
       case "rejected":
-        if (canCreate) add("revise", permit, `/permits/${permit.id}/edit`, permit.status === "rejected" ? "Rejected" : "Deferred", true);
+        // The row's status badge already says deferred or rejected.
+        if (canCreate) add("revise", permit, `/permits/${permit.id}/edit`, undefined, true);
         break;
       case "approved":
         if (isExecutor) {
@@ -224,13 +232,10 @@ export function workCountsByRoute(items: WorkItem[]): Record<string, number> {
   const counts: Record<string, number> = {};
   const bump = (href: string) => (counts[href] = (counts[href] ?? 0) + 1);
   for (const item of items) {
-    if (item.action === "review") bump("/approvals");
-    else if (item.action === "finish-draft" || item.action === "site-details") bump("/permits/drafts");
-    else if (item.action === "revise" || item.action === "safety-check") bump("/permits");
-    else if (item.action === "approve-completion" || item.action === "final-approval") bump("/closure");
-    else if (item.action === "resolve-conflict") bump("/simops");
+    if (item.action === "resolve-conflict") bump("/simops");
     else if (!item.permit) bump("/incidents");
-    else bump("/execution");
+    // Every permit step (review, drafts, work, closure) is worked from the Permits list.
+    else bump("/permits");
   }
   return counts;
 }

@@ -1,9 +1,10 @@
 "use client";
 
+import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { AlertTriangle, ArrowLeft, ArrowRight, Bug, CheckCircle2, Clock, Copy, UserRound } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bug, CheckCircle2, Clock, Copy, UserRound } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { getPermit } from "@/lib/permit/api";
 import type { PermitDetail } from "@/lib/permit/types";
@@ -220,10 +221,7 @@ export default function PermitJourneyPage() {
   return (
     <main className="flex flex-1 flex-col gap-5 p-4 sm:p-8">
       <div>
-        <Link href={`/permits/${permit.id}`} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" aria-hidden />
-          Permit details
-        </Link>
+        <BackLink href={`/permits/${permit.id}`} label="Permit details" />
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">{permit.title}</h1>
           <PermitStatusBadge status={permit.status} />

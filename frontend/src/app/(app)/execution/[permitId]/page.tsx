@@ -1,7 +1,7 @@
 "use client";
 
+import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { formatWindow } from "@/lib/format";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -219,10 +219,7 @@ export default function PermitExecutionPage() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
-        <Link href="/execution" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" aria-hidden />
-          Active work
-        </Link>
+        <BackLink href="/permits" label="Permits" />
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">{permit.title}</h1>
           <PermitStatusBadge status={permit.status} />

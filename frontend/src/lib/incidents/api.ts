@@ -24,11 +24,13 @@ export function getIncident(id: string) {
   return fetchApi<IncidentDetail>(`/incidents/${id}`);
 }
 
-export function createIncident(payload: CreateIncidentPayload) {
-  return fetchApi<Incident>("/incidents", {
+/** The API answers with the full detail; callers want the incident itself. */
+export async function createIncident(payload: CreateIncidentPayload): Promise<Incident> {
+  const detail = await fetchApi<IncidentDetail>("/incidents", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  return detail.incident;
 }
 
 export function submitIncident(id: string) {

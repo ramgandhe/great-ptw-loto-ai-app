@@ -4,8 +4,8 @@ import Link from "next/link";
 import { FilePlus2, Siren } from "lucide-react";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
-import { INCIDENT_REPORT_ROLES, PERMIT_CREATE_ROLES } from "@/lib/auth/roles";
-import { DashboardNotificationsPanel } from "@/components/dashboards/dashboard-notifications-panel";
+import { DASHBOARD_ANALYTICS_ROLES, INCIDENT_REPORT_ROLES, PERMIT_CREATE_ROLES } from "@/lib/auth/roles";
+import { PageHeader, SectionTitle } from "@/components/layout/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { HomeInsights } from "@/components/work/home-insights";
 import { WorkQueuePanel } from "@/components/work/work-queue-panel";
@@ -18,50 +18,55 @@ function greeting(date = new Date()): string {
   return "Good evening";
 }
 
-/** Home: what needs you first, then the figures for your role, then messages. */
+/** Home: the site figures (for managers) and what needs you, above the fold. */
 export default function DashboardPage() {
   const { roles, profile } = useAuthProfile();
   const { items, loaded } = useWorkQueue();
   const canCreate = hasAnyRole(roles, PERMIT_CREATE_ROLES);
   const canReport = hasAnyRole(roles, INCIDENT_REPORT_ROLES);
+  const managesSite = hasAnyRole(roles, DASHBOARD_ANALYTICS_ROLES);
   const firstName = profile?.firstName || profile?.displayName?.split(" ")[0] || "";
 
   return (
-    <main className="flex flex-1 flex-col gap-10 p-4 sm:p-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-3xl font-bold tracking-tight">
-            {greeting()}
-            {firstName ? `, ${firstName}` : ""}
-          </h1>
-          <p className="mt-1.5 text-muted-foreground">
-            {!loaded
-              ? "Checking your work…"
-              : items.length === 0
-                ? "You are all caught up."
-                : `${items.length} ${items.length === 1 ? "item needs" : "items need"} your action.`}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canReport ? (
-            <Link href="/incidents/new" className={buttonVariants({ variant: "outline", size: "lg" })}>
-              <Siren aria-hidden />
-              Report incident
-            </Link>
-          ) : null}
-          {canCreate ? (
-            <Link href="/permits/new" className={buttonVariants({ size: "lg" })}>
-              <FilePlus2 aria-hidden />
-              Create permit
-            </Link>
-          ) : null}
-        </div>
-      </div>
+    <main className="flex flex-1 flex-col gap-8 px-4 pb-8 sm:px-8">
+      <PageHeader
+        title={`${greeting()}${firstName ? `, ${firstName}` : ""}`}
+        description={
+          !loaded ? (
+            "Checking your work…"
+          ) : items.length === 0 ? (
+            "You are all caught up."
+          ) : (
+            <>
+              <strong className="font-heading text-lg font-extrabold text-(--accent-primary) tabular-nums">{items.length}</strong>{" "}
+              {items.length === 1 ? "item needs" : "items need"} your action.
+            </>
+          )
+        }
+        actions={
+          <>
+            {canReport ? (
+              <Link href="/incidents?new=1" className={buttonVariants({ variant: "outline", size: "lg" })}>
+                <Siren aria-hidden />
+                Report incident
+              </Link>
+            ) : null}
+            {canCreate ? (
+              <Link href="/permits/new" className={buttonVariants({ size: "lg" })}>
+                <FilePlus2 aria-hidden />
+                Create permit
+              </Link>
+            ) : null}
+          </>
+        }
+      />
+
+      {/* Site figures are a few tiles: managers see them first. Everyone else's own-permit
+          summary is taller, so their queue leads. Messages live under the header bell. */}
+      {managesSite ? <HomeInsights /> : null}
 
       <section aria-labelledby="needs-you">
-        <h2 id="needs-you" className="mb-3 text-lg font-semibold">
-          Needs you
-        </h2>
+        <SectionTitle id="needs-you" title="Needs you" description="Grouped by what you have to do. Urgent jobs glow." />
         <WorkQueuePanel
           emptyAction={
             canCreate ? (
@@ -73,9 +78,7 @@ export default function DashboardPage() {
         />
       </section>
 
-      <HomeInsights />
-
-      <DashboardNotificationsPanel />
+      {managesSite ? null : <HomeInsights />}
     </main>
   );
 }

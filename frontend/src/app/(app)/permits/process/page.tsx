@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Route } from "lucide-react";
+import { Route } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { listPermits } from "@/lib/permit/api";
 import type { PermitRecord } from "@/lib/permit/types";
 import { EDGES, NODES } from "@/lib/permit/process";
 import { formatRelative } from "@/lib/format";
+import { PageHeader } from "@/components/layout/page-header";
 import { ProcessDetails, ProcessMap, ProcessMapLegend, type MapSelection } from "@/components/permit/process-map";
 
 export default function PermitProcessPage() {
@@ -34,18 +35,12 @@ export default function PermitProcessPage() {
   const stagePermits = selected?.kind === "node" ? byStage[selected.id] ?? [] : [];
 
   return (
-    <main className="flex flex-1 flex-col gap-5 p-4 sm:p-8">
-      <div>
-        <Link href="/permits" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" aria-hidden />
-          Permits
-        </Link>
-        <h1 className="mt-2 font-heading text-2xl font-bold tracking-tight sm:text-3xl">Permit process</h1>
-        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          Every stage a permit passes through, who moves it on, and where it can loop back. Numbers show how many
-          of your permits sit at each stage now. Select a stage or an arrow for the detail.
-        </p>
-      </div>
+    <main className="flex flex-1 flex-col gap-5 px-4 pb-8 sm:px-8">
+      <PageHeader
+        back={{ href: "/permits", label: "Permits" }}
+        title="Permit process"
+        description="Every stage a permit passes through, who moves it on, and where it can loop back. Numbers show how many of your permits sit at each stage now. Select a stage or an arrow for the detail."
+      />
 
       {error ? (
         <p role="alert" className="text-sm text-destructive">

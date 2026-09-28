@@ -1,5 +1,6 @@
 "use client";
 
+import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
@@ -226,9 +227,7 @@ export default function IsolationExecutionPage() {
   if (!detail) {
     return (
       <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
-        <Link href="/lototo/active" className="text-sm text-muted-foreground hover:text-foreground">
-          ← Active LOTOTO
-        </Link>
+        <BackLink href="/lototo?view=active" label="LOTOTO" />
         <h1 className="font-heading text-3xl font-bold tracking-tight">Isolation execution</h1>
         <p className="text-sm text-muted-foreground">
           No isolation execution has been started for this plan.
@@ -253,9 +252,7 @@ export default function IsolationExecutionPage() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
-        <Link href="/lototo/active" className="text-sm text-muted-foreground hover:text-foreground">
-          ← Active LOTOTO
-        </Link>
+        <BackLink href="/lototo?view=active" label="LOTOTO" />
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="font-heading text-3xl font-bold tracking-tight">
             {detail.plan?.title ?? "Isolation execution"}

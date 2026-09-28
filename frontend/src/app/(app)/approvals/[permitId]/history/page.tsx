@@ -1,14 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { getApprovalHistory, getApprovalReview } from "@/lib/approval/api";
 import type { ApprovalHistoryEntry } from "@/lib/approval/types";
+import { ApprovalHistoryList } from "@/components/approval/approval-history-list";
+import { BackLink } from "@/components/layout/page-header";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
-import { Button } from "@/components/ui/button";
-import { formatDateTime } from "@/lib/format";
 
 export default function ApprovalHistoryPage() {
   const params = useParams<{ permitId: string }>();
@@ -38,15 +37,14 @@ export default function ApprovalHistoryPage() {
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
+          <BackLink href={`/permits/${params.permitId}`} label="Permit details" />
           <div className="mb-2 flex items-center gap-3">
             <h1 className="font-heading text-3xl font-bold tracking-tight">Approval history</h1>
             {status ? <PermitStatusBadge status={status} /> : null}
           </div>
           <p className="text-sm text-muted-foreground">{title}</p>
         </div>
-        <Link href={`/approvals/${params.permitId}`}>
-          <Button variant="outline">Back to review</Button>
-        </Link>
+
       </div>
 
       {error ? (
@@ -63,27 +61,7 @@ export default function ApprovalHistoryPage() {
       ) : history.length === 0 ? (
         <p className="text-sm text-muted-foreground">No approval history recorded yet.</p>
       ) : (
-        <ol className="grid gap-3">
-          {history.map((entry) => (
-            <li key={entry.id} className="rounded-lg border border-border bg-card px-4 py-3 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-medium capitalize">{entry.action.replace(/_/g, " ")}</span>
-                <time className="text-xs text-muted-foreground">
-                  {formatDateTime(entry.createdAt)}
-                </time>
-              </div>
-              {entry.fromStatus || entry.toStatus ? (
-                <p className="mt-1 text-muted-foreground">
-                  {entry.fromStatus?.replace(/_/g, " ") ?? "—"} →{" "}
-                  {entry.toStatus?.replace(/_/g, " ") ?? "—"}
-                </p>
-              ) : null}
-              {entry.comment ? (
-                <p className="mt-2 rounded-md bg-muted/50 px-3 py-2">{entry.comment}</p>
-              ) : null}
-            </li>
-          ))}
-        </ol>
+        <ApprovalHistoryList entries={history} />
       )}
     </main>
   );

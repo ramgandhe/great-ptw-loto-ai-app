@@ -46,7 +46,7 @@ export function AppNavigation({ open, onClose }: { open: boolean; onClose: () =>
         aria-label="Main navigation"
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
-          "lg:sticky lg:top-0 lg:z-auto lg:h-dvh lg:w-60 lg:translate-x-0",
+          "lg:sticky lg:top-0 lg:z-auto lg:h-dvh lg:w-60 lg:translate-x-0 print:hidden",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -70,7 +70,7 @@ export function AppNavigation({ open, onClose }: { open: boolean; onClose: () =>
           return (
             <div key={group} className="mb-5">
               {group !== "Work" ? (
-                <p className="mb-1.5 px-3 text-xs font-medium text-muted-foreground">{group}</p>
+                <p className="mb-1.5 px-3 text-xs font-semibold tracking-wide text-muted-foreground/80">{group}</p>
               ) : null}
               <ul className="flex flex-col gap-0.5">
                 {items.map(({ href, label, icon }) => {
@@ -83,9 +83,9 @@ export function AppNavigation({ open, onClose }: { open: boolean; onClose: () =>
                         onClick={onClose}
                         aria-current={isActive ? "page" : undefined}
                         className={cn(
-                          "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
+                          "press flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm",
                           isActive
-                            ? "bg-primary/12 font-medium text-primary"
+                            ? "is-selected font-semibold [&_svg]:text-(--accent-primary)"
                             : "text-muted-foreground hover:bg-accent hover:text-foreground",
                         )}
                       >
@@ -93,7 +93,7 @@ export function AppNavigation({ open, onClose }: { open: boolean; onClose: () =>
                         <span className="flex-1">{label}</span>
                         {count > 0 ? (
                           <span
-                            className="min-w-5 rounded-full bg-primary px-1.5 text-center text-xs font-semibold leading-5 text-primary-foreground"
+                            className="min-w-5 rounded-full bg-primary px-1.5 text-center text-xs font-bold leading-5 text-primary-foreground shadow-[0_2px_8px_-2px_color-mix(in_oklab,var(--primary)_70%,transparent)] tabular-nums"
                             aria-label={`${count} need${count === 1 ? "s" : ""} your action`}
                           >
                             {count}

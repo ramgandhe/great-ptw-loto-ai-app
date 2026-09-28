@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import { AnimatedNumber } from "@/components/analytics/animated-number";
 import { SegmentedBar, StatTile } from "@/components/analytics/charts";
+import { SectionTitle } from "@/components/layout/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { PERMIT_STAGES } from "@/lib/analytics/labels";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -109,22 +110,19 @@ export function HomeInsights() {
   const managesSite = hasAnyRole(roles, DASHBOARD_ANALYTICS_ROLES);
   return (
     <section aria-labelledby="home-insights">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 id="home-insights" className="text-lg font-semibold">
-            {managesSite ? "Site at a glance" : "Your permits"}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {managesSite ? "Last 30 days. Anything above zero needs someone's attention." : "What you are working on and what is coming up."}
-          </p>
-        </div>
-        {managesSite ? (
-          <Link href="/analytics" className={buttonVariants({ variant: "outline" })}>
-            Open analytics
-            <ArrowRight aria-hidden />
-          </Link>
-        ) : null}
-      </div>
+      <SectionTitle
+        id="home-insights"
+        title={managesSite ? "Site at a glance" : "Your permits"}
+        description={managesSite ? "Last 30 days. Anything above zero needs someone's attention." : "What you are working on and what is coming up."}
+        action={
+          managesSite ? (
+            <Link href="/analytics" className={buttonVariants({ variant: "outline" })}>
+              Open analytics
+              <ArrowRight aria-hidden />
+            </Link>
+          ) : null
+        }
+      />
       {managesSite ? <SiteAttention /> : <MyPermits />}
     </section>
   );

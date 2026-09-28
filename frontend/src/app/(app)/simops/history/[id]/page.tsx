@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/layout/page-header";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
@@ -8,7 +8,6 @@ import { getSimopsHistoryRecord } from "@/lib/simops/api";
 import type { ConflictDetail } from "@/lib/simops/types";
 import { ConflictSeverityBadge } from "@/components/simops/conflict-severity-badge";
 import { ConflictTimeline } from "@/components/simops/conflict-timeline";
-import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 
 export default function SimopsHistoryDetailPage() {
@@ -30,14 +29,10 @@ export default function SimopsHistoryDetailPage() {
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-3xl font-bold tracking-tight">Conflict history record</h1>
-          <p className="text-sm text-muted-foreground">Immutable resolution record for audit.</p>
-        </div>
-        <Link href="/simops/history">
-          <Button variant="outline">Back to history</Button>
-        </Link>
+      <div>
+        <BackLink href="/simops?view=history" label="Resolved clashes" />
+        <h1 className="font-heading text-3xl font-bold tracking-tight">Conflict history record</h1>
+        <p className="text-sm text-muted-foreground">Immutable resolution record for audit.</p>
       </div>
 
       {error ? (

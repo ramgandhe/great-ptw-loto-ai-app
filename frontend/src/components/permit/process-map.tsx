@@ -15,23 +15,13 @@ import {
   type ProcessEdge,
   type ProcessNode,
 } from "@/lib/permit/process";
+import { PERMIT_STATUSES } from "@/lib/permit/status";
 import { cn } from "@/lib/utils";
 
 /** Same colour pairs as the status badge, so a stage looks the same everywhere. */
 const NODE_TONE: Record<string, [fill: string, ink: string]> = {
-  draft: ["--permit-draft-bg", "--permit-draft"],
-  deferred: ["--status-info-bg", "--status-info"],
-  rejected: ["--permit-rejected-bg", "--permit-rejected"],
-  pending_approval: ["--permit-pending-bg", "--permit-pending"],
-  approved: ["--permit-approved-bg", "--permit-approved"],
-  active: ["--permit-active-bg", "--permit-active"],
-  suspended: ["--status-warning-bg", "--status-warning"],
-  execution_completed: ["--permit-pending-bg", "--permit-pending"],
-  pending_closure: ["--permit-approved-bg", "--permit-approved"],
-  closed: ["--permit-closed-bg", "--permit-closed"],
+  ...Object.fromEntries(PERMIT_STATUSES.map((s) => [s.key, [s.fill, s.ink]])),
   veto: ["--status-danger-bg", "--status-danger"],
-  expired: ["--permit-expired-bg", "--permit-expired"],
-  cancelled: ["--status-danger-bg", "--status-danger"],
 };
 
 const EDGE_INK: Record<NonNullable<ProcessEdge["tone"]>, string> = {

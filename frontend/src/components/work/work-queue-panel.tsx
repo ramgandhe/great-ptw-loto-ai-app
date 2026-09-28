@@ -3,16 +3,31 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CircleCheck, TriangleAlert } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
+import { PermitTypeChip } from "@/components/permit/permit-type-chip";
+import { ActionLink } from "@/components/work/action-link";
+import { permitStatusColor } from "@/lib/permit/status";
 import { formatWindow } from "@/lib/format";
 import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
 import { cn } from "@/lib/utils";
 import { WORK_ACTIONS, type WorkAction, type WorkItem } from "@/lib/work-queue";
 import { useWorkQueue } from "@/lib/work-queue-context";
 
-const PER_GROUP = 5;
+// Few enough that one busy group (e.g. many clashes) can't push the next group off screen.
+const PER_GROUP = 3;
 
-function WorkRow({ item, lookups }: { item: WorkItem; lookups: Lookups | null }) {
+/** Rows with the same title (e.g. several identical clash warnings) read as one line with a count. */
+function collapseAlike(rows: WorkItem[]): { item: WorkItem; alike: number }[] {
+  const byTitle = new Map<string, { item: WorkItem; alike: number }>();
+  for (const item of rows) {
+    const seen = byTitle.get(item.title);
+    if (seen) seen.alike += 1;
+    else byTitle.set(item.title, { item, alike: 1 });
+  }
+  return [...byTitle.values()];
+}
+
+function WorkRow({ item, alike, lookups }: { item: WorkItem; alike: number; lookups: Lookups | null }) {
   const { permit } = item;
   const type = permit ? lookups?.permitTypes.get(permit.permitTypeId) : undefined;
   const place = permit
@@ -22,20 +37,26 @@ function WorkRow({ item, lookups }: { item: WorkItem; lookups: Lookups | null })
     : null;
 
   return (
-    <li className="relative flex flex-wrap items-center gap-x-4 gap-y-2 py-3 pl-4 pr-1 sm:flex-nowrap">
-      {/* The left rule carries the permit type's own colour, as on the permit board. */}
+    <li className="row-hover relative flex flex-wrap items-center rounded-r-lg gap-x-4 gap-y-2 py-3 pl-4 pr-1 sm:flex-nowrap">
+      {/* The left rule carries the permit's status colour, as on the badge and the process map. */}
       <span
         aria-hidden
         className="absolute inset-y-3 left-0 w-1 rounded-full bg-border"
-        style={type?.color ? { backgroundColor: type.color } : undefined}
+        style={permit ? { backgroundColor: permitStatusColor(permit.status) } : undefined}
       />
       <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
-        <Link href={item.href} className="font-medium hover:underline">
+        <Link href={item.href} className="font-semibold hover:underline">
           {item.title}
         </Link>
-        <p className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-          {item.reference ? <span className="font-mono">{item.reference}</span> : null}
-          {type ? <span>{type.name}</span> : null}
+        {alike > 1 ? (
+          <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            ×{alike}
+          </span>
+        ) : null}
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          {permit ? <PermitStatusBadge status={permit.status} className="px-2 py-0" /> : null}
+          {item.reference ? <span className="rounded-md bg-muted px-1.5 font-mono font-semibold text-foreground">{item.reference}</span> : null}
+          {type ? <PermitTypeChip name={type.name} color={type.color} className="py-0" /> : null}
           {place ? <span>{place}</span> : null}
           {permit ? <span>{formatWindow(permit.plannedStartAt, permit.plannedEndAt)}</span> : null}
           {item.meta ? <span className="first-letter:uppercase">{item.meta}</span> : null}
@@ -52,12 +73,7 @@ function WorkRow({ item, lookups }: { item: WorkItem; lookups: Lookups | null })
           {item.note}
         </span>
       ) : null}
-      <Link
-        href={item.href}
-        className={cn(buttonVariants({ variant: item.urgent ? "default" : "outline", size: "sm" }), "ml-auto shrink-0")}
-      >
-        {item.label}
-      </Link>
+      <ActionLink item={item} className="ml-auto" />
     </li>
   );
 }
@@ -96,19 +112,25 @@ export function WorkQueuePanel({ emptyAction }: { emptyAction?: React.ReactNode 
     <div className="divide-y divide-border rounded-xl border border-border bg-card">
       {groups.map(({ action, rows }) => {
         const showAll = expanded.has(action);
-        const visible = showAll ? rows : rows.slice(0, PER_GROUP);
+        const visible = showAll ? rows.map((item) => ({ item, alike: 1 })) : collapseAlike(rows).slice(0, PER_GROUP);
         return (
           <section key={action} aria-labelledby={`wq-${action}`} className="px-4 py-3 sm:px-5">
-            <h3 id={`wq-${action}`} className="flex items-baseline gap-2 text-sm font-semibold">
+            <h3 id={`wq-${action}`} className="mb-1 flex items-center gap-2 text-sm font-semibold">
+              <span aria-hidden className="h-4 w-1 rounded-full" style={{ backgroundColor: `var(--act-${WORK_ACTIONS[action].kind})` }} />
               {WORK_ACTIONS[action].group}
-              <span className="font-normal text-muted-foreground">{rows.length}</span>
+              <span
+                className="chip rounded-full px-2 text-xs font-bold tabular-nums"
+                style={{ "--chip": `var(--act-${WORK_ACTIONS[action].kind})` } as React.CSSProperties}
+              >
+                {rows.length}
+              </span>
             </h3>
             <ul className="divide-y divide-border/60">
-              {visible.map((item) => (
-                <WorkRow key={item.key} item={item} lookups={lookups} />
+              {visible.map(({ item, alike }) => (
+                <WorkRow key={item.key} item={item} alike={alike} lookups={lookups} />
               ))}
             </ul>
-            {rows.length > PER_GROUP ? (
+            {showAll || rows.length > visible.length ? (
               <button
                 type="button"
                 className="mt-1 text-sm font-medium text-primary hover:underline"

@@ -1,21 +1,15 @@
 "use client";
 
+import { DOMAIN_ICONS } from "@/lib/domain-icons";
 import {
   Bell,
   Building2,
   ClipboardCheck,
-  Cog,
-  Factory,
   FileStack,
-  FlaskConical,
   GitBranch,
-  HardHat,
-  MapPin,
   Network,
-  ShieldAlert,
   Tags,
   UserCog,
-  Wrench,
 } from "lucide-react";
 import { HubPage, type HubGroup } from "@/components/layout/hub-page";
 import { TenantName } from "@/components/organisation/tenant-name";
@@ -26,11 +20,11 @@ const GROUPS: HubGroup[] = [
     title: "Site structure",
     description: "Set up in this order: each level is picked from the one above it.",
     links: [
-      { href: "/organisation/plants", label: "Plants", description: "Top-level operational sites", icon: Factory },
+      { href: "/organisation/plants", label: "Plants", description: "Top-level operational sites", icon: DOMAIN_ICONS.plant },
       { href: "/organisation/departments", label: "Departments", description: "Teams that own work", icon: Network },
-      { href: "/organisation/locations", label: "Locations", description: "Work areas within plants", icon: MapPin },
-      { href: "/organisation/workstations", label: "Workstations", description: "Where equipment is installed", icon: Cog },
-      { href: "/organisation/machinery", label: "Machinery", description: "Equipment and its isolation plans", icon: Wrench },
+      { href: "/organisation/locations", label: "Locations", description: "Work areas within plants", icon: DOMAIN_ICONS.location },
+      { href: "/organisation/workstations", label: "Workstations", description: "Where equipment is installed", icon: DOMAIN_ICONS.workstation },
+      { href: "/organisation/machinery", label: "Machinery", description: "Equipment and its isolation plans", icon: DOMAIN_ICONS.machinery },
     ],
   },
   {
@@ -39,9 +33,9 @@ const GROUPS: HubGroup[] = [
     links: [
       { href: "/organisation/permit-types", label: "Permit types", description: "Types, fields and colours", icon: Tags },
       { href: "/organisation/templates", label: "Permit templates", description: "Pre-filled starting points", icon: FileStack },
-      { href: "/organisation/hazards", label: "Hazards", description: "Hazard categories", icon: ShieldAlert },
-      { href: "/organisation/ppe", label: "PPE", description: "Protective equipment requirements", icon: HardHat },
-      { href: "/organisation/gas-testing", label: "Gas testing", description: "Parameters and limits by workstation", icon: FlaskConical },
+      { href: "/organisation/hazards", label: "Hazards", description: "Hazard categories", icon: DOMAIN_ICONS.hazard },
+      { href: "/organisation/ppe", label: "PPE", description: "Protective equipment requirements", icon: DOMAIN_ICONS.ppe },
+      { href: "/organisation/gas-testing", label: "Gas testing", description: "Parameters and limits by workstation", icon: DOMAIN_ICONS.gas },
       { href: "/organisation/checklists", label: "Safety checklists", description: "Reusable checklist items", icon: ClipboardCheck },
     ],
   },

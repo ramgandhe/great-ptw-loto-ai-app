@@ -1,5 +1,6 @@
 "use client";
 
+import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
@@ -116,9 +117,7 @@ export default function RestorationWorkspacePage() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
-        <Link href="/lototo/restoration" className="text-sm text-muted-foreground hover:text-foreground">
-          ← Restoration queue
-        </Link>
+        <BackLink href="/lototo?view=restoration" label="LOTOTO restoration" />
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="font-heading text-3xl font-bold tracking-tight">
             {executionDetail.plan?.title ?? "Equipment restoration"}

@@ -60,7 +60,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       actions.push({ key: "act:new-permit", section: "Actions", label: "Create a permit", href: "/permits/new", icon: FilePlus2 });
     }
     if (hasAnyRole(roles, INCIDENT_REPORT_ROLES)) {
-      actions.push({ key: "act:incident", section: "Actions", label: "Report an incident or near miss", href: "/incidents/new", icon: Siren });
+      actions.push({ key: "act:incident", section: "Actions", label: "Report an incident or near miss", href: "/incidents?new=1", icon: Siren });
     }
     if (hasAnyRole(roles, ORGANISATION_WRITE_ROLES)) {
       actions.push({ key: "act:org-setup", section: "Actions", label: "Set up the organisation", href: "/organisation/setup", icon: ListChecks });

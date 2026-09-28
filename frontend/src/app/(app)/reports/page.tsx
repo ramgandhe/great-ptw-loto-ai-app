@@ -8,14 +8,16 @@ import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import { AnimatedNumber } from "@/components/analytics/animated-number";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { RankedBars, SegmentedBar, StatTile } from "@/components/analytics/charts";
+import { PageHeader } from "@/components/layout/page-header";
+import { PermitTypeChip } from "@/components/permit/permit-type-chip";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
+import { MultiToggle, SegmentedToggle } from "@/components/ui/toggle-group";
 import { ApiError } from "@/lib/api";
 import { INCIDENT_TYPES, PERIODS, PERMIT_STAGES, PRIORITIES } from "@/lib/analytics/labels";
 import { getInsights, getReportView } from "@/lib/dashboards/api";
 import type { IncidentReportRow, InsightsPayload, PermitReportRow } from "@/lib/dashboards/types";
 import { formatDateTime, formatStatus, formatWindow } from "@/lib/format";
 import { staggerContainer, staggerItem } from "@/lib/motion";
-import { cn } from "@/lib/utils";
 
 const TABS = [
   { key: "permits", label: "Permit register" },
@@ -36,7 +38,7 @@ function compare(a: unknown, b: unknown): number {
 function SortHeader({ column, label, sort, onSort }: { column: string; label: string; sort: SortState; onSort: (c: string) => void }) {
   const active = sort.column === column;
   return (
-    <th scope="col" aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"} className="px-4 py-2.5 font-medium">
+    <th scope="col" aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"} className="px-4 py-2.5 font-semibold">
       <button type="button" onClick={() => onSort(column)} className="inline-flex items-center gap-1 hover:text-foreground">
         {label}
         {active ? sort.dir === "asc" ? <ArrowUp className="size-3" aria-hidden /> : <ArrowDown className="size-3" aria-hidden /> : null}
@@ -52,7 +54,8 @@ function ReportsView() {
   const tab = (params.get("tab") as TabKey | null) ?? "permits";
   const days = Number(params.get("days") ?? 90);
   const [query, setQuery] = useState(params.get("q") ?? "");
-  const [filter, setFilter] = useState(params.get("filter") ?? "all");
+  // Several stages (or priorities) can be picked at once; none picked means all.
+  const filter = (params.get("filter") ?? "").split(",").filter(Boolean);
   const [sort, setSort] = useState<SortState>({ column: "date", dir: "desc" });
   const [permitRows, setPermitRows] = useState<PermitReportRow[] | null>(null);
   const [incidentRows, setIncidentRows] = useState<IncidentReportRow[] | null>(null);
@@ -60,6 +63,7 @@ function ReportsView() {
   const [error, setError] = useState<string | null>(null);
 
   function setParams(next: Record<string, string>) {
+    // Tabs and periods are view state; keep the scroll position.
     const search = new URLSearchParams(params.toString());
     for (const [key, value] of Object.entries(next)) {
       if (value && value !== "all") search.set(key, value);
@@ -93,7 +97,7 @@ function ReportsView() {
     const q = query.trim().toLowerCase();
     const rows = (permitRows ?? []).filter(
       (r) =>
-        (filter === "all" || r.status === filter) &&
+        (filter.length === 0 || filter.includes(r.status)) &&
         (!q || [r.reference, r.title, r.type, r.place, r.department].some((v) => v?.toLowerCase().includes(q))),
     );
     const key = (r: PermitReportRow) =>
@@ -105,7 +109,7 @@ function ReportsView() {
     const q = query.trim().toLowerCase();
     const rows = (incidentRows ?? []).filter(
       (r) =>
-        (filter === "all" || r.priority === filter) &&
+        (filter.length === 0 || filter.includes(r.priority)) &&
         (!q || [r.reference, r.title, r.place, INCIDENT_TYPES[r.type]?.label].some((v) => v?.toLowerCase().includes(q))),
     );
     const key = (r: IncidentReportRow) => (sort.column === "date" ? r.occurredAt : (r as Record<string, unknown>)[sort.column]);
@@ -115,91 +119,69 @@ function ReportsView() {
   const periodLabel = PERIODS.find((p) => p.days === days)?.label ?? `${days} days`;
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
-      <div>
-        <h1 className="font-heading text-3xl font-bold tracking-tight">Reports</h1>
-        <p className="mt-1 text-muted-foreground">Read registers and summaries here. Filter, sort and open any record straight from the report.</p>
-      </div>
-
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div role="tablist" aria-label="Report" className="flex gap-1 overflow-x-auto border-b border-border">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.key}
-              onClick={() => {
-                setFilter("all");
-                setQuery("");
-                setParams({ tab: t.key, filter: "", q: "" });
-              }}
-              className={cn(
-                "-mb-px shrink-0 border-b-2 px-4 py-2.5 text-sm transition-colors",
-                tab === t.key ? "border-primary font-semibold text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Period</span>
-          <select
+    <main className="flex flex-1 flex-col gap-6 px-4 pb-8 sm:px-8">
+      <PageHeader
+        title="Reports"
+        description="Registers and summaries. Filter, sort and open any record straight from the report."
+        actions={
+          <SegmentedToggle
+            label="Period"
             value={days}
-            onChange={(e) => setParams({ days: e.target.value })}
-            className="h-9 rounded-lg border border-border bg-card px-3 text-sm"
-          >
-            {PERIODS.map((p) => (
-              <option key={p.days} value={p.days}>
-                Last {p.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+            onChange={(d) => setParams({ days: String(d) })}
+            options={PERIODS.map((p) => ({ value: p.days, label: p.label }))}
+          />
+        }
+      >
+        <SegmentedToggle
+          label="Report"
+          value={tab}
+          onChange={(key) => {
+            setQuery("");
+            setParams({ tab: key, filter: "", q: "" });
+          }}
+          options={TABS.map((t) => ({ value: t.key, label: t.label }))}
+          className="self-start"
+        />
+        {tab !== "summary" ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="relative flex h-10 w-full items-center sm:w-80">
+              <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
+              <span className="sr-only">Search the report</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setParams({ q: e.target.value });
+                }}
+                placeholder={tab === "permits" ? "Reference, title, type, place" : "Reference, title, place"}
+                className="h-10 w-full rounded-full border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              />
+            </label>
+            <MultiToggle
+              label={tab === "permits" ? "Status" : "Priority"}
+              selected={filter}
+              onChange={(next) => setParams({ filter: next.join(",") })}
+              options={(tab === "permits" ? PERMIT_STAGES : PRIORITIES)
+                .map((o) => ({
+                  value: o.key,
+                  label: o.label,
+                  color: o.color,
+                  count:
+                    tab === "permits"
+                      ? (permitRows ?? []).filter((r) => r.status === o.key).length
+                      : (incidentRows ?? []).filter((r) => r.priority === o.key).length,
+                }))
+                .filter((o) => o.count > 0 || filter.includes(o.value))}
+            />
+          </div>
+        ) : null}
+      </PageHeader>
 
       {error ? (
         <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </p>
-      ) : null}
-
-      {tab !== "summary" ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <label className="relative flex h-10 items-center sm:w-80">
-            <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
-            <span className="sr-only">Search the report</span>
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setParams({ q: e.target.value });
-              }}
-              placeholder={tab === "permits" ? "Reference, title, type, place" : "Reference, title, place"}
-              className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            />
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">{tab === "permits" ? "Stage" : "Priority"}</span>
-            <select
-              value={filter}
-              onChange={(e) => {
-                setFilter(e.target.value);
-                setParams({ filter: e.target.value });
-              }}
-              className="h-10 rounded-lg border border-border bg-card px-3 text-sm"
-            >
-              <option value="all">All</option>
-              {(tab === "permits" ? PERMIT_STAGES : PRIORITIES).map((o) => (
-                <option key={o.key} value={o.key}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
       ) : null}
 
       {tab === "permits" ? (
@@ -208,7 +190,7 @@ function ReportsView() {
         ) : (
           <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid gap-5">
             <motion.div variants={staggerItem} className="grid gap-3 md:grid-cols-[14rem_1fr]">
-              <StatTile label={`Permits in the last ${periodLabel}`} value={<AnimatedNumber value={permitView.length} />} hint={filter !== "all" || query ? "Matching your filters" : undefined} />
+              <StatTile label={`Permits in the last ${periodLabel}`} value={<AnimatedNumber value={permitView.length} />} hint={filter.length > 0 || query ? "Matching your filters" : undefined} />
               <div className="rounded-xl border border-border bg-card px-5 py-4">
                 <SegmentedBar
                   emptyMessage="No permits match."
@@ -231,8 +213,8 @@ function ReportsView() {
                         <PermitStatusBadge status={r.status} />
                       </div>
                       <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                        <span className="font-mono">{r.reference ?? "Draft"}</span>
-                        {r.type ? <span>{r.type}</span> : null}
+                        <span className="rounded-md bg-muted px-1.5 font-mono font-semibold text-foreground">{r.reference ?? "Draft"}</span>
+                        {r.type ? <PermitTypeChip name={r.type} color={r.typeColor} className="py-0" /> : null}
                         {r.place ? <span>{r.place}</span> : null}
                         <span>{formatWindow(r.plannedStartAt, r.plannedEndAt)}</span>
                       </p>
@@ -241,7 +223,7 @@ function ReportsView() {
                 </ul>
                 <table className="hidden min-w-[56rem] w-full text-left text-sm md:table">
                   <caption className="sr-only">Permit register, last {periodLabel}</caption>
-                  <thead className="sticky top-0 bg-card text-xs text-muted-foreground">
+                  <thead className="table-head text-xs">
                     <tr className="border-b border-border">
                       <SortHeader column="reference" label="Reference" sort={sort} onSort={onSort} />
                       <SortHeader column="title" label="Permit" sort={sort} onSort={onSort} />
@@ -254,8 +236,8 @@ function ReportsView() {
                   </thead>
                   <tbody>
                     {permitView.map((r) => (
-                      <tr key={r.id} className="relative border-t border-border first:border-t-0 hover:bg-muted/40">
-                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">{r.reference ?? "Draft"}</td>
+                      <tr key={r.id} className="row-hover relative border-t border-border first:border-t-0">
+                        <td className="whitespace-nowrap px-4 py-3"><span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold">{r.reference ?? "Draft"}</span></td>
                         <td className="px-4 py-3">
                           <Link href={`/permits/${r.id}`} className="font-medium after:absolute after:inset-0 hover:underline">
                             {r.title}
@@ -263,10 +245,7 @@ function ReportsView() {
                           {r.department ? <p className="text-xs text-muted-foreground">{r.department}</p> : null}
                         </td>
                         <td className="px-4 py-3">
-                          <span className="flex items-center gap-2">
-                            <span aria-hidden className="size-2.5 rounded-full bg-border" style={r.typeColor ? { backgroundColor: r.typeColor } : undefined} />
-                            {r.type ?? "Not set"}
-                          </span>
+                          <PermitTypeChip name={r.type ?? "Not set"} color={r.typeColor} />
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">{r.place ?? "Not set"}</td>
                         <td className="px-4 py-3 text-muted-foreground">{formatWindow(r.plannedStartAt, r.plannedEndAt)}</td>
@@ -313,7 +292,7 @@ function ReportsView() {
                         {r.title}
                       </Link>
                       <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                        <span className="font-mono">{r.reference}</span>
+                        <span className="rounded-md bg-muted px-1.5 font-mono font-semibold text-foreground">{r.reference}</span>
                         <span>{INCIDENT_TYPES[r.type]?.label ?? formatStatus(r.type)}</span>
                         <span>{formatStatus(r.priority)} priority</span>
                         <span>{formatStatus(r.status)}</span>
@@ -324,7 +303,7 @@ function ReportsView() {
                 </ul>
                 <table className="hidden min-w-[48rem] w-full text-left text-sm md:table">
                   <caption className="sr-only">Incident register, last {periodLabel}</caption>
-                  <thead className="text-xs text-muted-foreground">
+                  <thead className="table-head text-xs">
                     <tr className="border-b border-border">
                       <SortHeader column="reference" label="Reference" sort={sort} onSort={onSort} />
                       <SortHeader column="title" label="Incident" sort={sort} onSort={onSort} />
@@ -336,8 +315,8 @@ function ReportsView() {
                   </thead>
                   <tbody>
                     {incidentView.map((r) => (
-                      <tr key={r.id} className="relative border-t border-border first:border-t-0 hover:bg-muted/40">
-                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">{r.reference}</td>
+                      <tr key={r.id} className="row-hover relative border-t border-border first:border-t-0">
+                        <td className="whitespace-nowrap px-4 py-3"><span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold">{r.reference}</span></td>
                         <td className="px-4 py-3">
                           <Link href={`/incidents/${r.id}`} className="font-medium after:absolute after:inset-0 hover:underline">
                             {r.title}

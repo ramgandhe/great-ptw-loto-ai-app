@@ -205,6 +205,7 @@ export function StatTile({
   tone = "neutral",
   href,
   children,
+  compact = false,
 }: {
   label: string;
   value: React.ReactNode;
@@ -212,12 +213,17 @@ export function StatTile({
   tone?: "neutral" | "warning" | "danger" | "good";
   href?: string;
   children?: React.ReactNode;
+  /** Header-sized tile: figure and label side by side, for figures that stay pinned in view. */
+  compact?: boolean;
 }) {
   const toneClass = {
     neutral: "border-border bg-card",
     good: "border-border bg-card",
-    warning: "border-(--status-warning)/40 bg-(--status-warning-bg)",
-    danger: "border-(--status-danger)/40 bg-(--status-danger-bg)",
+    // A figure that needs attention carries its colour as a wash and an edge glow, not just its digits.
+    warning:
+      "border-(--status-warning)/45 bg-linear-to-br from-(--status-warning-bg) to-card shadow-[0_8px_24px_-14px_var(--status-warning)]",
+    danger:
+      "border-(--status-danger)/45 bg-linear-to-br from-(--status-danger-bg) to-card shadow-[0_8px_24px_-14px_var(--status-danger)]",
   }[tone];
   const valueClass = {
     neutral: "text-foreground",
@@ -225,28 +231,37 @@ export function StatTile({
     warning: "text-(--status-warning)",
     danger: "text-(--status-danger)",
   }[tone];
-  const body = (
+  const body = compact ? (
+    <span className="flex items-center gap-3">
+      <span className={cn("font-heading text-2xl font-extrabold leading-none tracking-tight tabular-nums", valueClass)}>{value}</span>
+      <span className="text-sm font-semibold leading-tight">{label}</span>
+    </span>
+  ) : (
     <>
       <p
         className={cn(
-          "font-heading font-bold tabular-nums",
+          "font-heading font-extrabold leading-none tracking-tight tabular-nums",
           // Words (e.g. "Under an hour") read better a size down from figures.
-          typeof value === "string" && value.length > 6 ? "text-2xl" : "text-3xl",
+          compact ? "text-2xl" : typeof value === "string" && value.length > 6 ? "text-2xl" : "text-4xl",
           valueClass,
         )}
       >
         {value}
       </p>
-      <p className="mt-0.5 text-sm font-medium">{label}</p>
+      <p className={cn("text-sm font-semibold", compact ? "leading-tight" : "mt-2")}>{label}</p>
       {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
       {children}
     </>
   );
   return href ? (
-    <Link href={href} className={cn("block rounded-xl border px-4 py-3 transition-colors hover:border-(--border-strong)", toneClass)}>
+    <Link href={href} className={cn(
+        "press block rounded-xl border hover:-translate-y-0.5 hover:border-(--border-strong) hover:shadow-[0_10px_28px_-16px_color-mix(in_oklab,var(--foreground)_45%,transparent)]",
+        compact ? "px-3.5 py-2.5" : "px-4 py-3.5",
+        toneClass,
+      )}>
       {body}
     </Link>
   ) : (
-    <div className={cn("rounded-xl border px-4 py-3", toneClass)}>{body}</div>
+    <div className={cn("rounded-xl border", compact ? "px-3.5 py-2.5" : "px-4 py-3.5", toneClass)}>{body}</div>
   );
 }

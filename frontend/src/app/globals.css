@@ -53,6 +53,154 @@
   --radius-4xl: var(--radius-xl);
 }
 
+/*
+ * Three colour languages, one per question a person asks of a row:
+ *   --st-*  where is this permit?   (status, grouped by lifecycle stage: one hue family per stage)
+ *   --act-* what must I do?         (action kind: decide, fix, do, admin)
+ *   type colours come from the permit type itself (set by the organisation).
+ * They are theme-independent on purpose so a status reads the same in every theme.
+ */
+:root {
+  --st-ink: #ffffff;
+  /* Preparing */
+  --st-draft: #475569;
+  /* Awaiting approval */
+  --st-pending_approval: #b45309;
+  /* Sent back: rose family */
+  --st-deferred: #e11d48;
+  --st-rejected: #9f1239;
+  /* Cleared */
+  --st-approved: #1d4ed8;
+  /* Live: work on site */
+  --st-active: #047857;
+  --st-suspended: #a16207;
+  /* Closing: violet family */
+  --st-execution_completed: #6d28d9;
+  --st-pending_closure: #4338ca;
+  /* Finished: quiet neutrals */
+  --st-closed: #1e293b;
+  --st-expired: #78716c;
+  --st-cancelled: #71717a;
+
+  --act-decide: #1d4ed8;
+  --act-fix: #e11d48;
+  --act-do: #047857;
+  --act-admin: #475569;
+
+  --ease-out-soft: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dark {
+  --st-ink: #0b0f19;
+  --st-draft: #94a3b8;
+  --st-pending_approval: #fbbf24;
+  --st-deferred: #fb7185;
+  --st-rejected: #f43f5e;
+  --st-approved: #60a5fa;
+  --st-active: #34d399;
+  --st-suspended: #facc15;
+  --st-execution_completed: #a78bfa;
+  --st-pending_closure: #818cf8;
+  --st-closed: #cbd5e1;
+  --st-expired: #a8a29e;
+  --st-cancelled: #a1a1aa;
+
+  --act-decide: #60a5fa;
+  --act-fix: #fb7185;
+  --act-do: #34d399;
+  --act-admin: #94a3b8;
+}
+
+/* A soft chip in any colour: set --chip on the element. Used by status, type and filter chips. */
+.chip {
+  background: color-mix(in oklab, var(--chip) 13%, transparent);
+  color: color-mix(in oklab, var(--chip) 88%, var(--foreground));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--chip) 32%, transparent);
+}
+
+/* Selected: a tinted gradient with a soft glow in the element's colour (--glow, default brand). */
+.is-selected {
+  --glow: var(--accent-primary, var(--primary));
+  background: linear-gradient(135deg, color-mix(in oklab, var(--glow) 20%, var(--card)), color-mix(in oklab, var(--glow) 8%, var(--card)));
+  color: var(--foreground);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--glow) 45%, transparent),
+    0 4px 18px -6px color-mix(in oklab, var(--glow) 55%, transparent);
+}
+
+/* Rows you can open: a light sweep and an accent edge on hover so the pointer's row is unmistakable. */
+.row-hover {
+  transition: background-color 160ms var(--ease-out-soft), box-shadow 160ms var(--ease-out-soft);
+}
+@media (hover: hover) and (pointer: fine) {
+  .row-hover:hover {
+    background: linear-gradient(90deg, color-mix(in oklab, var(--accent-primary, var(--primary)) 9%, transparent), transparent 70%);
+    box-shadow: inset 3px 0 0 var(--accent-primary, var(--primary));
+  }
+}
+
+/* Table headers that read as headers: tinted band, darker ink, sticks under the app bar and page head. */
+.table-head {
+  position: sticky;
+  top: calc(3.5rem + var(--page-head-h, 0px));
+  /* Above row buttons (z-10), below the page header (z-20). */
+  z-index: 15;
+  background: color-mix(in oklab, var(--accent-primary, var(--primary)) 6%, var(--muted));
+  color: color-mix(in oklab, var(--foreground) 80%, transparent);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Press feedback on every button and button-styled link. */
+[data-slot="button"],
+.press {
+  transition-property: transform, background-color, color, box-shadow, border-color;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out-soft);
+}
+[data-slot="button"]:active,
+.press:active {
+  transform: scale(0.97);
+}
+
+/* Urgent actions breathe a halo in their own colour so they are found first. */
+@keyframes act-halo {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--act) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in oklab, var(--act) 0%, transparent);
+  }
+}
+.act-urgent {
+  animation: act-halo 2.4s var(--ease-out-soft) infinite;
+}
+
+/* Route change: content settles in quickly; nothing waits before it is usable. */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.page-in {
+  animation: page-in 160ms var(--ease-out-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .act-urgent {
+    animation: none;
+  }
+  .page-in {
+    animation-name: none;
+  }
+  [data-slot="button"]:active,
+  .press:active {
+    transform: none;
+  }
+}
+
 /* Inline panels that open in place (admin add/edit forms): settle in from just above instead of popping in. */
 .reveal-in {
   transition:

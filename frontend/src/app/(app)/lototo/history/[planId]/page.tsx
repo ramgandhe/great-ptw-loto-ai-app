@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/layout/page-header";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ApiError } from "@/lib/api";
@@ -26,9 +26,7 @@ export default function LototoHistoryPage() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
-        <Link href="/lototo/restoration" className="text-sm text-muted-foreground hover:text-foreground">
-          ← Restoration
-        </Link>
+        <BackLink href="/lototo?view=restoration" label="LOTOTO restoration" />
         <h1 className="mt-2 text-2xl font-semibold">LOTOTO history</h1>
         <p className="text-sm text-muted-foreground">
           Append-only audit trail for this plan.

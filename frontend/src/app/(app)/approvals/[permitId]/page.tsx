@@ -1,9 +1,10 @@
 "use client";
 
+import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Check, History, RotateCcw, X } from "lucide-react";
+import { Check, History, RotateCcw, X } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { approvePermit, deferPermit, getApprovalReview, rejectPermit } from "@/lib/approval/api";
 import type { ApprovalReview } from "@/lib/approval/types";
@@ -130,10 +131,7 @@ export default function PermitReviewPage() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
-        <Link href="/approvals" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" aria-hidden />
-          Approvals
-        </Link>
+        <BackLink href="/permits" label="Permits" />
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">{review.permit.title}</h1>
           <PermitStatusBadge status={review.permit.status} />

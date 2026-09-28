@@ -1,5 +1,6 @@
 "use client";
 
+import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -20,7 +21,7 @@ import {
   suspendPermit,
 } from "@/lib/execution/api";
 import { SuspensionDialog } from "@/components/execution/suspension-dialog";
-import { ArrowLeft, ArrowRight, CalendarDays, Eye, History, LockKeyhole, Route, Wrench } from "lucide-react";
+import { ArrowRight, CalendarDays, LockKeyhole, Printer, Route, Wrench } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatRelative } from "@/lib/format";
@@ -171,20 +172,15 @@ export default function PermitDetailPage() {
   const inExecution = ["approved", "active", "suspended"].includes(detail.permit.status);
   const related = [
     { href: `/permits/${detail.permit.id}/journey`, label: "Journey and current state", icon: Route, show: true },
-    { href: `/approvals/${detail.permit.id}/history`, label: "Approval history", icon: History, show: detail.permit.status !== "draft" },
     { href: `/execution/${detail.permit.id}`, label: "Execution", icon: Wrench, show: inExecution && nextAction?.href !== `/execution/${detail.permit.id}` },
     { href: `/permits/${detail.permit.id}/multi-day`, label: "Daily progress", icon: CalendarDays, show: inExecution },
-    { href: `/lototo/plans/new?permitId=${detail.permit.id}`, label: "Configure LOTOTO", icon: LockKeyhole, show: inExecution },
-    { href: `/permits/${detail.permit.id}/preview`, label: "Print view", icon: Eye, show: true },
+    { href: `/lototo?new=1${detail.permit.machineryId ? `&machineryId=${detail.permit.machineryId}` : ""}`, label: "Configure LOTOTO", icon: LockKeyhole, show: inExecution },
   ].filter((link) => link.show);
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
-        <Link href="/permits" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" aria-hidden />
-          Permits
-        </Link>
+        <BackLink href="/permits" label="Permits" />
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">{detail.permit.title}</h1>
           <PermitStatusBadge status={detail.permit.status} />
@@ -195,7 +191,7 @@ export default function PermitDetailPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-border bg-card px-5 py-4">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-border bg-card px-5 py-4 print:hidden">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">{nextAction ? `Your next step: ${nextAction.label.toLowerCase()}` : "What happens next"}</p>
           <p className="text-sm text-muted-foreground">
@@ -290,25 +286,27 @@ export default function PermitDetailPage() {
         </p>
       ) : null}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] print:block">
         <div className="grid min-w-0 gap-6">
           <PermitSummary form={form} status={detail.permit.status} attachments={detail.attachments} showHeader={false} />
           <PermitFormResponses responses={detail.permit.formResponses ?? []} />
         </div>
-        <aside className="grid gap-4">
-          <nav aria-label="Related records" className="rounded-xl border border-border bg-card p-2">
+        {/* One box: where the permit is in its lifecycle, its history, and where to go from here. */}
+        <aside className="grid gap-4 rounded-xl border border-border bg-card p-4 lg:sticky lg:top-18 print:hidden">
+          <PermitApprovalStatus permitId={detail.permit.id} status={detail.permit.status} />
+          <nav aria-label="Related records" className="-mx-1 grid border-t border-border pt-3">
             {related.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm hover:bg-muted"
-              >
+              <Link key={link.href} href={link.href} className="press flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm hover:bg-muted">
                 <link.icon className="size-4 text-muted-foreground" aria-hidden />
                 {link.label}
               </Link>
             ))}
+            {/* This page is the print view: printing hides the app chrome and actions. */}
+            <button type="button" onClick={() => window.print()} className="press flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted">
+              <Printer className="size-4 text-muted-foreground" aria-hidden />
+              Print this permit
+            </button>
           </nav>
-          <PermitApprovalStatus permitId={detail.permit.id} status={detail.permit.status} />
         </aside>
       </div>
 

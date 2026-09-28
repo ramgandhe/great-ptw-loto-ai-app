@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/layout/page-header";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
@@ -9,7 +9,6 @@ import type { ConflictDetail } from "@/lib/simops/types";
 import { ConflictSeverityBadge } from "@/components/simops/conflict-severity-badge";
 import { ConflictTimeline } from "@/components/simops/conflict-timeline";
 import { ConflictWorkflow } from "@/components/simops/conflict-workflow";
-import { Button } from "@/components/ui/button";
 
 export default function ConflictDetailPage() {
   const params = useParams<{ id: string }>();
@@ -34,19 +33,10 @@ export default function ConflictDetailPage() {
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-3xl font-bold tracking-tight">Conflict details</h1>
-          <p className="text-sm text-muted-foreground">Assess, plan mitigation, and resolve SIMOPS conflicts.</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/simops/history">
-            <Button variant="outline">History</Button>
-          </Link>
-          <Link href="/simops/conflicts">
-            <Button variant="outline">Back to conflicts</Button>
-          </Link>
-        </div>
+      <div>
+        <BackLink href="/simops" label="SIMOPS" />
+        <h1 className="font-heading text-3xl font-bold tracking-tight">Conflict details</h1>
+        <p className="text-sm text-muted-foreground">Assess, plan mitigation, and resolve SIMOPS conflicts.</p>
       </div>
 
       {error ? (

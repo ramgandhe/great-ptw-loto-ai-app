@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { LogOut, Menu, Moon, Search, Settings, Sun } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Bell, LogOut, Menu, Moon, Search, Settings, Sun } from "lucide-react";
+import { DashboardNotificationsPanel } from "@/components/dashboards/dashboard-notifications-panel";
 import { TenantName } from "@/components/organisation/tenant-name";
 import { useTheme } from "@/components/theme-provider";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
-import { formatRoleLabel } from "@/lib/auth/rbac";
+import { formatRoleLabel, hasAnyRole } from "@/lib/auth/rbac";
+import { NOTIFICATION_READ_ROLES } from "@/lib/auth/roles";
 import { signOut } from "@/lib/auth/keycloak";
+import { listNotifications } from "@/lib/notifications/api";
 
 function Avatar({ url, name }: { url?: string | null; name: string }) {
   return url ? (
@@ -20,6 +24,86 @@ function Avatar({ url, name }: { url?: string | null; name: string }) {
     >
       {name.slice(0, 1).toUpperCase()}
     </span>
+  );
+}
+
+/** Closes a popover on an outside click or Escape. */
+function useDismiss(ref: React.RefObject<HTMLElement | null>, open: boolean, close: () => void) {
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) close();
+    };
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && close();
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [ref, open, close]);
+}
+
+function NotificationBell() {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(ref, open, close);
+
+  // Recount on navigation and whenever the panel closes, so reading a message clears the badge.
+  useEffect(() => {
+    if (open) return;
+    let cancelled = false;
+    listNotifications({ unreadOnly: true })
+      .then((rows) => !cancelled && setUnread(rows.length))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, open]);
+
+  const label = unread > 0 ? `Notifications, ${unread} unread` : "Notifications";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        aria-label={label}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="relative flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+      >
+        <Bell className="size-5" aria-hidden />
+        {unread > 0 ? (
+          <span
+            aria-hidden
+            className="absolute -right-0.5 -top-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-(--status-danger) px-1 text-[11px] font-semibold leading-none text-white ring-2 ring-background tabular-nums"
+          >
+            {unread > 99 ? "99+" : unread}
+          </span>
+        ) : null}
+      </button>
+
+      {open ? (
+        <div
+          role="dialog"
+          aria-label="Notifications"
+          // Following a link inside navigates away; close the panel with it.
+          onClick={(event) => (event.target as HTMLElement).closest("a") && close()}
+          className="absolute right-0 top-12 w-[26rem] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-(--shadow-lg)"
+        >
+          <div className="max-h-[70vh] overflow-y-auto">
+            <DashboardNotificationsPanel limit={6} />
+          </div>
+          <Link href="/notifications" className="mt-3 block rounded-lg px-2 py-1.5 text-center text-sm font-medium text-primary hover:bg-muted">
+            Open all notifications
+          </Link>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -36,22 +120,10 @@ export function AppHeader({ onOpenNav, onOpenSearch }: { onOpenNav: () => void; 
       : (profile?.username ?? "Signed in"));
   const roleLabel = roles.length > 0 ? roles.map(formatRoleLabel).join(", ") : "No roles assigned";
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onPointer = (event: MouseEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setMenuOpen(false);
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuOpen]);
+  useDismiss(menuRef, menuOpen, () => setMenuOpen(false));
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur sm:px-6">
+    <header className="sticky top-0 z-30 flex h-14 print:hidden shrink-0 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur sm:px-6">
       <button
         type="button"
         className="-ml-1 rounded-md p-1.5 text-muted-foreground hover:text-foreground lg:hidden"
@@ -72,7 +144,10 @@ export function AppHeader({ onOpenNav, onOpenSearch }: { onOpenNav: () => void; 
         <kbd className="ml-auto hidden rounded border border-border px-1.5 text-xs sm:inline">Ctrl K</kbd>
       </button>
 
-      <div ref={menuRef} className="relative ml-auto">
+      <span className="ml-auto" aria-hidden />
+      {hasAnyRole(roles, NOTIFICATION_READ_ROLES) ? <NotificationBell /> : null}
+
+      <div ref={menuRef} className="relative">
         <button
           type="button"
           aria-haspopup="menu"

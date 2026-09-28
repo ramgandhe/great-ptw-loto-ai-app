@@ -52,7 +52,7 @@ function MachineryLototoList() {
               <div key={item.id} className="rounded-lg border border-border bg-card p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-medium">{item.name}</h3>
-                  <Link href={`/lototo/plans/new?machineryId=${item.id}`}>
+                  <Link href={`/lototo?new=1&machineryId=${item.id}`}>
                     <span className="text-sm text-primary underline">Add LOTOTO</span>
                   </Link>
                 </div>

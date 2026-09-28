@@ -1,5 +1,6 @@
 "use client";
 
+import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -102,9 +103,10 @@ export default function IncidentDetailPage() {
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <BackLink href="/incidents" label="Incidents" />
         <div>
-          <div className="mb-2 flex items-center gap-3">
+          <div className="mb-2 flex flex-wrap items-center gap-3">
             <h1 className="font-heading text-3xl font-bold tracking-tight">{incident.title}</h1>
             <IncidentStatusBadge status={incident.status} />
           </div>
@@ -112,9 +114,6 @@ export default function IncidentDetailPage() {
             {incident.reference} · {incident.incidentType.replace(/_/g, " ")}
           </p>
         </div>
-        <Link href="/incidents">
-          <Button variant="outline">Back to list</Button>
-        </Link>
       </div>
 
       <section className="rounded-lg border border-border p-4 text-sm">

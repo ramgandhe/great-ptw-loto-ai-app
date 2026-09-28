@@ -1,135 +1,210 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { ApiError } from "@/lib/api";
-import { analyseSimopsConflicts, listSimopsAlerts, listSimopsConflicts } from "@/lib/simops/api";
-import type { AlertListItem, SimopsConflict } from "@/lib/simops/types";
+import { Suspense, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { motion } from "motion/react";
+import { Radar } from "lucide-react";
+import { AnimatedNumber } from "@/components/analytics/animated-number";
+import { StatTile } from "@/components/analytics/charts";
+import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState, ErrorNote, RecordList, RecordRow } from "@/components/safety/record-list";
 import { ConflictSeverityBadge } from "@/components/simops/conflict-severity-badge";
-import { ConflictSummaryCards } from "@/components/simops/conflict-summary-cards";
 import { Button } from "@/components/ui/button";
+import { StatusChip } from "@/components/ui/status-chip";
+import { MultiToggle, SegmentedToggle } from "@/components/ui/toggle-group";
+import { ActionButtonLink } from "@/components/work/action-link";
+import { ApiError } from "@/lib/api";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { SIMOPS_ANALYSE_ROLES } from "@/lib/auth/roles";
+import { formatDateTime, formatRelative } from "@/lib/format";
+import { staggerContainer, staggerItem } from "@/lib/motion";
+import { CONFLICT_STATUS, SEVERITY, toneOf } from "@/lib/safety/status";
+import { analyseSimopsConflicts, listSimopsConflicts, listSimopsHistory } from "@/lib/simops/api";
+import type { HistoryListItem, SimopsConflict } from "@/lib/simops/types";
 
-export default function SimopsDashboardPage() {
+const TYPE_LABELS: Record<string, string> = { location: "Same location", equipment: "Same equipment", schedule: "Same time window", permit_type: "Incompatible permit types" };
+const SEVERITY_RANK: Record<string, number> = { high: 0, medium: 1, low: 2 };
+const list = (value: string | null) => (value ?? "").split(",").filter(Boolean);
+
+function SimopsBoard() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
   const { roles } = useAuthProfile();
   const canAnalyse = hasAnyRole(roles, SIMOPS_ANALYSE_ROLES);
-  const [conflicts, setConflicts] = useState<SimopsConflict[]>([]);
-  const [alerts, setAlerts] = useState<AlertListItem[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAnalysing, setIsAnalysing] = useState(false);
+  const view = params.get("view") === "history" ? "history" : "active";
+  const severities = list(params.get("severity"));
+  const types = list(params.get("type"));
 
-  async function load() {
-    const [conflictRows, alertRows] = await Promise.all([
-      listSimopsConflicts(),
-      listSimopsAlerts(),
-    ]);
-    setConflicts(conflictRows.filter((item) => item.status !== "approved" && item.status !== "rejected"));
-    setAlerts(alertRows.slice(0, 5));
+  const [conflicts, setConflicts] = useState<SimopsConflict[] | null>(null);
+  const [history, setHistory] = useState<HistoryListItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [analysing, setAnalysing] = useState(false);
+
+  function setParams(next: Record<string, string>) {
+    const p = new URLSearchParams(params.toString());
+    for (const [key, value] of Object.entries(next)) {
+      if (value) p.set(key, value);
+      else p.delete(key);
+    }
+    router.replace(`${pathname}${p.size ? `?${p}` : ""}`, { scroll: false });
   }
 
+  const load = () =>
+    Promise.all([listSimopsConflicts(), listSimopsHistory()]).then(([rows, done]) => {
+      setConflicts(rows.filter((c) => c.status !== "approved" && c.status !== "rejected"));
+      setHistory(done);
+    });
+
   useEffect(() => {
-    load()
-      .catch((err) => {
-        setError(err instanceof ApiError ? err.message : "Failed to load SIMOPS dashboard");
+    Promise.all([listSimopsConflicts(), listSimopsHistory()])
+      .then(([rows, done]) => {
+        setConflicts(rows.filter((c) => c.status !== "approved" && c.status !== "rejected"));
+        setHistory(done);
       })
-      .finally(() => setIsLoading(false));
+      .catch((err) => setError(err instanceof ApiError ? err.message : "SIMOPS could not be loaded. Try again."));
   }, []);
 
-  async function handleAnalyse() {
-    setIsAnalysing(true);
+  async function analyse() {
+    setAnalysing(true);
     setError(null);
     try {
       await analyseSimopsConflicts();
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Conflict analysis failed");
+      setError(err instanceof ApiError ? err.message : "The clash check failed. Try again.");
     } finally {
-      setIsAnalysing(false);
+      setAnalysing(false);
     }
   }
 
-  const highCount = conflicts.filter((item) => item.severity === "high").length;
-  const mediumCount = conflicts.filter((item) => item.severity === "medium").length;
+  const open = conflicts ?? [];
+  const source = view === "active" ? open : history.map((h) => h.conflict);
+  const matches = (c: SimopsConflict) => (severities.length === 0 || severities.includes(c.severity)) && (types.length === 0 || types.includes(c.conflictType));
+  const resolutionOf = new Map(history.map((h) => [h.conflict.id, h.resolution]));
+  const rows = source
+    .filter(matches)
+    .sort((a, b) => (view === "active" ? (SEVERITY_RANK[a.severity] ?? 9) - (SEVERITY_RANK[b.severity] ?? 9) : 0) || b.detectedAt.localeCompare(a.detectedAt));
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-3xl font-bold tracking-tight">SIMOPS dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            Monitor simultaneous operations conflicts across active permits.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canAnalyse ? (
-            <Button onClick={handleAnalyse} disabled={isAnalysing}>
-              {isAnalysing ? "Analysing…" : "Run analysis"}
+    <main className="flex flex-1 flex-col gap-6 px-4 pb-8 sm:px-8">
+      <PageHeader
+        title="SIMOPS"
+        description="Simultaneous operations: work that clashes on place, equipment, time or permit type. Resolve high severity before work starts."
+        actions={
+          canAnalyse ? (
+            <Button type="button" size="lg" onClick={analyse} disabled={analysing}>
+              <Radar aria-hidden />
+              {analysing ? "Checking…" : "Check for clashes"}
             </Button>
-          ) : null}
-          <Link href="/simops/conflicts">
-            <Button variant="outline">Active conflicts</Button>
-          </Link>
-          <Link href="/simops/history">
-            <Button variant="outline">History</Button>
-          </Link>
+          ) : null
+        }
+      >
+        <SegmentedToggle
+          label="View"
+          value={view}
+          onChange={(v) => setParams({ view: v === "active" ? "" : v })}
+          options={[
+            { value: "active", label: "Needs resolving", count: open.length },
+            { value: "history", label: "Resolved", count: history.length },
+          ]}
+          className="self-start"
+        />
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          <MultiToggle
+            label="Severity"
+            selected={severities}
+            onChange={(next) => setParams({ severity: next.join(",") })}
+            options={Object.entries(SEVERITY).map(([key, tone]) => ({ value: key, label: tone.label, color: tone.color, count: source.filter((c) => c.severity === key).length }))}
+          />
+          <MultiToggle
+            label="Clash type"
+            selected={types}
+            onChange={(next) => setParams({ type: next.join(",") })}
+            options={Object.entries(TYPE_LABELS)
+              .map(([key, label]) => ({ value: key, label, count: source.filter((c) => c.conflictType === key).length }))
+              .filter((o) => o.count > 0 || types.includes(o.value))}
+          />
         </div>
-      </div>
 
-      {error ? (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          {error}
-        </div>
-      ) : null}
+        <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          {[
+            { label: "Open clashes", value: open.length, tone: "warning" as const, href: "/simops" },
+            { label: "High severity", value: open.filter((c) => c.severity === "high").length, tone: "danger" as const, href: "/simops?severity=high" },
+            { label: "Not assessed yet", value: open.filter((c) => c.status === "open").length, tone: "warning" as const, href: "/simops" },
+            { label: "Resolved", value: history.length, href: "/simops?view=history" },
+          ].map((t) => (
+            <motion.div key={t.label} variants={staggerItem}>
+              <StatTile compact label={t.label} value={<AnimatedNumber value={t.value} />} href={t.href} tone={t.tone && t.value > 0 ? t.tone : "neutral"} />
+            </motion.div>
+          ))}
+        </motion.div>
+      </PageHeader>
 
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading dashboard…</p>
+      <ErrorNote message={error} />
+
+      {conflicts === null ? (
+        <p className="text-sm text-muted-foreground">Loading clashes…</p>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border border-border p-4">
-              <p className="text-sm text-muted-foreground">Open conflicts</p>
-              <p className="text-2xl font-semibold">{conflicts.length}</p>
-            </div>
-            <div className="rounded-lg border border-border p-4">
-              <p className="text-sm text-muted-foreground">High severity</p>
-              <p className="text-2xl font-semibold">{highCount}</p>
-            </div>
-            <div className="rounded-lg border border-border p-4">
-              <p className="text-sm text-muted-foreground">Medium severity</p>
-              <p className="text-2xl font-semibold">{mediumCount}</p>
-            </div>
-          </div>
 
-          <ConflictSummaryCards conflicts={conflicts} />
-
-          <section className="space-y-3">
-            <h2 className="text-lg font-medium">Recent alerts</h2>
-            {alerts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No alerts yet. Run analysis to detect conflicts.</p>
-            ) : (
-              <ul className="divide-y divide-border rounded-lg border border-border">
-                {alerts.map(({ alert, conflict }) => (
-                  <li key={alert.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                    <div>
-                      <p className="text-sm font-medium">{alert.message}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {conflict.conflictType.replace(/_/g, " ")} · {alert.recipientRole}
-                      </p>
-                    </div>
-                    <ConflictSeverityBadge severity={alert.severity} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          {rows.length === 0 ? (
+            <EmptyState
+              title={view === "active" ? "No open clashes match" : "No resolved clashes match"}
+              hint={view === "active" && open.length === 0 ? "Run a clash check after new permits are approved." : "Remove a filter above to widen the list."}
+            />
+          ) : (
+            <RecordList headers={["Clash", view === "active" ? "Detected" : "Outcome", "Status", view === "active" ? "Next step" : ""]}>
+              {rows.map((c, i) => {
+                const resolution = resolutionOf.get(c.id);
+                return (
+                  <RecordRow
+                    key={c.id}
+                    index={i}
+                    href={view === "active" ? `/simops/conflicts/${c.id}` : `/simops/history/${c.id}`}
+                    title={c.summary}
+                    meta={<span>{TYPE_LABELS[c.conflictType] ?? c.conflictType}</span>}
+                    context={
+                      resolution ? (
+                        <span>
+                          <span className="font-medium text-foreground">{resolution.outcome === "approved" ? "Allowed with controls" : "Stopped"}</span>
+                          <br />
+                          {formatDateTime(resolution.resolvedAt)}
+                        </span>
+                      ) : (
+                        formatRelative(c.detectedAt)
+                      )
+                    }
+                    accent={toneOf(SEVERITY, c.severity).color}
+                    status={
+                      <span className="flex flex-col items-start gap-1">
+                        <ConflictSeverityBadge severity={c.severity} />
+                        <StatusChip {...toneOf(CONFLICT_STATUS, c.status)} />
+                      </span>
+                    }
+                    action={
+                      view === "active" && canAnalyse ? (
+                        <ActionButtonLink href={`/simops/conflicts/${c.id}`} kind="fix" urgent={c.severity === "high"}>
+                          Resolve
+                        </ActionButtonLink>
+                      ) : null
+                    }
+                  />
+                );
+              })}
+            </RecordList>
+          )}
         </>
       )}
     </main>
+  );
+}
+
+export default function SimopsPage() {
+  return (
+    <Suspense fallback={<main className="p-8 text-sm text-muted-foreground">Loading SIMOPS…</main>}>
+      <SimopsBoard />
+    </Suspense>
   );
 }

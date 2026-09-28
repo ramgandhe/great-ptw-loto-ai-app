@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { getApprovalHistory, getApprovalReview } from "@/lib/approval/api";
@@ -9,8 +8,8 @@ import { ApprovalProgressIndicator } from "@/components/approval/approval-progre
 import { WorkflowTimeline } from "@/components/approval/workflow-timeline";
 import { PermitLifecycleTimeline } from "@/components/permit/permit-lifecycle-timeline";
 import { resolveLifecyclePhases } from "@/lib/permit/lifecycle";
-import { Button } from "@/components/ui/button";
-import { formatDateTime } from "@/lib/format";
+import { ChevronDown, History } from "lucide-react";
+import { ApprovalHistoryList } from "@/components/approval/approval-history-list";
 
 const APPROVAL_STATUSES = new Set([
   "pending_approval",
@@ -76,15 +75,7 @@ export function PermitApprovalStatus({
   }
 
   return (
-    <section className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold">Permit progress</h2>
-        <Link href={`/approvals/${permitId}/history`}>
-          <Button variant="outline" size="sm">
-            View approval history
-          </Button>
-        </Link>
-      </div>
+    <section className="grid gap-3">
 
       <PermitLifecycleTimeline phases={lifecyclePhases} />
 
@@ -108,19 +99,20 @@ export function PermitApprovalStatus({
         </p>
       ) : null}
 
-      {!review && history.length > 0 ? (
-        <ul className="grid gap-2 text-sm">
-          {history.slice(0, 3).map((entry) => (
-            <li key={entry.id} className="rounded-lg border border-border px-3 py-2">
-              <span className="font-medium capitalize">{entry.action.replace(/_/g, " ")}</span>
-              <span className="text-muted-foreground">
-                {" "}
-                · {formatDateTime(entry.createdAt)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {/* Opens in place: the decisions behind the lifecycle, without leaving the permit. */}
+      <details className="group rounded-lg border border-border">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted [&::-webkit-details-marker]:hidden">
+          <span className="flex items-center gap-2">
+            <History className="size-4 text-muted-foreground" aria-hidden />
+            Approval history
+            <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums text-muted-foreground">{history.length}</span>
+          </span>
+          <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" aria-hidden />
+        </summary>
+        <div className="reveal-in px-3 pb-3 pt-2">
+          <ApprovalHistoryList entries={history} />
+        </div>
+      </details>
     </section>
   );
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronRight, Paperclip, TriangleAlert } from "lucide-react";
+import { ChevronRight, Paperclip, TriangleAlert, type LucideIcon } from "lucide-react";
+import { DOMAIN_ICONS } from "@/lib/domain-icons";
+import { PermitTypeChip } from "./permit-type-chip";
 import type { PermitAttachment, PermitFormState } from "@/lib/permit/types";
 import { gasTestingApi, masterDataApi } from "@/lib/master-data/api";
 import { listLototoPlans } from "@/lib/lototo/api";
@@ -32,10 +34,49 @@ export function permitGaps(form: PermitFormState): string[] {
   return gaps;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/**
+ * Each part of a permit has its own icon and colour, the same on screen and on paper:
+ * work in the permit type's colour, hazards red, PPE amber, isolation violet, gas tests blue.
+ */
+const SECTION = {
+  work: { icon: DOMAIN_ICONS.permit, color: "var(--accent-primary)" },
+  where: { icon: DOMAIN_ICONS.location, color: "var(--st-approved)" },
+  when: { icon: DOMAIN_ICONS.schedule, color: "var(--st-pending_closure)" },
+  hazards: { icon: DOMAIN_ICONS.hazard, color: "var(--status-danger)" },
+  ppe: { icon: DOMAIN_ICONS.ppe, color: "var(--status-warning)" },
+  lototo: { icon: DOMAIN_ICONS.lototo, color: "var(--st-execution_completed)" },
+  gas: { icon: DOMAIN_ICONS.gas, color: "var(--status-info)" },
+  people: { icon: DOMAIN_ICONS.people, color: "var(--st-draft)" },
+  attachments: { icon: DOMAIN_ICONS.attachment, color: "var(--muted-foreground)" },
+} as const;
+
+function Section({
+  kind,
+  title,
+  color,
+  icon,
+  children,
+}: {
+  kind: keyof typeof SECTION;
+  title: string;
+  color?: string;
+  icon?: LucideIcon;
+  children: React.ReactNode;
+}) {
+  const { icon: baseIcon, color: base } = SECTION[kind];
+  const Icon = icon ?? baseIcon;
+  const tone = color ?? base;
   return (
-    <section className="grid gap-2 border-t border-border py-4 first:border-t-0 first:pt-0 sm:grid-cols-[9rem_1fr] sm:gap-6">
-      <h3 className="text-sm font-semibold text-muted-foreground">{title}</h3>
+    <section
+      style={{ "--chip": tone } as React.CSSProperties}
+      className="grid gap-2 border-t border-border py-4 first:border-t-0 first:pt-0 sm:grid-cols-[10rem_1fr] sm:gap-6 print:break-inside-avoid"
+    >
+      <h3 className="flex items-center gap-2 text-sm font-semibold">
+        <span aria-hidden className="chip flex size-7 shrink-0 items-center justify-center rounded-lg">
+          <Icon className="size-4" />
+        </span>
+        {title}
+      </h3>
       <div className="min-w-0 space-y-3 text-sm">{children}</div>
     </section>
   );
@@ -50,12 +91,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Chips({ items, empty }: { items: string[]; empty: string }) {
-  if (items.length === 0) return <span className="font-normal text-muted-foreground">{empty}</span>;
+function Chips({ items, empty, missing = false }: { items: string[]; empty: string; missing?: boolean }) {
+  if (items.length === 0)
+    return <span className={missing ? "font-semibold text-(--status-danger)" : "font-normal text-muted-foreground"}>{empty}</span>;
   return (
     <ul className="flex flex-wrap gap-1.5">
       {items.map((item) => (
-        <li key={item} className="rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-sm font-normal">
+        <li key={item} className="chip rounded-full px-2.5 py-0.5 text-sm font-medium">
           {item}
         </li>
       ))}
@@ -126,7 +168,7 @@ export function PermitSummary({
   const officers = form.safetyOfficers.filter((e) => e.workforceUserId).map((e) => person(e.workforceUserId));
   const viewers = form.viewers.filter((e) => e.workforceUserId).map((e) => person(e.workforceUserId));
   const gaps = permitGaps(form);
-  const typeName = nameOf(lookups?.permitTypes, form.permitTypeId);
+  const type = form.permitTypeId ? lookups?.permitTypes.get(form.permitTypeId) : undefined;
 
   return (
     <div className="rounded-xl border border-border bg-card p-5">
@@ -150,12 +192,12 @@ export function PermitSummary({
         </div>
       ) : null}
 
-      <Section title="Work">
-        <Field label="Permit type">{typeName ?? (lookups ? "Not set" : loading)}</Field>
+      <Section kind="work" title="Work" color={type?.color ?? undefined}>
+        <Field label="Permit type">{type ? <PermitTypeChip name={type.name} color={type.color} /> : lookups ? "Not set" : loading}</Field>
         {form.workScope ? <p className="whitespace-pre-wrap leading-6">{form.workScope}</p> : null}
       </Section>
 
-      <Section title="Where">
+      <Section kind="where" title="Where" icon={form.machineryId ? DOMAIN_ICONS.machinery : undefined}>
         {path.length > 0 ? (
           <p className="flex flex-wrap items-center gap-1 font-medium">
             {path.map((part, index) => (
@@ -170,26 +212,32 @@ export function PermitSummary({
         )}
       </Section>
 
-      <Section title="When">
+      <Section kind="when" title="When">
         <p className="font-medium">{formatWindow(form.plannedStartAt, form.plannedEndAt)}</p>
       </Section>
 
-      <Section title="Safety controls">
-        <Field label="Hazards">
-          <Chips items={hazards} empty="None recorded" />
-        </Field>
-        <Field label="PPE">
-          <Chips items={ppe} empty="None recorded" />
-        </Field>
-        <Field label="Energy isolation (LOTOTO)">
-          {form.lototoRequired ? <Chips items={lototo} empty="Required, no procedure attached" /> : <span className="font-normal text-muted-foreground">Not required</span>}
-        </Field>
-        <Field label="Gas testing">
-          {form.gasTestingRequired ? <Chips items={gas} empty="Required, no tests selected" /> : <span className="font-normal text-muted-foreground">Not required</span>}
-        </Field>
+      <Section kind="hazards" title="Hazards">
+        <Chips items={hazards} empty="None recorded" missing />
+      </Section>
+      <Section kind="ppe" title="PPE">
+        <Chips items={ppe} empty="None recorded" missing />
+      </Section>
+      <Section kind="lototo" title="LOTOTO">
+        {form.lototoRequired ? (
+          <Chips items={lototo} empty="Required, no procedure attached" missing />
+        ) : (
+          <span className="font-normal text-muted-foreground">Not required for this work</span>
+        )}
+      </Section>
+      <Section kind="gas" title="Gas testing">
+        {form.gasTestingRequired ? (
+          <Chips items={gas} empty="Required, no tests selected" missing />
+        ) : (
+          <span className="font-normal text-muted-foreground">Not required for this work</span>
+        )}
       </Section>
 
-      <Section title="People">
+      <Section kind="people" title="People">
         <Field label="Executors">
           {executors.length === 0 ? (
             <span className="font-normal text-muted-foreground">Not assigned</span>
@@ -209,7 +257,7 @@ export function PermitSummary({
       </Section>
 
       {attachments.length > 0 ? (
-        <Section title="Attachments">
+        <Section kind="attachments" title="Attachments">
           <ul className="space-y-1">
             {attachments.map((attachment) => (
               <li key={attachment.id} className="flex items-center gap-2">

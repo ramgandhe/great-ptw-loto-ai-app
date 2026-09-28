@@ -1,0 +1,47 @@
+/**
+ * Safety statuses (LOTOTO, isolation, incidents, SIMOPS) coloured with the same families as
+ * permits, so a colour means the same thing everywhere:
+ *   rose = needs attention, amber = awaiting a decision or work under way,
+ *   blue = cleared, green = live and safe, violet = being verified, slate = draft or done.
+ */
+type Tone = { label: string; color: string };
+const st = (label: string, key: string): Tone => ({ label, color: `var(--st-${key})` });
+
+export const LOTOTO_PLAN_STATUS: Record<string, Tone> = {
+  draft: st("Draft", "draft"),
+  ready: st("Ready", "approved"),
+  in_execution: st("In execution", "active"),
+  completed: st("Completed", "closed"),
+};
+
+export const ISOLATION_STATUS: Record<string, Tone> = {
+  in_progress: st("Isolating", "pending_approval"),
+  isolated: st("Isolated, to verify", "execution_completed"),
+  verified: st("Verified safe", "active"),
+  restored: st("Restored", "closed"),
+};
+
+export const INCIDENT_STATUS: Record<string, Tone> = {
+  draft: st("Draft", "draft"),
+  open: st("Open", "deferred"),
+  pending_hod_decision: st("Pending HOD decision", "pending_approval"),
+  investigating: st("Investigating", "active"),
+  pending_verification: st("Pending verification", "execution_completed"),
+  verified: st("Verified", "pending_closure"),
+  closed: st("Closed", "closed"),
+};
+
+export const CONFLICT_STATUS: Record<string, Tone> = {
+  open: st("Open", "deferred"),
+  assessed: st("Assessed", "pending_approval"),
+  mitigation_planned: st("Mitigation planned", "approved"),
+  approved: st("Approved", "closed"),
+  rejected: st("Rejected", "cancelled"),
+};
+
+/** SIMOPS severity uses the same scale as the analytics pages. */
+export { SEVERITIES as SEVERITY } from "@/lib/analytics/labels";
+
+export function toneOf(map: Record<string, Tone>, key: string): Tone {
+  return map[key] ?? { label: key.replace(/_/g, " "), color: "var(--muted-foreground)" };
+}

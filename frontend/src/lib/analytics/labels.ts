@@ -1,18 +1,11 @@
-/** Lifecycle order and colours shared by analytics, reports and the permit badges. */
-export const PERMIT_STAGES: { key: string; label: string; color: string }[] = [
-  { key: "draft", label: "Draft", color: "var(--permit-draft-bg)" },
-  { key: "pending_approval", label: "Pending approval", color: "var(--permit-pending-bg)" },
-  { key: "deferred", label: "Sent back", color: "var(--status-info)" },
-  { key: "rejected", label: "Rejected", color: "var(--permit-rejected-bg)" },
-  { key: "approved", label: "Approved", color: "var(--permit-approved-bg)" },
-  { key: "active", label: "Active", color: "var(--permit-active-bg)" },
-  { key: "suspended", label: "Suspended", color: "var(--status-warning)" },
-  { key: "execution_completed", label: "Work finished", color: "var(--vivid-3)" },
-  { key: "pending_closure", label: "Awaiting sign-off", color: "var(--vivid-6)" },
-  { key: "closed", label: "Closed", color: "var(--permit-closed-bg)" },
-  { key: "expired", label: "Expired", color: "var(--permit-expired-bg)" },
-  { key: "cancelled", label: "Cancelled", color: "var(--muted-foreground)" },
-];
+import { PERMIT_STATUSES, permitStatusColor } from "@/lib/permit/status";
+
+/** Lifecycle order, names and colours: the same as the permit badges and the process map. */
+export const PERMIT_STAGES: { key: string; label: string; color: string }[] = PERMIT_STATUSES.map((s) => ({
+  key: s.key,
+  label: s.label,
+  color: permitStatusColor(s.key),
+}));
 
 export const INCIDENT_TYPES: Record<string, { label: string; color: string }> = {
   incident: { label: "Incident", color: "var(--status-danger)" },

@@ -1,9 +1,10 @@
 "use client";
 
+import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronDown, Copy, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, Copy, Plus, Trash2 } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { masterDataApi, type MasterDataRecord } from "@/lib/master-data/api";
 import {
@@ -185,10 +186,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
-        <Link href="/organisation/templates" className="mb-1 -ml-1 inline-flex items-center gap-0.5 rounded text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" aria-hidden />
-          Permit templates
-        </Link>
+        <BackLink href="/organisation/templates" label="Permit templates" />
         <h1 className="font-heading text-3xl font-bold tracking-tight">{draft.name || "Untitled template"}</h1>
         <p className="mt-1 text-muted-foreground">
           {KIND_LABEL[draft.config.kind]} · {draft.config.sections.length} sections, {fieldCount(draft.config)} fields

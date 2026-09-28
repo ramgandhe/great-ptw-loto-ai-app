@@ -6,8 +6,11 @@ import { RefreshCw } from "lucide-react";
 import { AnimatedNumber } from "@/components/analytics/animated-number";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { Donut, RankedBars, SegmentedBar, StatTile, TrendArea } from "@/components/analytics/charts";
+import { PageHeader, SectionTitle } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { SegmentedToggle } from "@/components/ui/toggle-group";
 import { ApiError } from "@/lib/api";
+import { permitStatusColor } from "@/lib/permit/status";
 import { INCIDENT_TYPES, PERIODS, PERMIT_STAGES, PRIORITIES, SEVERITIES } from "@/lib/analytics/labels";
 import { getInsights } from "@/lib/dashboards/api";
 import type { InsightsPayload } from "@/lib/dashboards/types";
@@ -52,39 +55,25 @@ export default function AnalyticsPage() {
   const periodLabel = PERIODS.find((p) => p.days === days)?.label ?? `${days} days`;
 
   return (
-    <main className="flex flex-1 flex-col gap-8 p-4 sm:p-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-3xl font-bold tracking-tight">Analytics</h1>
-          <p className="mt-1 text-muted-foreground">
+    <main className="flex flex-1 flex-col gap-8 px-4 pb-8 sm:px-8">
+      <PageHeader
+        title="Analytics"
+        description={
+          <>
             What needs attention first, then how work, approvals and safety are trending.
             {data ? <span className="ml-2 text-xs">Updated {formatRelative(data.period.to)}</span> : null}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div role="tablist" aria-label="Period" className="flex rounded-lg border border-border bg-card p-0.5">
-            {PERIODS.map((p) => (
-              <button
-                key={p.days}
-                type="button"
-                role="tab"
-                aria-selected={days === p.days}
-                onClick={() => setDays(p.days)}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm transition-colors",
-                  days === p.days ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
-            <RefreshCw aria-hidden />
-            Refresh
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <>
+            <SegmentedToggle label="Period" value={days} onChange={setDays} options={PERIODS.map((p) => ({ value: p.days, label: p.label }))} />
+            <Button type="button" variant="ghost" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
+              <RefreshCw aria-hidden />
+              Refresh
+            </Button>
+          </>
+        }
+      />
 
       {error ? (
         <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -122,7 +111,7 @@ export default function AnalyticsPage() {
                   data={data.permits.timeline}
                   series={[
                     { key: "raised", label: "Raised", color: "var(--accent-primary)" },
-                    { key: "closed", label: "Closed", color: "var(--permit-active-bg)" },
+                    { key: "closed", label: "Closed", color: permitStatusColor("closed") },
                   ]}
                 />
               </ChartCard>
@@ -162,7 +151,7 @@ export default function AnalyticsPage() {
                     key: b.key,
                     label: b.label ?? b.key,
                     count: b.count,
-                    color: ["var(--permit-active-bg)", "var(--status-info)", "var(--status-warning)", "var(--status-danger)"][i],
+                    color: ["var(--status-success)", "var(--status-info)", "var(--status-warning)", "var(--status-danger)"][i],
                   }))}
                 />
                 {sum(data.approvals.decisions) > 0 ? (
@@ -259,8 +248,7 @@ function Section({ title, description, children }: { title: string; description?
   return (
     <section aria-label={title} className="grid gap-4">
       <motion.div variants={staggerItem}>
-        <h2 className="text-lg font-semibold">{title}</h2>
-        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+        <SectionTitle title={title} description={description} />
       </motion.div>
       {children}
     </section>
