@@ -34,6 +34,8 @@ services:
     restart: unless-stopped
 
   api:
+    ports: !override
+      - "127.0.0.1:4000:4000"
     environment:
       SECURITY_TRUST_PROXY: "true"
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-${PUBLIC_ORIGIN:-http://127.0.0.1}}
@@ -41,11 +43,39 @@ services:
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-${PUBLIC_ORIGIN:-http://127.0.0.1}}
 
   keycloak:
+    ports: !override
+      - "127.0.0.1:8080:8080"
     environment:
       KC_PROXY_HEADERS: xforwarded
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT: "false"
       KC_HOSTNAME: ${PUBLIC_ORIGIN:-http://127.0.0.1}
+
+  # Only Caddy (80/443) is public. The rest listen on the server itself; use an SSH tunnel,
+  # e.g. ssh -L 8080:127.0.0.1:8080 root@<server> for the Keycloak console.
+  postgres:
+    ports: !override
+      - "127.0.0.1:5432:5432"
+  redis:
+    ports: !override
+      - "127.0.0.1:6379:6379"
+  minio:
+    ports: !override
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+  mailpit:
+    ports: !override
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+  loki:
+    ports: !override
+      - "127.0.0.1:3100:3100"
+  metabase:
+    ports: !override
+      - "127.0.0.1:3001:3000"
+  frontend:
+    ports: !override
+      - "127.0.0.1:3000:3000"
 
 volumes:
   caddy_data:
