@@ -13,26 +13,14 @@
 		reverse_proxy api:4000
 	}
 
-	handle /realms/* {
-		reverse_proxy keycloak:8080
-	}
 
-	handle /resources/* {
-		reverse_proxy keycloak:8080
-	}
 
-	handle /admin/* {
-		reverse_proxy keycloak:8080
-	}
 
 	# Presigned evidence links (bucket path). Caddy keeps the Host header, so signatures match.
 	handle /ptw-documents/* {
 		reverse_proxy minio:9000
 	}
 
-	handle /js/* {
-		reverse_proxy keycloak:8080
-	}
 
 	handle {
 		reverse_proxy frontend:3000
