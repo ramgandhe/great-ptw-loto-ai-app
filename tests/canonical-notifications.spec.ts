@@ -156,4 +156,42 @@ describe('CanonicalNotificationService (FR-NOT-002–008)', () => {
       expect.objectContaining({ eventType: 'lototo_verification' }),
     );
   });
+
+  it('tells org admins and whoever sent it back when a permit is resubmitted', async () => {
+    // Each db.select() chain resolves to the next queued result, in call order.
+    const results: unknown[][] = [
+      [{ role: 'hod', slot: 'default' }], // active approval stage
+      [{ departmentId: null }], // permit department
+      [], // tenant_users departments
+      [{ actorId: 'hod-2' }], // last deferral
+      [{ reference: 'PTW-1', title: 'Hot work' }], // permit name
+    ];
+    const chain = (rows: unknown[]) => {
+      const c: Record<string, unknown> = {};
+      for (const m of ['from', 'innerJoin', 'where', 'orderBy', 'limit']) c[m] = () => c;
+      c.then = (resolve: (v: unknown) => void) => resolve(rows);
+      return c;
+    };
+    const queueDb = { select: jest.fn(() => chain(results.shift() ?? [])) };
+    const people = [
+      { id: 'admin-1', enabled: true, roles: ['tenant-admin'] },
+      { id: 'hod-1', enabled: true, roles: ['hod'] },
+      { id: 'hod-2', enabled: true, roles: ['hod'] },
+      { id: 'issuer-1', enabled: true, roles: ['job-issuer', 'tenant-admin'] },
+    ];
+    const resubmitService = new CanonicalNotificationService(queueDb as never, notificationsService, {
+      listUsersForTenant: jest.fn().mockResolvedValue(people),
+    } as never);
+
+    await resubmitService.fromApprovalPayload({
+      permitId: 'permit-1',
+      tenantId: 'tenant-1',
+      action: 'resubmitted',
+      actorId: 'issuer-1',
+    });
+
+    const [, , input] = (notificationsService.generateSystem as jest.Mock).mock.calls[0];
+    expect(input.title).toBe('Permit resubmitted');
+    expect([...input.recipientUserIds].sort()).toEqual(['admin-1', 'hod-1', 'hod-2']);
+  });
 });

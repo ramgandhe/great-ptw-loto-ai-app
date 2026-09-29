@@ -11,11 +11,8 @@ export const metadata: Metadata = {
 const STORAGE: [string, string, string, string][] = [
   ["ptw_access_token", "Local storage", "Keeps you signed in to the app", "Until you sign out or it expires"],
   ["ptw_refresh_token", "Local storage", "Renews your session without asking you to sign in again", "Until you sign out or it expires"],
-  ["ptw_pkce_verifier", "Session storage", "Protects the sign-in handshake against interception", "Removed once sign-in completes"],
-  ["ptw_auth_redirect", "Session storage", "Returns you to the page you were on after sign-in", "Removed once used"],
   ["ptw-theme-preferences-v2", "Local storage", "Remembers your theme, density and light or dark mode", "Until you clear it"],
-  ["AUTH_SESSION_ID, KC_RESTART", "Cookie, sign-in service", "Tracks a sign-in attempt in progress", "End of browser session"],
-  ["KEYCLOAK_IDENTITY, KEYCLOAK_SESSION", "Cookie, sign-in service", "Keeps your single sign-on session", "End of the sign-on session"],
+  ["ptw_nav_trail", "Session storage", "Lets Back links return to the page you came from", "End of browser session"],
 ];
 
 const sections: LegalSection[] = [

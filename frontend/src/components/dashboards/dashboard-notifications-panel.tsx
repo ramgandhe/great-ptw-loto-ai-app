@@ -122,7 +122,7 @@ export function DashboardNotificationsPanel({ limit = VISIBLE_GROUPS, inbox = fa
                 <div className="min-w-0 flex-1">
                   <p className={cn("text-sm", isUnread ? "font-semibold" : "font-medium text-muted-foreground")}>
                     {href ? (
-                      <Link href={href} className="hover:underline">
+                      <Link href={href} onClick={() => isUnread && void markRead(group)} className="hover:underline">
                         {n.title}
                       </Link>
                     ) : (

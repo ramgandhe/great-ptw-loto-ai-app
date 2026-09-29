@@ -24,7 +24,6 @@ export default function NotificationDetailPage() {
   const [notification, setNotification] = useState<Notification | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isMarkingRead, setIsMarkingRead] = useState(false);
 
   useEffect(() => {
     if (!params.id) {
@@ -34,29 +33,15 @@ export default function NotificationDetailPage() {
     setIsLoading(true);
     setError(null);
 
+    // Opening a notification reads it.
     getNotification(params.id)
+      .then((n) => (n.readAt === null ? markNotificationRead(n.id) : n))
       .then(setNotification)
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : "Failed to load notification");
       })
       .finally(() => setIsLoading(false));
   }, [params.id]);
-
-  async function handleMarkRead() {
-    if (!notification || notification.readAt) {
-      return;
-    }
-
-    setIsMarkingRead(true);
-    try {
-      const updated = await markNotificationRead(notification.id);
-      setNotification(updated);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to mark notification as read");
-    } finally {
-      setIsMarkingRead(false);
-    }
-  }
 
   const entityHref = notification ? getNotificationEntityHref(notification) : null;
 
@@ -66,11 +51,6 @@ export default function NotificationDetailPage() {
         <Button type="button" variant="outline" size="sm" onClick={() => router.push("/notifications")}>
           Back to centre
         </Button>
-        {notification && notification.readAt === null ? (
-          <Button type="button" size="sm" disabled={isMarkingRead} onClick={handleMarkRead}>
-            {isMarkingRead ? "Marking…" : "Mark as read"}
-          </Button>
-        ) : null}
       </div>
 
       {isLoading ? (

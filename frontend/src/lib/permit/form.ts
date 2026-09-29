@@ -209,8 +209,16 @@ export function missingRequired(template: PermitTemplate, form: PermitFormState)
     .map((field) => field.label);
 }
 
-/** `templates`: the templates that apply to this permit (see applicableTemplates). */
-export function validateStep(form: PermitFormState, step: number, templates: PermitTemplate[] = []): string[] {
+/**
+ * `templates`: the templates that apply to this permit (see applicableTemplates).
+ * `machinery`: active machines; machinery is required when the chosen workstation has any.
+ */
+export function validateStep(
+  form: PermitFormState,
+  step: number,
+  templates: PermitTemplate[] = [],
+  machinery: { workstationId?: string | null }[] = [],
+): string[] {
   const errors: string[] = [];
 
   if (step === 0) {
@@ -232,6 +240,11 @@ export function validateStep(form: PermitFormState, step: number, templates: Per
   }
 
   if (step === 2) {
+    if (!form.workstationId.trim()) {
+      errors.push("Workstation is required");
+    } else if (!form.machineryId.trim() && machinery.some((m) => m.workstationId === form.workstationId)) {
+      errors.push("Machinery is required");
+    }
     if (!form.hazards.some((h) => h.hazardCategoryId.trim())) {
       errors.push("At least one hazard is required");
     }
@@ -247,9 +260,6 @@ export function validateStep(form: PermitFormState, step: number, templates: Per
       }
     }
     if (form.gasTestingRequired) {
-      if (!form.workstationId.trim()) {
-        errors.push("Workstation is required when gas testing is required");
-      }
       if (!form.gasTesting.some((item) => item.gasTestingCatalogueId.trim())) {
         errors.push("Select at least one gas testing item");
       }

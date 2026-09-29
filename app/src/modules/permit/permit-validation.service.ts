@@ -45,6 +45,10 @@ export class PermitValidationService {
       errors.push('locationId is required');
     }
 
+    if (!permit.workstationId) {
+      errors.push('workstation is required');
+    }
+
     if (!permit.plannedStartAt || !permit.plannedEndAt) {
       errors.push('plannedStartAt and plannedEndAt are required');
     } else if (permit.plannedEndAt <= permit.plannedStartAt) {
@@ -73,9 +77,6 @@ export class PermitValidationService {
     }
 
     if (permit.gasTestingRequired) {
-      if (!permit.workstationId) {
-        errors.push('workstation is required when gas testing is required');
-      }
       if (gasTesting.length === 0) {
         errors.push('at least one gas testing item is required when gas testing is required');
       }

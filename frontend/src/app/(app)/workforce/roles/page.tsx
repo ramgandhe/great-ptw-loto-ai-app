@@ -76,7 +76,7 @@ export default function UserRolesPage() {
         name: form.name.trim(),
         email: form.email.trim(),
         role: form.role,
-        departmentId: form.departmentId || undefined,
+        departmentId: form.role === "hod" ? form.departmentId || undefined : undefined,
       });
       setCreated(result);
       toast(`${result.name} added as ${formatRoleLabel(result.role)}`);
@@ -274,9 +274,11 @@ export default function UserRolesPage() {
             ))}
           </select>
         </label>
+        {/* Only an HOD's department does anything: it limits the permits they see, approve and hear about. */}
+        {form.role === "hod" ? (
         <label className="grid gap-1.5 text-sm">
           <span className="font-medium">
-            Department <span className="font-normal text-muted-foreground">(optional, limits what an HOD sees)</span>
+            Department <span className="font-normal text-muted-foreground">(this HOD sees and approves its permits only)</span>
           </span>
           <select
             value={form.departmentId}
@@ -291,6 +293,7 @@ export default function UserRolesPage() {
             ))}
           </select>
         </label>
+        ) : null}
         <div className="flex flex-wrap gap-2 sm:col-span-2">
           <Button type="submit" disabled={saving}>
             {saving ? "Adding…" : "Add user"}
@@ -316,7 +319,7 @@ export default function UserRolesPage() {
                 <tr className="border-b border-border">
                   <th className="px-4 py-2.5">Name</th>
                   <th className="px-4 py-2.5">Role</th>
-                  <th className="px-4 py-2.5">Department</th>
+                  <th className="px-4 py-2.5">HOD department</th>
                   <th className="px-4 py-2.5">Status</th>
                   <th className="px-4 py-2.5 text-right font-medium">
                     <span className="sr-only">Actions</span>
@@ -357,7 +360,9 @@ export default function UserRolesPage() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {editing ? (
+                        {!user.roles.includes("hod") ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : editing ? (
                           <select
                             value={user.departmentId ?? ""}
                             disabled={busy}
@@ -382,7 +387,7 @@ export default function UserRolesPage() {
                             ))}
                           </select>
                         ) : (
-                          departments.find((department) => department.id === user.departmentId)?.name || "All"
+                          departments.find((department) => department.id === user.departmentId)?.name || "All departments"
                         )}
                       </td>
                       <td className="px-4 py-3">

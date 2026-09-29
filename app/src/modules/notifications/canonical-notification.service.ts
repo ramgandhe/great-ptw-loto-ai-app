@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
+  approvalHistory,
   permits,
   tenantUsers,
   workflowAssignments,
@@ -30,9 +31,14 @@ export class CanonicalNotificationService {
 
     // Waiting for approval (submitted, or moved to the next stage): tell the people who approve next.
     const awaitingApproval = eventType === 'permit_submitted';
-    const recipients = awaitingApproval
+    let recipients = awaitingApproval
       ? await this.resolveNextApprovers(payload.permitId, payload.tenantId, payload.actorId)
       : await this.resolvePermitRecipients(payload.permitId, payload.tenantId, payload.actorId);
+    if (payload.action === 'resubmitted') {
+      recipients = [
+        ...new Set([...recipients, ...(await this.resolveResubmitWatchers(payload.permitId, payload.tenantId, payload.actorId))]),
+      ];
+    }
     if (recipients.length === 0) {
       return;
     }
@@ -47,7 +53,12 @@ export class CanonicalNotificationService {
       category: 'workflow',
       priority: payload.action === 'safety_veto' ? 'high' : 'medium',
       title: this.approvalTitle(payload.action),
-      body: awaitingApproval ? `${name} is waiting for your approval.` : `${name} was ${payload.action.replace('_', ' ')}.`,
+      body:
+        payload.action === 'resubmitted'
+          ? `${name} was resubmitted after changes and is waiting for approval.`
+          : awaitingApproval
+            ? `${name} is waiting for your approval.`
+            : `${name} was ${payload.action.replace('_', ' ')}.`,
       recipientUserIds: recipients,
       entityType: 'permit',
       entityId: payload.permitId,
@@ -201,8 +212,9 @@ export class CanonicalNotificationService {
         return 'Permit deferred';
       case 'safety_veto':
         return 'Permit vetoed by Safety Officer';
-      case 'submitted':
       case 'resubmitted':
+        return 'Permit resubmitted';
+      case 'submitted':
       case 'stage_advanced':
         return 'Permit waiting for your approval';
       default:
@@ -244,6 +256,28 @@ export class CanonicalNotificationService {
         return !permit?.departmentId || !department || department === permit.departmentId;
       })
       .map((person) => person.id);
+  }
+
+  /** On resubmission: organisation admins, and whoever deferred or rejected the permit. */
+  private async resolveResubmitWatchers(permitId: string, tenantId: string, actorId: string): Promise<string[]> {
+    const [people, [sentBack]] = await Promise.all([
+      this.keycloakAdmin.listUsersForTenant(tenantId).catch(() => []),
+      this.db
+        .select({ actorId: approvalHistory.actorId })
+        .from(approvalHistory)
+        .where(
+          and(
+            eq(approvalHistory.permitId, permitId),
+            inArray(approvalHistory.action, ['deferred', 'rejected', 'safety_veto']),
+          ),
+        )
+        .orderBy(desc(approvalHistory.createdAt))
+        .limit(1),
+    ]);
+    const admins = people
+      .filter((person) => person.enabled && person.roles.some((role) => role === 'tenant-admin' || role === 'tenant-owner'))
+      .map((person) => person.id);
+    return [...admins, ...(sentBack ? [sentBack.actorId] : [])].filter((id) => id !== actorId);
   }
 
   private async resolvePermitRecipients(

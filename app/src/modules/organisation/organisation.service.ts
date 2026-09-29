@@ -404,12 +404,15 @@ export class OrganisationService {
     });
   }
 
-  /** Adds the reference permit and check sheet templates this tenant does not have yet (matched by code). */
+  /**
+   * Adds the reference permit and check sheet templates this tenant does not have yet (matched by code).
+   * A deleted (archived) one is restored: the code stays taken, and the list no longer shows it.
+   */
   async importReferenceTemplates(user: AuthenticatedUser) {
     const tenantId = requireTenant(user);
     const [existing, types] = await Promise.all([
       this.db
-        .select({ code: permitTemplates.code })
+        .select({ id: permitTemplates.id, code: permitTemplates.code, status: permitTemplates.status })
         .from(permitTemplates)
         .where(eq(permitTemplates.tenantId, tenantId)),
       this.db
@@ -417,10 +420,20 @@ export class OrganisationService {
         .from(permitTypes)
         .where(and(eq(permitTypes.tenantId, tenantId), eq(permitTypes.isActive, true))),
     ]);
-    const have = new Set(existing.map((row) => row.code));
+    const have = new Map(existing.map((row) => [row.code, row]));
     let created = 0;
     for (const template of REFERENCE_TEMPLATES) {
-      if (have.has(template.code)) continue;
+      const current = have.get(template.code);
+      if (current?.status === 'archived') {
+        await this.db
+          .update(permitTemplates)
+          .set({ status: 'published', updatedBy: user.id, updatedAt: new Date() })
+          .where(and(eq(permitTemplates.id, current.id), eq(permitTemplates.tenantId, tenantId)));
+        await this.audit('permit_template.restored', 'permit_template', current.id, user, tenantId);
+        created += 1;
+        continue;
+      }
+      if (current) continue;
       const allTypes = template.permitTypeCodes.includes('*');
       const linked = allTypes ? [] : types.filter((type) => template.permitTypeCodes.includes(type.code));
       await this.createEntity(permitTemplates, 'permit_template', user, {

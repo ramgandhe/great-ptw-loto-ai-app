@@ -17,7 +17,7 @@ describe('PermitValidationService', () => {
       plantId: 'plant-id',
       departmentId: 'dept-id',
       locationId: 'location-id',
-      workstationId: null,
+      workstationId: 'workstation-id',
       machineryId: null,
       lototoRequired: false,
       gasTestingRequired: false,
@@ -84,6 +84,13 @@ describe('PermitValidationService', () => {
     expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
   });
 
+  it('rejects submission without workstation', () => {
+    const record = baseRecord();
+    record.permit.workstationId = null;
+
+    expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
+  });
+
   it('rejects submission without executors', () => {
     const record = baseRecord();
     record.executors = [];
@@ -110,7 +117,6 @@ describe('PermitValidationService', () => {
   it('rejects gas testing required without an item', () => {
     const record = baseRecord();
     record.permit.gasTestingRequired = true;
-    record.permit.workstationId = 'workstation-id';
     record.gasTesting = [];
 
     expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);

@@ -295,7 +295,8 @@ export default function PermitClosurePage() {
 
       {canClose ? (
         <section className="grid gap-3 rounded-lg border border-border p-4">
-          <h2 className="text-sm font-semibold">HOD closure</h2>
+          <h2 className="text-sm font-semibold">Final sign-off</h2>
+          <p className="text-sm text-muted-foreground">Closed by the HOD, or by an organisation admin when the HOD is unavailable.</p>
           <VerificationChecklistPanel
             value={closeChecklist}
             disabled={isSubmitting}

@@ -69,6 +69,12 @@ describe('Permit templates against the database', () => {
       expect(await service.importReferenceTemplates(user)).toEqual({ created: REFERENCE_TEMPLATES.length, alreadyPresent: 0 });
       expect(await service.importReferenceTemplates(user)).toEqual({ created: 0, alreadyPresent: REFERENCE_TEMPLATES.length });
 
+      // A deleted reference template comes back on the next import.
+      const f1 = (await service.listTemplates(user)).find((t) => t.code === 'SOP-ES-023-F1')!;
+      await service.archiveTemplate(f1.id, user);
+      expect(await service.importReferenceTemplates(user)).toEqual({ created: 1, alreadyPresent: REFERENCE_TEMPLATES.length - 1 });
+      expect((await service.listTemplates(user)).some((t) => t.id === f1.id)).toBe(true);
+
       const templates = await service.listTemplates(user);
       const byCode = new Map(templates.map((t) => [t.code, t]));
       expect(byCode.get('SOP-ES-023-F1')).toMatchObject({ appliesToAllTypes: true, permitTypeIds: [] });

@@ -510,7 +510,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   };
 
   const handleNext = async () => {
-    const stepErrors = validateStep(form, form.currentStep, forms);
+    const stepErrors = validateStep(form, form.currentStep, forms, machinery);
     setErrors(stepErrors);
     if (stepErrors.length > 0) {
       return;
@@ -542,7 +542,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
   const handleSubmit = async () => {
     const allErrors = PERMIT_WIZARD_STEPS.flatMap((_, index) =>
-      validateStep(form, index, forms),
+      validateStep(form, index, forms, machinery),
     );
     setErrors(allErrors);
     if (allErrors.length > 0) {
@@ -631,9 +631,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       {status === "draft" ? <DraftBanner /> : null}
       {!canEditStep && !isReadOnly ? (
         <p className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          This step is owned by the{" "}
-          {stepOwner === "operator" ? "job executor" : "job issuer"}. You can
-          view it but cannot edit it.
+          {stepOwner === "operator"
+            ? "The job executor fills this step: workstation, machinery, LOTOTO, gas testing, hazards and PPE. Save the draft; the executor completes it from their Permits list, then you review and submit."
+            : "This step is filled by the job issuer. You can view it but cannot edit it."}
         </p>
       ) : null}
       <PermitStepNav
@@ -1007,12 +1007,17 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 setForm({
                   ...form,
                   lototoRequired: e.target.checked,
-                  lototo: e.target.checked ? form.lototo : [],
+                  // A machine with a single plan: select it straight away.
+                  lototo: !e.target.checked
+                    ? []
+                    : form.lototo.length || machineryLototo.length !== 1
+                      ? form.lototo
+                      : [{ lototoPlanId: machineryLototo[0].id }],
                 })
               }
             />
             LOTOTO required
-            {!form.machineryId ? <span className="text-muted-foreground">(choose machinery above first)</span> : null}
+            {!form.machineryId && !fieldDisabled ? <span className="text-muted-foreground">(choose machinery above first)</span> : null}
           </label>
           {form.lototoRequired ? (
             <div className="grid gap-3">
@@ -1099,12 +1104,17 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 setForm({
                   ...form,
                   gasTestingRequired: e.target.checked,
-                  gasTesting: e.target.checked ? form.gasTesting : [],
+                  // Start with every gas test set up for this workstation; remove any not needed.
+                  gasTesting: !e.target.checked
+                    ? []
+                    : form.gasTesting.length
+                      ? form.gasTesting
+                      : workstationGasTesting.map((row) => ({ gasTestingCatalogueId: row.id })),
                 })
               }
             />
             Gas testing required
-            {!form.workstationId ? <span className="text-muted-foreground">(choose a workstation above first)</span> : null}
+            {!form.workstationId && !fieldDisabled ? <span className="text-muted-foreground">(choose a workstation above first)</span> : null}
           </label>
           {form.gasTestingRequired ? (
             <div className="grid gap-3">
@@ -1130,8 +1140,29 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               </div>
               {workstationGasTesting.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No gas testing items for this workstation. Add them under
-                  Organisation → Gas Testing configuration.
+                  No gas tests are set up for this workstation yet.{" "}
+                  <a
+                    href="/organisation/gas-testing"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-(--act-do) underline underline-offset-2"
+                  >
+                    Add them in a new tab
+                  </a>
+                  , then{" "}
+                  <button
+                    type="button"
+                    className="font-medium underline underline-offset-2"
+                    onClick={() =>
+                      void gasTestingApi
+                        .list(form.workstationId)
+                        .then((rows) => setWorkstationGasTesting(rows.filter(inUse)))
+                        .catch(() => setWorkstationGasTesting([]))
+                    }
+                  >
+                    refresh the list
+                  </button>
+                  .
                 </p>
               ) : null}
               {form.gasTesting.map((item, index) => (
