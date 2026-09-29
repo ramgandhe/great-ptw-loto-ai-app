@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export class UpdateGasTestingDto {
   @IsOptional()
@@ -27,4 +27,8 @@ export class UpdateGasTestingDto {
   @Type(() => Number)
   @IsNumber()
   maximum?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

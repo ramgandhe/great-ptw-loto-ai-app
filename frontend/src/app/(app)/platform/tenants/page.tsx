@@ -1,9 +1,11 @@
 "use client";
 
+import { PageHeader } from "@/components/layout/page-header";
 import { toast } from "@/components/ui/toast";
+import { RowActions } from "@/components/ui/row-actions";
+import { OrgStatusBadge, stateOf } from "@/components/organisation/org-status-badge";
 import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
 import { useEffect, useState } from "react";
-import { Building2 } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import {
   accessRequestsApi,
@@ -82,10 +84,12 @@ export default function PlatformTenantsPage() {
     setActingId(id);
     setError(null);
     try {
+      if (!window.confirm("Deactivate this organisation? Its people cannot sign in until it is activated.")) return;
       await platformTenantsApi.disable(id);
+      toast("Organisation deactivated");
       await loadTenants();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to disable tenant");
+      setError(err instanceof ApiError ? err.message : "Deactivate failed");
     } finally {
       setActingId(null);
     }
@@ -96,9 +100,10 @@ export default function PlatformTenantsPage() {
     setError(null);
     try {
       await platformTenantsApi.enable(id);
+      toast("Organisation activated");
       await loadTenants();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to enable tenant");
+      setError(err instanceof ApiError ? err.message : "Activate failed");
     } finally {
       setActingId(null);
     }
@@ -124,17 +129,11 @@ export default function PlatformTenantsPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-8 p-4 sm:p-8">
-      <div className="flex items-center gap-3">
-        <Building2 className="size-6" aria-hidden />
-        <div>
-          <h1 className="font-heading text-3xl font-bold tracking-tight">Tenants</h1>
-          <p className="text-sm text-muted-foreground">
-            Invite an organisation owner. They receive a Keycloak login with the organisation-admin
-            role and must change the temporary password on first sign-in.
-          </p>
-        </div>
-      </div>
+    <main className="flex flex-1 flex-col gap-8 px-4 pb-8 sm:px-8">
+      <PageHeader
+        title="Tenants"
+        description="Invite an organisation owner. They receive a login with the organisation-admin role and change the temporary password on first sign-in."
+      />
 
       {error ? (
         <div
@@ -205,21 +204,21 @@ export default function PlatformTenantsPage() {
             No access requests yet. Requests sent from the public Request access page appear here.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="table-box">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-border bg-muted/40">
+              <thead className="table-tone border-b border-border">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Received</th>
-                  <th className="px-3 py-2 font-medium">Company</th>
-                  <th className="px-3 py-2 font-medium">Contact</th>
-                  <th className="px-3 py-2 font-medium">Sites</th>
-                  <th className="px-3 py-2 font-medium">Message</th>
-                  <th className="px-3 py-2 font-medium">Actions</th>
+                  <th className="px-4 py-2.5">Received</th>
+                  <th className="px-4 py-2.5">Company</th>
+                  <th className="px-4 py-2.5">Contact</th>
+                  <th className="px-4 py-2.5">Sites</th>
+                  <th className="px-4 py-2.5">Message</th>
+                  <th className="px-4 py-2.5"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
                 {requests.map((request) => (
-                  <tr key={request.id} className="border-b border-border align-top last:border-0">
+                  <tr key={request.id} className="row-hover border-b border-border align-top last:border-0">
                     <td className="whitespace-nowrap px-3 py-2">
                       {new Date(request.createdAt).toLocaleDateString()}
                     </td>
@@ -232,9 +231,7 @@ export default function PlatformTenantsPage() {
                     <td className="px-3 py-2">{request.siteCount ?? "—"}</td>
                     <td className="max-w-xs px-3 py-2 text-muted-foreground">{request.message ?? "—"}</td>
                     <td className="px-3 py-2">
-                      <Button type="button" variant="outline" size="sm" onClick={() => fillInviteFromRequest(request)}>
-                        Use for invite
-                      </Button>
+                      <RowActions actions={[{ label: "Use for invite", onClick: () => fillInviteFromRequest(request) }]} />
                     </td>
                   </tr>
                 ))}
@@ -251,57 +248,35 @@ export default function PlatformTenantsPage() {
         ) : tenants.length === 0 ? (
           <p className="text-sm text-muted-foreground">No tenants yet.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="table-box">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-border bg-muted/40">
+              <thead className="table-tone border-b border-border">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Name</th>
-                  <th className="px-3 py-2 font-medium">Owner email</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Invite</th>
-                  <th className="px-3 py-2 font-medium">Actions</th>
+                  <th className="px-4 py-2.5">Name</th>
+                  <th className="px-4 py-2.5">Owner email</th>
+                  <th className="px-4 py-2.5">Invite</th>
+                  <th className="px-4 py-2.5">Status</th>
+                  <th className="px-4 py-2.5"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
                 {tenants.map((tenant) => (
-                  <tr key={tenant.id} className="border-b border-border last:border-0">
+                  <tr key={tenant.id} className="row-hover border-b border-border last:border-0">
                     <td className="px-3 py-2">{tenant.name}</td>
                     <td className="px-3 py-2">{tenant.ownerEmail ?? "—"}</td>
-                    <td className="px-3 py-2">{tenant.status}</td>
                     <td className="px-3 py-2">{tenant.inviteStatus ?? "—"}</td>
                     <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-2">
-                        {tenant.status === "disabled" ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={actingId === tenant.id}
-                            onClick={() => handleEnable(tenant.id)}
-                          >
-                            Enable
-                          </Button>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={actingId === tenant.id}
-                            onClick={() => handleDisable(tenant.id)}
-                          >
-                            Disable
-                          </Button>
-                        )}
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          disabled={actingId === tenant.id}
-                          onClick={() => handleDelete(tenant)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
+                      <OrgStatusBadge status={stateOf(tenant)} />
+                    </td>
+                    <td className="px-3 py-2">
+                      <RowActions
+                        actions={[
+                          tenant.status === "disabled"
+                            ? { label: "Activate", disabled: actingId === tenant.id, onClick: () => handleEnable(tenant.id) }
+                            : { label: "Deactivate", disabled: actingId === tenant.id, onClick: () => handleDisable(tenant.id) },
+                          { label: "Delete", danger: true, disabled: actingId === tenant.id, onClick: () => handleDelete(tenant) },
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}

@@ -65,6 +65,8 @@ export default () => ({
     issuer: process.env.KEYCLOAK_ISSUER ?? process.env.KEYCLOAK_URL ?? 'http://localhost:8080',
     realm: process.env.KEYCLOAK_REALM ?? 'ptw-platform',
     clientId: process.env.KEYCLOAK_CLIENT_ID ?? 'ptw-api',
+    // The browser-facing client; the API signs people in with it on their behalf.
+    webClientId: process.env.KEYCLOAK_WEB_CLIENT_ID ?? 'ptw-web',
     adminUser: process.env.KEYCLOAK_ADMIN ?? 'admin',
     adminPassword: process.env.KEYCLOAK_ADMIN_PASSWORD ?? 'admin',
   },

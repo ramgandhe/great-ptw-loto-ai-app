@@ -6,7 +6,7 @@ import { ThemeSettings } from "@/components/theme/theme-settings";
 import { ProfileSettingsForm } from "@/components/settings/profile-settings-form";
 import { Button } from "@/components/ui/button";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
-import { signOut } from "@/lib/auth/keycloak";
+import { signOut } from "@/lib/auth/session";
 import { BILLING_READ_ROLES, PLATFORM_ADMIN_ROLES, WORKFORCE_WRITE_ROLES } from "@/lib/auth/roles";
 import { hasAnyRole } from "@/lib/auth/rbac";
 

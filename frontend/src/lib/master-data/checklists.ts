@@ -14,6 +14,7 @@ export type SafetyChecklist = {
   name: string;
   description?: string | null;
   status?: string;
+  isActive?: boolean;
 };
 
 export type SafetyChecklistBundle = {
@@ -40,6 +41,7 @@ export const checklistsApi = {
       name?: string;
       description?: string;
       items?: { description: string; isMandatory: boolean }[];
+      isActive?: boolean;
     },
   ) =>
     fetchApi<SafetyChecklistBundle>(`/checklists/${id}`, {

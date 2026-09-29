@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { ArrowLeft } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { NOT_A_BACK_TARGET, pageLabel, usePreviousPage } from "@/lib/nav-history";
 import { cn } from "@/lib/utils";
 
 /**
@@ -69,14 +71,28 @@ export function PageHeader({
 }
 
 /** The one "back" control: a quiet link above the title, same place and wording on every page. */
+/**
+ * "← Back to …": returns to the page the user came from inside the app (with its filters),
+ * otherwise to the page's parent (`href`). Coloured so it is found at a glance.
+ */
 export function BackLink({ href, label }: { href: string; label: string }) {
+  const pathname = usePathname();
+  const previous = usePreviousPage(pathname);
+  const usePrevious = previous !== null && !NOT_A_BACK_TARGET.test(previous.split("?")[0]) && previous.split("?")[0] !== pathname;
+  const target = usePrevious ? previous : href;
+  const name = usePrevious ? pageLabel(previous) : label;
   return (
     <Link
-      href={href}
-      className="group mb-1.5 inline-flex items-center gap-1 rounded text-sm print:hidden font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+      href={target}
+      className="group mb-1.5 inline-flex items-center gap-1.5 rounded-full py-0.5 pr-2 text-sm font-semibold text-[color-mix(in_oklab,var(--accent-primary)_85%,var(--foreground))] outline-none transition-colors hover:text-(--accent-primary) focus-visible:ring-3 focus-visible:ring-ring/50 print:hidden"
     >
-      <ArrowLeft className="size-4 transition-transform duration-150 group-hover:-translate-x-0.5" aria-hidden />
-      {label}
+      <span className="grid size-5 place-items-center rounded-full bg-[color-mix(in_oklab,var(--accent-primary)_14%,transparent)] transition-transform duration-150 group-hover:-translate-x-0.5">
+        <ArrowLeft className="size-3.5" aria-hidden />
+      </span>
+      <span>
+        <span className="sr-only">Back to </span>
+        {name}
+      </span>
     </Link>
   );
 }

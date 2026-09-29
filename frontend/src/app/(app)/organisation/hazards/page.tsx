@@ -24,7 +24,7 @@ export default function HazardsPage() {
   return (
     <EntityCrudPage
       title="Hazard Configuration"
-      description="Configure hazard categories for this organisation. Owner and Admin can add, edit, and archive hazards."
+      description="The hazards permits choose from. Deactivate one to stop offering it without losing it from past permits."
       resource="hazards"
       fields={fields}
     />

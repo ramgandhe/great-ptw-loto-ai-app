@@ -111,6 +111,7 @@ export const gasTestingCatalogue = pgTable(
     unit: varchar('unit', { length: 32 }).notNull(),
     minimum: doublePrecision('minimum').notNull(),
     maximum: doublePrecision('maximum').notNull(),
+    isActive: boolean('is_active').notNull().default(true),
   },
   (table) => [
     uniqueIndex('gas_testing_catalogue_tenant_ws_parameter_unique').on(

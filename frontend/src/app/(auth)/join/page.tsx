@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api";
-import { startKeycloakLogin } from "@/lib/auth/keycloak";
 import { getAccessToken, isAuthenticated } from "@/lib/auth/token-storage";
 import { platformTenantsApi, type PublicTenantInvite } from "@/lib/platform/api";
 
@@ -100,7 +99,7 @@ function JoinContent() {
   if (!invite) {
     return (
       <div className="flex flex-col gap-4">
-        <h1 className="text-xl font-semibold">Invite not valid</h1>
+        <h1 className="font-heading text-3xl font-bold tracking-tight">Invite not valid</h1>
         <p className="text-sm text-destructive">{error ?? "Invite not found"}</p>
         <Link href="/login" className={cn(buttonVariants({ variant: "outline" }), "w-fit")}>
           Sign in
@@ -112,11 +111,10 @@ function JoinContent() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold">Join {invite.organisationName}</h1>
+        <h1 className="font-heading text-3xl font-bold tracking-tight">Join {invite.organisationName}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Sign in as <span className="font-medium text-foreground">{invite.ownerEmail}</span> with the
-          temporary password from your platform administrator. You will be asked to set a new
-          password.
+          temporary password from your platform administrator, then choose your own password.
         </p>
       </div>
       {error ? (
@@ -128,10 +126,9 @@ function JoinContent() {
         type="button"
         className={cn(buttonVariants(), "w-full")}
         onClick={() =>
-          startKeycloakLogin(`/join?token=${encodeURIComponent(token)}`, {
-            forceLogin: true,
-            loginHint: invite.ownerEmail,
-          })
+          router.push(
+            `/login?${new URLSearchParams({ next: `/join?token=${encodeURIComponent(token)}`, email: invite.ownerEmail })}`,
+          )
         }
       >
         Continue to sign in

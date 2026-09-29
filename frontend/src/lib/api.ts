@@ -1,4 +1,4 @@
-import { refreshAccessToken } from "@/lib/auth/keycloak";
+import { refreshAccessToken } from "@/lib/auth/session";
 import { clearTokens, getAccessToken } from "@/lib/auth/token-storage";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";

@@ -100,6 +100,7 @@ export class GasTestingService {
           ...(dto.workstationId !== undefined ? { workstationId: dto.workstationId } : {}),
           ...(dto.parameter !== undefined ? { parameter: dto.parameter.trim() } : {}),
           ...(dto.unit !== undefined ? { unit: dto.unit.trim() } : {}),
+          ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
           ...(dto.minimum !== undefined ? { minimum: dto.minimum } : {}),
           ...(dto.maximum !== undefined ? { maximum: dto.maximum } : {}),
           updatedBy: user.id,

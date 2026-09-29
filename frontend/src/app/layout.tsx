@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import {
   Baloo_2,
   IBM_Plex_Mono,
@@ -14,7 +13,6 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { MotionProvider } from "@/components/motion-provider";
-import { OAuthCodeRedirect } from "@/components/auth/oauth-code-redirect";
 
 const sora = Sora({
   subsets: ["latin"],
@@ -90,9 +88,6 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <MotionProvider>
-            <Suspense fallback={null}>
-              <OAuthCodeRedirect />
-            </Suspense>
             {children}
           </MotionProvider>
         </ThemeProvider>

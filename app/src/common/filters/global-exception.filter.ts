@@ -8,6 +8,12 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
+/** Postgres 23503, directly or wrapped by the query builder as `cause`. */
+function isForeignKeyViolation(error: unknown): boolean {
+  const code = (e: unknown) => (typeof e === 'object' && e !== null ? (e as { code?: unknown }).code : undefined);
+  return code(error) === '23503' || code((error as { cause?: unknown } | null)?.cause) === '23503';
+}
+
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(GlobalExceptionFilter.name);
@@ -38,6 +44,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         code = (body.error as string) ?? this.mapStatusToCode(status);
         details = body.details ?? body.message;
       }
+    } else if (isForeignKeyViolation(exception)) {
+      // A record still referenced elsewhere (e.g. a hazard on a permit) cannot be deleted.
+      status = HttpStatus.CONFLICT;
+      code = 'CONFLICT';
+      message = 'This is used by other records, such as permits, so it cannot be deleted. Deactivate it instead.';
     } else if (exception instanceof Error) {
       message = exception.message;
       this.logger.error(exception.message, exception.stack);

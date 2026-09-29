@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/layout/page-header";
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -202,18 +203,12 @@ function SetupWizard() {
   const currentStatus = statuses[step.key];
 
   return (
-    <main className="flex flex-1 flex-col gap-5 p-4 sm:gap-6 sm:p-8">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="min-w-0">
-          <Link href="/organisation" className="-ml-1 inline-flex items-center gap-0.5 rounded text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="size-4" aria-hidden />
-            Organisation
-          </Link>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">Organisation setup</h1>
-          <p className="mt-1 hidden max-w-2xl text-muted-foreground sm:block">
-            Everything your site needs before the first permit, in the order it builds up. Skip anything and come back later.
-          </p>
-        </div>
+    <main className="flex flex-1 flex-col gap-5 px-4 pb-8 sm:gap-6 sm:px-8">
+      <PageHeader
+        back={{ href: "/organisation", label: "Organisation" }}
+        title="Organisation setup"
+        description="Everything your site needs before the first permit, in the order it builds up. Skip anything and come back later."
+        actions={
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted-foreground" role="status">
             {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Progress saved" : saveState === "error" ? "Progress not saved" : ""}
@@ -222,7 +217,8 @@ function SetupWizard() {
             Save and exit
           </Button>
         </div>
-      </div>
+        }
+      />
 
       <section aria-label="Setup progress" className="rounded-xl border border-border bg-card px-5 py-4">
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">

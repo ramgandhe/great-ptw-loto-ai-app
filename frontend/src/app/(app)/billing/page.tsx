@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BillingAlertBanner } from "@/components/billing/billing-alert-banner";
 import { InvoiceTable } from "@/components/billing/invoice-table";
@@ -157,16 +157,8 @@ export default function BillingPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-8 p-4 sm:p-8">
-      <div className="flex items-center gap-3">
-        <CreditCard className="size-6" aria-hidden />
-        <div>
-          <h1 className="font-heading text-3xl font-bold tracking-tight">Billing & subscription</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage tenant plans, usage and invoice history.
-          </p>
-        </div>
-      </div>
+    <main className="flex flex-1 flex-col gap-8 px-4 pb-8 sm:px-8">
+      <PageHeader title="Billing and subscription" description="Your plan, usage against its limits, and invoices." />
 
       {error ? (
         <div

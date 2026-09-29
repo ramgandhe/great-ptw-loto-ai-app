@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/layout/page-header";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { ChevronRight } from "lucide-react";
@@ -23,11 +24,8 @@ export function HubPage({
   children?: React.ReactNode;
 }) {
   return (
-    <main className="flex flex-1 flex-col gap-8 p-4 sm:p-8">
-      <div>
-        <h1 className="font-heading text-3xl font-bold tracking-tight">{title}</h1>
-        <div className="mt-1 text-muted-foreground">{intro}</div>
-      </div>
+    <main className="flex flex-1 flex-col gap-8 px-4 pb-8 sm:px-8">
+      <PageHeader title={title} description={intro} />
       {children}
       <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid gap-8">
         {groups.map((group) => (

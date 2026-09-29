@@ -1,5 +1,6 @@
 "use client";
 
+import { inUse } from "@/components/organisation/org-status-badge";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
@@ -268,14 +269,16 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         ]) => {
           setTemplates(templateResult.rows);
           setTemplatesLoaded(templateResult.ok);
-          setPermitTypes(permitTypeRows);
-          setPlants(plantRows);
-          setDepartments(departmentRows);
-          setLocations(locationRows);
-          setWorkstations(workstationRows);
-          setMachinery(machineryRows);
-          setHazards(hazardRows);
-          setPpeItems(ppeRows);
+          // Inactive records stay on past permits but are not offered for new choices.
+          // ponytail: an existing draft that already uses a now-inactive item shows it blank; keep selected ids if that matters.
+          setPermitTypes(permitTypeRows.filter(inUse));
+          setPlants(plantRows.filter(inUse));
+          setDepartments(departmentRows.filter(inUse));
+          setLocations(locationRows.filter(inUse));
+          setWorkstations(workstationRows.filter(inUse));
+          setMachinery(machineryRows.filter(inUse));
+          setHazards(hazardRows.filter(inUse));
+          setPpeItems(ppeRows.filter(inUse));
 
           const displayName =
             [profile.firstName, profile.lastName].filter(Boolean).join(" ") ||
@@ -383,7 +386,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     }
     gasTestingApi
       .list(form.workstationId)
-      .then(setWorkstationGasTesting)
+      .then((rows) => setWorkstationGasTesting(rows.filter(inUse)))
       .catch(() => setWorkstationGasTesting([]));
   }, [form.workstationId]);
 

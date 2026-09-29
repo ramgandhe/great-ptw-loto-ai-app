@@ -8,6 +8,8 @@ import { masterDataApi, type MasterDataRecord } from "@/lib/master-data/api";
 import { KIND_LABEL, fieldCount, permitTemplatesApi, type PermitTemplate } from "@/lib/organisation/templates";
 import { AdminPage, AdminPageHeader } from "@/components/layout/admin-page-header";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
+import { RowActions } from "@/components/ui/row-actions";
+import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 
 export default function TemplatesPage() {
@@ -18,7 +20,6 @@ export default function TemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
 
   function load() {
     return Promise.all([permitTemplatesApi.list(), masterDataApi.permitTypes()])
@@ -42,10 +43,9 @@ export default function TemplatesPage() {
   async function run(action: () => Promise<string | void>) {
     setBusy(true);
     setError(null);
-    setMessage(null);
     try {
       const result = await action();
-      if (result) setMessage(result);
+      if (result) toast(result);
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "That did not work. Try again.");
@@ -97,32 +97,28 @@ export default function TemplatesPage() {
             </Button>
           </div>
         }
-      />
+      >
+        {items.length > 5 ? (
+          <label className="relative flex h-10 items-center sm:w-80">
+            <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
+            <span className="sr-only">Search templates</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`Search ${items.length} templates`}
+              className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
+          </label>
+        ) : null}
+      </AdminPageHeader>
 
-      {message ? (
-        <p role="status" className="text-sm font-medium text-(--status-success)">
-          {message}
-        </p>
-      ) : null}
       {error ? (
         <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       ) : null}
 
-      {items.length > 5 ? (
-        <label className="relative flex h-10 items-center sm:w-80">
-          <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
-          <span className="sr-only">Search templates</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Search ${items.length} templates`}
-            className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          />
-        </label>
-      ) : null}
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -141,7 +137,7 @@ export default function TemplatesPage() {
           {visible.map((template) => {
             const linked = template.permitTypeIds.map((id) => typeById.get(id)).filter((t): t is MasterDataRecord => Boolean(t));
             return (
-              <li key={template.id} className="rounded-xl border border-border bg-card transition-colors hover:border-(--border-strong)">
+              <li key={template.id} className="row-hover rounded-xl border border-border bg-card">
                 <div className="flex flex-wrap items-start gap-x-4 gap-y-2 p-4">
                   <button
                     type="button"
@@ -150,7 +146,7 @@ export default function TemplatesPage() {
                   >
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{template.name}</span>
-                      <OrgStatusBadge status={template.status} />
+                      <OrgStatusBadge status={template.status === "published" ? "active" : "inactive"} />
                     </span>
                     <span className="mt-0.5 block text-sm text-muted-foreground">
                       {template.config ? KIND_LABEL[template.config.kind] : "Form not set up"}
@@ -172,39 +168,56 @@ export default function TemplatesPage() {
                       )}
                     </span>
                   </button>
-                  <div className="flex gap-3 text-sm">
-                    <button type="button" className="text-primary hover:underline" onClick={() => router.push(`/organisation/templates/${template.id}`)}>
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      className="text-primary hover:underline disabled:opacity-50"
-                      onClick={() =>
-                        void run(async () => {
-                          const copy = await permitTemplatesApi.duplicate(template.id);
-                          return `Duplicated as “${copy.name}” (draft).`;
-                        })
-                      }
-                    >
-                      Duplicate
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      className="text-muted-foreground hover:text-destructive hover:underline disabled:opacity-50"
-                      onClick={() => {
-                        if (window.confirm(`Archive “${template.name}”? It will no longer be offered on permits.`)) {
+                  <RowActions
+                    actions={[
+                      { label: "Edit", onClick: () => router.push(`/organisation/templates/${template.id}`) },
+                      {
+                        label: "Duplicate",
+                        disabled: busy,
+                        onClick: () =>
                           void run(async () => {
-                            await permitTemplatesApi.archive(template.id);
-                            return `Archived ${template.name}.`;
-                          });
-                        }
-                      }}
-                    >
-                      Archive
-                    </button>
-                  </div>
+                            const copy = await permitTemplatesApi.duplicate(template.id);
+                            return `Duplicated as “${copy.name}” (draft)`;
+                          }),
+                      },
+                      // Active = published (offered on permits); inactive = back to draft.
+                      template.status === "published"
+                        ? {
+                            label: "Deactivate",
+                            disabled: busy,
+                            onClick: () => {
+                              if (window.confirm(`Deactivate “${template.name}”? It goes back to draft and is not offered on permits.`)) {
+                                void run(async () => {
+                                  await permitTemplatesApi.update(template.id, { status: "draft" });
+                                  return `${template.name} deactivated`;
+                                });
+                              }
+                            },
+                          }
+                        : {
+                            label: "Activate",
+                            disabled: busy,
+                            onClick: () =>
+                              void run(async () => {
+                                await permitTemplatesApi.update(template.id, { status: "published" });
+                                return `${template.name} activated`;
+                              }),
+                          },
+                      {
+                        label: "Delete",
+                        danger: true,
+                        disabled: busy,
+                        onClick: () => {
+                          if (window.confirm(`Delete “${template.name}”? Permits that used it keep their filled-in form.`)) {
+                            void run(async () => {
+                              await permitTemplatesApi.archive(template.id);
+                              return `${template.name} deleted`;
+                            });
+                          }
+                        },
+                      },
+                    ]}
+                  />
                 </div>
               </li>
             );

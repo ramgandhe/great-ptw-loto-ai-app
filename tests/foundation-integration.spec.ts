@@ -51,7 +51,7 @@ describe('Foundation integration (PUS-71)', () => {
       invalidate: jest.fn().mockResolvedValue(undefined),
     } as unknown as MasterDataCacheService;
     const logService = { logEvent: jest.fn() } as unknown as MasterDataLogService;
-    const referenceIntegrity = new ReferenceIntegrityService();
+    const referenceIntegrity = new ReferenceIntegrityService(db);
 
     organisationService = new OrganisationService(db, auditService);
     workforceService = new WorkforceService(

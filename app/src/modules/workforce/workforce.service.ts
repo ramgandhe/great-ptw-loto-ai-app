@@ -177,6 +177,7 @@ export class WorkforceService {
         ...(dto.workforceUserId !== undefined ? { workforceUserId: dto.workforceUserId || null } : {}),
         ...(dto.certificationName !== undefined ? { certificationName: dto.certificationName } : {}),
         ...(dto.startDate !== undefined ? { startDate: dto.startDate } : {}),
+        ...(dto.status !== undefined ? { status: dto.status } : {}),
         ...(dto.expiryDate !== undefined ? { expiryDate: dto.expiryDate } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
         updatedBy: user.id,

@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { recordVisit } from "@/lib/nav-history";
 import { AppHeader } from "@/components/layout/app-header";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { AppNavigation } from "@/components/app-navigation";
@@ -45,6 +47,19 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
       </div>
       <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
       <Toaster />
+      <Suspense fallback={null}>
+        <VisitRecorder />
+      </Suspense>
     </WorkQueueProvider>
   );
+}
+
+/** Feeds the back-link trail: every page and filter change inside the app. */
+function VisitRecorder() {
+  const pathname = usePathname();
+  const query = useSearchParams().toString();
+  useEffect(() => {
+    recordVisit(query ? `${pathname}?${query}` : pathname);
+  }, [pathname, query]);
+  return null;
 }

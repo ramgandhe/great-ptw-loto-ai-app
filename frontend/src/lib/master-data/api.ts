@@ -43,6 +43,7 @@ export type GasTestingRecord = {
   unit: string;
   minimum: number;
   maximum: number;
+  isActive?: boolean;
 };
 
 export const gasTestingApi = {
@@ -69,6 +70,7 @@ export const gasTestingApi = {
       unit?: string;
       minimum?: number;
       maximum?: number;
+      isActive?: boolean;
     },
   ) =>
     fetchApi<GasTestingRecord>(`/gas-testing/${id}`, {

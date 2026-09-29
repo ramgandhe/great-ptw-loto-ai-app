@@ -17,8 +17,9 @@ import {
 } from "@/lib/organisation/api";
 import type { EntityField, OrgRecord } from "@/lib/organisation/types";
 import { loadEntitySelectOptions, type EntitySelectResource } from "@/lib/form-options";
-import { OrgStatusBadge } from "./org-status-badge";
+import { OrgStatusBadge, stateOf } from "./org-status-badge";
 import { Button } from "@/components/ui/button";
+import { RowActions } from "@/components/ui/row-actions";
 import { SegmentedToggle } from "@/components/ui/toggle-group";
 import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader } from "@/components/layout/admin-page-header";
@@ -215,21 +216,42 @@ export function EntityCrudPage({
     }
   }
 
+  /** Deactivate keeps the record listed but stops it being offered on permits and forms. */
+  async function handleSetActive(item: OrgRecord, on: boolean) {
+    const name = String(item[nameField] ?? singular);
+    if (!on && !window.confirm(`Deactivate ${name}? It stays on this list but is no longer offered on permits.`)) return;
+    setError(null);
+    // Each list stores "in use" its own way; the button is the same everywhere.
+    const patch =
+      resource === "plants" || resource === "departments" || resource === "locations"
+        ? { status: on ? "active" : "inactive" }
+        : resource === "notifications"
+          ? { enabled: on }
+          : { isActive: on };
+    try {
+      await api.update(item.id, patch as never);
+      toast(`${name} ${on ? "activated" : "deactivated"}`);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : `${on ? "Activate" : "Deactivate"} failed`);
+    }
+  }
+
   async function handleArchive(id: string) {
     const name = String(items.find((item) => item.id === id)?.[nameField] ?? singular);
-    if (!window.confirm(`Archive ${name}? It leaves the pick lists${ARCHIVE_VIEW.includes(resource) ? " and moves to the Archived view" : ""}.`)) {
+    if (!window.confirm(`Delete ${name}? It is removed from this list; permits that used it keep their record.`)) {
       return;
     }
     setError(null);
     try {
       await api.archive(id);
-      toast(`${name} archived`);
+      toast(`${name} deleted`);
       if (editingId === id) {
         resetForm();
       }
       load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Archive failed");
+      setError(err instanceof ApiError ? err.message : "Delete failed");
     }
   }
 
@@ -246,34 +268,50 @@ export function EntityCrudPage({
             </Button>
           ) : null
         }
-      />
-
-      {ARCHIVE_VIEW.includes(resource) ? (
-        <SegmentedToggle
-          label="Show"
-          value={view}
-          onChange={(v) => showView(v as "active" | "archived")}
-          options={[
-            { value: "active", label: "Active", count: items.length },
-            { value: "archived", label: "Archived", ...(archivedItems ? { count: archivedItems.length } : {}) },
-          ]}
-          className="self-start"
-        />
-      ) : null}
+      >
+        {ARCHIVE_VIEW.includes(resource) || items.length > 5 ? (
+          <div className="flex flex-wrap items-center gap-3">
+            {ARCHIVE_VIEW.includes(resource) ? (
+              <SegmentedToggle
+                label="Show"
+                value={view}
+                onChange={(v) => showView(v as "active" | "archived")}
+                options={[
+                  { value: "active", label: "Active", count: items.length },
+                  { value: "archived", label: "Deleted", ...(archivedItems ? { count: archivedItems.length } : {}) },
+                ]}
+              />
+            ) : null}
+            {items.length > 5 && view === "active" ? (
+              <label className="relative flex h-10 items-center sm:w-80">
+                <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
+                <span className="sr-only">Search {title.toLowerCase()}</span>
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={`Search ${items.length} ${title.toLowerCase()}`}
+                  className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                />
+              </label>
+            ) : null}
+          </div>
+        ) : null}
+      </AdminPageHeader>
 
       {view === "archived" ? (
         archivedItems === null ? (
-          <p className="text-sm text-muted-foreground">Loading archived {title.toLowerCase()}…</p>
+          <p className="text-sm text-muted-foreground">Loading deleted {title.toLowerCase()}…</p>
         ) : archivedItems.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nothing archived.</p>
+          <p className="text-sm text-muted-foreground">Nothing deleted.</p>
         ) : (
-          <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
+          <div className="table-box">
             <table className="min-w-full text-sm">
               <thead className="table-tone text-left text-xs">
                 <tr className="border-b border-border">
                   <th className="px-4 py-2.5">Name</th>
                   <th className="px-4 py-2.5">Code</th>
-                  <th className="px-4 py-2.5">Archived</th>
+                  <th className="px-4 py-2.5">Deleted</th>
                 </tr>
               </thead>
               <tbody>
@@ -294,7 +332,7 @@ export function EntityCrudPage({
         <form
           ref={formRef}
           onSubmit={handleSubmit}
-          className="reveal-in grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2"
+          className="reveal-in grid scroll-mt-[calc(4.5rem+var(--page-head-h,0px))] gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2"
         >
           <h2 className="font-semibold sm:col-span-2">
             {editingId ? `Edit ${String(form[String(nameField)] || singular)}` : `New ${singular}`}
@@ -368,19 +406,6 @@ export function EntityCrudPage({
         </div>
       ) : null}
 
-      {items.length > 5 ? (
-        <label className="relative flex h-10 items-center sm:w-80">
-          <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
-          <span className="sr-only">Search {title.toLowerCase()}</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Search ${items.length} ${title.toLowerCase()}`}
-            className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          />
-        </label>
-      ) : null}
 
       {view === "archived" ? null : loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -392,7 +417,7 @@ export function EntityCrudPage({
       ) : visibleItems.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nothing matches &ldquo;{query}&rdquo;.</p>
       ) : (
-        <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="table-box">
           <table className="min-w-full text-sm">
             <thead className="table-tone text-left text-xs">
               <tr className="border-b border-border">
@@ -418,7 +443,7 @@ export function EntityCrudPage({
               {visibleItems.map((item) => (
                 <tr
                   key={item.id}
-                  className={`cursor-pointer border-t border-border first:border-t-0 hover:bg-muted/40 ${editingId === item.id ? "bg-muted/60" : ""}`}
+                  className={`row-hover cursor-pointer border-t border-border first:border-t-0 ${editingId === item.id ? "bg-muted/60" : ""}`}
                   onClick={() => startEdit(item)}
                 >
                   <td className="px-4 py-3 font-medium">{String(item[nameField] ?? "Unnamed")}</td>
@@ -438,36 +463,21 @@ export function EntityCrudPage({
                     <td className="px-4 py-3 text-muted-foreground">{item.severity ?? ""}</td>
                   ) : null}
                   <td className="px-4 py-3">
-                    {item.isCurrent ? (
-                      <span className="text-sm font-medium">Current</span>
-                    ) : (
-                      <OrgStatusBadge status={item.status} />
-                    )}
+                    <OrgStatusBadge status={resource === "workflows" ? (item.isCurrent ? "active" : "inactive") : stateOf(item)} />
                   </td>
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-end gap-3">
-                      <button type="button" className="text-primary hover:underline" onClick={() => startEdit(item)}>
-                        Edit
-                      </button>
-                      {resource === "workflows" && !item.isCurrent ? (
-                        <button
-                          type="button"
-                          className="text-primary hover:underline"
-                          onClick={() => void handleActivate(item.id)}
-                        >
-                          Activate
-                        </button>
-                      ) : null}
-                      {item.isCurrent ? null : (
-                        <button
-                          type="button"
-                          className="text-muted-foreground hover:text-destructive hover:underline"
-                          onClick={() => void handleArchive(item.id)}
-                        >
-                          Archive
-                        </button>
-                      )}
-                    </div>
+                  <td className="px-4 py-3">
+                    <RowActions
+                      actions={[
+                        { label: "Edit", onClick: () => startEdit(item) },
+                        // A workflow is active when it is the one in use; activating another replaces it.
+                        resource === "workflows"
+                          ? !item.isCurrent && { label: "Activate", onClick: () => void handleActivate(item.id) }
+                          : stateOf(item) === "active"
+                            ? { label: "Deactivate", onClick: () => void handleSetActive(item, false) }
+                            : { label: "Activate", onClick: () => void handleSetActive(item, true) },
+                        !item.isCurrent && { label: "Delete", danger: true, onClick: () => void handleArchive(item.id) },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}

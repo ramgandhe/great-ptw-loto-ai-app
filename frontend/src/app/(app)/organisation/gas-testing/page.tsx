@@ -9,6 +9,9 @@ import { workstationsApi } from "@/lib/organisation/api";
 import type { OrgRecord } from "@/lib/organisation/types";
 import { formatOrgOptionLabel } from "@/lib/form-options";
 import { Button } from "@/components/ui/button";
+import { RowActions } from "@/components/ui/row-actions";
+import { OrgStatusBadge, stateOf } from "@/components/organisation/org-status-badge";
+import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 
 const emptyForm = {
@@ -119,13 +122,27 @@ export default function GasTestingConfigPage() {
     }
   }
 
+  async function handleSetActive(item: GasTestingRecord, on: boolean) {
+    if (!on && !window.confirm(`Deactivate ${item.parameter}? It stays on this list but is not offered on permits.`)) return;
+    setError(null);
+    try {
+      await gasTestingApi.update(item.id, { isActive: on });
+      toast(`${item.parameter} ${on ? "activated" : "deactivated"}`);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : `${on ? "Activate" : "Deactivate"} failed`);
+    }
+  }
+
   async function handleDelete(id: string) {
-    if (!window.confirm("Delete this gas testing item?")) {
+    const name = items.find((item) => item.id === id)?.parameter ?? "this gas test";
+    if (!window.confirm(`Delete ${name}?`)) {
       return;
     }
     setError(null);
     try {
       await gasTestingApi.remove(id);
+      toast(`${name} deleted`);
       if (editingId === id) {
         resetForm();
       }
@@ -266,13 +283,14 @@ export default function GasTestingConfigPage() {
           <p className="mt-1 text-sm text-muted-foreground">Add the first parameter so permits can record gas readings.</p>
         </div>
       ) : (
-        <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="table-box">
           <table className="min-w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
+            <thead className="table-tone text-left text-xs">
               <tr className="border-b border-border">
                 <th className="px-4 py-2.5 font-medium">Parameter</th>
                 <th className="px-4 py-2.5 font-medium">Workstation</th>
                 <th className="px-4 py-2.5 font-medium">Safe range</th>
+                <th className="px-4 py-2.5 font-medium">Status</th>
                 <th className="px-4 py-2.5 text-right font-medium">
                   <span className="sr-only">Actions</span>
                 </th>
@@ -282,7 +300,7 @@ export default function GasTestingConfigPage() {
               {items.map((item) => (
                 <tr
                   key={item.id}
-                  className={`cursor-pointer border-t border-border first:border-t-0 hover:bg-muted/40 ${editingId === item.id ? "bg-muted/60" : ""}`}
+                  className={`row-hover cursor-pointer border-t border-border first:border-t-0 ${editingId === item.id ? "bg-muted/60" : ""}`}
                   onClick={() => openForm(item)}
                 >
                   <td className="px-4 py-3 font-medium">{item.parameter}</td>
@@ -290,19 +308,19 @@ export default function GasTestingConfigPage() {
                   <td className="px-4 py-3 tabular-nums">
                     {item.minimum} to {item.maximum} {item.unit}
                   </td>
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-end gap-3">
-                      <button type="button" className="text-primary hover:underline" onClick={() => openForm(item)}>
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-destructive hover:underline"
-                        onClick={() => void handleDelete(item.id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
+                  <td className="px-4 py-3">
+                    <OrgStatusBadge status={stateOf(item)} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <RowActions
+                      actions={[
+                        { label: "Edit", onClick: () => openForm(item) },
+                        item.isActive === false
+                          ? { label: "Activate", onClick: () => void handleSetActive(item, true) }
+                          : { label: "Deactivate", onClick: () => void handleSetActive(item, false) },
+                        { label: "Delete", danger: true, onClick: () => void handleDelete(item.id) },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}

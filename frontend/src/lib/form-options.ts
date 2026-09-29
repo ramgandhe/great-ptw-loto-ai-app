@@ -4,6 +4,7 @@ import {
   plantsApi,
   workstationsApi,
 } from "@/lib/organisation/api";
+import { inUse } from "@/components/organisation/org-status-badge";
 import type { OrgRecord } from "@/lib/organisation/types";
 import { agenciesApi, listWorkforceDirectory } from "@/lib/workforce/api";
 import type { WorkforceRecord } from "@/lib/workforce/types";
@@ -73,23 +74,23 @@ export async function loadEntitySelectOptions(
     unique.map(async (resource) => {
       switch (resource) {
         case "plant": {
-          const rows = await plantsApi.list();
+          const rows = (await plantsApi.list()).filter(inUse);
           return [resource, rows.map((row) => ({ value: row.id, label: formatOrgOptionLabel(row) }))] as const;
         }
         case "department": {
-          const rows = await departmentsApi.list();
+          const rows = (await departmentsApi.list()).filter(inUse);
           return [resource, rows.map((row) => ({ value: row.id, label: formatOrgOptionLabel(row) }))] as const;
         }
         case "location": {
-          const rows = await locationsApi.list();
+          const rows = (await locationsApi.list()).filter(inUse);
           return [resource, rows.map((row) => ({ value: row.id, label: formatOrgOptionLabel(row) }))] as const;
         }
         case "workstation": {
-          const rows = await workstationsApi.list();
+          const rows = (await workstationsApi.list()).filter(inUse);
           return [resource, rows.map((row) => ({ value: row.id, label: formatOrgOptionLabel(row) }))] as const;
         }
         case "agency": {
-          const rows = await agenciesApi.list();
+          const rows = (await agenciesApi.list()).filter(inUse);
           return [
             resource,
             rows.map((row: OrgRecord) => ({ value: row.id, label: formatOrgOptionLabel(row) })),

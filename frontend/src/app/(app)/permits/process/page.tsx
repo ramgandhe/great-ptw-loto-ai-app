@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api";
 import { listPermits } from "@/lib/permit/api";
 import type { PermitRecord } from "@/lib/permit/types";
 import { EDGES, NODES } from "@/lib/permit/process";
+import { permitStatusColor } from "@/lib/permit/status";
 import { formatRelative } from "@/lib/format";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProcessDetails, ProcessMap, ProcessMapLegend, type MapSelection } from "@/components/permit/process-map";
@@ -101,9 +102,16 @@ export default function PermitProcessPage() {
                   onClick={() => setSelected({ kind: "node", id: node.id })}
                   className="grid w-full gap-x-4 gap-y-0.5 px-5 py-2.5 text-left text-sm hover:bg-muted/60 sm:grid-cols-[11rem_1fr_auto]"
                 >
-                  <span className="font-medium">{node.title}</span>
+                  {/* Same colour as the stage on the map and as the permit status everywhere else. */}
+                  <span className="flex items-center gap-2.5 font-medium">
+                    <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ backgroundColor: permitStatusColor(node.id) }} />
+                    {node.title}
+                  </span>
                   <span className="text-muted-foreground">{node.owner}</span>
-                  <span className="tabular-nums text-muted-foreground">
+                  <span
+                    className={counts?.[node.id] ? "tabular-nums font-semibold" : "tabular-nums text-muted-foreground"}
+                    style={counts?.[node.id] ? { color: `color-mix(in oklab, ${permitStatusColor(node.id)} 80%, var(--foreground))` } : undefined}
+                  >
                     {counts ? `${counts[node.id] ?? 0} now` : ""}
                   </span>
                 </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { BackLink } from "@/components/layout/page-header";
+import { PageHeader } from "@/components/layout/page-header";
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -184,14 +184,12 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
-      <div>
-        <BackLink href="/organisation/templates" label="Permit templates" />
-        <h1 className="font-heading text-3xl font-bold tracking-tight">{draft.name || "Untitled template"}</h1>
-        <p className="mt-1 text-muted-foreground">
-          {KIND_LABEL[draft.config.kind]} · {draft.config.sections.length} sections, {fieldCount(draft.config)} fields
-        </p>
-      </div>
+    <main className="flex flex-1 flex-col gap-6 px-4 pb-8 sm:px-8">
+      <PageHeader
+        back={{ href: "/organisation/templates", label: "Permit templates" }}
+        title={draft.name || "Untitled template"}
+        description={`${KIND_LABEL[draft.config.kind]} · ${draft.config.sections.length} sections, ${fieldCount(draft.config)} fields`}
+      />
 
       <div className="flex gap-2 xl:hidden" role="tablist" aria-label="Editor view">
         {(["edit", "preview"] as const).map((v) => (

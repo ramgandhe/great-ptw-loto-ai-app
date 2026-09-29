@@ -155,6 +155,26 @@
   letter-spacing: 0.01em;
 }
 
+/* A bordered table box. Narrow screens scroll it sideways; wide screens let its heading stick under
+   the page header (a sideways scroll box would trap the sticky heading inside itself). */
+.table-box {
+  position: relative;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--card);
+}
+@media (min-width: 64rem) {
+  .table-box {
+    overflow-x: clip;
+  }
+  .table-box > table > thead {
+    position: sticky;
+    top: calc(3.5rem + var(--page-head-h, 0px));
+    z-index: 15;
+  }
+}
+
 /* Press feedback on every button and button-styled link. */
 [data-slot="button"],
 .press {

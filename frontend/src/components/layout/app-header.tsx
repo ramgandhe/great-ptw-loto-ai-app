@@ -10,7 +10,7 @@ import { useTheme } from "@/components/theme-provider";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { formatRoleLabel, hasAnyRole } from "@/lib/auth/rbac";
 import { NOTIFICATION_READ_ROLES } from "@/lib/auth/roles";
-import { signOut } from "@/lib/auth/keycloak";
+import { signOut } from "@/lib/auth/session";
 import { listNotifications } from "@/lib/notifications/api";
 
 function Avatar({ url, name }: { url?: string | null; name: string }) {

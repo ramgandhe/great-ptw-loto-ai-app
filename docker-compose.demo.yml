@@ -19,6 +19,3 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${DEMO_API_URL:?DEMO_API_URL is required}
         NEXT_PUBLIC_APP_URL: ${DEMO_WEB_URL:?DEMO_WEB_URL is required}
-        NEXT_PUBLIC_KEYCLOAK_URL: ${DEMO_AUTH_URL:?DEMO_AUTH_URL is required}
-        NEXT_PUBLIC_KEYCLOAK_REALM: ptw-platform
-        NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: ptw-web

@@ -46,4 +46,9 @@ export class CreateChecklistDto {
   @IsOptional()
   @IsBoolean()
   publish?: boolean;
+
+  /** Inactive checklists stay listed but cannot be attached to permits. */
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

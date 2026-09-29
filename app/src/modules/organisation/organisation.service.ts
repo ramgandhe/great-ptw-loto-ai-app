@@ -613,6 +613,7 @@ export class OrganisationService {
         ...(dto.description !== undefined ? { description: dto.description } : {}),
         ...(dto.plantId !== undefined ? { plantId: dto.plantId ?? null } : {}),
         ...(dto.departmentId !== undefined ? { departmentId: dto.departmentId ?? null } : {}),
+        ...(dto.status !== undefined ? { status: dto.status } : {}),
         updatedBy: user.id,
         updatedAt: new Date(),
       })

@@ -31,6 +31,11 @@ export class CreateOrgEntityDto {
 }
 
 export class UpdateOrgEntityDto {
+  /** Inactive records stay listed but are not offered on permits and forms. */
+  @IsOptional()
+  @IsIn(['active', 'inactive'])
+  status?: 'active' | 'inactive';
+
   @IsOptional()
   @IsString()
   @MinLength(1)

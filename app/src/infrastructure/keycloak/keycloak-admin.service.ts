@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -173,6 +174,34 @@ export class KeycloakAdminService {
     });
     if (!response.ok) {
       throw this.unavailable('Failed to set the user organisation', await response.text());
+    }
+  }
+
+  /**
+   * First sign-in with a temporary password: set the permanent one and clear Keycloak's
+   * "update password" step. Callers must have proved the current password first.
+   */
+  async completePasswordChange(userId: string, password: string): Promise<void> {
+    const token = await this.adminToken();
+    const reset = await fetch(`${this.realmUrl()}/users/${userId}/reset-password`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'password', value: password, temporary: false }),
+    });
+    if (!reset.ok) {
+      // Keycloak's password policy explains itself (length, history); pass that on.
+      const detail = (await reset.json().catch(() => ({}))) as { error_description?: string; errorMessage?: string };
+      throw new BadRequestException(detail.error_description ?? detail.errorMessage ?? 'That password is not allowed. Try a longer one.');
+    }
+    const user = await this.getUser(token, userId);
+    const requiredActions = ((user as { requiredActions?: string[] }).requiredActions ?? []).filter((a) => a !== 'UPDATE_PASSWORD');
+    const update = await fetch(`${this.realmUrl()}/users/${userId}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...user, requiredActions }),
+    });
+    if (!update.ok) {
+      throw this.unavailable('Failed to finish the password change', await update.text());
     }
   }
 

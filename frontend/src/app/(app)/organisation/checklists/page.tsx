@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { RowActions } from "@/components/ui/row-actions";
 import { SegmentedToggle } from "@/components/ui/toggle-group";
 import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
-import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
+import { OrgStatusBadge, stateOf } from "@/components/organisation/org-status-badge";
 import {
   checklistsApi,
   type SafetyChecklistBundle,
@@ -135,15 +136,28 @@ export default function ChecklistsPage() {
     }
   }
 
+  async function handleSetActive(bundle: SafetyChecklistBundle, on: boolean) {
+    const name = bundle.checklist.name;
+    if (!on && !window.confirm(`Deactivate ${name}? It stays on this list but cannot be attached to permits.`)) return;
+    setError(null);
+    try {
+      await checklistsApi.update(bundle.checklist.id, { isActive: on });
+      toast(`${name} ${on ? "activated" : "deactivated"}`);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : `${on ? "Activate" : "Deactivate"} failed`);
+    }
+  }
+
   async function handleArchive(id: string) {
     const name = items.find((bundle) => bundle.checklist.id === id)?.checklist.name ?? "this checklist";
-    if (!window.confirm(`Archive ${name}? It can no longer be attached to permits and moves to the Archived view.`)) {
+    if (!window.confirm(`Delete ${name}? It moves to the Deleted view; permits that used it keep their record.`)) {
       return;
     }
     setError(null);
     try {
       await checklistsApi.archive(id);
-      toast(`${name} archived`);
+      toast(`${name} deleted`);
       if (editingId === id) {
         resetForm();
       }
@@ -166,18 +180,18 @@ export default function ChecklistsPage() {
             </Button>
           ) : null
         }
-      />
-
-      <SegmentedToggle
-        label="Show"
-        value={view}
-        onChange={(v) => setView(v as "active" | "archived")}
-        options={[
-          { value: "active", label: "Active", count: items.filter((b) => b.checklist.status !== "archived").length },
-          { value: "archived", label: "Archived", count: items.filter((b) => b.checklist.status === "archived").length },
-        ]}
-        className="self-start"
-      />
+      >
+        <SegmentedToggle
+          label="Show"
+          value={view}
+          onChange={(v) => setView(v as "active" | "archived")}
+          options={[
+            { value: "active", label: "Active", count: items.filter((b) => b.checklist.status !== "archived").length },
+            { value: "archived", label: "Deleted", count: items.filter((b) => b.checklist.status === "archived").length },
+          ]}
+          className="self-start"
+        />
+      </AdminPageHeader>
 
       {formOpen ? (
         <form
@@ -280,7 +294,7 @@ export default function ChecklistsPage() {
           <p className="mt-1 text-sm text-muted-foreground">Add the first checklist so it can be attached to permits.</p>
         </div>
       ) : (
-        <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="table-box">
           <table className="min-w-full text-sm">
             <thead className="table-tone text-left text-xs">
               <tr className="border-b border-border">
@@ -319,25 +333,20 @@ export default function ChecklistsPage() {
                       {mandatory ? ` (${mandatory} mandatory)` : ""}
                     </td>
                     <td className="px-4 py-3">
-                      <OrgStatusBadge status={bundle.checklist.status} />
+                      <OrgStatusBadge status={stateOf(bundle.checklist)} />
                     </td>
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex justify-end gap-3">
-                        {archived ? null : (
-                          <>
-                        <button type="button" className="text-primary hover:underline" onClick={() => openForm(bundle)}>
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="text-muted-foreground hover:text-destructive hover:underline"
-                          onClick={() => void handleArchive(bundle.checklist.id)}
-                        >
-                          Archive
-                        </button>
-                          </>
-                        )}
-                      </div>
+                    <td className="px-4 py-3">
+                      {archived ? null : (
+                        <RowActions
+                          actions={[
+                            { label: "Edit", onClick: () => openForm(bundle) },
+                            stateOf(bundle.checklist) === "active"
+                              ? { label: "Deactivate", onClick: () => void handleSetActive(bundle, false) }
+                              : { label: "Activate", onClick: () => void handleSetActive(bundle, true) },
+                            { label: "Delete", danger: true, onClick: () => void handleArchive(bundle.checklist.id) },
+                          ]}
+                        />
+                      )}
                     </td>
                   </tr>
                 );

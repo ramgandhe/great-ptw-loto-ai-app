@@ -1,9 +1,8 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
 
 const HUBS: Record<string, string> = { organisation: "Organisation", workforce: "Workforce" };
 
@@ -19,41 +18,43 @@ export function AdminPage({ children }: { children: React.ReactNode }) {
   return useContext(AdminEmbedContext) ? (
     <div className="flex flex-col gap-5">{children}</div>
   ) : (
-    <main className="flex flex-1 flex-col gap-5 p-4 sm:p-8">{children}</main>
+    <main className="flex flex-1 flex-col gap-5 px-4 pb-8 sm:px-8">{children}</main>
   );
 }
 
-/** Admin page title row: link back to its hub, title and description, primary action on the right. */
+/**
+ * Admin page title: the same sticky header as the Safety pages, with the way back to its hub.
+ * `children` (search, view toggles) stick with it.
+ */
 export function AdminPageHeader({
   title,
   description,
   action,
+  children,
 }: {
   title: string;
   description: React.ReactNode;
   action?: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   const hub = usePathname().split("/")[1] ?? "";
-  // Inside the wizard the step supplies its own title and help; keep only the action.
+  // Inside the wizard the step supplies its own title and help; keep only the action and filters.
   if (useContext(AdminEmbedContext)) {
-    return action ? <div className="flex justify-end">{action}</div> : null;
+    return action || children ? (
+      <div className="flex flex-col gap-3">
+        {action ? <div className="flex justify-end">{action}</div> : null}
+        {children}
+      </div>
+    ) : null;
   }
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        {HUBS[hub] ? (
-          <Link
-            href={`/${hub}`}
-            className="mb-1 -ml-1 inline-flex items-center gap-0.5 rounded text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ChevronLeft className="size-4" aria-hidden />
-            {HUBS[hub]}
-          </Link>
-        ) : null}
-        <h1 className="font-heading text-3xl font-bold tracking-tight">{title}</h1>
-        <p className="mt-1 max-w-2xl text-muted-foreground">{description}</p>
-      </div>
-      {action}
-    </div>
+    <PageHeader
+      back={HUBS[hub] ? { href: `/${hub}`, label: HUBS[hub] } : undefined}
+      title={title}
+      description={description}
+      actions={action}
+    >
+      {children}
+    </PageHeader>
   );
 }

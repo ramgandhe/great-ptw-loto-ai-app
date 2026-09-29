@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { agenciesApi, competenciesApi, contractorsApi, employeesApi } from "@/lib/workforce/api";
 import type { CompetencyRecord, EntityField, WorkforceRecord } from "@/lib/workforce/types";
 import { loadEntitySelectOptions, type EntitySelectResource } from "@/lib/form-options";
-import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
+import { OrgStatusBadge, stateOf } from "@/components/organisation/org-status-badge";
 import { Button } from "@/components/ui/button";
+import { RowActions } from "@/components/ui/row-actions";
 import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader } from "@/components/layout/admin-page-header";
 import { NAME_HINT, NAME_PATTERN, PHONE_COUNTRIES, splitPhone } from "@/lib/validation";
@@ -83,6 +84,7 @@ export function WorkforceCrudPage({
   const [submitting, setSubmitting] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
   const singular = title.replace(/ management$/i, "").replace(/ies$/, "y").replace(/s$/, "").toLowerCase();
   const parentField = fields.find((field) => field.select);
   const [createdLogin, setCreatedLogin] = useState<{
@@ -185,6 +187,42 @@ export function WorkforceCrudPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, query, parentLabels]);
 
+  function startEdit(item: WorkforceItem) {
+    setEditingId(item.id);
+    setCreatedLogin(null);
+    setForm(Object.fromEntries(fields.map((field) => [field.key, String((item as Record<string, unknown>)[field.key] ?? "")])));
+    setFormOpen(true);
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
+  /** Row actions: confirm, call the API, confirm with a toast, reload. */
+  function act(item: WorkforceItem, action: "deactivate" | "activate" | "delete") {
+    const question = {
+      deactivate: hasLogin
+        ? `Deactivate ${item.name}? They stay on this list but cannot sign in.`
+        : `Deactivate ${item.name}? It stays on this list but is not counted as valid.`,
+      activate: `Activate ${item.name}?`,
+      delete: hasLogin ? `Delete ${item.name}? This removes the row and their login.` : `Delete ${item.name}?`,
+    }[action];
+    if (!window.confirm(question)) return;
+    const people = api as typeof employeesApi;
+    // People switch their login on or off; certificates and competencies carry a status.
+    const call =
+      action === "delete"
+        ? api.archive(item.id)
+        : hasLogin
+          ? action === "deactivate"
+            ? people.deactivate(item.id)
+            : people.reactivate(item.id)
+          : api.update(item.id, { status: action === "deactivate" ? "inactive" : "active" });
+    void call
+      .then(() => {
+        toast(`${item.name} ${action === "delete" ? "deleted" : `${action}d`}`);
+        load();
+      })
+      .catch((err) => setError(err instanceof ApiError ? err.message : `${action[0].toUpperCase()}${action.slice(1)} failed`));
+  }
+
   return (
     <AdminPage>
       <AdminPageHeader
@@ -207,9 +245,23 @@ export function WorkforceCrudPage({
             </Button>
           ) : null
         }
-      />
+      >
+        {items.length > 5 ? (
+          <label className="relative flex h-10 items-center sm:w-80">
+            <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
+            <span className="sr-only">Search {title.toLowerCase()}</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`Search ${items.length} by name, email or ${parentField?.label.toLowerCase() ?? "role"}`}
+              className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
+          </label>
+        ) : null}
+      </AdminPageHeader>
       {formOpen ? (
-      <form onSubmit={handleSubmit} className="reveal-in grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
+      <form ref={formRef} onSubmit={handleSubmit} className="reveal-in grid scroll-mt-[calc(4.5rem+var(--page-head-h,0px))] gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
         <h2 className="font-semibold sm:col-span-2">{editingId ? `Edit ${form.name || singular}` : `New ${singular}`}</h2>
         {fields.map((field) => (
           <label key={field.key} className="grid gap-1.5 text-sm">
@@ -292,26 +344,13 @@ export function WorkforceCrudPage({
         </p>
       ) : null}
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-      {items.length > 5 ? (
-        <label className="relative flex h-10 items-center sm:w-80">
-          <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
-          <span className="sr-only">Search {title.toLowerCase()}</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Search ${items.length} by name, email or ${parentField?.label.toLowerCase() ?? "role"}`}
-            className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          />
-        </label>
-      ) : null}
       {loading ? <p className="text-sm text-muted-foreground">Loading…</p> : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-5 py-10 text-center">
           <p className="font-medium">No {title.toLowerCase()} yet</p>
           <p className="mt-1 text-sm text-muted-foreground">Add the first {singular} so they can be assigned to permits.</p>
         </div>
       ) : (
-        <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="table-box">
         <table className="min-w-full text-sm">
           <thead className="table-tone text-left text-xs">
             <tr className="border-b border-border">
@@ -336,77 +375,17 @@ export function WorkforceCrudPage({
                     {cell(item, field) || <span className="text-muted-foreground/60">Not set</span>}
                   </td>
                 ))}
-                <td className="px-4 py-3"><OrgStatusBadge status={item.status} /></td>
+                <td className="px-4 py-3"><OrgStatusBadge status={stateOf(item)} /></td>
                 <td className="px-4 py-3">
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditingId(item.id);
-                        setCreatedLogin(null);
-                        setForm(Object.fromEntries(fields.map((field) => [field.key, String((item as Record<string, unknown>)[field.key] ?? "")])));
-                        setFormOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    {!hasLogin ? null : item.status === "disabled" ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (!window.confirm(`Reactivate ${item.name}?`)) return;
-                          void (api as typeof employeesApi)
-                            .reactivate(item.id)
-                            .then(() => {
-                              toast(`${item.name} reactivated`);
-                              load();
-                            })
-                            .catch((err) => setError(err instanceof ApiError ? err.message : "Reactivate failed"));
-                        }}
-                      >
-                        Reactivate
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (!window.confirm(`Deactivate ${item.name}? They stay on this list but cannot sign in.`)) return;
-                          void (api as typeof employeesApi)
-                            .deactivate(item.id)
-                            .then(() => {
-                              toast(`${item.name} deactivated`);
-                              load();
-                            })
-                            .catch((err) => setError(err instanceof ApiError ? err.message : "Deactivate failed"));
-                        }}
-                      >
-                        Deactivate
-                      </Button>
-                    )}
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        if (!window.confirm(hasLogin ? `Delete ${item.name}? This removes the row and their login.` : `Delete ${item.name}?`)) return;
-                        void api
-                          .archive(item.id)
-                          .then(() => {
-                            toast(`${item.name} deleted`);
-                            load();
-                          })
-                          .catch((err) => setError(err instanceof ApiError ? err.message : "Delete failed"));
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </div>
+                  <RowActions
+                    actions={[
+                      { label: "Edit", onClick: () => startEdit(item) },
+                      stateOf(item) === "active"
+                        ? { label: "Deactivate", onClick: () => act(item, "deactivate") }
+                        : { label: "Activate", onClick: () => act(item, "activate") },
+                      { label: "Delete", danger: true, onClick: () => act(item, "delete") },
+                    ]}
+                  />
                 </td>
               </tr>
             ))}

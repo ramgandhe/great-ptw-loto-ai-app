@@ -52,6 +52,10 @@ export class CreateCompetencyDto {
   certificationName?: string;
 
   @IsOptional()
+  @IsIn(['active', 'inactive'])
+  status?: 'active' | 'inactive';
+
+  @IsOptional()
   @IsDateString({}, { message: 'startDate must be a date (YYYY-MM-DD)' })
   startDate?: string;
 

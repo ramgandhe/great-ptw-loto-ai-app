@@ -7,6 +7,8 @@ import { masterDataApi, type MasterDataRecord } from "@/lib/master-data/api";
 import { permitTemplatesApi, type PermitTemplate } from "@/lib/organisation/templates";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { RowActions } from "@/components/ui/row-actions";
+import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { toast } from "@/components/ui/toast";
 import { typeFamily } from "@/components/permit/permit-type-chip";
 import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
@@ -90,6 +92,18 @@ export default function PermitTypesPage() {
       setError(err instanceof ApiError ? err.message : "Failed to save permit type");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSetActive(item: MasterDataRecord, on: boolean) {
+    if (!on && !window.confirm(`Deactivate ${item.name}? It stays on this list but new permits cannot use it.`)) return;
+    setError(null);
+    try {
+      await masterDataApi.updatePermitType(item.id, { isActive: on });
+      toast(`Permit type ${item.name} ${on ? "activated" : "deactivated"}`);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : `${on ? "Activate" : "Deactivate"} failed`);
     }
   }
 
@@ -231,9 +245,9 @@ export default function PermitTypesPage() {
           <p className="mt-1 text-sm text-muted-foreground">Add the first permit type so people can raise permits.</p>
         </div>
       ) : (
-        <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="table-box">
           <table className="min-w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
+            <thead className="table-tone text-left text-xs">
               <tr className="border-b border-border">
                 <th className="px-4 py-2.5 font-medium">Name</th>
                 <th className="px-4 py-2.5 font-medium">Code</th>
@@ -249,7 +263,7 @@ export default function PermitTypesPage() {
               {items.map((item) => (
                 <tr
                   key={item.id}
-                  className={`cursor-pointer border-t border-border first:border-t-0 hover:bg-muted/40 ${editingId === item.id ? "bg-muted/60" : ""}`}
+                  className={`row-hover cursor-pointer border-t border-border first:border-t-0 ${editingId === item.id ? "bg-muted/60" : ""}`}
                   onClick={() => openForm(item)}
                 >
                   <td className="px-4 py-3 font-medium">
@@ -283,20 +297,19 @@ export default function PermitTypesPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{item.color ?? ""}</td>
-                  <td className="px-4 py-3">{item.isActive === false ? "Inactive" : "Active"}</td>
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-end gap-3">
-                      <button type="button" className="text-primary hover:underline" onClick={() => openForm(item)}>
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-destructive hover:underline"
-                        onClick={() => void handleDelete(item.id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
+                  <td className="px-4 py-3">
+                    <OrgStatusBadge status={item.isActive === false ? "inactive" : "active"} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <RowActions
+                      actions={[
+                        { label: "Edit", onClick: () => openForm(item) },
+                        item.isActive === false
+                          ? { label: "Activate", onClick: () => void handleSetActive(item, true) }
+                          : { label: "Deactivate", onClick: () => void handleSetActive(item, false) },
+                        { label: "Delete", danger: true, onClick: () => void handleDelete(item.id) },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}

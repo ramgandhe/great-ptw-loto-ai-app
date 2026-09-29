@@ -17,9 +17,9 @@ export function InvoiceTable({ invoices }: InvoiceTableProps) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="table-box">
       <table className="w-full min-w-[640px] text-left text-sm">
-        <thead className="border-b border-border bg-muted/40">
+        <thead className="table-tone border-b border-border">
           <tr>
             <th className="px-4 py-3 font-medium">Invoice</th>
             <th className="px-4 py-3 font-medium">Period</th>

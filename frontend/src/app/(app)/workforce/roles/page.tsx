@@ -1,5 +1,6 @@
 "use client";
 
+import { inUse } from "@/components/organisation/org-status-badge";
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
@@ -19,6 +20,8 @@ import { ASSIGNABLE_ROLES, rolesAssignableBy } from "@/lib/form-options";
 import { formatRoleLabel } from "@/lib/auth/rbac";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { RowActions } from "@/components/ui/row-actions";
+import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { copyText } from "@/lib/utils";
 import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
@@ -41,6 +44,7 @@ export default function UserRolesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
 
   function loadUsers() {
@@ -51,7 +55,7 @@ export default function UserRolesPage() {
 
   useEffect(() => {
     loadUsers().finally(() => setLoading(false));
-    departmentsApi.list().then((rows) => setDepartments(rows.map((row) => ({ id: row.id, name: row.name })))).catch(() => setDepartments([]));
+    departmentsApi.list().then((rows) => setDepartments(rows.filter(inUse).map((row) => ({ id: row.id, name: row.name })))).catch(() => setDepartments([]));
   }, []);
 
   function canManageUser(user: TenantUser) {
@@ -126,7 +130,7 @@ export default function UserRolesPage() {
   }
 
   async function handleReactivate(user: TenantUser) {
-    const confirmed = window.confirm(`Reactivate ${user.email ?? user.username}?`);
+    const confirmed = window.confirm(`Activate ${user.email ?? user.username}?`);
     if (!confirmed) {
       return;
     }
@@ -134,7 +138,7 @@ export default function UserRolesPage() {
     setError(null);
     try {
       await reactivateTenantUser(user.id);
-      toast(`${user.email ?? user.username} reactivated`);
+      toast(`${user.email ?? user.username} activated`);
       await loadUsers();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to reactivate user");
@@ -306,14 +310,14 @@ export default function UserRolesPage() {
             <p className="mt-1 text-sm text-muted-foreground">Add the first user so they can sign in.</p>
           </div>
         ) : (
-          <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
+          <div className="table-box">
             <table className="min-w-full text-sm">
-              <thead className="text-left text-xs text-muted-foreground">
+              <thead className="table-tone text-left text-xs">
                 <tr className="border-b border-border">
-                  <th className="px-4 py-2.5 font-medium">Name</th>
-                  <th className="px-4 py-2.5 font-medium">Status</th>
-                  <th className="px-4 py-2.5 font-medium">Role</th>
-                  <th className="px-4 py-2.5 font-medium">Department</th>
+                  <th className="px-4 py-2.5">Name</th>
+                  <th className="px-4 py-2.5">Role</th>
+                  <th className="px-4 py-2.5">Department</th>
+                  <th className="px-4 py-2.5">Status</th>
                   <th className="px-4 py-2.5 text-right font-medium">
                     <span className="sr-only">Actions</span>
                   </th>
@@ -325,8 +329,9 @@ export default function UserRolesPage() {
                   const canChangeRole = assignableRoles.some((option) => option.value === currentRole);
                   const manageable = canManageUser(user);
                   const busy = updatingId === user.id;
+                  const editing = manageable && editingUserId === user.id;
                   return (
-                    <tr key={user.id} className="border-t border-border first:border-t-0">
+                    <tr key={user.id} className="row-hover border-t border-border first:border-t-0">
                       <td className="px-4 py-3">
                         <span className="block font-medium">
                           {user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username}
@@ -334,14 +339,7 @@ export default function UserRolesPage() {
                         <span className="block text-xs text-muted-foreground">{user.email ?? user.username}</span>
                       </td>
                       <td className="px-4 py-3">
-                        {user.enabled ? (
-                          <span className="text-foreground">Active</span>
-                        ) : (
-                          <span className="text-muted-foreground">Inactive</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {canChangeRole && user.enabled ? (
+                        {editing && canChangeRole && user.enabled ? (
                           <select
                             value={currentRole}
                             disabled={busy}
@@ -359,7 +357,7 @@ export default function UserRolesPage() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {manageable ? (
+                        {editing ? (
                           <select
                             value={user.departmentId ?? ""}
                             disabled={busy}
@@ -388,36 +386,20 @@ export default function UserRolesPage() {
                         )}
                       </td>
                       <td className="px-4 py-3">
+                        <OrgStatusBadge status={user.enabled ? "active" : "disabled"} />
+                      </td>
+                      <td className="px-4 py-3">
                         {manageable ? (
-                          <div className="flex justify-end gap-3">
-                            {user.enabled ? (
-                              <button
-                                type="button"
-                                className="text-primary hover:underline disabled:opacity-50"
-                                disabled={busy}
-                                onClick={() => void handleDeactivate(user)}
-                              >
-                                Deactivate
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="text-primary hover:underline disabled:opacity-50"
-                                disabled={busy}
-                                onClick={() => void handleReactivate(user)}
-                              >
-                                Reactivate
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              className="text-muted-foreground hover:text-destructive hover:underline disabled:opacity-50"
-                              disabled={busy}
-                              onClick={() => void handleDelete(user)}
-                            >
-                              Delete
-                            </button>
-                          </div>
+                          <RowActions
+                            actions={[
+                              // Role and department change in place while editing; each change saves on its own.
+                              { label: editing ? "Done" : "Edit", disabled: busy, onClick: () => setEditingUserId(editing ? null : user.id) },
+                              user.enabled
+                                ? { label: "Deactivate", disabled: busy, onClick: () => void handleDeactivate(user) }
+                                : { label: "Activate", disabled: busy, onClick: () => void handleReactivate(user) },
+                              { label: "Delete", danger: true, disabled: busy, onClick: () => void handleDelete(user) },
+                            ]}
+                          />
                         ) : (
                           <span className="sr-only">No actions</span>
                         )}

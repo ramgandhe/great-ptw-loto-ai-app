@@ -8,6 +8,8 @@ export type OrgRecord = {
   category?: string | null;
   severity?: string | null;
   status?: string;
+  isActive?: boolean;
+  enabled?: boolean;
   parentId?: string | null;
   plantId?: string | null;
   departmentId?: string | null;

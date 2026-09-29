@@ -1,4 +1,5 @@
 import { getProfile } from "@/lib/auth/api";
+import { inUse } from "@/components/organisation/org-status-badge";
 import { machineryApi, workstationsApi } from "@/lib/organisation/api";
 import type { MachineryRecord } from "@/lib/organisation/types";
 import { listWorkforceDirectory } from "@/lib/workforce/api";
@@ -63,8 +64,8 @@ export async function loadLototoFormOptions(): Promise<LototoFormOptions> {
 
   return {
     permits,
-    workstations,
-    machinery,
+    workstations: workstations.filter(inUse),
+    machinery: machinery.filter(inUse),
     personnel: mergePersonnel(workforce, profile),
   };
 }

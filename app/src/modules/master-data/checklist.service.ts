@@ -135,6 +135,7 @@ export class ChecklistService {
           ...(dto.code !== undefined ? { code: dto.code.trim() } : {}),
           ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
           ...(dto.description !== undefined ? { description: dto.description } : {}),
+          ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
           updatedBy: user.id,
           updatedAt: new Date(),
         })
