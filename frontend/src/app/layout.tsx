@@ -66,7 +66,7 @@ const fontVariables = cn(
 );
 
 export const metadata: Metadata = {
-  title: { default: "PermitWiseAI", template: "%s · PermitWiseAI" },
+  title: "PermitWiseAI",
   description: "PermitWiseAI: permit-to-work, LOTOTO and safety management for industrial sites.",
   applicationName: "PermitWiseAI",
 };
