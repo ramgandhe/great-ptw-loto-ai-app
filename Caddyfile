@@ -2,10 +2,11 @@
 #
 # Usage: docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.caddy.yml up -d
 #
-# Later (domain): replace :80 with app.example.com, api.example.com, auth.example.com
-# and enable HTTPS (Caddy obtains certificates automatically).
+# Site addresses come from CADDY_SITES (default :80, plain http on any host).
+# With a domain, e.g. CADDY_SITES="permitwiseai.cloud, :80", Caddy gets a certificate for it,
+# redirects its http to https, and still serves the bare IP over http.
 
-:80 {
+{$CADDY_SITES::80} {
 	encode gzip
 
 	handle /api/* {

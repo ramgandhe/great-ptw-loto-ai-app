@@ -4,6 +4,7 @@
 #   export DEMO_API_URL=/api/v1   # same address as the page, so the IP and any domain both work
 #   export DEMO_AUTH_URL=http://<public-ip>
 #   export PUBLIC_ORIGIN=http://<public-ip>
+#   HTTPS for a domain: CADDY_SITES="example.com, :80" and MINIO_PUBLIC_URL=https://example.com
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.caddy.yml up -d --build
 #
 # When a domain is ready, point DNS here, change PUBLIC_ORIGIN / DEMO_* to https://...
@@ -14,6 +15,10 @@ services:
     image: caddy:2-alpine
     ports:
       - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      CADDY_SITES: ${CADDY_SITES:-:80}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -32,7 +37,7 @@ services:
       SECURITY_TRUST_PROXY: "true"
       APP_PUBLIC_URL: ${PUBLIC_ORIGIN:-http://127.0.0.1}
       # Evidence links go through Caddy (/ptw-documents/*) to MinIO.
-      MINIO_PUBLIC_URL: ${PUBLIC_ORIGIN:-http://127.0.0.1}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-${PUBLIC_ORIGIN:-http://127.0.0.1}}
 
   keycloak:
     environment:
