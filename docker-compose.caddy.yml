@@ -5,6 +5,7 @@
 #   export DEMO_AUTH_URL=http://<public-ip>
 #   export PUBLIC_ORIGIN=http://<public-ip>
 #   HTTPS for a domain: CADDY_SITES="example.com, :80" and MINIO_PUBLIC_URL=https://example.com
+#   (APP_PUBLIC_URL=https://example.com for emailed links; leave PUBLIC_ORIGIN, it is the sign-in issuer)
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.caddy.yml up -d --build
 #
 # When a domain is ready, point DNS here, change PUBLIC_ORIGIN / DEMO_* to https://...
@@ -35,7 +36,7 @@ services:
   api:
     environment:
       SECURITY_TRUST_PROXY: "true"
-      APP_PUBLIC_URL: ${PUBLIC_ORIGIN:-http://127.0.0.1}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-${PUBLIC_ORIGIN:-http://127.0.0.1}}
       # Evidence links go through Caddy (/ptw-documents/*) to MinIO.
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-${PUBLIC_ORIGIN:-http://127.0.0.1}}
 
