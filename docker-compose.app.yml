@@ -14,7 +14,7 @@ services:
     environment:
       NODE_ENV: development
       API_PORT: 4000
-      DATABASE_URL: postgresql://ptw:ptw_dev_password@postgres:5432/ptw_platform
+      DATABASE_URL: postgresql://ptw:${POSTGRES_PASSWORD:-ptw_dev_password}@postgres:5432/ptw_platform
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -23,8 +23,8 @@ services:
       RATE_LIMIT_LIMIT: ${RATE_LIMIT_LIMIT:-100}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-ptw_minio}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-ptw_minio_password}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-ptw_minio}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-ptw_minio_password}
       MINIO_BUCKET: ptw-documents
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_ISSUER: http://localhost:8080

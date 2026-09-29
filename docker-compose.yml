@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ptw
-      POSTGRES_PASSWORD: ptw_dev_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ptw_dev_password}
       POSTGRES_DB: ptw_platform
     ports:
       - "5432:5432"
@@ -39,8 +39,8 @@ services:
     image: chainguard/minio:latest
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ptw_minio
-      MINIO_ROOT_PASSWORD: ptw_minio_password
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ptw_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ptw_minio_password}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -60,9 +60,9 @@ services:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/ptw_platform
       KC_DB_USERNAME: ptw
-      KC_DB_PASSWORD: ptw_dev_password
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-ptw_dev_password}
       KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_HTTP_PORT: 8080
       # Fixed public address: tokens the API fetches over the internal network still carry
       # the issuer the API checks (the Caddy overlay sets the public origin instead).
@@ -103,7 +103,7 @@ services:
       MB_DB_DBNAME: ptw_platform
       MB_DB_PORT: 5432
       MB_DB_USER: ptw
-      MB_DB_PASS: ptw_dev_password
+      MB_DB_PASS: ${POSTGRES_PASSWORD:-ptw_dev_password}
       MB_DB_HOST: postgres
     depends_on:
       postgres:
@@ -117,7 +117,7 @@ services:
       - "4000:4000"
     environment:
       API_PORT: 4000
-      DATABASE_URL: postgresql://ptw:ptw_dev_password@postgres:5432/ptw_platform
+      DATABASE_URL: postgresql://ptw:${POSTGRES_PASSWORD:-ptw_dev_password}@postgres:5432/ptw_platform
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -128,8 +128,8 @@ services:
       MINIO_PORT: 9000
       # Credentials come from the environment (see .env.example); dev fallbacks
       # match the local minio service and are never production secrets.
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-ptw_minio}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-ptw_minio_password}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-ptw_minio}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-ptw_minio_password}
       MINIO_BUCKET: ptw-documents
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
       KEYCLOAK_URL: http://keycloak:8080
