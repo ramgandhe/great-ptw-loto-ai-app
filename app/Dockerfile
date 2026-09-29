@@ -22,5 +22,6 @@ COPY app/package.json app/
 RUN npm ci --workspace=api --workspace=@ptw/shared --include-workspace-root
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/app/dist ./app/dist
+COPY --from=builder /app/app/src/database/migrations ./app/dist/database/migrations
 EXPOSE 4000
 CMD ["node", "app/dist/main.js"]
