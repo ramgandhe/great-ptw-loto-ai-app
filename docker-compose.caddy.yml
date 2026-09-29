@@ -1,7 +1,7 @@
 # Reverse proxy on port 80. Combine with demo overlay for public URLs:
 #
 #   export DEMO_WEB_URL=http://<public-ip>
-#   export DEMO_API_URL=http://<public-ip>/api/v1
+#   export DEMO_API_URL=/api/v1   # same address as the page, so the IP and any domain both work
 #   export DEMO_AUTH_URL=http://<public-ip>
 #   export PUBLIC_ORIGIN=http://<public-ip>
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.caddy.yml up -d --build

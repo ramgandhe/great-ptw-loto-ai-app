@@ -4,7 +4,11 @@ import { createContext, useContext } from "react";
 import { usePathname } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 
-const HUBS: Record<string, string> = { organisation: "Organisation", workforce: "Workforce" };
+const HUBS: Record<string, { href: string; label: string }> = {
+  organisation: { href: "/organisation", label: "Organisation" },
+  workforce: { href: "/workforce", label: "Workforce" },
+  platform: { href: "/settings", label: "Settings" },
+};
 
 /** True when an admin page is rendered as a step inside the organisation setup wizard. */
 export const AdminEmbedContext = createContext(false);
@@ -49,7 +53,7 @@ export function AdminPageHeader({
   }
   return (
     <PageHeader
-      back={HUBS[hub] ? { href: `/${hub}`, label: HUBS[hub] } : undefined}
+      back={HUBS[hub]}
       title={title}
       description={description}
       actions={action}

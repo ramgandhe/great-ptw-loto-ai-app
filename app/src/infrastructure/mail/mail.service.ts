@@ -9,7 +9,9 @@ export type OutboundMail = {
 };
 
 export function redactMailText(text: string): string {
-  return text.replace(/Temporary password: \S+/gi, 'Temporary password: [redacted]');
+  return text
+    .replace(/Temporary password: \S+/gi, 'Temporary password: [redacted]')
+    .replace(/reset-password\?token=\S+/gi, 'reset-password?token=[redacted]');
 }
 
 @Injectable()

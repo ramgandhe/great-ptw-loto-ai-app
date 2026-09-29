@@ -67,6 +67,7 @@ export function usePreviousPage(pathname: string): string | null {
 
 /** Detail pages by pattern; list pages come from the menu. First match wins. */
 const PATTERNS: [RegExp, string][] = [
+  [/^\/settings$/, "Settings"],
   [/^\/permits\/new$/, "New permit"],
   [/^\/permits\/[^/]+\/(edit|journey|execute|preview|multi-day)$/, "Permit"],
   [/^\/permits\/[^/]+$/, "Permit"],

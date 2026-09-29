@@ -12,7 +12,14 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import { Throttle } from '@nestjs/throttler';
 import { Authenticated, Public } from '../../common/decorators/auth.decorators';
-import { FirstPasswordDto, RefreshSessionDto, SignInDto } from './dto/sign-in.dto';
+import {
+  FirstPasswordDto,
+  PasswordResetCompleteDto,
+  PasswordResetRequestDto,
+  RefreshSessionDto,
+  SignInDto,
+} from './dto/sign-in.dto';
+import { PasswordResetService } from './password-reset.service';
 import { SignInService } from './sign-in.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -24,7 +31,23 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly signInService: SignInService,
+    private readonly passwordResetService: PasswordResetService,
   ) {}
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('password-reset')
+  async requestPasswordReset(@Body() dto: PasswordResetRequestDto) {
+    await this.passwordResetService.request(dto.email);
+    return { sent: true };
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('password-reset/complete')
+  completePasswordReset(@Body() dto: PasswordResetCompleteDto) {
+    return this.passwordResetService.complete(dto.token, dto.newPassword);
+  }
 
   // Sign-in happens on the app's own page; these relay to Keycloak server side.
   @Public()

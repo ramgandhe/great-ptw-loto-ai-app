@@ -3,56 +3,13 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
+import { AUTH_FIELD, AUTH_LINK, PasswordInput } from "@/components/auth/password-input";
 import { BackLink } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { setFirstPassword, signIn } from "@/lib/auth/session";
 import { isAuthenticated } from "@/lib/auth/token-storage";
-import { cn } from "@/lib/utils";
-
-const FIELD =
-  "h-11 w-full rounded-lg border border-input bg-background px-3 text-base outline-none transition-shadow focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive";
-
-/** Password input with a show/hide toggle, so long passwords can be checked before sending. */
-function PasswordInput({
-  id,
-  value,
-  onChange,
-  autoComplete,
-  invalid,
-}: {
-  id: string;
-  value: string;
-  onChange: (value: string) => void;
-  autoComplete: string;
-  invalid?: boolean;
-}) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <div className="relative">
-      <input
-        id={id}
-        type={visible ? "text" : "password"}
-        required
-        autoComplete={autoComplete}
-        value={value}
-        aria-invalid={invalid || undefined}
-        onChange={(e) => onChange(e.target.value)}
-        className={cn(FIELD, "pr-11")}
-      />
-      <button
-        type="button"
-        onClick={() => setVisible((v) => !v)}
-        aria-label={visible ? "Hide password" : "Show password"}
-        aria-pressed={visible}
-        className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        {visible ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
-      </button>
-    </div>
-  );
-}
 
 function LoginContent() {
   const router = useRouter();
@@ -94,7 +51,6 @@ function LoginContent() {
   }
 
   const newPasswordStep = step === "new-password";
-  const linkColour = "font-semibold text-[color-mix(in_oklab,var(--accent-primary)_85%,var(--foreground))] hover:underline";
 
   return (
     <div className="flex flex-col gap-7">
@@ -148,13 +104,18 @@ function LoginContent() {
                 autoFocus={!email}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={FIELD}
+                className={AUTH_FIELD}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
+              <span className="flex items-baseline justify-between gap-3">
+                <label htmlFor="password" className="text-sm font-medium">
+                  Password
+                </label>
+                <Link href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`} className={`text-sm ${AUTH_LINK}`}>
+                  Forgot password?
+                </Link>
+              </span>
               <PasswordInput id="password" value={password} onChange={setPassword} autoComplete="current-password" invalid={Boolean(error)} />
             </div>
           </>
@@ -190,8 +151,8 @@ function LoginContent() {
 
       {!newPasswordStep ? (
         <p className="border-t border-border pt-5 text-sm text-muted-foreground">
-          Forgot your password? Ask your organisation administrator to reset it. New to the platform?{" "}
-          <Link href="/register" className={linkColour}>
+          New to the platform?{" "}
+          <Link href="/register" className={AUTH_LINK}>
             Request access
           </Link>
         </p>

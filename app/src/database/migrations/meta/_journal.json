@@ -351,6 +351,13 @@
       "when": 1759600000000,
       "tag": "0049_gas_testing_active",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1759700000000,
+      "tag": "0050_password_reset_tokens",
+      "breakpoints": true
     }
   ]
 }

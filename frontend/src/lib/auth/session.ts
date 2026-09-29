@@ -30,6 +30,16 @@ export async function setFirstPassword(email: string, password: string, newPassw
   saveTokens(await post<Session>("/auth/sign-in/new-password", { email, password, newPassword }));
 }
 
+/** Emails a one-time reset link if the address has an account; the answer is the same either way. */
+export async function requestPasswordReset(email: string) {
+  await post("/auth/password-reset", { email });
+}
+
+/** Uses the emailed link, sets the new password and signs in. */
+export async function completePasswordReset(token: string, newPassword: string) {
+  saveTokens(await post<Session>("/auth/password-reset/complete", { token, newPassword }));
+}
+
 export async function refreshAccessToken(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;

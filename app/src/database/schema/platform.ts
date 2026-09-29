@@ -82,3 +82,20 @@ export const accessRequests = pgTable(
     index('access_requests_work_email_idx').on(table.workEmail),
   ],
 );
+
+/** One-time links for "forgot password". Only the SHA-256 of the token is stored. */
+export const passwordResetTokens = pgTable(
+  'password_reset_tokens',
+  {
+    ...auditColumns,
+    keycloakUserId: varchar('keycloak_user_id', { length: 128 }).notNull(),
+    email: varchar('email', { length: 255 }).notNull(),
+    tokenHash: varchar('token_hash', { length: 64 }).notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('password_reset_tokens_hash_unique').on(table.tokenHash),
+    index('password_reset_tokens_user_idx').on(table.keycloakUserId),
+  ],
+);
