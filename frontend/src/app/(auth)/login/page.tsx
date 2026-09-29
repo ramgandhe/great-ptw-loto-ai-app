@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
+import { BackLink } from "@/components/layout/page-header";
 import { cn } from "@/lib/utils";
 import { startKeycloakLogin } from "@/lib/auth/keycloak";
 
@@ -26,6 +27,7 @@ function LoginContent() {
   return (
     <div className="flex flex-col gap-6">
       <div>
+        <BackLink href="/" label="Back to home" />
         <h1 className="text-xl font-semibold">Sign in</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           You will be redirected to Keycloak in this tab to sign in.
@@ -49,10 +51,7 @@ function LoginContent() {
         Sign in as a different user
       </button>
       <p className="text-xs text-muted-foreground">
-        Keycloak must be running at{" "}
-        <code className="rounded bg-muted px-1">http://localhost:8080</code>.
-        If you keep landing as admin, use <strong>Sign in as a different user</strong>{" "}
-        or sign out from Settings first.
+        Signed in as the wrong person? Use <strong>Sign in as a different user</strong>.
       </p>
     </div>
   );

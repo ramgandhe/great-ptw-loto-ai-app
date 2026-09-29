@@ -5,8 +5,10 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
 } from 'class-validator';
+import { TEXT_MESSAGE, TEXT_REGEX } from '../../../common/validation';
 import {
   ACTION_STATUSES,
   INCIDENT_PRIORITIES,
@@ -34,11 +36,13 @@ export class RootCauseAnalysisDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(8000)
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('description') })
   description!: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(8000)
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('findings') })
   findings?: string;
 }
 
@@ -46,11 +50,13 @@ export class CorrectiveActionDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('title') })
   title!: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(8000)
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('description') })
   description?: string;
 
   @IsUUID()
@@ -64,11 +70,13 @@ export class PreventiveActionDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('title') })
   title!: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(8000)
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('description') })
   description?: string;
 
   @IsUUID()
@@ -87,6 +95,7 @@ export class UpdateCorrectiveActionDto {
   @IsOptional()
   @IsString()
   @MaxLength(8000)
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('description') })
   description?: string;
 
   @IsOptional()

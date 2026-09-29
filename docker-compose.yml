@@ -127,6 +127,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-ptw_minio}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-ptw_minio_password}
       MINIO_BUCKET: ptw-documents
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_ISSUER: http://localhost:8080
       KEYCLOAK_REALM: ptw-platform

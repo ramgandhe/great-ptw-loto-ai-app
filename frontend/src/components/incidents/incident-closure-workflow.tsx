@@ -5,6 +5,10 @@ import { ApiError } from "@/lib/api";
 import { closeIncident, verifyIncident } from "@/lib/incidents/api";
 import type { IncidentStatus } from "@/lib/incidents/types";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
+import { useAuthProfile } from "@/lib/auth/auth-profile-context";
+import { hasAnyRole } from "@/lib/auth/rbac";
+import { INCIDENT_CLOSE_ROLES, INCIDENT_VERIFY_ROLES } from "@/lib/auth/roles";
 
 type IncidentClosureWorkflowProps = {
   incidentId: string;
@@ -21,6 +25,7 @@ export function IncidentClosureWorkflow({
   investigationCompleted = false,
   onUpdated,
 }: IncidentClosureWorkflowProps) {
+  const { roles } = useAuthProfile();
   const [comments, setComments] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,23 +38,27 @@ export function IncidentClosureWorkflow({
     verifiedLocally;
   const canVerify =
     !isVerified &&
-    (status === "investigating" || status === "pending_verification");
-  const canClose = isVerified && status !== "closed";
+    (status === "investigating" || status === "pending_verification") &&
+    hasAnyRole(roles, INCIDENT_VERIFY_ROLES);
+  const canClose = isVerified && status !== "closed" && hasAnyRole(roles, INCIDENT_CLOSE_ROLES);
 
   if (status === "closed") {
     return (
-      <section className="rounded-lg border border-border p-4">
-        <h2 className="text-lg font-medium">Closure</h2>
-        <p className="mt-2 text-sm text-muted-foreground">This incident is closed.</p>
+      <section className="rounded-xl border border-border bg-card p-4">
+        <h2 className="font-heading text-lg font-semibold">Closed</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          This incident is closed and archived. It is listed under Incidents › Closed.
+        </p>
       </section>
     );
   }
 
-  async function runAction(action: () => Promise<unknown>) {
+  async function runAction(action: () => Promise<unknown>, done: string) {
     setIsSubmitting(true);
     setError(null);
     try {
       await action();
+      toast(done);
       await onUpdated();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Action failed");
@@ -59,12 +68,12 @@ export function IncidentClosureWorkflow({
   }
 
   return (
-    <section className="space-y-3 rounded-lg border border-border p-4">
-      <h2 className="text-lg font-medium">Verification & closure</h2>
+    <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <h2 className="font-heading text-lg font-semibold">Verification and closure</h2>
 
       {status === "open" ? (
         <p className="text-sm text-muted-foreground">
-          Assign an investigation above before this incident can be verified and closed.
+          Assign an investigator above before this incident can be verified and closed.
         </p>
       ) : null}
 
@@ -107,7 +116,7 @@ export function IncidentClosureWorkflow({
                 comments: comments.trim() || undefined,
               });
               setVerifiedLocally(true);
-            })
+            }, "Incident verified")
           }
         >
           Verify incident
@@ -120,6 +129,7 @@ export function IncidentClosureWorkflow({
           onClick={() =>
             runAction(() =>
               closeIncident(incidentId, { comments: comments.trim() || undefined }),
+              "Incident closed and archived",
             )
           }
         >

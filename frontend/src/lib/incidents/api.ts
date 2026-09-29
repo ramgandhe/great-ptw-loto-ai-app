@@ -1,4 +1,4 @@
-import { ApiError, fetchApi, getApiBaseUrl } from "@/lib/api";
+import { fetchApi } from "@/lib/api";
 import type {
   ArchivedIncident,
   AssignInvestigationPayload,
@@ -48,25 +48,7 @@ export async function uploadIncidentEvidence(id: string, file: File, comment?: s
     formData.append("comment", comment);
   }
 
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("ptw_access_token") : null;
-
-  const response = await fetch(`${getApiBaseUrl()}/incidents/${id}/evidence`, {
-    method: "POST",
-    body: formData,
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-
-  const body = await response.json();
-  if (!response.ok || body.success === false) {
-    throw new ApiError(
-      body.error?.message ?? "Evidence upload failed",
-      body.error?.code,
-      body.error?.details,
-    );
-  }
-
-  return body.data as IncidentEvidence;
+  return fetchApi<IncidentEvidence>(`/incidents/${id}/evidence`, { method: "POST", body: formData });
 }
 
 export function assignInvestigation(incidentId: string, payload: AssignInvestigationPayload) {
@@ -135,4 +117,16 @@ export function listIncidentArchive(params?: { reference?: string; incidentType?
 
 export function getIncidentHistory(incidentId: string) {
   return fetchApi<IncidentHistoryResponse>(`/incidents/${incidentId}/history`);
+}
+
+/** Near misses: the HOD decides whether work continues while it is investigated. */
+export function recordHodDecision(incidentId: string, payload: { decision: "continue" | "stop"; comment?: string }) {
+  return fetchApi<IncidentDetail>(`/incidents/${incidentId}/hod-decision`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getIncidentEvidenceUrl(incidentId: string, evidenceId: string) {
+  return fetchApi<{ url: string; expiresInSeconds: number }>(`/incidents/${incidentId}/evidence/${evidenceId}/download-url`);
 }

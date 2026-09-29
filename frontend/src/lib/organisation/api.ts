@@ -4,6 +4,8 @@ import type { MachineryRecord, NotificationPreference, Organisation, OrgRecord }
 function crud<T extends OrgRecord>(basePath: string) {
   return {
     list: () => fetchApi<T[]>(basePath),
+    /** Archived records (plants, departments, locations, workflows). */
+    listArchived: () => fetchApi<T[]>(`${basePath}?archived=true`),
     get: (id: string) => fetchApi<T>(`${basePath}/${id}`),
     create: (payload: Partial<T>) =>
       fetchApi<T>(basePath, { method: "POST", body: JSON.stringify(payload) }),

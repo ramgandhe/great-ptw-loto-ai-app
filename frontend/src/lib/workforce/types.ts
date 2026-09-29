@@ -17,6 +17,7 @@ export type CompetencyRecord = {
   name: string;
   workforceUserId?: string | null;
   certificationName?: string | null;
+  startDate?: string | null;
   expiryDate?: string | null;
   status?: string;
   description?: string | null;

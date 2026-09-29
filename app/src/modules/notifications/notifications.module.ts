@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { KeycloakAdminModule } from '../../infrastructure/keycloak/keycloak-admin.module';
 import { LoggingModule } from '../logging/logging.module';
 import { CanonicalNotificationService } from './canonical-notification.service';
 import { DeliveryService } from './delivery.service';
@@ -11,7 +12,7 @@ import { NotificationsService } from './notifications.service';
 import { ReminderService } from './reminder.service';
 
 @Module({
-  imports: [LoggingModule],
+  imports: [LoggingModule, KeycloakAdminModule],
   controllers: [NotificationsController],
   providers: [
     NotificationsService,

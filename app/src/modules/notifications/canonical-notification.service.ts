@@ -1,10 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, inArray } from 'drizzle-orm';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { permits, type NotificationEventType } from '../../database/schema';
+import {
+  permits,
+  tenantUsers,
+  workflowAssignments,
+  workflowSteps,
+  type NotificationEventType,
+} from '../../database/schema';
 import type { ApprovalNotificationPayload } from '../approval/notification.service';
 import type { LototoNotificationPayload } from '../lototo/notification.service';
 import type { ValidityNotificationPayload } from '../revalidation/revalidation-notification.service';
+import { KeycloakAdminService } from '../../infrastructure/keycloak/keycloak-admin.service';
 import { NotificationsService } from './notifications.service';
 
 @Injectable()
@@ -12,6 +19,7 @@ export class CanonicalNotificationService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly notificationsService: NotificationsService,
+    private readonly keycloakAdmin: KeycloakAdminService,
   ) {}
 
   async fromApprovalPayload(payload: ApprovalNotificationPayload): Promise<void> {
@@ -20,22 +28,31 @@ export class CanonicalNotificationService {
       return;
     }
 
-    const recipients = await this.resolvePermitRecipients(
-      payload.permitId,
-      payload.tenantId,
-      payload.actorId,
-    );
+    // Waiting for approval (submitted, or moved to the next stage): tell the people who approve next.
+    const awaitingApproval = eventType === 'permit_submitted';
+    const recipients = awaitingApproval
+      ? await this.resolveNextApprovers(payload.permitId, payload.tenantId, payload.actorId)
+      : await this.resolvePermitRecipients(payload.permitId, payload.tenantId, payload.actorId);
+    if (recipients.length === 0) {
+      return;
+    }
+    const [permit] = await this.db
+      .select({ reference: permits.reference, title: permits.title })
+      .from(permits)
+      .where(and(eq(permits.id, payload.permitId), eq(permits.tenantId, payload.tenantId)));
+    const name = permit ? `${permit.reference ?? 'Permit'}: ${permit.title}` : 'A permit';
 
     await this.notificationsService.generateSystem(payload.tenantId, payload.actorId, {
       eventType,
       category: 'workflow',
       priority: payload.action === 'safety_veto' ? 'high' : 'medium',
       title: this.approvalTitle(payload.action),
-      body: this.approvalBody(payload),
+      body: awaitingApproval ? `${name} is waiting for your approval.` : `${name} was ${payload.action.replace('_', ' ')}.`,
       recipientUserIds: recipients,
       entityType: 'permit',
       entityId: payload.permitId,
-      dedupeKey: `${payload.tenantId}:permit:${payload.permitId}:${eventType}:${payload.action}`,
+      // Each submission and each stage is its own message; retries of the same job stay deduplicated.
+      dedupeKey: `${payload.tenantId}:permit:${payload.permitId}:${eventType}:${payload.action}:${String(payload.metadata?.workflowStepId ?? payload.metadata?.submittedAt ?? '')}`,
       sourceModule: 'approval',
     });
   }
@@ -165,6 +182,10 @@ export class CanonicalNotificationService {
         return 'permit_rejected';
       case 'deferred':
         return 'permit_deferred';
+      case 'submitted':
+      case 'resubmitted':
+      case 'stage_advanced':
+        return 'permit_submitted';
       default:
         return null;
     }
@@ -180,13 +201,49 @@ export class CanonicalNotificationService {
         return 'Permit deferred';
       case 'safety_veto':
         return 'Permit vetoed by Safety Officer';
+      case 'submitted':
+      case 'resubmitted':
+      case 'stage_advanced':
+        return 'Permit waiting for your approval';
       default:
         return 'Permit workflow update';
     }
   }
 
-  private approvalBody(payload: ApprovalNotificationPayload): string {
-    return `Permit workflow action "${payload.action}" was recorded.`;
+  /**
+   * People holding the role of the active approval stage. An HOD only hears about their own
+   * department (or every department when they have none), matching what their queue shows.
+   */
+  private async resolveNextApprovers(permitId: string, tenantId: string, actorId: string): Promise<string[]> {
+    const active = await this.db
+      .select({ role: workflowSteps.approverRole, slot: workflowAssignments.assignmentSlot })
+      .from(workflowAssignments)
+      .innerJoin(workflowSteps, eq(workflowAssignments.workflowStepId, workflowSteps.id))
+      .where(and(eq(workflowAssignments.permitId, permitId), eq(workflowAssignments.status, 'active')));
+    const roles = [...new Set(active.map((row) => (row.slot && row.slot !== 'default' ? row.slot : row.role)))];
+    if (roles.length === 0) {
+      return [];
+    }
+    const [permit] = await this.db
+      .select({ departmentId: permits.departmentId })
+      .from(permits)
+      .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
+    // Roles live in Keycloak (seeded and invited users alike); departments live on tenant_users.
+    const [people, departments] = await Promise.all([
+      this.keycloakAdmin.listUsersForTenant(tenantId).catch(() => []),
+      this.db
+        .select({ id: tenantUsers.keycloakUserId, departmentId: tenantUsers.departmentId })
+        .from(tenantUsers)
+        .where(eq(tenantUsers.tenantId, tenantId)),
+    ]);
+    const departmentOf = new Map(departments.map((row) => [row.id, row.departmentId]));
+    return people
+      .filter((person) => person.enabled && person.id !== actorId && person.roles.some((role) => roles.includes(role)))
+      .filter((person) => {
+        const department = departmentOf.get(person.id);
+        return !permit?.departmentId || !department || department === permit.departmentId;
+      })
+      .map((person) => person.id);
   }
 
   private async resolvePermitRecipients(

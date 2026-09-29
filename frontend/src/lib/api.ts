@@ -26,13 +26,15 @@ export async function fetchApi<T>(
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...requestInit,
     headers: {
-      "Content-Type": "application/json",
+      // Multipart bodies set their own boundary header.
+      ...(requestInit.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...requestInit.headers,
     },
   });
 
-  const body = await response.json();
+  // A proxy error page or empty body is not JSON: report the HTTP status instead of a network error.
+  const body = await response.json().catch(() => ({ success: false, error: { message: `The server answered ${response.status}. Try again in a moment.` } }));
 
   if (response.status === 401 && !retried && !skipAuth && typeof window !== "undefined") {
     const refreshed = await refreshAccessToken();

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { SegmentedToggle } from "@/components/ui/toggle-group";
+import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import {
@@ -26,7 +28,7 @@ export default function ChecklistsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [view, setView] = useState<"active" | "archived">("active");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -60,7 +62,6 @@ export default function ChecklistsPage() {
         : emptyForm,
     );
     setError(null);
-    setSavedMessage(null);
     setFormOpen(true);
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   }
@@ -124,7 +125,7 @@ export default function ChecklistsPage() {
       } else {
         await checklistsApi.create(payload);
       }
-      setSavedMessage(`${editingId ? "Saved" : "Added"} ${payload.name}.`);
+      toast(`${payload.name} ${editingId ? "saved" : "added"}`);
       resetForm();
       await load();
     } catch (err) {
@@ -135,12 +136,14 @@ export default function ChecklistsPage() {
   }
 
   async function handleArchive(id: string) {
-    if (!window.confirm("Archive this checklist?")) {
+    const name = items.find((bundle) => bundle.checklist.id === id)?.checklist.name ?? "this checklist";
+    if (!window.confirm(`Archive ${name}? It can no longer be attached to permits and moves to the Archived view.`)) {
       return;
     }
     setError(null);
     try {
       await checklistsApi.archive(id);
+      toast(`${name} archived`);
       if (editingId === id) {
         resetForm();
       }
@@ -165,11 +168,16 @@ export default function ChecklistsPage() {
         }
       />
 
-      {savedMessage ? (
-        <p role="status" className="text-sm font-medium text-(--status-success)">
-          {savedMessage}
-        </p>
-      ) : null}
+      <SegmentedToggle
+        label="Show"
+        value={view}
+        onChange={(v) => setView(v as "active" | "archived")}
+        options={[
+          { value: "active", label: "Active", count: items.filter((b) => b.checklist.status !== "archived").length },
+          { value: "archived", label: "Archived", count: items.filter((b) => b.checklist.status === "archived").length },
+        ]}
+        className="self-start"
+      />
 
       {formOpen ? (
         <form
@@ -274,7 +282,7 @@ export default function ChecklistsPage() {
       ) : (
         <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
           <table className="min-w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
+            <thead className="table-tone text-left text-xs">
               <tr className="border-b border-border">
                 <th className="px-4 py-2.5 font-medium">Name</th>
                 <th className="px-4 py-2.5 font-medium">Code</th>
@@ -286,13 +294,16 @@ export default function ChecklistsPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((bundle) => {
+              {items
+                .filter((bundle) => (bundle.checklist.status === "archived") === (view === "archived"))
+                .map((bundle) => {
+                const archived = bundle.checklist.status === "archived";
                 const mandatory = bundle.items.filter((item) => item.isMandatory).length;
                 return (
                   <tr
                     key={bundle.checklist.id}
                     className={`cursor-pointer border-t border-border first:border-t-0 hover:bg-muted/40 ${editingId === bundle.checklist.id ? "bg-muted/60" : ""}`}
-                    onClick={() => openForm(bundle)}
+                    onClick={() => (archived ? undefined : openForm(bundle))}
                   >
                     <td className="px-4 py-3">
                       <span className="block font-medium">{bundle.checklist.name}</span>
@@ -312,6 +323,8 @@ export default function ChecklistsPage() {
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-3">
+                        {archived ? null : (
+                          <>
                         <button type="button" className="text-primary hover:underline" onClick={() => openForm(bundle)}>
                           Edit
                         </button>
@@ -322,6 +335,8 @@ export default function ChecklistsPage() {
                         >
                           Archive
                         </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

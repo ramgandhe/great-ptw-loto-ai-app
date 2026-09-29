@@ -153,8 +153,9 @@ export class WorkforceService {
       .values({
         tenantId,
         name: dto.name.trim(),
-        workforceUserId: dto.workforceUserId ?? null,
+        workforceUserId: dto.workforceUserId || null,
         certificationName: dto.certificationName,
+        startDate: dto.startDate,
         expiryDate: dto.expiryDate,
         description: dto.description,
         createdBy: user.id,
@@ -173,8 +174,9 @@ export class WorkforceService {
       .update(competencies)
       .set({
         ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-        ...(dto.workforceUserId !== undefined ? { workforceUserId: dto.workforceUserId ?? null } : {}),
+        ...(dto.workforceUserId !== undefined ? { workforceUserId: dto.workforceUserId || null } : {}),
         ...(dto.certificationName !== undefined ? { certificationName: dto.certificationName } : {}),
+        ...(dto.startDate !== undefined ? { startDate: dto.startDate } : {}),
         ...(dto.expiryDate !== undefined ? { expiryDate: dto.expiryDate } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
         updatedBy: user.id,
@@ -293,8 +295,8 @@ export class WorkforceService {
         ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
         ...(dto.email !== undefined ? { email: dto.email } : {}),
         ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
-        ...(dto.departmentId !== undefined ? { departmentId: dto.departmentId ?? null } : {}),
-        ...(dto.agencyId !== undefined ? { agencyId: dto.agencyId ?? null } : {}),
+        ...(dto.departmentId !== undefined ? { departmentId: dto.departmentId || null } : {}),
+        ...(dto.agencyId !== undefined ? { agencyId: dto.agencyId || null } : {}),
         updatedBy: user.id,
         updatedAt: new Date(),
       })

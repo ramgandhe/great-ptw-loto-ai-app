@@ -71,6 +71,7 @@ export class KeycloakAdminService {
     }
 
     const token = await this.adminToken();
+    await this.allowTenantAttribute(token);
     const createResponse = await fetch(`${this.realmUrl()}/users`, {
       method: 'POST',
       headers: {
@@ -126,6 +127,53 @@ export class KeycloakAdminService {
     const users = (await response.json()) as KeycloakUser[];
     const inTenant = users.filter((user) => this.readTenantId(user) === tenantId);
     return Promise.all(inTenant.map((user) => this.toTenantUser(token, user)));
+  }
+
+  /**
+   * Keycloak 24+ drops attributes the user profile does not declare, so `tenant_id` sent on
+   * create was silently lost and those users had no organisation. Admin-editable unmanaged
+   * attributes keep it (users cannot change it themselves). Checked once per process.
+   */
+  private tenantAttributeAllowed = false;
+  private async allowTenantAttribute(token: string): Promise<void> {
+    if (this.tenantAttributeAllowed) {
+      return;
+    }
+    const url = `${this.realmUrl()}/users/profile`;
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) {
+      throw this.unavailable('Failed to read the Keycloak user profile', await response.text());
+    }
+    const profile = (await response.json()) as { unmanagedAttributePolicy?: string };
+    if (!profile.unmanagedAttributePolicy) {
+      const update = await fetch(url, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...profile, unmanagedAttributePolicy: 'ADMIN_EDIT' }),
+      });
+      if (!update.ok) {
+        throw this.unavailable('Failed to update the Keycloak user profile', await update.text());
+      }
+    }
+    this.tenantAttributeAllowed = true;
+  }
+
+  /** Puts back `tenant_id` on a login that lost it (see allowTenantAttribute). No-op when already set. */
+  async ensureTenantAttribute(userId: string, tenantId: string): Promise<void> {
+    const token = await this.adminToken();
+    await this.allowTenantAttribute(token);
+    const user = await this.getUser(token, userId);
+    if (this.readTenantId(user)) {
+      return;
+    }
+    const response = await fetch(`${this.realmUrl()}/users/${userId}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...user, attributes: { ...(user.attributes ?? {}), tenant_id: [tenantId] } }),
+    });
+    if (!response.ok) {
+      throw this.unavailable('Failed to set the user organisation', await response.text());
+    }
   }
 
   async setUserRoleInTenant(userId: string, tenantId: string, role: string): Promise<void> {

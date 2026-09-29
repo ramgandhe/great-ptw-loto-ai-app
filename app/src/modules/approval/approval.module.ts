@@ -29,6 +29,7 @@ import { WorkflowEngineService } from './workflow-engine.service';
   ],
   exports: [
     ApprovalService,
+    NotificationService,
     WorkflowEngineService,
     ApprovalHistoryService,
     ApprovalCacheService,

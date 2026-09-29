@@ -6,6 +6,8 @@ import * as Minio from 'minio';
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private client!: Minio.Client;
+  /** Signs browser links for the public MinIO address; no network calls (region is fixed). */
+  private signer!: Minio.Client;
   private bucket!: string;
 
   constructor(private readonly configService: ConfigService) {}
@@ -16,6 +18,21 @@ export class StorageService implements OnModuleInit {
       endPoint: this.configService.get<string>('minio.endPoint')!,
       port: this.configService.get<number>('minio.port')!,
       useSSL: this.configService.get<boolean>('minio.useSSL')!,
+      accessKey: this.configService.get<string>('minio.accessKey')!,
+      secretKey: this.configService.get<string>('minio.secretKey')!,
+    });
+    const publicUrl = this.configService.get<string>('minio.publicUrl');
+    if (!publicUrl) {
+      this.signer = this.client;
+      return;
+    }
+    const url = new URL(publicUrl);
+    const useSSL = url.protocol === 'https:';
+    this.signer = new Minio.Client({
+      endPoint: url.hostname,
+      port: url.port ? Number(url.port) : useSSL ? 443 : 80,
+      useSSL,
+      region: 'us-east-1',
       accessKey: this.configService.get<string>('minio.accessKey')!,
       secretKey: this.configService.get<string>('minio.secretKey')!,
     });
@@ -73,10 +90,10 @@ export class StorageService implements OnModuleInit {
   }
 
   async presignedGetObject(key: string, expirySeconds: number): Promise<string> {
-    return this.client.presignedGetObject(this.bucket, key, expirySeconds);
+    return this.signer.presignedGetObject(this.bucket, key, expirySeconds);
   }
 
   async presignedPutObject(key: string, expirySeconds: number): Promise<string> {
-    return this.client.presignedPutObject(this.bucket, key, expirySeconds);
+    return this.signer.presignedPutObject(this.bucket, key, expirySeconds);
   }
 }

@@ -223,7 +223,7 @@ function ReportsView() {
                 </ul>
                 <table className="hidden min-w-[56rem] w-full text-left text-sm md:table">
                   <caption className="sr-only">Permit register, last {periodLabel}</caption>
-                  <thead className="table-head text-xs">
+                  <thead className="table-tone text-xs">
                     <tr className="border-b border-border">
                       <SortHeader column="reference" label="Reference" sort={sort} onSort={onSort} />
                       <SortHeader column="title" label="Permit" sort={sort} onSort={onSort} />
@@ -303,7 +303,7 @@ function ReportsView() {
                 </ul>
                 <table className="hidden min-w-[48rem] w-full text-left text-sm md:table">
                   <caption className="sr-only">Incident register, last {periodLabel}</caption>
-                  <thead className="table-head text-xs">
+                  <thead className="table-tone text-xs">
                     <tr className="border-b border-border">
                       <SortHeader column="reference" label="Reference" sort={sort} onSort={onSort} />
                       <SortHeader column="title" label="Incident" sort={sort} onSort={onSort} />

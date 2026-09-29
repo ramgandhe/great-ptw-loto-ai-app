@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -62,8 +63,8 @@ export class PlantController {
 
   @Roles(...ORGANISATION_READ_ROLES)
   @Get()
-  findAll(@CurrentUser() user: AuthenticatedUser) {
-    return this.organisationService.listPlants(user);
+  findAll(@CurrentUser() user: AuthenticatedUser, @Query('archived') archived?: string) {
+    return this.organisationService.listPlants(user, archived === 'true');
   }
 
   @Roles(...ORGANISATION_READ_ROLES)
@@ -101,8 +102,8 @@ export class DepartmentController {
 
   @Roles(...ORGANISATION_READ_ROLES)
   @Get()
-  findAll(@CurrentUser() user: AuthenticatedUser) {
-    return this.organisationService.listDepartments(user);
+  findAll(@CurrentUser() user: AuthenticatedUser, @Query('archived') archived?: string) {
+    return this.organisationService.listDepartments(user, archived === 'true');
   }
 
   @Roles(...ORGANISATION_READ_ROLES)
@@ -140,8 +141,8 @@ export class LocationController {
 
   @Roles(...ORGANISATION_READ_ROLES)
   @Get()
-  findAll(@CurrentUser() user: AuthenticatedUser) {
-    return this.organisationService.listLocations(user);
+  findAll(@CurrentUser() user: AuthenticatedUser, @Query('archived') archived?: string) {
+    return this.organisationService.listLocations(user, archived === 'true');
   }
 
   @Roles(...ORGANISATION_READ_ROLES)
@@ -179,8 +180,8 @@ export class ApprovalWorkflowController {
 
   @Roles(...ORGANISATION_READ_ROLES)
   @Get()
-  findAll(@CurrentUser() user: AuthenticatedUser) {
-    return this.organisationService.listWorkflows(user);
+  findAll(@CurrentUser() user: AuthenticatedUser, @Query('archived') archived?: string) {
+    return this.organisationService.listWorkflows(user, archived === 'true');
   }
 
   @Roles(...ORGANISATION_READ_ROLES)

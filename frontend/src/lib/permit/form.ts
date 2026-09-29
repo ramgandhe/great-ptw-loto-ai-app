@@ -219,6 +219,7 @@ export function validateStep(form: PermitFormState, step: number, templates: Per
   }
 
   if (step === 1) {
+    if (!form.departmentId.trim()) errors.push("Department is required");
     if (!form.locationId.trim()) errors.push("Location is required");
     if (!form.plannedStartAt) errors.push("Planned start date and time are required");
     if (!form.plannedEndAt) errors.push("Planned end date and time are required");

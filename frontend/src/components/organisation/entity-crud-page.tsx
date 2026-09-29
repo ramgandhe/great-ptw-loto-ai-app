@@ -19,7 +19,14 @@ import type { EntityField, OrgRecord } from "@/lib/organisation/types";
 import { loadEntitySelectOptions, type EntitySelectResource } from "@/lib/form-options";
 import { OrgStatusBadge } from "./org-status-badge";
 import { Button } from "@/components/ui/button";
+import { SegmentedToggle } from "@/components/ui/toggle-group";
+import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader } from "@/components/layout/admin-page-header";
+import { formatDateTime } from "@/lib/format";
+import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
+
+/** Lists whose archived records the API can return (see listArchived). */
+const ARCHIVE_VIEW: readonly string[] = ["plants", "departments", "locations", "workflows"];
 
 const entityApis = {
   plants: plantsApi,
@@ -82,7 +89,8 @@ export function EntityCrudPage({
   const [submitting, setSubmitting] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [view, setView] = useState<"active" | "archived">("active");
+  const [archivedItems, setArchivedItems] = useState<OrgRecord[] | null>(null);
   const addAnother = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const singular = singularOf(title);
@@ -98,12 +106,23 @@ export function EntityCrudPage({
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
+    setArchivedItems(null);
     api
       .list()
       .then(setItems)
       .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load records"))
       .finally(() => setLoading(false));
   }, [api]);
+
+  function showView(next: "active" | "archived") {
+    setView(next);
+    if (next === "archived" && archivedItems === null && "listArchived" in api) {
+      api
+        .listArchived()
+        .then(setArchivedItems)
+        .catch((err) => setError(err instanceof ApiError ? err.message : "Archived records could not be loaded"));
+    }
+  }
 
   useEffect(() => {
     load();
@@ -127,14 +146,12 @@ export function EntityCrudPage({
   function openCreate() {
     setForm(emptyForm(fields));
     setEditingId(null);
-    setSavedMessage(null);
     setFormOpen(true);
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   }
 
   function startEdit(item: OrgRecord) {
     setEditingId(item.id);
-    setSavedMessage(null);
     setForm(Object.fromEntries(fields.map((f) => [f.key, String(item[f.key as keyof OrgRecord] ?? "")])));
     setFormOpen(true);
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
@@ -172,7 +189,7 @@ export function EntityCrudPage({
         await api.create(payload);
       }
       const savedName = form[String(nameField)] || form.name || singular;
-      setSavedMessage(`${editingId ? "Saved" : "Added"} ${savedName}.`);
+      toast(`${savedName} ${editingId ? "saved" : "added"}`);
       if (addAnother.current && !editingId) {
         // Keep the parent selection so several items for the same place can be added in a row.
         setForm({ ...emptyForm(fields), ...(parentField ? { [parentField.key]: form[parentField.key] ?? "" } : {}) });
@@ -191,6 +208,7 @@ export function EntityCrudPage({
     setError(null);
     try {
       await approvalWorkflowsApi.activate(id);
+      toast("Workflow activated");
       load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Activate failed");
@@ -198,12 +216,14 @@ export function EntityCrudPage({
   }
 
   async function handleArchive(id: string) {
-    if (!window.confirm("Archive this record?")) {
+    const name = String(items.find((item) => item.id === id)?.[nameField] ?? singular);
+    if (!window.confirm(`Archive ${name}? It leaves the pick lists${ARCHIVE_VIEW.includes(resource) ? " and moves to the Archived view" : ""}.`)) {
       return;
     }
     setError(null);
     try {
       await api.archive(id);
+      toast(`${name} archived`);
       if (editingId === id) {
         resetForm();
       }
@@ -228,10 +248,46 @@ export function EntityCrudPage({
         }
       />
 
-      {savedMessage ? (
-        <p role="status" className="text-sm font-medium text-(--status-success)">
-          {savedMessage}
-        </p>
+      {ARCHIVE_VIEW.includes(resource) ? (
+        <SegmentedToggle
+          label="Show"
+          value={view}
+          onChange={(v) => showView(v as "active" | "archived")}
+          options={[
+            { value: "active", label: "Active", count: items.length },
+            { value: "archived", label: "Archived", ...(archivedItems ? { count: archivedItems.length } : {}) },
+          ]}
+          className="self-start"
+        />
+      ) : null}
+
+      {view === "archived" ? (
+        archivedItems === null ? (
+          <p className="text-sm text-muted-foreground">Loading archived {title.toLowerCase()}…</p>
+        ) : archivedItems.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nothing archived.</p>
+        ) : (
+          <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
+            <table className="min-w-full text-sm">
+              <thead className="table-tone text-left text-xs">
+                <tr className="border-b border-border">
+                  <th className="px-4 py-2.5">Name</th>
+                  <th className="px-4 py-2.5">Code</th>
+                  <th className="px-4 py-2.5">Archived</th>
+                </tr>
+              </thead>
+              <tbody>
+                {archivedItems.map((item) => (
+                  <tr key={item.id} className="border-t border-border first:border-t-0 text-muted-foreground">
+                    <td className="px-4 py-3 font-medium text-foreground">{String(item[nameField] ?? "Unnamed")}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{item.code ?? ""}</td>
+                    <td className="px-4 py-3">{formatDateTime(item.updatedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       ) : null}
 
       {formOpen ? (
@@ -276,6 +332,7 @@ export function EntityCrudPage({
                   required={field.required}
                   value={form[field.key] ?? ""}
                   autoFocus={field === fields[0]}
+                  {...(field.key === nameField ? { pattern: NAME_PATTERN, title: NAME_HINT, maxLength: 255 } : {})}
                   placeholder={field.key === "code" && hasCode && form[String(nameField)] ? codeFromName(form[String(nameField)]) : undefined}
                   className="h-10 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                   onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
@@ -325,7 +382,7 @@ export function EntityCrudPage({
         </label>
       ) : null}
 
-      {loading ? (
+      {view === "archived" ? null : loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-5 py-10 text-center">
@@ -337,7 +394,7 @@ export function EntityCrudPage({
       ) : (
         <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
           <table className="min-w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
+            <thead className="table-tone text-left text-xs">
               <tr className="border-b border-border">
                 <th className="px-4 py-2.5 font-medium">Name</th>
                 {parentField ? <th className="px-4 py-2.5 font-medium">{parentField.label}</th> : null}

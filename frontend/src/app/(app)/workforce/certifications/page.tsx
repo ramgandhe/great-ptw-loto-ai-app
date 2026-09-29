@@ -4,7 +4,8 @@ import type { EntityField } from "@/lib/workforce/types";
 const fields: EntityField[] = [
   { key: "name", label: "Certification name", required: true },
   { key: "workforceUserId", label: "Workforce member", select: "workforce", required: true },
-  { key: "expiryDate", label: "Expiry date (YYYY-MM-DD)" },
+  { key: "startDate", label: "Valid from" },
+  { key: "expiryDate", label: "Expiry date" },
   { key: "description", label: "Notes" },
 ];
 

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { KeycloakAdminModule } from '../../infrastructure/keycloak/keycloak-admin.module';
 import { LoggingModule } from '../logging/logging.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { TenantUsersService } from './tenant-users.service';
 import {
   AgencyController,
@@ -13,7 +14,7 @@ import {
 import { WorkforceService } from './workforce.service';
 
 @Module({
-  imports: [LoggingModule, KeycloakAdminModule],
+  imports: [LoggingModule, KeycloakAdminModule, NotificationsModule],
   controllers: [
     EmployeeController,
     ContractorController,

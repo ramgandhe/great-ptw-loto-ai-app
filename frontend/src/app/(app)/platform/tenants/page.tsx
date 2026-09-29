@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "@/components/ui/toast";
+import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
 import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
 import { ApiError } from "@/lib/api";
@@ -66,6 +68,7 @@ export default function PlatformTenantsPage() {
         ownerLastName: form.ownerLastName.trim() || undefined,
       });
       setCreated(result);
+      toast(`${form.organisationName.trim()} invited`);
       setForm({ organisationName: "", ownerEmail: "", ownerFirstName: "", ownerLastName: "" });
       await loadTenants();
     } catch (err) {
@@ -181,6 +184,7 @@ export default function PlatformTenantsPage() {
             <input
               required={required}
               type={key === "ownerEmail" ? "email" : "text"}
+              {...(key === "ownerEmail" ? {} : { pattern: NAME_PATTERN, title: NAME_HINT, maxLength: 255 })}
               value={form[key]}
               className="h-9 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))}

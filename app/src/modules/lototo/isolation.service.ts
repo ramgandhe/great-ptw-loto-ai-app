@@ -1,4 +1,5 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { isolationPoints } from '../../database/schema';
@@ -87,5 +88,31 @@ export class IsolationService {
       }
       throw error;
     }
+  }
+
+  /** Only while the plan is still being set up; its sequence steps go with it. Used points are kept for the record. */
+  async removeIsolationPoint(planId: string, pointId: string, user: AuthenticatedUser) {
+    const tenantId = this.validationService.requireTenant(user);
+    const plan = await this.validationService.getEditablePlan(planId, tenantId);
+    const [point] = await this.db
+      .delete(isolationPoints)
+      .where(and(eq(isolationPoints.id, pointId), eq(isolationPoints.planId, planId)))
+      .returning()
+      .catch(() => {
+        throw new ConflictException('This isolation point has been used in an isolation and cannot be deleted');
+      });
+    if (!point) {
+      throw new NotFoundException('Isolation point not found');
+    }
+    await this.auditService.log({
+      action: 'lototo.isolation_point.removed',
+      entityType: 'isolation_point',
+      entityId: point.id,
+      userId: user.id,
+      tenantId,
+      metadata: { planId, isolationNumber: point.isolationNumber },
+    });
+    await this.lototoCacheService.invalidatePlan(tenantId, planId, plan.permitId ?? undefined);
+    return { removed: point.id };
   }
 }

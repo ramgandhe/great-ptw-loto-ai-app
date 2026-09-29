@@ -1,9 +1,11 @@
-import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MinLength, Matches } from 'class-validator';
+import { NAME_MESSAGE, NAME_REGEX, TEXT_MESSAGE, TEXT_REGEX } from '../../../common/validation';
 import { APPROVAL_APPROVER_ROLES } from '../../approval/default-workflow';
 
 export class CreateOrgEntityDto {
   @IsString()
   @MinLength(1)
+  @Matches(NAME_REGEX, { message: NAME_MESSAGE('name') })
   name!: string;
 
   @IsOptional()
@@ -12,6 +14,7 @@ export class CreateOrgEntityDto {
 
   @IsOptional()
   @IsString()
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('description') })
   description?: string;
 
   @IsOptional()
@@ -31,6 +34,7 @@ export class UpdateOrgEntityDto {
   @IsOptional()
   @IsString()
   @MinLength(1)
+  @Matches(NAME_REGEX, { message: NAME_MESSAGE('name') })
   name?: string;
 
   @IsOptional()
@@ -39,6 +43,7 @@ export class UpdateOrgEntityDto {
 
   @IsOptional()
   @IsString()
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('description') })
   description?: string;
 
   @IsOptional()

@@ -1,4 +1,4 @@
-import { fetchApi, getApiBaseUrl, ApiError } from "@/lib/api";
+import { fetchApi } from "@/lib/api";
 
 export type UserProfile = {
   id: string;
@@ -27,23 +27,9 @@ export async function uploadProfileAvatar(file: File) {
   const formData = new FormData();
   formData.append("file", file);
 
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("ptw_access_token") : null;
+  return fetchApi<UserProfile>(`/auth/profile/avatar`, { method: "POST", body: formData });
+}
 
-  const response = await fetch(`${getApiBaseUrl()}/auth/profile/avatar`, {
-    method: "POST",
-    body: formData,
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-
-  const body = await response.json();
-  if (!response.ok || body.success === false) {
-    throw new ApiError(
-      body.error?.message ?? "Profile picture upload failed",
-      body.error?.code,
-      body.error?.details,
-    );
-  }
-
-  return body.data as UserProfile;
+export function removeProfileAvatar() {
+  return fetchApi<UserProfile>("/auth/profile/avatar", { method: "DELETE" });
 }

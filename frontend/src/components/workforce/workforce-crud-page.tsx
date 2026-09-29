@@ -8,7 +8,11 @@ import type { CompetencyRecord, EntityField, WorkforceRecord } from "@/lib/workf
 import { loadEntitySelectOptions, type EntitySelectResource } from "@/lib/form-options";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader } from "@/components/layout/admin-page-header";
+import { NAME_HINT, NAME_PATTERN, PHONE_COUNTRIES, splitPhone } from "@/lib/validation";
+import { copyText } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
 
 const workforceApis = {
   employees: employeesApi,
@@ -23,7 +27,40 @@ export type WorkforceEntityResource = keyof typeof workforceApis;
 type WorkforceItem = WorkforceRecord | CompetencyRecord;
 
 function emptyForm(fields: EntityField[]) {
-  return Object.fromEntries(fields.map((f) => [f.key, ""]));
+  return Object.fromEntries(fields.map((f) => [f.key, f.key === "phone" ? `${PHONE_COUNTRIES[0].code} ` : ""]));
+}
+
+const INPUT_CLASS =
+  "h-9 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 user-invalid:border-destructive";
+const isDate = (key: string) => key.endsWith("Date");
+
+/** Country code plus a national number of the right length; stored as "+91 9876543210". */
+function PhoneInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const { code, number } = splitPhone(value);
+  const digits = PHONE_COUNTRIES.find((c) => c.code === code)?.digits ?? 10;
+  return (
+    <span className="flex gap-2">
+      <select aria-label="Country code" value={code} className={`${INPUT_CLASS} w-36 px-2`} onChange={(e) => onChange(`${e.target.value} ${number}`)}>
+        {PHONE_COUNTRIES.map((c) => (
+          <option key={c.code} value={c.code}>
+            {c.label}
+          </option>
+        ))}
+      </select>
+      <input
+        type="tel"
+        inputMode="numeric"
+        autoComplete="tel-national"
+        value={number}
+        pattern={`[0-9]{${digits}}`}
+        maxLength={digits}
+        title={`${digits} digits, numbers only`}
+        placeholder={"9".repeat(digits)}
+        className={`${INPUT_CLASS} min-w-0 flex-1 tabular-nums`}
+        onChange={(e) => onChange(`${code} ${e.target.value.replace(/\D/g, "").slice(0, digits)}`)}
+      />
+    </span>
+  );
 }
 
 export function WorkforceCrudPage({
@@ -86,18 +123,27 @@ export function WorkforceCrudPage({
     event.preventDefault();
     setSubmitting(true);
     setError(null);
-    const payload = Object.fromEntries(fields.map((f) => [f.key, form[f.key]?.trim() ?? ""]));
+    // Empty optional fields: left out on create, cleared (null) on edit. A phone with no number is empty.
+    const value = (key: string) => {
+      const v = form[key]?.trim() ?? "";
+      return key === "phone" && !splitPhone(v).number ? "" : v;
+    };
+    const payload = Object.fromEntries(
+      fields.flatMap((f): [string, string | null][] => (value(f.key) ? [[f.key, value(f.key)]] : editingId ? [[f.key, null]] : [])),
+    );
     try {
       if (editingId) {
         await api.update(editingId, payload);
         setCreatedLogin(null);
+        toast(`${form.name || singular} updated`);
       } else {
         const created = await api.create(payload);
         setCreatedLogin({
           temporaryPassword: (created as { temporaryPassword?: string }).temporaryPassword,
           loginCreated: (created as { loginCreated?: boolean }).loginCreated,
-          email: payload.email,
+          email: payload.email ?? undefined,
         });
+        toast(`${form.name} added`);
       }
       setForm(emptyForm(fields));
       setEditingId(null);
@@ -114,6 +160,16 @@ export function WorkforceCrudPage({
     () => new Map((parentField?.select ? (selectOptions[parentField.select] ?? []) : []).map((o) => [o.value, o.label])),
     [parentField, selectOptions],
   );
+  // People have logins to switch off; certificates and competencies are plain records.
+  const hasLogin = resource === "employees" || resource === "contractors" || resource === "agencies";
+  const columns = fields.filter((f) => f.key !== "name" && f.key !== "description");
+  const cell = (item: WorkforceItem, field: EntityField) => {
+    const raw = String((item as Record<string, unknown>)[field.key] ?? "");
+    if (!raw) return "";
+    if (field.select) return (selectOptions[field.select] ?? []).find((o) => o.value === raw)?.label ?? "";
+    if (isDate(field.key)) return formatDate(raw);
+    return raw;
+  };
   const parentOf = (item: WorkforceItem) =>
     parentField ? parentLabels.get(String((item as Record<string, unknown>)[parentField.key] ?? "")) : undefined;
 
@@ -165,7 +221,7 @@ export function WorkforceCrudPage({
               <select
                 required={field.required}
                 value={form[field.key] ?? ""}
-                className="h-9 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                className={INPUT_CLASS}
                 onChange={(e) => setForm((p) => ({ ...p, [field.key]: e.target.value }))}
               >
                 <option value="">Select {field.label.toLowerCase()}</option>
@@ -175,12 +231,16 @@ export function WorkforceCrudPage({
                   </option>
                 ))}
               </select>
+            ) : field.key === "phone" ? (
+              <PhoneInput value={form.phone ?? ""} onChange={(phone) => setForm((p) => ({ ...p, phone }))} />
             ) : (
               <input
                 required={field.required}
-                type={field.key === "email" ? "email" : "text"}
+                type={field.key === "email" ? "email" : isDate(field.key) ? "date" : "text"}
                 value={form[field.key] ?? ""}
-                className="h-9 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                {...(field.key === "name" ? { pattern: NAME_PATTERN, title: NAME_HINT, maxLength: 255 } : {})}
+                {...(field.key === "expiryDate" && form.startDate ? { min: form.startDate } : {})}
+                className={INPUT_CLASS}
                 onChange={(e) => setForm((p) => ({ ...p, [field.key]: e.target.value }))}
               />
             )}
@@ -210,7 +270,21 @@ export function WorkforceCrudPage({
           <p className="mt-1 text-muted-foreground">
             Copy this temporary password now. They must change it on first sign-in.
           </p>
-          <p className="mt-2 font-mono">{createdLogin.temporaryPassword}</p>
+          <p className="mt-2 flex items-center gap-2">
+            <span className="font-mono">{createdLogin.temporaryPassword}</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                void copyText(createdLogin.temporaryPassword ?? "").then((ok) =>
+                  toast(ok ? "Temporary password copied" : "Copy failed: select the password and copy it", ok ? "success" : "error"),
+                )
+              }
+            >
+              Copy
+            </Button>
+          </p>
         </div>
       ) : createdLogin?.loginCreated === false ? (
         <p className="text-sm text-muted-foreground">
@@ -239,81 +313,101 @@ export function WorkforceCrudPage({
       ) : (
         <div className="relative overflow-x-auto rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
-          <thead className="text-left text-xs text-muted-foreground">
+          <thead className="table-tone text-left text-xs">
             <tr className="border-b border-border">
-              <th className="px-4 py-2.5 font-medium">Name</th>
-              {parentField ? <th className="px-4 py-2.5 font-medium">{parentField.label}</th> : null}
-              <th className="px-4 py-2.5 font-medium">Email</th>
-              <th className="px-4 py-2.5 font-medium">Status</th>
-              {resource !== "competencies" && resource !== "certifications" ? (
-                <th className="px-4 py-2.5 font-medium">
-                  <span className="sr-only">Actions</span>
+              <th className="px-4 py-2.5">Name</th>
+              {columns.map((field) => (
+                <th key={field.key} className="px-4 py-2.5">
+                  {field.label}
                 </th>
-              ) : null}
+              ))}
+              <th className="px-4 py-2.5">Status</th>
+              <th className="px-4 py-2.5">
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {visibleItems.map((item) => (
-              <tr key={item.id} className="border-t border-border first:border-t-0">
+              <tr key={item.id} className="row-hover border-t border-border first:border-t-0">
                 <td className="px-4 py-3 font-medium">{item.name}</td>
-                {parentField ? <td className="px-4 py-3 text-muted-foreground">{parentOf(item) ?? "Not set"}</td> : null}
-                <td className="px-4 py-3 text-muted-foreground">{"email" in item ? item.email ?? "" : ""}</td>
+                {columns.map((field) => (
+                  <td key={field.key} className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                    {cell(item, field) || <span className="text-muted-foreground/60">Not set</span>}
+                  </td>
+                ))}
                 <td className="px-4 py-3"><OrgStatusBadge status={item.status} /></td>
-                {resource !== "competencies" && resource !== "certifications" ? (
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2">
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setEditingId(item.id);
+                        setCreatedLogin(null);
+                        setForm(Object.fromEntries(fields.map((field) => [field.key, String((item as Record<string, unknown>)[field.key] ?? "")])));
+                        setFormOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    {!hasLogin ? null : item.status === "disabled" ? (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          setEditingId(item.id);
-                          setCreatedLogin(null);
-                          setForm(Object.fromEntries(fields.map((field) => [field.key, String((item as Record<string, unknown>)[field.key] ?? "")])));
-                          setFormOpen(true);
+                          if (!window.confirm(`Reactivate ${item.name}?`)) return;
+                          void (api as typeof employeesApi)
+                            .reactivate(item.id)
+                            .then(() => {
+                              toast(`${item.name} reactivated`);
+                              load();
+                            })
+                            .catch((err) => setError(err instanceof ApiError ? err.message : "Reactivate failed"));
                         }}
                       >
-                        Edit
+                        Reactivate
                       </Button>
-                      {item.status === "disabled" ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            if (!window.confirm(`Reactivate ${item.name}?`)) return;
-                            void (api as typeof employeesApi).reactivate(item.id).then(load).catch((err) => setError(err instanceof ApiError ? err.message : "Reactivate failed"));
-                          }}
-                        >
-                          Reactivate
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            if (!window.confirm(`Deactivate ${item.name}? They stay on this list but cannot sign in.`)) return;
-                            void (api as typeof employeesApi).deactivate(item.id).then(load).catch((err) => setError(err instanceof ApiError ? err.message : "Deactivate failed"));
-                          }}
-                        >
-                          Deactivate
-                        </Button>
-                      )}
+                    ) : (
                       <Button
                         type="button"
-                        variant="destructive"
+                        variant="outline"
                         size="sm"
                         onClick={() => {
-                          if (!window.confirm(`Delete ${item.name}? This removes the row and their login.`)) return;
-                          void api.archive(item.id).then(load).catch((err) => setError(err instanceof ApiError ? err.message : "Delete failed"));
+                          if (!window.confirm(`Deactivate ${item.name}? They stay on this list but cannot sign in.`)) return;
+                          void (api as typeof employeesApi)
+                            .deactivate(item.id)
+                            .then(() => {
+                              toast(`${item.name} deactivated`);
+                              load();
+                            })
+                            .catch((err) => setError(err instanceof ApiError ? err.message : "Deactivate failed"));
                         }}
                       >
-                        Delete
+                        Deactivate
                       </Button>
-                    </div>
-                  </td>
-                ) : null}
+                    )}
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (!window.confirm(hasLogin ? `Delete ${item.name}? This removes the row and their login.` : `Delete ${item.name}?`)) return;
+                        void api
+                          .archive(item.id)
+                          .then(() => {
+                            toast(`${item.name} deleted`);
+                            load();
+                          })
+                          .catch((err) => setError(err instanceof ApiError ? err.message : "Delete failed"));
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

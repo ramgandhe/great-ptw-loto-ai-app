@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
-import { updateProfile, uploadProfileAvatar } from "@/lib/auth/api";
+import { removeProfileAvatar, updateProfile, uploadProfileAvatar } from "@/lib/auth/api";
+import { toast } from "@/components/ui/toast";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { Button } from "@/components/ui/button";
 
@@ -10,7 +11,6 @@ export function ProfileSettingsForm() {
   const { profile, refreshProfile } = useAuthProfile();
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -30,11 +30,10 @@ export function ProfileSettingsForm() {
     event.preventDefault();
     setSaving(true);
     setError(null);
-    setMessage(null);
     try {
       await updateProfile({ displayName: displayName.trim() });
       await refreshProfile();
-      setMessage("Display name saved.");
+      toast("Display name saved");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to save display name");
     } finally {
@@ -50,13 +49,27 @@ export function ProfileSettingsForm() {
     }
     setUploading(true);
     setError(null);
-    setMessage(null);
     try {
       await uploadProfileAvatar(file);
       await refreshProfile();
-      setMessage("Profile picture updated.");
+      toast("Profile picture updated");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to upload profile picture");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    if (!window.confirm("Remove your profile picture? Your initial is shown instead.")) return;
+    setUploading(true);
+    setError(null);
+    try {
+      await removeProfileAvatar();
+      await refreshProfile();
+      toast("Profile picture removed");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "The picture could not be removed");
     } finally {
       setUploading(false);
     }
@@ -121,6 +134,11 @@ export function ProfileSettingsForm() {
           />
         </label>
         <p className="text-xs text-muted-foreground">JPEG, PNG, or WebP. Max 2 MB.</p>
+        {profile?.avatarUrl ? (
+          <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => void handleRemoveAvatar()} className="justify-self-start">
+            Remove picture
+          </Button>
+        ) : null}
       </div>
 
       {error ? (
@@ -128,7 +146,6 @@ export function ProfileSettingsForm() {
           {error}
         </p>
       ) : null}
-      {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
     </section>
   );
 }

@@ -31,6 +31,8 @@ services:
     environment:
       SECURITY_TRUST_PROXY: "true"
       APP_PUBLIC_URL: ${PUBLIC_ORIGIN:-http://127.0.0.1}
+      # Evidence links go through Caddy (/ptw-documents/*) to MinIO.
+      MINIO_PUBLIC_URL: ${PUBLIC_ORIGIN:-http://127.0.0.1}
 
   keycloak:
     environment:

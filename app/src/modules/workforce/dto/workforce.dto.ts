@@ -1,9 +1,12 @@
-import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsDateString, IsEmail, IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { NAME_MESSAGE, NAME_REGEX, PHONE_MESSAGE, PHONE_REGEX, TEXT_MESSAGE, TEXT_REGEX } from '../../../common/validation';
 import { TENANT_ASSIGNABLE_ROLES } from '../workforce.constants';
 
 export class CreateWorkforceDto {
   @IsString()
   @MinLength(1)
+  @MaxLength(255)
+  @Matches(NAME_REGEX, { message: NAME_MESSAGE('name') })
   name!: string;
 
   @IsEmail()
@@ -11,6 +14,7 @@ export class CreateWorkforceDto {
 
   @IsOptional()
   @IsString()
+  @Matches(PHONE_REGEX, { message: PHONE_MESSAGE })
   phone?: string;
 
   @IsOptional()
@@ -35,6 +39,8 @@ export class UpdateWorkforceDto extends CreateWorkforceDto {}
 export class CreateCompetencyDto {
   @IsString()
   @MinLength(1)
+  @MaxLength(255)
+  @Matches(NAME_REGEX, { message: NAME_MESSAGE('name') })
   name!: string;
 
   @IsOptional()
@@ -46,11 +52,16 @@ export class CreateCompetencyDto {
   certificationName?: string;
 
   @IsOptional()
-  @IsString()
+  @IsDateString({}, { message: 'startDate must be a date (YYYY-MM-DD)' })
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString({}, { message: 'expiryDate must be a date (YYYY-MM-DD)' })
   expiryDate?: string;
 
   @IsOptional()
   @IsString()
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('description') })
   description?: string;
 }
 
@@ -65,6 +76,8 @@ export class AssignRoleDto {
 export class CreateTenantUserDto {
   @IsString()
   @MinLength(1)
+  @MaxLength(255)
+  @Matches(NAME_REGEX, { message: NAME_MESSAGE('name') })
   name!: string;
 
   @IsEmail()

@@ -29,9 +29,15 @@ export function UsageMeter({ records, limits }: UsageMeterProps) {
     );
   }
 
+  // One card per metric: the latest period, with earlier periods listed underneath.
+  const byMetric = new Map<string, UsageRecord[]>();
+  for (const record of [...records].sort((a, b) => b.periodLabel.localeCompare(a.periodLabel))) {
+    byMetric.set(record.metricKey, [...(byMetric.get(record.metricKey) ?? []), record]);
+  }
+
   return (
     <ul className="flex flex-col gap-4">
-      {records.map((record) => {
+      {[...byMetric.values()].map(([record, ...earlier]) => {
         const limit = resolveLimit(limits, record.metricKey);
         const percent =
           limit && limit > 0 ? Math.min(100, Math.round((record.quantity / limit) * 100)) : null;
@@ -74,6 +80,11 @@ export function UsageMeter({ records, limits }: UsageMeterProps) {
                 Last recorded {formatDateTime(record.recordedAt)}
               </p>
             )}
+            {earlier.length ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Earlier: {earlier.map((r) => `${r.periodLabel} ${r.quantity.toLocaleString()}`).join(" · ")}
+              </p>
+            ) : null}
           </li>
         );
       })}

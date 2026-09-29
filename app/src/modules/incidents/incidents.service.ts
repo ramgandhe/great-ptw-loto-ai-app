@@ -360,6 +360,28 @@ export class IncidentsService {
       .orderBy(desc(incidentEvidence.createdAt));
   }
 
+  /** Short-lived link so the browser can open or download one evidence file. */
+  async getEvidenceDownloadUrl(id: string, evidenceId: string, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    await this.requireIncident(id, tenantId);
+    const [evidence] = await this.db
+      .select()
+      .from(incidentEvidence)
+      .where(
+        and(
+          eq(incidentEvidence.tenantId, tenantId),
+          eq(incidentEvidence.incidentId, id),
+          eq(incidentEvidence.id, evidenceId),
+        ),
+      );
+    if (!evidence) {
+      throw new NotFoundException('Evidence not found');
+    }
+    const expiresInSeconds = 900;
+    const url = await this.storageService.presignedGetObject(evidence.storageKey, expiresInSeconds);
+    return { url, expiresInSeconds };
+  }
+
   private async loadList(tenantId: string) {
     return this.db
       .select()

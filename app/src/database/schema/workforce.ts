@@ -65,6 +65,7 @@ export const competencies = pgTable(
     name: varchar('name', { length: 255 }).notNull(),
     workforceUserId: uuid('workforce_user_id'),
     certificationName: varchar('certification_name', { length: 255 }),
+    startDate: varchar('start_date', { length: 32 }),
     expiryDate: varchar('expiry_date', { length: 32 }),
     description: text('description'),
     status: varchar('status', { length: 32 }).notNull().default('active'),

@@ -22,6 +22,7 @@ export const NOTIFICATION_EVENT_TYPES = [
   'lototo_verification',
   'task_reminder',
   'escalation',
+  'role_changed',
 ] as const;
 export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
 

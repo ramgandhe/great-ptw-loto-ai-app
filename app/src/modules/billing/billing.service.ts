@@ -1,9 +1,9 @@
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { ConflictException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { requireActorId } from '../../common/helpers/require-actor-id';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { billingInvoices, usageRecords } from '../../database/schema';
+import { billingInvoices, tenantSubscriptions, usageRecords } from '../../database/schema';
 import { BillingCacheService } from './billing-cache.service';
 import { BillingLogService } from './billing-log.service';
 import { ListInvoicesQueryDto, UsageRecordDto } from './dto/billing.dto';
@@ -28,6 +28,20 @@ export class UsageTrackingService {
   async upsert(dto: UsageRecordDto, user: AuthenticatedUser) {
     const tenantId = this.requireTenant(user);
     const actorId = requireActorId(user);
+
+    // Usage is measured against a plan; without a current subscription there is nothing to meter.
+    const [subscription] = await this.db
+      .select({ id: tenantSubscriptions.id })
+      .from(tenantSubscriptions)
+      .where(
+        and(
+          eq(tenantSubscriptions.tenantId, tenantId),
+          inArray(tenantSubscriptions.status, ['trial', 'active', 'past_due']),
+        ),
+      );
+    if (!subscription) {
+      throw new ConflictException('Choose a subscription plan before recording usage');
+    }
 
     const [existing] = await this.db
       .select()

@@ -22,7 +22,7 @@ import { useWorkQueue } from "@/lib/work-queue-context";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { ProcessDetails, ProcessMap, ProcessMapLegend, StageChip, type MapSelection } from "@/components/permit/process-map";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, copyText } from "@/lib/utils";
 
 type Check = { ok: boolean; label: string; who?: string };
 type Waiting = { who: string; people: string[]; action: string; note?: string; due?: { at: string; overdue: boolean } };
@@ -521,7 +521,7 @@ export default function PermitJourneyPage() {
               variant="outline"
               size="sm"
               onClick={() => {
-                void navigator.clipboard.writeText(JSON.stringify(debug, null, 2)).then(() => {
+                void copyText(JSON.stringify(debug, null, 2)).then(() => {
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 });

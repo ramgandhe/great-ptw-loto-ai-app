@@ -1,4 +1,4 @@
-import { ApiError, fetchApi, getApiBaseUrl } from "@/lib/api";
+import { fetchApi } from "@/lib/api";
 import type {
   EvidenceRecord,
   ExecutionActionResult,
@@ -108,23 +108,5 @@ export async function uploadEvidence(
     formData.append("progressId", options.progressId);
   }
 
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("ptw_access_token") : null;
-
-  const response = await fetch(`${getApiBaseUrl()}/permits/${permitId}/evidence`, {
-    method: "POST",
-    body: formData,
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-
-  const body = await response.json();
-  if (!response.ok || body.success === false) {
-    throw new ApiError(
-      body.error?.message ?? "Evidence upload failed",
-      body.error?.code,
-      body.error?.details,
-    );
-  }
-
-  return body.data as EvidenceRecord;
+  return fetchApi<EvidenceRecord>(`/permits/${permitId}/evidence`, { method: "POST", body: formData });
 }

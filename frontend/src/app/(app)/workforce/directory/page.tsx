@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { listWorkforceDirectory } from "@/lib/workforce/api";
@@ -26,8 +27,10 @@ export default function WorkforceDirectoryPage() {
           <tr>
             <th className="px-4 py-3">Name</th>
             <th className="px-4 py-3">Email</th>
+            <th className="px-4 py-3">Phone</th>
             <th className="px-4 py-3">Role</th>
             <th className="px-4 py-3">Status</th>
+            <th className="px-4 py-3"><span className="sr-only">Manage</span></th>
           </tr>
         </thead>
         <tbody>
@@ -35,8 +38,15 @@ export default function WorkforceDirectoryPage() {
             <tr key={item.id} className="border-t border-border">
               <td className="px-4 py-3">{item.name}</td>
               <td className="px-4 py-3 text-muted-foreground">{item.email ?? "—"}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{item.phone ?? "—"}</td>
               <td className="px-4 py-3">{item.role ?? "—"}</td>
               <td className="px-4 py-3"><OrgStatusBadge status={item.status} /></td>
+              <td className="px-4 py-3 text-right">
+                {/* Edit and delete live on the list the person belongs to. */}
+                <Link href={item.role === "contractor" ? "/workforce/contractors" : "/workforce/employees"} className="text-sm font-medium text-primary hover:underline">
+                  Manage
+                </Link>
+              </td>
             </tr>
           ))}
         </tbody>

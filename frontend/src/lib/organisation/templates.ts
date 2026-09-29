@@ -79,5 +79,6 @@ export function fieldCount(config: TemplateConfig | null): number {
 
 /** Short random id for new sections and fields; unique within a template is all that is needed. */
 export function newId(prefix: string): string {
-  return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
+  // Not crypto.randomUUID: it is missing on plain-HTTP origins.
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }

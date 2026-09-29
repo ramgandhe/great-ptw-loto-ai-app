@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Patch,
   Post,
@@ -43,6 +44,12 @@ export class AuthController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.authService.uploadAvatar(file, user);
+  }
+
+  @Authenticated()
+  @Delete('profile/avatar')
+  removeAvatar(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.removeAvatar(user);
   }
 
   @Authenticated()

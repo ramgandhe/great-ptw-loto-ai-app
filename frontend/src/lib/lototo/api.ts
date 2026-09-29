@@ -43,6 +43,10 @@ export function addIsolationPoint(planId: string, payload: AddIsolationPointPayl
   });
 }
 
+export function removeIsolationPoint(planId: string, pointId: string) {
+  return fetchApi<{ removed: string }>(`/lototo/plans/${planId}/isolation-points/${pointId}`, { method: "DELETE" });
+}
+
 export function configureIsolationSequence(planId: string, payload: ConfigureSequencePayload) {
   return fetchApi<{ configured: number } | IsolationPoint[]>(`/lototo/plans/${planId}/sequence`, {
     method: "POST",

@@ -32,6 +32,7 @@ import {
 import { MailService } from '../../infrastructure/mail/mail.service';
 import { AuditService } from '../logging/audit.service';
 import { ApprovalHistoryService } from '../approval/approval-history.service';
+import { NotificationService } from '../approval/notification.service';
 import { WorkflowEngineService } from '../approval/workflow-engine.service';
 import { CreatePermitDto } from './dto/create-permit.dto';
 import { buildFormResponses, missingFormAnswers, type PermitFormResponse } from './permit-forms';
@@ -80,6 +81,8 @@ export class PermitService {
     private readonly approvalHistoryService: ApprovalHistoryService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
+    @Inject(forwardRef(() => NotificationService))
+    private readonly approvalNotifications: NotificationService,
   ) {}
 
   async create(dto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -491,6 +494,15 @@ export class PermitService {
     });
 
     await this.permitCacheService.invalidatePermit(tenantId, id);
+
+    // Tells the first approvers (usually the department HOD) the permit is waiting for them.
+    await this.approvalNotifications.enqueueApprovalNotification({
+      permitId: id,
+      tenantId,
+      action: isResubmit ? 'resubmitted' : 'submitted',
+      actorId: user.id,
+      metadata: { submittedAt: new Date().toISOString() },
+    });
 
     return this.loadDetail(this.db, id, tenantId);
   }

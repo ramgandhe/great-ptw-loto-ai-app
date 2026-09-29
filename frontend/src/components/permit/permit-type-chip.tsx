@@ -6,19 +6,19 @@ import { cn } from "@/lib/utils";
  * Permit types fall into hazard families. The chip keeps the colour the organisation chose for
  * the type, and the icon says the family, so similar kinds of work are recognisable at a glance.
  */
-export const TYPE_FAMILIES: { key: string; label: string; match: RegExp; icon: LucideIcon }[] = [
-  { key: "hot", label: "Ignition and energy", match: /hot|weld|burn/i, icon: Flame },
-  { key: "electrical", label: "Ignition and energy", match: /electr|energ/i, icon: Zap },
-  { key: "hazardous", label: "Ignition and energy", match: /hazard|atex|gas/i, icon: TriangleAlert },
-  { key: "confined", label: "Access and atmosphere", match: /confin|vessel|tank entry/i, icon: Container },
-  { key: "height", label: "Access and atmosphere", match: /height|scaffold|roof/i, icon: ArrowUpFromLine },
-  { key: "excavation", label: "Access and atmosphere", match: /excavat|dig|trench/i, icon: Shovel },
-  { key: "lifting", label: "Routine and mechanical", match: /shift|lift|crane|machine/i, icon: Truck },
-  { key: "cold", label: "Routine and mechanical", match: /cold/i, icon: Snowflake },
+export const TYPE_FAMILIES: { key: string; label: string; match: RegExp; icon: LucideIcon; color: string }[] = [
+  { key: "hot", label: "Ignition and energy", match: /hot|weld|burn/i, icon: Flame, color: "#DC2626" },
+  { key: "electrical", label: "Ignition and energy", match: /electr|energ/i, icon: Zap, color: "#D97706" },
+  { key: "hazardous", label: "Ignition and energy", match: /hazard|atex|gas/i, icon: TriangleAlert, color: "#EA580C" },
+  { key: "confined", label: "Access and atmosphere", match: /confin|vessel|tank entry/i, icon: Container, color: "#7C3AED" },
+  { key: "height", label: "Access and atmosphere", match: /height|scaffold|roof/i, icon: ArrowUpFromLine, color: "#0891B2" },
+  { key: "excavation", label: "Access and atmosphere", match: /excavat|dig|trench/i, icon: Shovel, color: "#92400E" },
+  { key: "lifting", label: "Routine and mechanical", match: /shift|lift|crane|machine/i, icon: Truck, color: "#4D7C0F" },
+  { key: "cold", label: "Routine and mechanical", match: /cold/i, icon: Snowflake, color: "#2563EB" },
 ];
 
 export function typeFamily(name: string | undefined) {
-  return TYPE_FAMILIES.find((f) => name && f.match.test(name)) ?? { key: "general", label: "Routine and mechanical", icon: Wrench };
+  return TYPE_FAMILIES.find((f) => name && f.match.test(name)) ?? { key: "general", label: "Routine and mechanical", icon: Wrench, color: "#475569" };
 }
 
 export function PermitTypeChip({ name, color, className }: { name?: string; color?: string | null; className?: string }) {

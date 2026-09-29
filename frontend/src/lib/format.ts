@@ -23,6 +23,13 @@ export function formatDateTime(value: string | Date | null | undefined): string 
   });
 }
 
+/** "10 Aug 2026": calendar dates such as certificate expiry. Legacy free text is returned as typed. */
+export function formatDate(value: string | null | undefined): string {
+  const date = toDate(value);
+  if (!date) return value ?? "";
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
 /** "10 Aug 09:00 to 25 Aug 16:00 (15 days)" or "Mon 10 Aug, 09:00 to 16:00" within one day. */
 export function formatWindow(start: string | null | undefined, end: string | null | undefined): string {
   const from = toDate(start);

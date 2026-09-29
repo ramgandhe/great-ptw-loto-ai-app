@@ -36,24 +36,7 @@ function recordHref(n: Notification): string | null {
   }
 }
 
-/** For a grouped message about several records, open the list those records live in. */
-function listHref(n: Notification): string {
-  switch (n.entityType) {
-    case "permit":
-      return "/permits";
-    case "incident":
-      return "/incidents";
-    case "simops_conflict":
-    case "conflict":
-      return "/simops/conflicts";
-    case "lototo_plan":
-      return "/lototo";
-    default:
-      return "/notifications";
-  }
-}
-
-type Group = { key: string; latest: Notification; ids: string[]; unread: string[]; entities: Set<string> };
+type Group = { key: string; latest: Notification; ids: string[]; unread: string[] };
 
 /** Recent messages with repeats collapsed, newest first. The full inbox lives on Notifications. */
 export function DashboardNotificationsPanel({ limit = VISIBLE_GROUPS, inbox = false }: { limit?: number; inbox?: boolean } = {}) {
@@ -70,10 +53,9 @@ export function DashboardNotificationsPanel({ limit = VISIBLE_GROUPS, inbox = fa
     const map = new Map<string, Group>();
     const sorted = [...(notifications ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     for (const n of sorted) {
-      // Same message about different records (e.g. several clashes) is still one line to read.
-      const key = `${n.title}|${n.body}`;
-      const group = map.get(key) ?? { key, latest: n, ids: [], unread: [], entities: new Set<string>() };
-      if (n.entityId) group.entities.add(n.entityId);
+      // Only true repeats collapse (same message, same record), so every line opens its own record.
+      const key = `${n.title}|${n.body}|${n.entityType ?? ""}|${n.entityId ?? ""}`;
+      const group = map.get(key) ?? { key, latest: n, ids: [], unread: [] };
       group.ids.push(n.id);
       if (n.readAt === null) group.unread.push(n.id);
       map.set(key, group);
@@ -129,7 +111,7 @@ export function DashboardNotificationsPanel({ limit = VISIBLE_GROUPS, inbox = fa
         <ul className="divide-y divide-border rounded-xl border border-border bg-card">
           {groups.slice(0, limit).map((group) => {
             const n = group.latest;
-            const href = group.entities.size > 1 ? listHref(n) : recordHref(n);
+            const href = recordHref(n);
             const isUnread = group.unread.length > 0;
             return (
               <li key={group.key} className="flex items-start gap-3 px-4 py-3 sm:px-5">

@@ -99,6 +99,18 @@ export class AuthService {
     return this.getProfile(user);
   }
 
+  async removeAvatar(user: AuthenticatedUser): Promise<UserProfile> {
+    const existing = await this.findProfileRow(user.id);
+    if (existing?.avatarStorageKey) {
+      await this.storageService.deleteObject(existing.avatarStorageKey).catch(() => undefined);
+      await this.db
+        .update(userProfiles)
+        .set({ avatarStorageKey: null, avatarContentType: null, updatedBy: optionalUuid(user.id), updatedAt: new Date() })
+        .where(eq(userProfiles.id, existing.id));
+    }
+    return this.getProfile(user);
+  }
+
   logout(): { message: string } {
     return { message: 'Logout acknowledged. Invalidate tokens on the client.' };
   }

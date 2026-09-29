@@ -1,4 +1,12 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnApplicationBootstrap,
+} from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { and, eq, isNotNull, ne } from 'drizzle-orm';
@@ -15,15 +23,33 @@ import { agencies, contractors, tenantUsers } from '../../database/schema';
 import { KeycloakAdminService } from '../../infrastructure/keycloak/keycloak-admin.service';
 import { AuditService } from '../logging/audit.service';
 import { AssignRoleDto, CreateTenantUserDto, UpdateTenantUserDto } from './dto/workforce.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
-export class TenantUsersService {
+export class TenantUsersService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(TenantUsersService.name);
+
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly keycloakAdmin: KeycloakAdminService,
     private readonly auditService: AuditService,
     private readonly configService: ConfigService,
+    private readonly notificationsService: NotificationsService,
   ) {}
+
+  /** Repairs logins created before tenant_id was kept by Keycloak (see KeycloakAdminService.allowTenantAttribute). */
+  async onApplicationBootstrap(): Promise<void> {
+    const rows = await this.db
+      .select({ id: tenantUsers.keycloakUserId, tenantId: tenantUsers.tenantId })
+      .from(tenantUsers)
+      .where(ne(tenantUsers.status, 'archived'))
+      .catch(() => []);
+    for (const row of rows) {
+      await this.keycloakAdmin.ensureTenantAttribute(row.id, row.tenantId).catch((error: unknown) => {
+        this.logger.warn(`Could not repair organisation on login ${row.id}: ${String(error)}`);
+      });
+    }
+  }
 
   async list(actor: AuthenticatedUser) {
     const tenantId = requireTenant(actor);
@@ -152,15 +178,16 @@ export class TenantUsersService {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  /** Anyone active in the organisation can follow a permit, not only the read-only Viewer role. */
   listViewers(actor: AuthenticatedUser) {
-    return this.listByRole(actor, 'viewer');
+    return this.listByRole(actor);
   }
 
   listSafetyOfficers(actor: AuthenticatedUser) {
     return this.listByRole(actor, 'safety-officer');
   }
 
-  private async listByRole(actor: AuthenticatedUser, role: string) {
+  private async listByRole(actor: AuthenticatedUser, role?: string) {
     const tenantId = requireTenant(actor);
     const rows = await this.db
       .select()
@@ -168,7 +195,7 @@ export class TenantUsersService {
       .where(
         and(
           eq(tenantUsers.tenantId, tenantId),
-          eq(tenantUsers.role, role),
+          role ? eq(tenantUsers.role, role) : undefined,
           eq(tenantUsers.status, 'active'),
         ),
       );
@@ -265,6 +292,7 @@ export class TenantUsersService {
       await this.assertNotLastOwner(tenantId, row.id);
     }
 
+    await this.keycloakAdmin.ensureTenantAttribute(userId, tenantId);
     await this.keycloakAdmin.setUserRoleInTenant(userId, tenantId, dto.role);
     await this.db
       .update(tenantUsers)
@@ -279,6 +307,20 @@ export class TenantUsersService {
       tenantId,
       metadata: { role: dto.role },
     });
+    // Tell the person: their menu and work queue change with the role.
+    await this.notificationsService
+      .generateSystem(tenantId, actor.id, {
+        eventType: 'role_changed',
+        category: 'system',
+        priority: 'medium',
+        title: `Your role is now ${dto.role.replace(/-/g, ' ')}`,
+        body: 'Your access has changed. Sign out and back in if the menu does not update.',
+        recipientUserIds: [userId],
+        entityType: 'user',
+        entityId: userId,
+        sourceModule: 'workforce',
+      })
+      .catch(() => undefined);
     return { id: userId, role: dto.role };
   }
 

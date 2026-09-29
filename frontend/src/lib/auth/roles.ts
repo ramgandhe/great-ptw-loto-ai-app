@@ -80,7 +80,8 @@ export const PERMIT_READ_ROLES = [
   "safety-officer",
 ] as const;
 
-export const PERMIT_CREATE_ROLES = ["job-issuer", "tenant-owner", "tenant-admin", "platform-admin"] as const;
+// Not platform-admin: a platform admin belongs to no organisation, so the permit would be refused.
+export const PERMIT_CREATE_ROLES = ["job-issuer", "tenant-owner", "tenant-admin"] as const;
 
 export const PERMIT_SUBMIT_ROLES = PERMIT_CREATE_ROLES;
 
@@ -239,3 +240,10 @@ export const NAV_SAFETY_ROLES = [
   "tenant-owner", "tenant-admin",
   "viewer",
 ] as const;
+
+/** Incident follow-up, mirroring app/src/modules/{incidents,investigation,incident-closure} constants. */
+export const INCIDENT_HOD_DECISION_ROLES = ["hod", "tenant-owner", "tenant-admin"] as const;
+export const INVESTIGATION_ASSIGN_ROLES = ["safety-officer", "tenant-owner", "tenant-admin", "platform-admin"] as const;
+export const INVESTIGATION_WRITE_ROLES = [...INVESTIGATION_ASSIGN_ROLES, "hod"] as const;
+export const INCIDENT_VERIFY_ROLES = ["safety-officer", "tenant-owner", "tenant-admin", "platform-admin"] as const;
+export const INCIDENT_CLOSE_ROLES = ["safety-officer", "hod", "tenant-owner", "tenant-admin", "platform-admin"] as const;

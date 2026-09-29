@@ -97,4 +97,14 @@ export class IncidentsController {
   listEvidence(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.incidentsService.listEvidence(id, user);
   }
+
+  @Roles(...INCIDENT_READ_ROLES)
+  @Get(':id/evidence/:evidenceId/download-url')
+  getEvidenceDownloadUrl(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('evidenceId', ParseUUIDPipe) evidenceId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.incidentsService.getEvidenceDownloadUrl(id, evidenceId, user);
+  }
 }

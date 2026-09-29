@@ -9,6 +9,7 @@ import { deleteDraftPermit, getPermit } from "@/lib/permit/api";
 import { permitDetailToForm } from "@/lib/permit/form";
 import type { PermitDetail } from "@/lib/permit/types";
 import { isEditablePermitStatus } from "@/lib/permit/status";
+import { toast } from "@/components/ui/toast";
 import { PermitApprovalStatus } from "@/components/permit/permit-approval-status";
 import { PermitSummary } from "@/components/permit/permit-summary";
 import { PermitFormResponses } from "@/components/permit/permit-form-responses";
@@ -119,7 +120,8 @@ export default function PermitDetailPage() {
     setActionError(null);
     try {
       await deleteDraftPermit(params.id);
-      router.push("/permits/drafts");
+      toast("Draft deleted");
+      router.push("/permits");
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Delete failed");
     } finally {

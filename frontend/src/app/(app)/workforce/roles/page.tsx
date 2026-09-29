@@ -18,6 +18,9 @@ import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { ASSIGNABLE_ROLES, rolesAssignableBy } from "@/lib/form-options";
 import { formatRoleLabel } from "@/lib/auth/rbac";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
+import { copyText } from "@/lib/utils";
+import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 
 export default function UserRolesPage() {
@@ -72,6 +75,7 @@ export default function UserRolesPage() {
         departmentId: form.departmentId || undefined,
       });
       setCreated(result);
+      toast(`${result.name} added as ${formatRoleLabel(result.role)}`);
       setForm({ name: "", email: "", role: "", departmentId: "" });
       setFormOpen(false);
       await loadUsers();
@@ -92,6 +96,7 @@ export default function UserRolesPage() {
     setError(null);
     try {
       await updateTenantUserRole(userId, role);
+      toast(`Role changed to ${formatRoleLabel(role)}`);
       await loadUsers();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to update role");
@@ -111,6 +116,7 @@ export default function UserRolesPage() {
     setError(null);
     try {
       await deactivateTenantUser(user.id);
+      toast(`${user.email ?? user.username} deactivated`);
       await loadUsers();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to deactivate user");
@@ -128,6 +134,7 @@ export default function UserRolesPage() {
     setError(null);
     try {
       await reactivateTenantUser(user.id);
+      toast(`${user.email ?? user.username} reactivated`);
       await loadUsers();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to reactivate user");
@@ -147,6 +154,7 @@ export default function UserRolesPage() {
     setError(null);
     try {
       await deleteTenantUser(user.id);
+      toast(`${user.email ?? user.username} deleted`);
       await loadUsers();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete user");
@@ -211,7 +219,7 @@ export default function UserRolesPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => void navigator.clipboard.writeText(created.temporaryPassword)}
+                  onClick={() => void copyText(created.temporaryPassword).then((ok) => toast(ok ? "Temporary password copied" : "Copy failed: select the password and copy it", ok ? "success" : "error"))}
                 >
                   Copy
                 </Button>
@@ -228,6 +236,9 @@ export default function UserRolesPage() {
           <span className="font-medium">Name</span>
           <input
             required
+            pattern={NAME_PATTERN}
+            title={NAME_HINT}
+            maxLength={255}
             value={form.name}
             className={FIELD_CLASS}
             onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -357,7 +368,10 @@ export default function UserRolesPage() {
                               const departmentId = e.target.value;
                               setUpdatingId(user.id);
                               updateTenantUser(user.id, { departmentId })
-                                .then(() => loadUsers())
+                                .then(() => {
+                                  toast("Department updated");
+                                  return loadUsers();
+                                })
                                 .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to update department"))
                                 .finally(() => setUpdatingId(null));
                             }}

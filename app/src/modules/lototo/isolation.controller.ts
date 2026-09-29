@@ -1,4 +1,4 @@
-import { Body, Controller, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -23,6 +23,16 @@ export class IsolationController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.isolationService.addIsolationPoint(id, dto, user);
+  }
+
+  @Roles(...LOTOTO_WRITE_ROLES)
+  @Delete(':id/isolation-points/:pointId')
+  removeIsolationPoint(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('pointId', ParseUUIDPipe) pointId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.isolationService.removeIsolationPoint(id, pointId, user);
   }
 
   @Roles(...LOTOTO_WRITE_ROLES)

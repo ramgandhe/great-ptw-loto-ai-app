@@ -139,12 +139,16 @@
   }
 }
 
-/* Table headers that read as headers: tinted band, darker ink, sticks under the app bar and page head. */
+/* Table headers that read as headers: tinted band, darker ink. `.table-tone` is the look alone,
+   for tables inside a horizontal scroll box, where sticking would cover the first rows. */
 .table-head {
   position: sticky;
   top: calc(3.5rem + var(--page-head-h, 0px));
   /* Above row buttons (z-10), below the page header (z-20). */
   z-index: 15;
+}
+.table-head,
+.table-tone {
   background: color-mix(in oklab, var(--accent-primary, var(--primary)) 6%, var(--muted));
   color: color-mix(in oklab, var(--foreground) 80%, transparent);
   font-weight: 600;

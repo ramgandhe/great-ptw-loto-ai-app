@@ -330,6 +330,20 @@
       "when": 1759300000000,
       "tag": "0046_permit_expiry_history",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1759400000000,
+      "tag": "0047_certificate_start_date",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1759500000000,
+      "tag": "0048_notification_role_changed",
+      "breakpoints": true
     }
   ]
 }

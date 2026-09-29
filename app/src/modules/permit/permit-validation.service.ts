@@ -37,6 +37,10 @@ export class PermitValidationService {
       errors.push('title is required');
     }
 
+    if (!permit.departmentId) {
+      errors.push('departmentId is required');
+    }
+
     if (!permit.locationId) {
       errors.push('locationId is required');
     }

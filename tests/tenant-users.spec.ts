@@ -39,6 +39,7 @@ describe('TenantUsersService', () => {
       keycloakAdmin as never,
       { log: jest.fn() } as never,
       { get: () => 'http://localhost:3000' } as never,
+      { generateSystem: jest.fn().mockResolvedValue(undefined) } as never,
     );
 
     await expect(
@@ -56,6 +57,7 @@ describe('TenantUsersService', () => {
       keycloakAdmin as never,
       { log: jest.fn() } as never,
       { get: () => 'http://localhost:3000' } as never,
+      { generateSystem: jest.fn().mockResolvedValue(undefined) } as never,
     );
 
     await service.create(
@@ -77,6 +79,7 @@ describe('TenantUsersService', () => {
       keycloakAdmin as never,
       { log: jest.fn() } as never,
       { get: () => 'http://localhost:3000' } as never,
+      { generateSystem: jest.fn().mockResolvedValue(undefined) } as never,
     );
 
     await expect(
@@ -96,6 +99,7 @@ describe('TenantUsersService', () => {
       keycloakAdmin as never,
       { log: jest.fn() } as never,
       { get: () => 'http://localhost:3000' } as never,
+      { generateSystem: jest.fn().mockResolvedValue(undefined) } as never,
     );
 
     const result = await service.create(
@@ -132,6 +136,7 @@ describe('TenantUsersService', () => {
       {} as never,
       { log: jest.fn() } as never,
       { get: () => 'http://localhost:3000' } as never,
+      { generateSystem: jest.fn().mockResolvedValue(undefined) } as never,
     );
 
     const result = await service.listExecutors(actor);
@@ -172,6 +177,7 @@ describe('TenantUsersService', () => {
       keycloakAdmin as never,
       { log: jest.fn() } as never,
       { get: () => 'http://localhost:3000' } as never,
+      { generateSystem: jest.fn().mockResolvedValue(undefined) } as never,
     );
 
     const result = await service.ensureWorkforceLogin(

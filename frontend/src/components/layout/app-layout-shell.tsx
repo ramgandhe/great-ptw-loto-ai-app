@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { AppNavigation } from "@/components/app-navigation";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { Toaster } from "@/components/ui/toast";
 import { WorkQueueProvider } from "@/lib/work-queue-context";
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -43,6 +44,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
       <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <Toaster />
     </WorkQueueProvider>
   );
 }

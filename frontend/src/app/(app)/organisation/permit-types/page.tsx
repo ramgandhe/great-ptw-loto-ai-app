@@ -7,6 +7,9 @@ import { masterDataApi, type MasterDataRecord } from "@/lib/master-data/api";
 import { permitTemplatesApi, type PermitTemplate } from "@/lib/organisation/templates";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
+import { typeFamily } from "@/components/permit/permit-type-chip";
+import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 
 const DEFAULT_COLOR = "#2563EB";
@@ -20,7 +23,8 @@ export default function PermitTypesPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  // Until someone picks a colour, a new type takes its hazard family colour from the name.
+  const [colorPicked, setColorPicked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -51,7 +55,7 @@ export default function PermitTypesPage() {
         : EMPTY_FORM,
     );
     setError(null);
-    setSavedMessage(null);
+    setColorPicked(Boolean(item));
     setFormOpen(true);
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   }
@@ -79,7 +83,7 @@ export default function PermitTypesPage() {
       } else {
         await masterDataApi.createPermitType(payload);
       }
-      setSavedMessage(`${editingId ? "Saved" : "Added"} ${payload.name}.`);
+      toast(`Permit type ${payload.name} ${editingId ? "saved" : "added"}`);
       resetForm();
       await load();
     } catch (err) {
@@ -90,12 +94,14 @@ export default function PermitTypesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm("Delete this permit type? Existing permits that use it will block deletion.")) {
+    const name = items.find((item) => item.id === id)?.name ?? "this permit type";
+    if (!window.confirm(`Delete ${name}? Existing permits that use it will block deletion.`)) {
       return;
     }
     setError(null);
     try {
       await masterDataApi.deletePermitType(id);
+      toast(`Permit type ${name} deleted`);
       if (editingId === id) {
         resetForm();
       }
@@ -120,11 +126,6 @@ export default function PermitTypesPage() {
         }
       />
 
-      {savedMessage ? (
-        <p role="status" className="text-sm font-medium text-(--status-success)">
-          {savedMessage}
-        </p>
-      ) : null}
 
       {formOpen ? (
         <form
@@ -139,8 +140,14 @@ export default function PermitTypesPage() {
               required
               autoFocus
               value={form.name}
+              pattern={NAME_PATTERN}
+              title={NAME_HINT}
+              maxLength={255}
               className={FIELD_CLASS}
-              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+              onChange={(e) => {
+                const name = e.target.value;
+                setForm((prev) => ({ ...prev, name, ...(colorPicked ? {} : { color: typeFamily(name).color }) }));
+              }}
             />
           </label>
           <label className="grid gap-1.5 text-sm">
@@ -171,17 +178,25 @@ export default function PermitTypesPage() {
                 aria-label="Pick colour"
                 value={HEX_COLOR.test(form.color) ? form.color : DEFAULT_COLOR}
                 className="h-10 w-12 cursor-pointer rounded-md border border-border bg-background"
-                onChange={(e) => setForm((prev) => ({ ...prev, color: e.target.value.toUpperCase() }))}
+                onChange={(e) => {
+                  setColorPicked(true);
+                  setForm((prev) => ({ ...prev, color: e.target.value.toUpperCase() }));
+                }}
               />
               <input
                 required
                 pattern="#[0-9A-Fa-f]{6}"
                 value={form.color}
                 className={`${FIELD_CLASS} flex-1 font-mono`}
-                onChange={(e) => setForm((prev) => ({ ...prev, color: e.target.value }))}
+                onChange={(e) => {
+                  setColorPicked(true);
+                  setForm((prev) => ({ ...prev, color: e.target.value }));
+                }}
               />
             </div>
-            <span className="text-xs text-muted-foreground">Shown on this type&rsquo;s permits.</span>
+            <span className="text-xs text-muted-foreground">
+              Shown on this type&rsquo;s permits. {colorPicked ? "" : "Suggested from the name until you pick one."}
+            </span>
           </label>
           <label className="flex items-center gap-2 self-center text-sm">
             <input

@@ -8,6 +8,7 @@ import { PlanCard } from "@/components/billing/plan-card";
 import { PlanChangeDialog } from "@/components/billing/plan-change-dialog";
 import { UsageMeter } from "@/components/billing/usage-meter";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api";
 import { getProfile } from "@/lib/auth/api";
 import {
@@ -50,9 +51,8 @@ export default function BillingPage() {
   const [dialogReason, setDialogReason] = useState("");
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [usageMetricKey, setUsageMetricKey] = useState("active_permits");
-  const [usageQuantity, setUsageQuantity] = useState("0");
+  const [usageQuantity, setUsageQuantity] = useState("");
   const [usagePeriod, setUsagePeriod] = useState(currentPeriodLabel());
-  const [usageSuccess, setUsageSuccess] = useState<string | null>(null);
 
   const loadBilling = useCallback(() => {
     setIsLoading(true);
@@ -126,6 +126,7 @@ export default function BillingPage() {
 
       setDialogPlan(null);
       setDialogReason("");
+      toast(isSubscribeFlow ? `Subscribed to ${selectedPlan.name}` : `Plan changed to ${selectedPlan.name}`);
       loadBilling();
     } catch (err) {
       setDialogError(err instanceof ApiError ? err.message : "Failed to update subscription");
@@ -136,7 +137,6 @@ export default function BillingPage() {
 
   async function handleRecordUsage(event: React.FormEvent) {
     event.preventDefault();
-    setUsageSuccess(null);
     setError(null);
     setIsSubmitting(true);
 
@@ -146,7 +146,8 @@ export default function BillingPage() {
         quantity: Number(usageQuantity),
         periodLabel: usagePeriod.trim(),
       });
-      setUsageSuccess("Usage recorded.");
+      toast("Usage recorded");
+      setUsageQuantity("");
       loadBilling();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to record usage");
@@ -200,10 +201,16 @@ export default function BillingPage() {
 
           {isSubscribeFlow ? (
             <section>
-              <h2 className="mb-3 text-sm font-semibold">Choose a plan</h2>
               {plans.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No active plans are available.</p>
+                <div className="rounded-xl border border-dashed border-border px-5 py-8 text-center">
+                  <p className="font-medium">No subscription yet</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    No plans have been published for sign-up. Contact the platform administrator to set up your subscription.
+                  </p>
+                </div>
               ) : (
+                <>
+              <h2 className="mb-3 text-sm font-semibold">Choose a plan</h2>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {plans.map((plan) => (
                     <PlanCard
@@ -215,8 +222,9 @@ export default function BillingPage() {
                     />
                   ))}
                 </div>
+                </>
               )}
-              {!isAdmin ? (
+              {!isAdmin && plans.length > 0 ? (
                 <p className="mt-3 text-xs text-muted-foreground">
                   Plan changes require organisation administrator access.
                 </p>
@@ -244,6 +252,7 @@ export default function BillingPage() {
             </p>
           ) : null}
 
+          {subscription ? (
           <section className="rounded-lg border border-border p-5">
             <h2 className="text-sm font-semibold">Usage</h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -271,6 +280,9 @@ export default function BillingPage() {
                   <input
                     type="number"
                     min={0}
+                    step={1}
+                    inputMode="numeric"
+                    placeholder="e.g. 12"
                     className="rounded-md border border-border bg-background px-3 py-2"
                     value={usageQuantity}
                     onChange={(event) => setUsageQuantity(event.target.value)}
@@ -280,17 +292,14 @@ export default function BillingPage() {
                 <label className="flex flex-col gap-1 text-sm">
                   Period (YYYY-MM)
                   <input
+                    pattern="[0-9]{4}-(0[1-9]|1[0-2])"
+                    title="Year and month, e.g. 2026-09"
                     className="rounded-md border border-border bg-background px-3 py-2"
                     value={usagePeriod}
                     onChange={(event) => setUsagePeriod(event.target.value)}
                     required
                   />
                 </label>
-                {usageSuccess ? (
-                  <p role="status" className="text-sm text-muted-foreground">
-                    {usageSuccess}
-                  </p>
-                ) : null}
                 <Button type="submit" disabled={isSubmitting} className="w-fit">
                   Save usage
                 </Button>
@@ -298,6 +307,7 @@ export default function BillingPage() {
               </details>
             ) : null}
           </section>
+          ) : null}
 
           <section>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">

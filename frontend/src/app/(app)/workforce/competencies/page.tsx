@@ -4,6 +4,7 @@ import type { EntityField } from "@/lib/workforce/types";
 const fields: EntityField[] = [
   { key: "name", label: "Competency name", required: true },
   { key: "workforceUserId", label: "Workforce member", select: "workforce" },
+  { key: "certificationName", label: "Certificate" },
   { key: "description", label: "Description" },
 ];
 

@@ -263,6 +263,16 @@ describe('ApprovalService integration (PUS-136)', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  dbTest('rejects approval by the person who submitted the permit', async () => {
+    const { supervisorUser, createPendingPermit, createWorkflowSteps } = testContext();
+    const permit = await createPendingPermit();
+    await createWorkflowSteps(1);
+
+    await expect(
+      approvalService.approve(permit.id, { comment: 'My own' }, { ...supervisorUser, id: issuerId }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   dbTest('rejects defer without comment when step requires it', async () => {
     const { supervisorUser, createPendingPermit, createWorkflowSteps } = testContext();
     const permit = await createPendingPermit();

@@ -56,6 +56,9 @@ export default () => ({
     accessKey: process.env.MINIO_ACCESS_KEY ?? 'ptw_minio',
     secretKey: process.env.MINIO_SECRET_KEY ?? 'ptw_minio_password',
     bucket: process.env.MINIO_BUCKET ?? 'ptw-documents',
+    // Where browsers reach MinIO. Presigned links are signed for this host; the internal
+    // endpoint (e.g. `minio`) only resolves inside Docker.
+    publicUrl: process.env.MINIO_PUBLIC_URL ?? '',
   },
   keycloak: {
     url: process.env.KEYCLOAK_URL ?? 'http://localhost:8080',

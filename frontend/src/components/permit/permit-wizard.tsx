@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
 import { ApiError } from "@/lib/api";
 import { getProfile } from "@/lib/auth/api";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -53,7 +54,7 @@ import {
 } from "@/lib/workforce/api";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { ensureEndAfterStart } from "@/lib/datetime";
-import { Copy } from "lucide-react";
+import { Copy, X } from "lucide-react";
 import { formatRelative } from "@/lib/format";
 import { useWorkQueue } from "@/lib/work-queue-context";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,15 @@ function executorRoleLabel(kind?: "internal" | "contractor" | "agency") {
     return "Contractor";
   }
   return "Job executor";
+}
+
+/** Removes one row of a repeating list (viewer, hazard, PPE, executor…). */
+function RemoveRowButton({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
+  return (
+    <Button type="button" variant="ghost" size="icon" disabled={disabled} aria-label={label} title={label} onClick={onClick} className="shrink-0 text-muted-foreground hover:text-destructive">
+      <X aria-hidden />
+    </Button>
+  );
 }
 
 function PersonSelect({
@@ -409,13 +419,15 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       });
       setPermitId(created.permit.id);
       setStatus(created.permit.status);
-      router.replace(`/permits/${created.permit.id}/edit`);
+      // Update the address only: a router navigation would remount the wizard on the saved
+      // step, so the first Next click appeared to do nothing.
+      window.history.replaceState(null, "", `/permits/${created.permit.id}/edit`);
       return created.permit.id;
     }
 
     await savePermitDraft(permitId, payload);
     return permitId;
-  }, [authRoles, form, permitId, router, templates, templatesLoaded, userRoles]);
+  }, [authRoles, form, permitId, templates, templatesLoaded, userRoles]);
 
   const forms = applicableTemplates(templates, form.permitTypeId);
   const signerName =
@@ -598,25 +610,20 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const fieldDisabled = isReadOnly || !canEditStep;
 
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="font-heading text-3xl font-bold tracking-tight">
-          {mode === "create"
-            ? "Create permit"
-            : isResubmit
-              ? "Revise & resubmit permit"
-              : "Edit draft permit"}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {isOperatorPhase
+    <div className="flex flex-col gap-6 px-4 pb-8 sm:px-8">
+      <PageHeader
+        back={permitId ? { href: `/permits/${permitId}`, label: "Back to permit" } : { href: "/permits", label: "Permits" }}
+        title={mode === "create" ? "Create permit" : isResubmit ? "Revise and resubmit permit" : "Edit draft permit"}
+        description={
+          isOperatorPhase
             ? "Complete on-site operational details. Executors do not approve permits."
             : step === 4
               ? "Fill in the permit form and check sheets for this type of work. The issuer or the assigned executor can complete them."
               : isIssuerPhase && step < 4
-              ? "Enter core permit information, assign an executor, then hand off for on-site details."
-              : "Review executor details and submit the permit for HOD approval."}
-        </p>
-      </div>
+                ? "Enter core permit information, assign an executor, then hand off for on-site details."
+                : "Review executor details and submit the permit for HOD approval."
+        }
+      />
 
       {status === "draft" ? <DraftBanner /> : null}
       {!canEditStep && !isReadOnly ? (
@@ -812,20 +819,28 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               </Button>
             </div>
             {form.viewers.map((viewer, index) => (
-              <PersonSelect
-                key={`viewer-${index}`}
-                id={`viewer-${index}`}
-                value={viewer.workforceUserId}
-                disabled={fieldDisabled || masterDataLoading}
-                options={viewerOptions}
-                placeholder="Select viewers"
-                internalGroupLabel="Internal Viewers"
-                onChange={(workforceUserId) => {
-                  const viewers = [...form.viewers];
-                  viewers[index] = { workforceUserId };
-                  setForm({ ...form, viewers });
-                }}
-              />
+              <div key={`viewer-${index}`} className="flex items-center gap-2">
+                <PersonSelect
+                  id={`viewer-${index}`}
+                  value={viewer.workforceUserId}
+                  disabled={fieldDisabled || masterDataLoading}
+                  options={viewerOptions.filter(
+                    (person) => person.id === viewer.workforceUserId || !form.viewers.some((v) => v.workforceUserId === person.id),
+                  )}
+                  placeholder={viewerOptions.length ? "Select a person" : "No people in this organisation yet"}
+                  internalGroupLabel="People in this organisation"
+                  onChange={(workforceUserId) => {
+                    const viewers = [...form.viewers];
+                    viewers[index] = { workforceUserId };
+                    setForm({ ...form, viewers });
+                  }}
+                />
+                <RemoveRowButton
+                  label="Remove viewer"
+                  disabled={fieldDisabled}
+                  onClick={() => setForm({ ...form, viewers: form.viewers.filter((_, i) => i !== index) })}
+                />
+              </div>
             ))}
           </div>
           <FormField label="Planned start" htmlFor="plannedStartAt">
@@ -958,8 +973,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               </Button>
             </div>
             {form.safetyOfficers.map((officer, index) => (
+              <div key={`so-${index}`} className="flex items-center gap-2">
               <PersonSelect
-                key={`so-${index}`}
                 id={`safety-officer-${index}`}
                 value={officer.workforceUserId}
                 disabled={fieldDisabled || masterDataLoading}
@@ -972,6 +987,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                   setForm({ ...form, safetyOfficers });
                 }}
               />
+              <RemoveRowButton
+                label="Remove safety officer"
+                disabled={fieldDisabled}
+                onClick={() => setForm({ ...form, safetyOfficers: form.safetyOfficers.filter((_, i) => i !== index) })}
+              />
+              </div>
             ))}
           </div>
           <label className="flex items-center gap-2 text-sm">
@@ -988,6 +1009,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               }
             />
             LOTOTO required
+            {!form.machineryId ? <span className="text-muted-foreground">(choose machinery above first)</span> : null}
           </label>
           {form.lototoRequired ? (
             <div className="grid gap-3">
@@ -1010,15 +1032,34 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               </div>
               {machineryLototo.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No LOTOTO procedures for this machinery. Add them under
-                  Organisation → Machinery.
+                  This machine has no LOTOTO plan yet.{" "}
+                  <a
+                    href={`/lototo?new=1&machineryId=${form.machineryId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-(--act-do) underline underline-offset-2"
+                  >
+                    Create one in a new tab
+                  </a>
+                  , then{" "}
+                  <button
+                    type="button"
+                    className="font-medium underline underline-offset-2"
+                    onClick={() =>
+                      void listLototoPlans({ machineryId: form.machineryId }).then(setMachineryLototo).catch(() => setMachineryLototo([]))
+                    }
+                  >
+                    refresh the list
+                  </button>
+                  .
                 </p>
               ) : null}
               {form.lototo.map((item, index) => (
+                <div key={`lototo-${index}`} className="flex items-end gap-2">
                 <FormField
-                  key={`lototo-${index}`}
                   label="LOTOTO procedure"
                   htmlFor={`lototo-${index}`}
+                  className="flex-1"
                 >
                   <MasterDataSelect
                     id={`lototo-${index}`}
@@ -1037,6 +1078,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     }}
                   />
                 </FormField>
+                <RemoveRowButton
+                  label="Remove LOTOTO procedure"
+                  disabled={fieldDisabled}
+                  onClick={() => setForm({ ...form, lototo: form.lototo.filter((_, i) => i !== index) })}
+                />
+                </div>
               ))}
             </div>
           ) : null}
@@ -1054,6 +1101,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               }
             />
             Gas testing required
+            {!form.workstationId ? <span className="text-muted-foreground">(choose a workstation above first)</span> : null}
           </label>
           {form.gasTestingRequired ? (
             <div className="grid gap-3">
@@ -1084,10 +1132,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 </p>
               ) : null}
               {form.gasTesting.map((item, index) => (
+                <div key={`gas-testing-${index}`} className="flex items-end gap-2">
                 <FormField
-                  key={`gas-testing-${index}`}
                   label="Gas testing item"
                   htmlFor={`gas-testing-${index}`}
+                  className="flex-1"
                 >
                   <MasterDataSelect
                     id={`gas-testing-${index}`}
@@ -1105,6 +1154,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     }}
                   />
                 </FormField>
+                <RemoveRowButton
+                  label="Remove gas test"
+                  disabled={fieldDisabled}
+                  onClick={() => setForm({ ...form, gasTesting: form.gasTesting.filter((_, i) => i !== index) })}
+                />
+                </div>
               ))}
             </div>
           ) : null}
@@ -1132,7 +1187,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             {form.hazards.map((hazard, index) => (
               <div
                 key={`hazard-${index}`}
-                className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-2"
+                className="grid items-end gap-3 rounded-lg border border-border p-4 md:grid-cols-[1fr_1fr_auto]"
               >
                 <FormField label="Hazard category" htmlFor={`hazard-${index}`}>
                   <MasterDataSelect
@@ -1164,6 +1219,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     }}
                   />
                 </FormField>
+                <RemoveRowButton
+                  label="Remove hazard"
+                  disabled={fieldDisabled}
+                  onClick={() => setForm({ ...form, hazards: form.hazards.filter((_, i) => i !== index) })}
+                />
               </div>
             ))}
           </div>
@@ -1189,7 +1249,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             {form.ppe.map((item, index) => (
               <div
                 key={`ppe-${index}`}
-                className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-2"
+                className="grid items-end gap-3 rounded-lg border border-border p-4 md:grid-cols-[1fr_1fr_auto]"
               >
                 <FormField label="PPE item" htmlFor={`ppe-${index}`}>
                   <MasterDataSelect
@@ -1223,6 +1283,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     }}
                   />
                 </FormField>
+                <RemoveRowButton
+                  label="Remove PPE item"
+                  disabled={fieldDisabled}
+                  onClick={() => setForm({ ...form, ppe: form.ppe.filter((_, i) => i !== index) })}
+                />
               </div>
             ))}
           </div>
@@ -1254,7 +1319,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           {form.executors.map((executor, index) => (
             <div
               key={`executor-${index}`}
-              className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[1fr_auto]"
+              className="grid items-end gap-3 rounded-lg border border-border p-4 md:grid-cols-[1fr_auto_auto]"
             >
               <FormField
                 label="Executor"
@@ -1291,6 +1356,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 />
                 Primary executor
               </label>
+              <RemoveRowButton
+                label="Remove executor"
+                disabled={fieldDisabled || form.executors.length === 1}
+                onClick={() => setForm({ ...form, executors: form.executors.filter((_, i) => i !== index) })}
+              />
             </div>
           ))}
         </section>

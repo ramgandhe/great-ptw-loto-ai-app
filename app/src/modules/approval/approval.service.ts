@@ -79,6 +79,10 @@ export class ApprovalService {
 
     const eligible = [];
     for (const row of rows) {
+      // Your own submissions wait for someone else (see prepareDecision).
+      if (row.permit.submittedBy === user.id) {
+        continue;
+      }
       const canAct = await this.canUserActOnAssignment(
         user,
         tenantId,
@@ -366,6 +370,11 @@ export class ApprovalService {
 
     if (permit.status !== PENDING_APPROVAL_STATUS) {
       throw new ConflictException(`Cannot ${decision} a permit that is not pending approval`);
+    }
+
+    // Separation of duties: whoever submitted a permit cannot also approve it.
+    if (decision === 'approve' && permit.submittedBy === user.id) {
+      throw new ForbiddenException('You submitted this permit, so another approver must approve it');
     }
 
     const existingAssignments = await this.workflowEngine.listAssignmentsForPermit(permitId);

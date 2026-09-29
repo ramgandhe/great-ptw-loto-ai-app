@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import {
   addIsolationPoint,
+  removeIsolationPoint,
   assignLototoPersonnel,
   configureIsolationSequence,
   getLototoPlan,
@@ -32,6 +33,7 @@ import {
 import { PlanStatusBadge } from "@/components/lototo/plan-status-badge";
 import { fieldClassName, FormField } from "@/components/permit/form-field";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 
 export default function LototoPlanDetailPage() {
   const params = useParams<{ id: string }>();
@@ -119,6 +121,21 @@ export default function LototoPlanDetailPage() {
       setMessage("Isolation point added.");
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Failed to add isolation point");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleRemoveIsolationPoint(pointId: string, number: string) {
+    if (!window.confirm(`Delete isolation point ${number}? Save the sequence again afterwards.`)) return;
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      await removeIsolationPoint(planId, pointId);
+      await loadDetail();
+      toast(`Isolation point ${number} deleted`);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "The isolation point could not be deleted");
     } finally {
       setIsSubmitting(false);
     }
@@ -254,11 +271,25 @@ export default function LototoPlanDetailPage() {
             <ol className="mb-4 list-decimal space-y-2 pl-5 text-sm">
               {orderedPoints.map((point) => (
                 <li key={point.id}>
-                  <span className="font-medium">{point.isolationNumber}</span>
-                  {point.description ? ` — ${point.description}` : null}
-                  {point.verificationRequired ? (
-                    <span className="ml-2 text-xs text-muted-foreground">(verification required)</span>
-                  ) : null}
+                  <span className="flex items-start justify-between gap-2">
+                    <span>
+                      <span className="font-medium">{point.isolationNumber}</span>
+                      {point.description ? ` — ${point.description}` : null}
+                      {point.verificationRequired ? (
+                        <span className="ml-2 text-xs text-muted-foreground">(verification required)</span>
+                      ) : null}
+                    </span>
+                    {editable ? (
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        className="shrink-0 text-xs font-medium text-muted-foreground hover:text-destructive hover:underline"
+                        onClick={() => void handleRemoveIsolationPoint(point.id, point.isolationNumber)}
+                      >
+                        Delete
+                      </button>
+                    ) : null}
+                  </span>
                 </li>
               ))}
             </ol>

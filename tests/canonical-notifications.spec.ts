@@ -10,7 +10,9 @@ describe('CanonicalNotificationService (FR-NOT-002–008)', () => {
     select: jest.fn(),
   };
 
-  const service = new CanonicalNotificationService(db as never, notificationsService);
+  const service = new CanonicalNotificationService(db as never, notificationsService, {
+    listUsersForTenant: jest.fn().mockResolvedValue([]),
+  } as never);
 
   beforeEach(() => {
     jest.clearAllMocks();

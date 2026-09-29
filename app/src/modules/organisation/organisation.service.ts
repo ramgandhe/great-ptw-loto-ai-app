@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, inArray, ne } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import { requireTenant } from '../../common/helpers/tenant-context';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
@@ -128,8 +128,8 @@ export class OrganisationService {
     return row;
   }
 
-  listPlants(user: AuthenticatedUser) {
-    return this.listActive(plants, user);
+  listPlants(user: AuthenticatedUser, archived = false) {
+    return this.listActive(plants, user, archived);
   }
 
   getPlant(id: string, user: AuthenticatedUser) {
@@ -152,8 +152,8 @@ export class OrganisationService {
     return this.archiveEntity(plants, 'plant', id, user);
   }
 
-  listDepartments(user: AuthenticatedUser) {
-    return this.listActive(departments, user);
+  listDepartments(user: AuthenticatedUser, archived = false) {
+    return this.listActive(departments, user, archived);
   }
 
   getDepartment(id: string, user: AuthenticatedUser) {
@@ -177,8 +177,8 @@ export class OrganisationService {
     return this.archiveEntity(departments, 'department', id, user);
   }
 
-  listLocations(user: AuthenticatedUser) {
-    return this.listActive(locations, user);
+  listLocations(user: AuthenticatedUser, archived = false) {
+    return this.listActive(locations, user, archived);
   }
 
   getLocation(id: string, user: AuthenticatedUser) {
@@ -202,8 +202,8 @@ export class OrganisationService {
     return this.archiveEntity(locations, 'location', id, user);
   }
 
-  listWorkflows(user: AuthenticatedUser) {
-    return this.listActive(approvalWorkflows, user);
+  listWorkflows(user: AuthenticatedUser, archived = false) {
+    return this.listActive(approvalWorkflows, user, archived);
   }
 
   getWorkflow(id: string, user: AuthenticatedUser) {
@@ -547,8 +547,16 @@ export class OrganisationService {
     return row;
   }
 
-  private async listActive(table: OrgStatusTable, user: AuthenticatedUser) {
+  /** Live records, or with `archived` only the archived ones (newest first) so they can still be looked up. */
+  private async listActive(table: OrgStatusTable, user: AuthenticatedUser, archived = false) {
     const tenantId = requireTenant(user);
+    if (archived) {
+      return this.db
+        .select()
+        .from(table)
+        .where(and(eq(table.tenantId, tenantId), eq(table.status, 'archived')))
+        .orderBy(desc(table.updatedAt));
+    }
     return this.db
       .select()
       .from(table)
