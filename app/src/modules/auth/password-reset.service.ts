@@ -46,9 +46,9 @@ export class PasswordResetService {
     void this.mail
       .send({
         to: address,
-        subject: 'Reset your GREAT PTW password',
+        subject: 'Reset your PermitWiseAI password',
         text: [
-          'Someone asked to reset the password for this email on GREAT PTW.',
+          'Someone asked to reset the password for this email on PermitWiseAI.',
           '',
           `Choose a new password here (the link works once, for ${LINK_MINUTES} minutes):`,
           link,

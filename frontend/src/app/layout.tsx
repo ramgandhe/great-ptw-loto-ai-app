@@ -66,8 +66,9 @@ const fontVariables = cn(
 );
 
 export const metadata: Metadata = {
-  title: "Permit-to-Work Platform",
-  description: "Enterprise Permit-to-Work and safety management platform",
+  title: { default: "PermitWiseAI", template: "%s · PermitWiseAI" },
+  description: "PermitWiseAI: permit-to-work, LOTOTO and safety management for industrial sites.",
+  applicationName: "PermitWiseAI",
 };
 
 export default function RootLayout({

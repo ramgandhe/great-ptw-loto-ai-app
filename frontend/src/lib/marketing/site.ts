@@ -3,7 +3,7 @@
  * Bracketed values are placeholders: replace them before going live.
  */
 export const SITE = {
-  product: "GREAT PTW",
+  product: "PermitWiseAI",
   company: "[Company Legal Name] Private Limited",
   registeredAddress: "[Registered office address, City, State, PIN]",
   cin: "[CIN]",

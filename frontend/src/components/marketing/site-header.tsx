@@ -17,20 +17,17 @@ const NAV = [
 
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-2 font-heading text-lg font-bold", className)}>
-      {/* Padlock shackle over a permit sheet: the product in one glyph. */}
-      <svg viewBox="0 0 24 24" className="size-6" aria-hidden>
-        <rect x="3" y="9" width="18" height="13" rx="3" className="fill-primary" />
-        <path
-          d="M7.5 9V6.5a4.5 4.5 0 0 1 9 0V9"
-          fill="none"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          className="stroke-foreground"
-        />
-        <path d="M8 15h8M8 18.5h5" strokeWidth="1.8" strokeLinecap="round" className="stroke-primary-foreground" />
+    <span className={cn("inline-flex items-center gap-2 font-heading text-lg font-bold tracking-tight", className)}>
+      {/* A signed-off permit (sheet with a tick) and a spark for the AI that checks it. */}
+      <svg viewBox="0 0 24 24" className="size-6 shrink-0" aria-hidden>
+        <rect x="1" y="1" width="22" height="22" rx="6" className="fill-primary" />
+        <path d="M7 5.5h6.5l3.5 3.5v9.5H7z" strokeWidth="1.6" strokeLinejoin="round" className="fill-primary stroke-primary-foreground" />
+        <path d="m9.3 13.4 1.9 1.9 3.6-3.9" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="stroke-primary-foreground" />
+        <path d="M18.6 2.6l.55 1.25 1.25.55-1.25.55-.55 1.25-.55-1.25-1.25-.55 1.25-.55z" className="fill-primary-foreground" />
       </svg>
-      {SITE.product}
+      <span>
+        PermitWise<span className="text-primary">AI</span>
+      </span>
     </span>
   );
 }
