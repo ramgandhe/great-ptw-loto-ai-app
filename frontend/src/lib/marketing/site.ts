@@ -4,13 +4,13 @@
  */
 export const SITE = {
   product: "PermitWiseAI",
-  company: "[Company Legal Name] Private Limited",
-  registeredAddress: "[Registered office address, City, State, PIN]",
+  company: "ViXR India Private Limited",
+  registeredAddress: "7 & 8, 2nd Floor, 27th Main, HSR Sector 1, Bengaluru, Karnataka 560 102",
   cin: "[CIN]",
-  contactEmail: "[hello@your-domain.in]",
-  privacyEmail: "[privacy@your-domain.in]",
+  contactEmail: "info@permitwiseai.cloud",
+  privacyEmail: "info@permitwiseai.cloud",
   grievanceOfficer: "[Name of Grievance Officer]",
-  grievanceEmail: "[grievance@your-domain.in]",
-  jurisdictionCity: "[City]",
+  grievanceEmail: "info@permitwiseai.cloud",
+  jurisdictionCity: "Bengaluru",
   legalLastUpdated: "27 September 2026",
 } as const;

@@ -128,7 +128,7 @@ const sections: LegalSection[] = [
       <p>
         We aim to keep the service available [99.5]% of each month, excluding scheduled maintenance
         announced in advance. Support is available by email at{" "}
-        <a href={`mailto:${SITE.contactEmail}`}>{SITE.contactEmail}</a> during [business hours, IST].
+        <a href={`mailto:${SITE.contactEmail}`}>{SITE.contactEmail}</a> during 10:00–18:00 IST, Monday to Friday.
         Any service credits are set out in the order form.
       </p>
     ),

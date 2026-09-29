@@ -113,7 +113,7 @@ const sections: LegalSection[] = [
     title: "Where your data is stored",
     body: (
       <p>
-        Data is stored in [India / region of the hosting provider]. If data is transferred outside
+        Data is stored in India. If data is transferred outside
         India, it will only go to countries not restricted by the Central Government under section
         16 of the DPDP Act, and under safeguards no weaker than those described here.
       </p>
