@@ -16,11 +16,24 @@ function readCount(value: Record<string, unknown>): number | string {
 
 export function KpiGrid({ items, isLoading }: KpiGridProps) {
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Loading KPIs…</p>;
+    return (
+      <div role="status" aria-label="Loading KPIs" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {[0, 1, 2].map((placeholderIndex) => (
+          <div key={placeholderIndex} className="space-y-3 rounded-md border border-border bg-card p-4">
+            <div className="h-3 w-32 animate-pulse rounded bg-muted motion-reduce:animate-none" />
+            <div className="h-9 w-16 animate-pulse rounded bg-muted motion-reduce:animate-none" />
+          </div>
+        ))}
+      </div>
+    );
   }
 
   if (items.length === 0) {
-    return <p className="text-sm text-muted-foreground">No KPI data available.</p>;
+    return (
+      <p className="rounded-md border border-dashed border-border bg-card px-4 py-6 text-sm text-muted-foreground">
+        No KPI data available.
+      </p>
+    );
   }
 
   return (
@@ -32,7 +45,9 @@ export function KpiGrid({ items, isLoading }: KpiGridProps) {
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {meta.label}
             </p>
-            <p className="mt-2 text-3xl font-semibold text-foreground">{readCount(item.value)}</p>
+            <p className="mt-2 font-heading text-3xl font-semibold tabular-nums text-foreground">
+              {readCount(item.value)}
+            </p>
           </>
         );
 
@@ -41,7 +56,7 @@ export function KpiGrid({ items, isLoading }: KpiGridProps) {
             <Link
               key={item.key}
               href={meta.href}
-              className="rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/40"
+              className="rounded-md border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {content}
             </Link>
@@ -49,7 +64,7 @@ export function KpiGrid({ items, isLoading }: KpiGridProps) {
         }
 
         return (
-          <div key={item.key} className="rounded-lg border border-border bg-card p-4">
+          <div key={item.key} className="rounded-md border border-border bg-card p-4">
             {content}
           </div>
         );

@@ -27,7 +27,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const STORAGE_KEY = "ptw-theme-preferences-v2";
 
 const DEFAULT_PREFERENCES = {
-  theme: "hazard" as ThemeName,
+  theme: "control-room" as ThemeName,
   density: "normal" as Density,
   visualStyle: "standard" as VisualStyle,
   mode: "light" as const,

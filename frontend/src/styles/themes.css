@@ -139,7 +139,7 @@
   --font-display: var(--font-family-space-grotesk), sans-serif;
   --font-body: var(--font-family-ibm-plex-sans), sans-serif;
   --font-mono: var(--font-family-ibm-plex-mono), monospace;
-  --tracking-display: -0.01em;
+  --tracking-display: 0em;
   --radius-xs: 3px;
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -569,6 +569,14 @@
   --sidebar-accent-foreground: var(--text-secondary);
   --sidebar-border: var(--border-default);
   --sidebar-ring: var(--focus-ring);
+}
+
+[data-theme="control-room"]:not(.dark) {
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #0f172a;
+  --sidebar-accent: #eaf0f7;
+  --sidebar-accent-foreground: #1e293b;
+  --sidebar-border: #dbe3ed;
 }
 
 /* Shared scale tokens */

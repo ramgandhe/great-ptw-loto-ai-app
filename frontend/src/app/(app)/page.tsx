@@ -10,6 +10,7 @@ import {
   FileText,
   Lock,
   LockKeyhole,
+  RefreshCw,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ApiError } from "@/lib/api";
@@ -81,12 +82,12 @@ export default function DashboardPage() {
   }, [loadDashboard]);
 
   return (
-    <FadeIn className="flex flex-1 flex-col gap-8 p-8">
+    <FadeIn className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-6 p-4 sm:gap-8 sm:p-6 xl:p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <TenantName className="mt-1 text-sm font-medium" />
-          <p className="mt-1 text-sm text-muted-foreground">
+          <TenantName className="mt-1 text-sm font-medium text-muted-foreground" />
+          <p className="mt-2 text-sm text-muted-foreground">
             KPIs and operational summary for this organisation.
           </p>
           {dashboard?.refreshedAt ? (
@@ -96,6 +97,10 @@ export default function DashboardPage() {
           ) : null}
         </div>
         <Button type="button" variant="outline" size="sm" onClick={loadDashboard} disabled={isLoading}>
+          <RefreshCw
+            aria-hidden="true"
+            className={isLoading ? "animate-spin motion-reduce:animate-none" : undefined}
+          />
           Refresh
         </Button>
       </div>
@@ -105,7 +110,7 @@ export default function DashboardPage() {
       {error ? (
         <div
           role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
         >
           {error}
         </div>
@@ -114,26 +119,45 @@ export default function DashboardPage() {
       <section aria-label="Summary">
         <h2 className="mb-3 text-sm font-semibold">Summary</h2>
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading summary…</p>
+          <div
+            role="status"
+            aria-label="Loading summary"
+            className="grid gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-2 lg:grid-cols-4"
+          >
+            {[0, 1, 2, 3].map((placeholderIndex) => (
+              <div key={placeholderIndex} className="space-y-3 bg-card p-4 sm:p-5">
+                <div className="h-3 w-28 animate-pulse rounded bg-muted motion-reduce:animate-none" />
+                <div className="h-8 w-14 animate-pulse rounded bg-muted motion-reduce:animate-none" />
+              </div>
+            ))}
+          </div>
         ) : dashboard ? (
-          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <dl className="grid gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
             {dashboard.summary.myOpenPermits !== undefined ? (
-              <div className="rounded-lg border border-border bg-card p-4">
-                <dt className="text-xs text-muted-foreground">My open permits</dt>
-                <dd className="mt-1 text-2xl font-semibold">{dashboard.summary.myOpenPermits}</dd>
+              <div className="bg-card p-4 sm:p-5">
+                <dt className="text-xs font-medium text-muted-foreground">My open permits</dt>
+                <dd className="mt-2 font-heading text-3xl font-semibold tabular-nums">
+                  {dashboard.summary.myOpenPermits}
+                </dd>
               </div>
             ) : null}
-            <div className="rounded-lg border border-border bg-card p-4">
-              <dt className="text-xs text-muted-foreground">Active permits</dt>
-              <dd className="mt-1 text-2xl font-semibold">{dashboard.summary.activePermits ?? 0}</dd>
+            <div className="bg-card p-4 sm:p-5">
+              <dt className="text-xs font-medium text-muted-foreground">Active permits</dt>
+              <dd className="mt-2 font-heading text-3xl font-semibold tabular-nums">
+                {dashboard.summary.activePermits ?? 0}
+              </dd>
             </div>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <dt className="text-xs text-muted-foreground">Pending approvals</dt>
-              <dd className="mt-1 text-2xl font-semibold">{dashboard.summary.pendingApprovals ?? 0}</dd>
+            <div className="bg-card p-4 sm:p-5">
+              <dt className="text-xs font-medium text-muted-foreground">Pending approvals</dt>
+              <dd className="mt-2 font-heading text-3xl font-semibold tabular-nums">
+                {dashboard.summary.pendingApprovals ?? 0}
+              </dd>
             </div>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <dt className="text-xs text-muted-foreground">Open incidents</dt>
-              <dd className="mt-1 text-2xl font-semibold">{dashboard.summary.openIncidents ?? 0}</dd>
+            <div className="bg-card p-4 sm:p-5">
+              <dt className="text-xs font-medium text-muted-foreground">Open incidents</dt>
+              <dd className="mt-2 font-heading text-3xl font-semibold tabular-nums">
+                {dashboard.summary.openIncidents ?? 0}
+              </dd>
             </div>
           </dl>
         ) : null}
@@ -154,7 +178,7 @@ export default function DashboardPage() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/40"
+                className="flex min-h-14 items-center gap-3 rounded-md border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <Icon icon={item.icon} size="sm" />
                 <span className="text-sm font-medium">{item.label}</span>

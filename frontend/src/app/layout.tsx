@@ -81,7 +81,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={fontVariables}
-      data-theme="hazard"
+      data-theme="control-room"
       data-mode="light"
       data-density="normal"
       data-style="standard"

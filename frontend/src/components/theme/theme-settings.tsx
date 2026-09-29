@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const selectClassName =
-  "h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground";
+  "h-9 rounded-md border border-input bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
 const THEME_LABELS: Record<ThemeName, string> = {
   hazard: "Hazard",
@@ -91,7 +91,7 @@ export function ThemeSettings({ variant = "toolbar", className }: ThemeSettingsP
   }
 
   return (
-    <div className={cn("ml-auto flex flex-wrap items-center gap-2", className)}>
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
       <select
         aria-label="Theme"
         className={selectClassName}

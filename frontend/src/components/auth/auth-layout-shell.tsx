@@ -2,8 +2,15 @@
 
 import { FadeIn } from "@/components/motion/fade-in";
 import { Icon, ShieldCheck } from "@/components/icons";
+import { usePathname } from "next/navigation";
 
 export function AuthLayoutShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  if (pathname === "/login") {
+    return children;
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <FadeIn className="flex w-full max-w-md flex-col gap-6">

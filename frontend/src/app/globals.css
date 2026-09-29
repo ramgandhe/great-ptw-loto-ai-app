@@ -65,6 +65,8 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
     transition:
       background var(--duration-slow, 240ms) var(--ease-standard, ease),
       color var(--duration-slow, 240ms) var(--ease-standard, ease);
@@ -76,7 +78,7 @@
   h3,
   h4 {
     font-family: var(--font-display);
-    letter-spacing: var(--tracking-display, -0.01em);
+    letter-spacing: 0;
   }
 
   code,
@@ -85,6 +87,26 @@
   samp {
     font-family: var(--font-mono);
   }
+}
+
+.app-page-content {
+  min-width: 0;
+}
+
+.app-page-content > main,
+.app-page-content > .p-8 {
+  min-width: 0;
+  padding: clamp(1rem, 2vw, 2rem);
+}
+
+.app-page-content table thead th {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.app-page-content table tbody tr:hover {
+  background-color: color-mix(in oklch, var(--bg-sunken), transparent 40%);
 }
 
 [data-density="compact"] body {
