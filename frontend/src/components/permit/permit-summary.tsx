@@ -6,7 +6,8 @@ import { DOMAIN_ICONS } from "@/lib/domain-icons";
 import { PermitTypeChip } from "./permit-type-chip";
 import type { PermitAttachment, PermitFormState } from "@/lib/permit/types";
 import { gasTestingApi, masterDataApi } from "@/lib/master-data/api";
-import { listLototoPlans } from "@/lib/lototo/api";
+import { getLototoProcedure, getLototoProcedureVersion, listLototoProcedures } from "@/lib/lototo/api";
+import type { LototoProcedureVersion } from "@/lib/lototo/types";
 import { formatWindow } from "@/lib/format";
 import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
 import { PermitStatusBadge } from "./permit-status-badge";
@@ -28,7 +29,7 @@ export function permitGaps(form: PermitFormState): string[] {
   if (!form.plannedStartAt || !form.plannedEndAt) gaps.push("Planned start and end");
   if (!form.hazards.some((h) => h.hazardCategoryId)) gaps.push("Hazards");
   if (!form.ppe.some((p) => p.ppeCatalogueId)) gaps.push("PPE");
-  if (form.lototoRequired && !form.lototo.some((l) => l.lototoPlanId)) gaps.push("LOTOTO procedure (marked as required)");
+  if (form.lototoRequired && !form.lototo.some((l) => l.procedureId)) gaps.push("LOTOTO procedure (marked as required)");
   if (form.gasTestingRequired && !form.gasTesting.some((g) => g.gasTestingCatalogueId)) gaps.push("Gas tests (marked as required)");
   if (!form.executors.some((e) => e.workforceUserId)) gaps.push("Executor");
   return gaps;
@@ -121,23 +122,52 @@ export function PermitSummary({
 }) {
   const [lookups, setLookups] = useState<Lookups | null>(null);
   const [catalogues, setCatalogues] = useState<Catalogues | null>(null);
+  const [lototoVersions, setLototoVersions] = useState<Record<string, LototoProcedureVersion>>({});
 
   useEffect(() => {
     loadLookups().then(setLookups, () => undefined);
     Promise.all([
       masterDataApi.hazards().catch(() => []),
       masterDataApi.ppe().catch(() => []),
-      listLototoPlans().catch(() => []),
+      listLototoProcedures({ published: true }).catch(() => []),
       gasTestingApi.list().catch(() => []),
     ]).then(([hazards, ppe, lototo, gas]) =>
       setCatalogues({
         hazards: named(hazards, (row) => row.name),
         ppe: named(ppe, (row) => row.name),
-        lototo: named(lototo, (row) => row.title),
+        lototo: named(lototo, (row) => `${row.code} ${row.title}`),
         gas: named(gas, (row) => `${row.parameter} (${row.unit})`),
       }),
     );
   }, []);
+
+  useEffect(() => {
+    const ids = form.lototo.filter((item) => item.procedureId);
+    if (ids.length === 0) {
+      return;
+    }
+    Promise.all(
+      ids.map(async (item) => {
+        if (item.procedureVersionId) {
+          const version = await getLototoProcedureVersion(item.procedureVersionId);
+          return [item.procedureId, version] as const;
+        }
+        const procedure = await getLototoProcedure(item.procedureId);
+        const version = procedure.publishedVersion ?? procedure.draftVersion;
+        return version ? ([item.procedureId, version] as const) : null;
+      }),
+    )
+      .then((rows) => {
+        const next: Record<string, LototoProcedureVersion> = {};
+        for (const row of rows) {
+          if (row) {
+            next[row[0]] = row[1];
+          }
+        }
+        setLototoVersions(next);
+      })
+      .catch(() => undefined);
+  }, [form.lototo]);
 
   const loading = "Loading…";
   const pick = (map: Map<string, string> | undefined, id: string) => map?.get(id) ?? (catalogues ? "Unknown item" : loading);
@@ -160,7 +190,6 @@ export function PermitSummary({
   const ppe = form.ppe
     .filter((p) => p.ppeCatalogueId)
     .map((p) => `${pick(catalogues?.ppe, p.ppeCatalogueId)}${p.quantity > 1 ? ` × ${p.quantity}` : ""}`);
-  const lototo = form.lototo.filter((l) => l.lototoPlanId).map((l) => pick(catalogues?.lototo, l.lototoPlanId));
   const gas = form.gasTesting
     .filter((g) => g.gasTestingCatalogueId)
     .map((g) => pick(catalogues?.gas, g.gasTestingCatalogueId));
@@ -224,10 +253,111 @@ export function PermitSummary({
       </Section>
       <Section kind="lototo" title="LOTOTO">
         {form.lototoRequired ? (
-          <Chips items={lototo} empty="Required, no procedure attached" missing />
+          form.lototo.filter((item) => item.procedureId).length === 0 ? (
+            <span className="font-semibold text-(--status-danger)">Required, no procedure attached</span>
+          ) : (
+            <div className="grid gap-4">
+              {form.lototo
+                .filter((item) => item.procedureId)
+                .map((item) => {
+                  const version = lototoVersions[item.procedureId];
+                  return (
+                    <div key={item.procedureId} className="grid gap-2">
+                      <p className="font-medium">{pick(catalogues?.lototo, item.procedureId)}</p>
+                      {version?.note ? <Field label="Note">{version.note}</Field> : null}
+                      {version?.description ? <Field label="Description">{version.description}</Field> : null}
+                      <Field label="Isolation points">
+                        {version?.lockoutPoints?.length ? (
+                          <ul className="space-y-2">
+                            {version.lockoutPoints.map((point) => (
+                              <li key={point.id ?? point.pointCode}>
+                                <p>
+                                  {point.pointCode} · {point.energyType}
+                                  {point.action ? ` — ${point.action}` : ""}
+                                </p>
+                                {point.locationText ? (
+                                  <p className="font-normal text-muted-foreground">{point.locationText}</p>
+                                ) : null}
+                                {point.photo?.url ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={point.photo.url} alt="" className="mt-1 max-h-32 w-fit rounded-md border border-border object-contain" />
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="font-normal text-muted-foreground">None listed</span>
+                        )}
+                      </Field>
+                      <Field label="Apply sequence">
+                        {(version?.sequenceSteps.filter((s) => s.phase === "apply") ?? []).length ? (
+                          version!.sequenceSteps
+                            .filter((s) => s.phase === "apply")
+                            .map((step) => (
+                              <p key={`${step.phase}-${step.sequenceOrder}`}>
+                                {step.sequenceOrder}. {step.title}
+                              </p>
+                            ))
+                        ) : (
+                          <span className="font-normal text-muted-foreground">None</span>
+                        )}
+                      </Field>
+                      <Field label="Remove sequence">
+                        {(version?.sequenceSteps.filter((s) => s.phase === "remove") ?? []).length ? (
+                          version!.sequenceSteps
+                            .filter((s) => s.phase === "remove")
+                            .map((step) => (
+                              <p key={`${step.phase}-${step.sequenceOrder}`}>
+                                {step.sequenceOrder}. {step.title}
+                              </p>
+                            ))
+                        ) : (
+                          <span className="font-normal text-muted-foreground">None</span>
+                        )}
+                      </Field>
+                      {item.extraPoints.some((p) => p.pointCode) ? (
+                        <Field label="Extra points">
+                          {item.extraPoints
+                            .filter((p) => p.pointCode)
+                            .map((p) => `${p.pointCode} (${p.energyType})`)
+                            .join(", ")}
+                        </Field>
+                      ) : null}
+                      {item.stepNa.some((row) => row.reason) ? (
+                        <Field label="N/A">
+                          {item.stepNa
+                            .filter((row) => row.reason)
+                            .map((row) => row.reason)
+                            .join("; ")}
+                        </Field>
+                      ) : null}
+                      <Field label="LOTOTO crew">
+                        {item.crew.filter((row) => row.workforceUserId).length
+                          ? item.crew
+                              .filter((row) => row.workforceUserId)
+                              .map((row) => person(row.workforceUserId))
+                              .join(", ")
+                          : "Not assigned"}
+                      </Field>
+                      <Field label="Verifiers">
+                        {item.verifiers.filter((row) => row.workforceUserId).length
+                          ? item.verifiers
+                              .filter((row) => row.workforceUserId)
+                              .map((row) => person(row.workforceUserId))
+                              .join(", ")
+                          : "Not assigned"}
+                      </Field>
+                    </div>
+                  );
+                })}
+            </div>
+          )
         ) : (
           <span className="font-normal text-muted-foreground">Not required for this work</span>
         )}
+        {form.lototo.some((item) => item.frozenAt) ? (
+          <p className="text-xs text-muted-foreground">Procedure content is frozen at approval. Assigned people can still be changed until work starts.</p>
+        ) : null}
       </Section>
       <Section kind="gas" title="Gas testing">
         {form.gasTestingRequired ? (

@@ -17,8 +17,8 @@ import {
 } from "@/lib/organisation/api";
 import type { MachineryRecord } from "@/lib/organisation/types";
 import { permitTemplatesApi, type PermitTemplate, type TemplatePrefillSource } from "@/lib/organisation/templates";
-import { listLototoPlans } from "@/lib/lototo/api";
-import type { LototoPlan } from "@/lib/lototo/types";
+import { listLototoProcedures, getLototoProcedure } from "@/lib/lototo/api";
+import type { LototoProcedure, LototoProcedureListItem } from "@/lib/lototo/types";
 import { gasTestingApi, type GasTestingRecord } from "@/lib/master-data/api";
 import {
   createPermit,
@@ -33,6 +33,7 @@ import {
   canRoleEditWizardStep,
   canRoleSubmitPermit,
   createEmptyPermitForm,
+  emptyLototoAttach,
   formToSavePayload,
   getWizardStepOwner,
   missingRequired,
@@ -62,6 +63,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { FileUploadField } from "@/components/ui/file-upload-field";
 import { DraftBanner } from "./draft-banner";
+import { LototoAttachFields } from "./lototo-attach-fields";
 import { fieldClassName, FormField } from "./form-field";
 import { MasterDataSelect } from "./master-data-select";
 import { formatWorkforceOptionLabel } from "@/components/lototo/select-field";
@@ -209,7 +211,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [machinery, setMachinery] = useState<MachineryRecord[]>([]);
   const [hazards, setHazards] = useState<MasterDataRecord[]>([]);
   const [ppeItems, setPpeItems] = useState<MasterDataRecord[]>([]);
-  const [machineryLototo, setMachineryLototo] = useState<LototoPlan[]>([]);
+  const [machineryLototo, setMachineryLototo] = useState<LototoProcedureListItem[]>([]);
+  const [lototoDetails, setLototoDetails] = useState<Record<string, LototoProcedure>>({});
   const [workstationGasTesting, setWorkstationGasTesting] = useState<
     GasTestingRecord[]
   >([]);
@@ -374,10 +377,27 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       setMachineryLototo([]);
       return;
     }
-    listLototoPlans({ machineryId: form.machineryId })
-      .then(setMachineryLototo)
+    listLototoProcedures({ machineryId: form.machineryId, published: true })
+      .then((rows) => setMachineryLototo(rows.filter((row) => row.status === "published")))
       .catch(() => setMachineryLototo([]));
   }, [form.machineryId]);
+
+  const attachedProcedureIds = form.lototo
+    .map((item) => item.procedureId)
+    .filter(Boolean)
+    .sort()
+    .join(",");
+
+  useEffect(() => {
+    const ids = attachedProcedureIds.split(",").filter(Boolean);
+    ids.forEach((id) => {
+      void getLototoProcedure(id)
+        .then((procedure) =>
+          setLototoDetails((current) => ({ ...current, [id]: procedure })),
+        )
+        .catch(() => undefined);
+    });
+  }, [attachedProcedureIds]);
 
   useEffect(() => {
     if (!form.workstationId) {
@@ -611,6 +631,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const isOperatorPhase = stepOwner === "operator";
   const isIssuerPhase = stepOwner === "job-issuer";
   const fieldDisabled = isReadOnly || !canEditStep;
+  const lototoLocked = fieldDisabled || form.lototo.some((item) => Boolean(item.frozenAt));
 
   return (
     <div className="flex flex-col gap-6 px-4 pb-8 sm:px-8">
@@ -1002,7 +1023,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             <input
               type="checkbox"
               checked={form.lototoRequired}
-              disabled={fieldDisabled || !form.machineryId}
+              disabled={lototoLocked || !form.machineryId}
               onChange={(e) =>
                 setForm({
                   ...form,
@@ -1012,12 +1033,16 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     ? []
                     : form.lototo.length || machineryLototo.length !== 1
                       ? form.lototo
-                      : [{ lototoPlanId: machineryLototo[0].id }],
+                      : [{ ...emptyLototoAttach(), procedureId: machineryLototo[0].id }],
                 })
               }
             />
             LOTOTO required
-            {!form.machineryId && !fieldDisabled ? <span className="text-muted-foreground">(choose machinery above first)</span> : null}
+            {form.lototo.some((item) => item.frozenAt) ? (
+              <span className="text-muted-foreground">(frozen at approval)</span>
+            ) : !form.machineryId && !fieldDisabled ? (
+              <span className="text-muted-foreground">(choose machinery above first)</span>
+            ) : null}
           </label>
           {form.lototoRequired ? (
             <div className="grid gap-3">
@@ -1027,11 +1052,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={fieldDisabled || machineryLototo.length === 0}
+                  disabled={lototoLocked || machineryLototo.length === 0}
                   onClick={() =>
                     setForm({
                       ...form,
-                      lototo: [...form.lototo, { lototoPlanId: "" }],
+                      lototo: [...form.lototo, emptyLototoAttach()],
                     })
                   }
                 >
@@ -1040,9 +1065,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               </div>
               {machineryLototo.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  This machine has no LOTOTO plan yet.{" "}
+                  This machine has no published LOTOTO procedure yet.{" "}
                   <a
-                    href={`/lototo?new=1&machineryId=${form.machineryId}`}
+                    href={`/lototo/procedures/new?machineryId=${form.machineryId}`}
                     target="_blank"
                     rel="noreferrer"
                     className="font-medium text-(--act-do) underline underline-offset-2"
@@ -1054,7 +1079,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     type="button"
                     className="font-medium underline underline-offset-2"
                     onClick={() =>
-                      void listLototoPlans({ machineryId: form.machineryId }).then(setMachineryLototo).catch(() => setMachineryLototo([]))
+                      void listLototoProcedures({ machineryId: form.machineryId, published: true })
+                        .then((rows) => setMachineryLototo(rows.filter((row) => row.status === "published")))
+                        .catch(() => setMachineryLototo([]))
                     }
                   >
                     refresh the list
@@ -1063,35 +1090,23 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 </p>
               ) : null}
               {form.lototo.map((item, index) => (
-                <div key={`lototo-${index}`} className="flex items-end gap-2">
-                <FormField
-                  label="LOTOTO procedure"
-                  htmlFor={`lototo-${index}`}
-                  className="flex-1"
-                >
-                  <MasterDataSelect
-                    id={`lototo-${index}`}
-                    value={item.lototoPlanId}
-                    options={machineryLototo.map((plan) => ({
-                      id: plan.id,
-                      name: plan.title,
-                      code: plan.reference,
-                    }))}
-                    disabled={fieldDisabled}
-                    placeholder="Select LOTOTO"
-                    onChange={(lototoPlanId) => {
-                      const lototo = [...form.lototo];
-                      lototo[index] = { lototoPlanId };
-                      setForm({ ...form, lototo });
-                    }}
-                  />
-                </FormField>
-                <RemoveRowButton
-                  label="Remove LOTOTO procedure"
-                  disabled={fieldDisabled}
-                  onClick={() => setForm({ ...form, lototo: form.lototo.filter((_, i) => i !== index) })}
+                <LototoAttachFields
+                  key={`lototo-${index}`}
+                  item={item}
+                  index={index}
+                  procedures={machineryLototo}
+                  detail={lototoDetails[item.procedureId]}
+                  people={[...executorOptions, ...safetyOfficerOptions].filter(
+                    (person, personIndex, all) => all.findIndex((row) => row.id === person.id) === personIndex,
+                  )}
+                  disabled={lototoLocked}
+                  onChange={(next) => {
+                    const lototo = [...form.lototo];
+                    lototo[index] = next;
+                    setForm({ ...form, lototo });
+                  }}
+                  onRemove={() => setForm({ ...form, lototo: form.lototo.filter((_, i) => i !== index) })}
                 />
-                </div>
               ))}
             </div>
           ) : null}

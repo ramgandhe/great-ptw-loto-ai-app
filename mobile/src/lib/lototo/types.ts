@@ -73,3 +73,13 @@ export type ConfigureSequencePayload = {
     requiresVerification?: boolean;
   }>;
 };
+
+export type LototoProcedureListItem = {
+  id: string;
+  machineryId: string;
+  workstationId: string | null;
+  code: string;
+  title: string;
+  status: "draft" | "published";
+  publishedVersionId: string | null;
+};

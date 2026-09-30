@@ -114,6 +114,26 @@ describe('PermitValidationService', () => {
     expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
   });
 
+  it('rejects LOTOTO required without crew and verifiers', () => {
+    const record = baseRecord();
+    record.permit.lototoRequired = true;
+    record.permit.machineryId = 'machinery-id';
+    record.lototo = [
+      {
+        id: 'instance-id',
+        procedureId: 'procedure-id',
+        procedureVersionId: 'version-id',
+        frozenAt: null,
+        extraPoints: [],
+        stepNa: [],
+        crew: [],
+        verifiers: [],
+      },
+    ];
+
+    expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
+  });
+
   it('rejects gas testing required without an item', () => {
     const record = baseRecord();
     record.permit.gasTestingRequired = true;

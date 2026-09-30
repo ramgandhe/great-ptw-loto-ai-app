@@ -101,6 +101,9 @@ describe('ExecutionService integration (PUS-141)', () => {
     executionService = new ExecutionService(
       db,
       permitService,
+      {
+        assertIsolationReadyToStart: jest.fn().mockResolvedValue(undefined),
+      } as never,
       statusTransitionService,
       notificationService,
       auditService,

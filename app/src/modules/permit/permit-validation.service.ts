@@ -7,16 +7,16 @@ import {
   permitExecutors,
   permitHazards,
   permitPpe,
-  permitLototo,
   permitGasTesting,
   permits,
 } from '../../database/schema';
+import type { PermitLototoDetail } from './permit.service';
 
 export interface PermitSubmissionRecord {
   permit: typeof permits.$inferSelect;
   hazards: (typeof permitHazards.$inferSelect)[];
   ppe: (typeof permitPpe.$inferSelect)[];
-  lototo: (typeof permitLototo.$inferSelect)[];
+  lototo: PermitLototoDetail[];
   gasTesting: (typeof permitGasTesting.$inferSelect)[];
   executors: (typeof permitExecutors.$inferSelect)[];
   attachments: (typeof permitAttachments.$inferSelect)[];
@@ -73,6 +73,17 @@ export class PermitValidationService {
       }
       if (lototo.length === 0) {
         errors.push('at least one LOTOTO procedure is required when LOTOTO is required');
+      }
+      for (const instance of lototo) {
+        if (instance.crew.length === 0) {
+          errors.push('each LOTOTO procedure needs at least one crew member');
+        }
+        if (instance.verifiers.length === 0) {
+          errors.push('each LOTOTO procedure needs at least one verifier');
+        }
+        if (instance.stepNa.some((row) => !row.reason.trim())) {
+          errors.push('N/A isolation steps require a reason');
+        }
       }
     }
 

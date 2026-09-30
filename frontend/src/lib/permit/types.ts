@@ -43,8 +43,30 @@ export type PermitPpeInput = {
   quantity: number;
 };
 
+export type PermitLototoExtraInput = {
+  pointCode: string;
+  energyType: string;
+  magnitude: string;
+  locationText: string;
+  action: string;
+  device: string;
+  verificationMethod: string;
+};
+
+export type PermitLototoStepNaInput = {
+  basePointId?: string;
+  extraPointCode?: string;
+  reason: string;
+};
+
 export type PermitLototoInput = {
-  lototoPlanId: string;
+  procedureId: string;
+  procedureVersionId?: string;
+  frozenAt?: string | null;
+  extraPoints: PermitLototoExtraInput[];
+  stepNa: PermitLototoStepNaInput[];
+  crew: PermitAssigneeInput[];
+  verifiers: PermitAssigneeInput[];
 };
 
 export type PermitGasTestingInput = {
@@ -107,7 +129,7 @@ export type PermitDetail = {
   draft: PermitDraft | null;
   hazards: Array<{ hazardCategoryId: string; description: string | null }>;
   ppe: Array<{ ppeCatalogueId: string; quantity: number | null }>;
-  lototo: Array<{ lototoPlanId: string }>;
+  lototo: PermitLototoInput[];
   gasTesting: Array<{ gasTestingCatalogueId: string }>;
   executors: Array<{ workforceUserId: string; isPrimary: boolean | null }>;
   viewers: Array<{ workforceUserId: string }>;
@@ -140,3 +162,42 @@ export type CreatePermitPayload = {
 };
 
 export type SaveDraftPayload = Partial<CreatePermitPayload>;
+
+export type PermitLototoPointStatus = "na" | "pending_crew" | "pending_verify" | "failed" | "passed";
+
+export type PermitLototoExecutionPoint = {
+  basePointId: string | null;
+  extraPointId: string | null;
+  pointCode: string;
+  energyType: string;
+  action: string | null;
+  locationText: string | null;
+  na: boolean;
+  naReason: string | null;
+  status: PermitLototoPointStatus;
+  crewLatest: { lockTagId: string; reading: string | null; comment: string | null; completedAt: string } | null;
+  verificationLatest: {
+    result: "pass" | "fail";
+    tryOutCompleted: boolean;
+    reading: string | null;
+    comment: string | null;
+    verifiedAt: string;
+  } | null;
+  restoreStatus: PermitLototoPointStatus;
+  restoreLatest: { lockTagId: string; comment: string | null; restoredAt: string } | null;
+  restoreVerificationLatest: { result: "pass" | "fail"; comment: string | null; verifiedAt: string } | null;
+};
+
+export type PermitLototoExecutionBoard = {
+  permitId: string;
+  permitStatus: string;
+  isolated: boolean;
+  restored: boolean;
+  instances: Array<{
+    instanceId: string;
+    procedureId: string;
+    procedureCode: string;
+    procedureTitle: string;
+    points: PermitLototoExecutionPoint[];
+  }>;
+};

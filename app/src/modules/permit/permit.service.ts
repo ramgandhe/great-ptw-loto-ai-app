@@ -19,12 +19,18 @@ import {
   permitHazards,
   permitPpe,
   permitLototo,
+  permitLototoCrew,
+  permitLototoExtraPoints,
+  permitLototoInstances,
+  permitLototoStepNa,
+  permitLototoVerifiers,
   permitGasTesting,
   permitViewers,
   permitSafetyOfficers,
   permits,
   permitTemplates,
-  lototoPlans,
+  lototoProcedureLockoutPoints,
+  lototoProcedures,
   gasTestingCatalogue,
   revalidationHistory,
   tenantUsers,
@@ -41,10 +47,15 @@ import { UpdatePermitDto } from './dto/update-permit.dto';
 import { isEditablePermitStatus, isSubmittablePermitStatus } from './permit.constants';
 import {
   assertDraftUpdateAllowed,
+  assertPeopleReassignAllowed,
   assertPermitCreateAllowed,
   assertPermitSubmitAllowed,
+  sanitizeCreatePermitDto,
   sanitizeDraftUpdateDto,
 } from './permit-collaboration';
+import type { PermitLototoDto } from './dto/permit-relations.dto';
+import { ReassignPermitPeopleDto } from './dto/reassign-permit-people.dto';
+import { assertLototoWritable, isLototoFrozen } from './permit-lototo-freeze';
 import { assertPermitVisible, visiblePermitFilter } from './permit-access';
 import {
   PERMIT_CREATE_ROLES,
@@ -54,12 +65,28 @@ import { PermitCacheService } from './permit-cache.service';
 import { PermitLogService } from './permit-log.service';
 import { PermitValidationService } from './permit-validation.service';
 
+export type PermitLototoDetail = {
+  id: string;
+  procedureId: string;
+  procedureVersionId: string;
+  frozenAt: Date | null;
+  extraPoints: (typeof permitLototoExtraPoints.$inferSelect)[];
+  stepNa: Array<{
+    basePointId: string | null;
+    extraPointId: string | null;
+    extraPointCode: string | null;
+    reason: string;
+  }>;
+  crew: Array<{ workforceUserId: string }>;
+  verifiers: Array<{ workforceUserId: string }>;
+};
+
 export interface PermitDetail {
   permit: typeof permits.$inferSelect;
   draft: typeof permitDrafts.$inferSelect | null;
   hazards: (typeof permitHazards.$inferSelect)[];
   ppe: (typeof permitPpe.$inferSelect)[];
-  lototo: (typeof permitLototo.$inferSelect)[];
+  lototo: PermitLototoDetail[];
   gasTesting: (typeof permitGasTesting.$inferSelect)[];
   executors: (typeof permitExecutors.$inferSelect)[];
   viewers: (typeof permitViewers.$inferSelect)[];
@@ -85,8 +112,9 @@ export class PermitService {
     private readonly approvalNotifications: NotificationService,
   ) {}
 
-  async create(dto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
+  async create(rawDto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
     assertPermitCreateAllowed(user);
+    const dto = sanitizeCreatePermitDto(user, rawDto);
     const tenantId = this.requireTenant(user);
     const formResponses = dto.formResponses ? await this.resolveFormResponses(tenantId, dto.formResponses) : [];
 
@@ -268,6 +296,14 @@ export class PermitService {
 
     const dto = sanitizeDraftUpdateDto(user, rawDto);
     assertDraftUpdateAllowed(user, existing, dto);
+    if (
+      isLototoFrozen(existing.lototo) &&
+      (dto.lototo !== undefined ||
+        dto.lototoRequired !== undefined ||
+        (dto.machineryId !== undefined && dto.machineryId !== existing.permit.machineryId))
+    ) {
+      assertLototoWritable(existing.lototo);
+    }
 
     const previousExecutorIds = new Set(existing.executors.map((row) => row.workforceUserId));
     const formResponses =
@@ -325,22 +361,19 @@ export class PermitService {
       }
 
       if (dto.lototo !== undefined) {
-        await tx.delete(permitLototo).where(eq(permitLototo.permitId, id));
-        if (dto.lototo.length > 0) {
-          await this.insertLototo(
-            tx,
-            id,
-            user.id,
-            tenantId,
-            dto.machineryId !== undefined ? dto.machineryId : existing.permit.machineryId,
-            dto.lototo,
-          );
-        }
+        await this.replaceLototo(
+          tx,
+          id,
+          user.id,
+          tenantId,
+          dto.machineryId !== undefined ? dto.machineryId : existing.permit.machineryId,
+          dto.lototo,
+        );
       } else if (
         dto.machineryId !== undefined &&
         dto.machineryId !== existing.permit.machineryId
       ) {
-        await tx.delete(permitLototo).where(eq(permitLototo.permitId, id));
+        await this.replaceLototo(tx, id, user.id, tenantId, dto.machineryId, []);
       }
 
       if (dto.gasTesting !== undefined) {
@@ -405,6 +438,64 @@ export class PermitService {
       return this.loadDetail(tx, id, tenantId);
     });
     if (dto.executors !== undefined) {
+      await this.notifyAssignedExecutors(updated, tenantId, previousExecutorIds);
+    }
+    return updated;
+  }
+
+  async reassignPeople(id: string, dto: ReassignPermitPeopleDto, user: AuthenticatedUser): Promise<PermitDetail> {
+    const tenantId = this.requireTenant(user);
+    const existing = await this.loadDetail(this.db, id, tenantId);
+    assertPeopleReassignAllowed(user, existing, dto.executors !== undefined);
+
+    if (!dto.executors && !dto.lototo) {
+      throw new BadRequestException('Nothing to reassign');
+    }
+
+    const previousExecutorIds = new Set(existing.executors.map((row) => row.workforceUserId));
+    const updated = await this.db.transaction(async (tx) => {
+      if (dto.executors) {
+        await tx.delete(permitExecutors).where(eq(permitExecutors.permitId, id));
+        await this.insertExecutors(tx, id, user.id, dto.executors);
+      }
+      if (dto.lototo) {
+        for (const item of dto.lototo) {
+          const instance = existing.lototo.find((row) => row.procedureId === item.procedureId);
+          if (!instance) {
+            throw new BadRequestException('LOTOTO procedure is not attached to this permit');
+          }
+          await tx.delete(permitLototoCrew).where(eq(permitLototoCrew.instanceId, instance.id));
+          await tx.delete(permitLototoVerifiers).where(eq(permitLototoVerifiers.instanceId, instance.id));
+          await tx.insert(permitLototoCrew).values(
+            item.crew.map((row) => ({
+              instanceId: instance.id,
+              workforceUserId: row.workforceUserId,
+              createdBy: user.id,
+              updatedBy: user.id,
+            })),
+          );
+          await tx.insert(permitLototoVerifiers).values(
+            item.verifiers.map((row) => ({
+              instanceId: instance.id,
+              workforceUserId: row.workforceUserId,
+              createdBy: user.id,
+              updatedBy: user.id,
+            })),
+          );
+        }
+      }
+      await this.auditService.log({
+        action: 'permit.people.reassigned',
+        entityType: 'permit',
+        entityId: id,
+        userId: user.id,
+        tenantId,
+        metadata: { status: existing.permit.status },
+      });
+      await this.permitCacheService.invalidatePermit(tenantId, id);
+      return this.loadDetail(tx, id, tenantId);
+    });
+    if (dto.executors) {
       await this.notifyAssignedExecutors(updated, tenantId, previousExecutorIds);
     }
     return updated;
@@ -587,12 +678,30 @@ export class PermitService {
       }
 
       if (source.lototo.length > 0) {
-        await tx.insert(permitLototo).values(
+        await this.replaceLototo(
+          tx,
+          renewal.id,
+          user.id,
+          tenantId,
+          source.permit.machineryId,
           source.lototo.map((item) => ({
-            permitId: renewal.id,
-            lototoPlanId: item.lototoPlanId,
-            createdBy: user.id,
-            updatedBy: user.id,
+            procedureId: item.procedureId,
+            extraPoints: item.extraPoints.map((point) => ({
+              pointCode: point.pointCode,
+              energyType: point.energyType,
+              magnitude: point.magnitude ?? undefined,
+              locationText: point.locationText ?? undefined,
+              action: point.action ?? undefined,
+              device: point.device ?? undefined,
+              verificationMethod: point.verificationMethod ?? undefined,
+            })),
+            stepNa: item.stepNa.map((row) => ({
+              basePointId: row.basePointId ?? undefined,
+              extraPointCode: row.extraPointCode ?? undefined,
+              reason: row.reason,
+            })),
+            crew: item.crew,
+            verifiers: item.verifiers,
           })),
         );
       }
@@ -685,7 +794,7 @@ export class PermitService {
       .where(eq(permitHazards.permitId, id));
 
     const ppe = await db.select().from(permitPpe).where(eq(permitPpe.permitId, id));
-    const lototo = await db.select().from(permitLototo).where(eq(permitLototo.permitId, id));
+    const lototo = await this.loadLototoAttachments(db, id);
     const gasTesting = await db
       .select()
       .from(permitGasTesting)
@@ -722,7 +831,7 @@ export class PermitService {
   }
 
   private async insertRelations(
-    db: Pick<Database, 'insert' | 'select'>,
+    db: Pick<Database, 'insert' | 'select' | 'delete'>,
     permitId: string,
     userId: string,
     tenantId: string,
@@ -737,7 +846,7 @@ export class PermitService {
       await this.insertPpe(db, permitId, userId, dto.ppe);
     }
     if (dto.lototo?.length) {
-      await this.insertLototo(db, permitId, userId, tenantId, machineryId, dto.lototo);
+      await this.replaceLototo(db, permitId, userId, tenantId, machineryId, dto.lototo);
     }
     if (dto.gasTesting?.length) {
       await this.insertGasTesting(db, permitId, userId, tenantId, workstationId, dto.gasTesting);
@@ -795,14 +904,83 @@ export class PermitService {
     );
   }
 
-  private async insertLototo(
-    db: Pick<Database, 'insert' | 'select'>,
+  private async loadLototoAttachments(
+    db: Pick<Database, 'select'>,
+    permitId: string,
+  ): Promise<PermitLototoDetail[]> {
+    const instances = await db
+      .select()
+      .from(permitLototoInstances)
+      .where(eq(permitLototoInstances.permitId, permitId));
+    if (instances.length === 0) {
+      return [];
+    }
+
+    const instanceIds = instances.map((row) => row.id);
+    const extras = await db
+      .select()
+      .from(permitLototoExtraPoints)
+      .where(inArray(permitLototoExtraPoints.instanceId, instanceIds));
+    const stepNa = await db
+      .select()
+      .from(permitLototoStepNa)
+      .where(inArray(permitLototoStepNa.instanceId, instanceIds));
+    const crew = await db
+      .select()
+      .from(permitLototoCrew)
+      .where(inArray(permitLototoCrew.instanceId, instanceIds));
+    const verifiers = await db
+      .select()
+      .from(permitLototoVerifiers)
+      .where(inArray(permitLototoVerifiers.instanceId, instanceIds));
+
+    const extrasByInstance = new Map<string, typeof extras>();
+    for (const extra of extras) {
+      const list = extrasByInstance.get(extra.instanceId) ?? [];
+      list.push(extra);
+      extrasByInstance.set(extra.instanceId, list);
+    }
+    const extraById = new Map(extras.map((row) => [row.id, row]));
+
+    return instances.map((instance) => ({
+      id: instance.id,
+      procedureId: instance.procedureId,
+      procedureVersionId: instance.procedureVersionId,
+      frozenAt: instance.frozenAt,
+      extraPoints: extrasByInstance.get(instance.id) ?? [],
+      stepNa: stepNa
+        .filter((row) => row.instanceId === instance.id)
+        .map((row) => ({
+          basePointId: row.basePointId,
+          extraPointId: row.extraPointId,
+          extraPointCode: row.extraPointId ? extraById.get(row.extraPointId)?.pointCode ?? null : null,
+          reason: row.reason,
+        })),
+      crew: crew
+        .filter((row) => row.instanceId === instance.id)
+        .map((row) => ({ workforceUserId: row.workforceUserId })),
+      verifiers: verifiers
+        .filter((row) => row.instanceId === instance.id)
+        .map((row) => ({ workforceUserId: row.workforceUserId })),
+    }));
+  }
+
+  private async replaceLototo(
+    db: Pick<Database, 'insert' | 'select' | 'delete'>,
     permitId: string,
     userId: string,
     tenantId: string,
     machineryId: string | null | undefined,
-    lototoItems: NonNullable<CreatePermitDto['lototo']>,
+    lototoItems: PermitLototoDto[],
   ): Promise<void> {
+    const existing = await db
+      .select({ frozenAt: permitLototoInstances.frozenAt })
+      .from(permitLototoInstances)
+      .where(eq(permitLototoInstances.permitId, permitId));
+    assertLototoWritable(existing);
+
+    await db.delete(permitLototo).where(eq(permitLototo.permitId, permitId));
+    await db.delete(permitLototoInstances).where(eq(permitLototoInstances.permitId, permitId));
     if (lototoItems.length === 0) {
       return;
     }
@@ -810,11 +988,20 @@ export class PermitService {
       throw new BadRequestException('Machinery is required when attaching LOTOTO procedures');
     }
 
-    const ids = [...new Set(lototoItems.map((item) => item.lototoPlanId))];
+    const ids = [...new Set(lototoItems.map((item) => item.procedureId))];
+    if (ids.length !== lototoItems.length) {
+      throw new BadRequestException('Each LOTOTO procedure can only be attached once');
+    }
+
     const rows = await db
-      .select({ id: lototoPlans.id, machineryId: lototoPlans.machineryId })
-      .from(lototoPlans)
-      .where(and(eq(lototoPlans.tenantId, tenantId), inArray(lototoPlans.id, ids)));
+      .select({
+        id: lototoProcedures.id,
+        machineryId: lototoProcedures.machineryId,
+        publishedVersionId: lototoProcedures.publishedVersionId,
+        status: lototoProcedures.status,
+      })
+      .from(lototoProcedures)
+      .where(and(eq(lototoProcedures.tenantId, tenantId), inArray(lototoProcedures.id, ids)));
 
     if (rows.length !== ids.length) {
       throw new BadRequestException('One or more LOTOTO procedures were not found');
@@ -822,15 +1009,110 @@ export class PermitService {
     if (rows.some((row) => row.machineryId !== machineryId)) {
       throw new BadRequestException('LOTOTO procedures must belong to the selected machinery');
     }
+    if (rows.some((row) => row.status !== 'published' || !row.publishedVersionId)) {
+      throw new BadRequestException('Only published LOTOTO procedures can be attached');
+    }
 
-    await db.insert(permitLototo).values(
-      lototoItems.map((item) => ({
-        permitId,
-        lototoPlanId: item.lototoPlanId,
-        createdBy: userId,
-        updatedBy: userId,
-      })),
-    );
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const versionIds = rows.map((row) => row.publishedVersionId!);
+    const basePoints = await db
+      .select({
+        id: lototoProcedureLockoutPoints.id,
+        versionId: lototoProcedureLockoutPoints.versionId,
+      })
+      .from(lototoProcedureLockoutPoints)
+      .where(inArray(lototoProcedureLockoutPoints.versionId, versionIds));
+    const basePointIds = new Set(basePoints.map((point) => point.id));
+
+    for (const item of lototoItems) {
+      const procedure = byId.get(item.procedureId)!;
+      const [instance] = await db
+        .insert(permitLototoInstances)
+        .values({
+          permitId,
+          procedureId: procedure.id,
+          procedureVersionId: procedure.publishedVersionId!,
+          createdBy: userId,
+          updatedBy: userId,
+        })
+        .returning();
+
+      const extraPoints = (item.extraPoints ?? []).filter((point) => point.pointCode.trim());
+      const extraByCode = new Map<string, string>();
+      for (const [index, point] of extraPoints.entries()) {
+        if (!point.energyType.trim()) {
+          throw new BadRequestException('Extra isolation points need an energy type');
+        }
+        const [extra] = await db
+          .insert(permitLototoExtraPoints)
+          .values({
+            instanceId: instance.id,
+            sortOrder: index,
+            pointCode: point.pointCode.trim(),
+            energyType: point.energyType.trim(),
+            magnitude: point.magnitude,
+            locationText: point.locationText,
+            action: point.action,
+            device: point.device,
+            verificationMethod: point.verificationMethod,
+            createdBy: userId,
+            updatedBy: userId,
+          })
+          .returning();
+        extraByCode.set(extra.pointCode, extra.id);
+      }
+
+      for (const na of item.stepNa ?? []) {
+        if (!na.reason.trim()) {
+          throw new BadRequestException('N/A isolation steps require a reason');
+        }
+        const hasBase = Boolean(na.basePointId);
+        const extraCode = na.extraPointCode?.trim();
+        if (hasBase === Boolean(extraCode)) {
+          throw new BadRequestException('Each N/A step must target either a base point or an extra point');
+        }
+        if (na.basePointId && !basePointIds.has(na.basePointId)) {
+          throw new BadRequestException('N/A base points must belong to the selected procedure');
+        }
+        const extraPointId = extraCode ? extraByCode.get(extraCode) : undefined;
+        if (extraCode && !extraPointId) {
+          throw new BadRequestException('N/A extra points must match an extra isolation point on this permit');
+        }
+        await db.insert(permitLototoStepNa).values({
+          instanceId: instance.id,
+          basePointId: na.basePointId,
+          extraPointId,
+          reason: na.reason.trim(),
+          createdBy: userId,
+          updatedBy: userId,
+        });
+      }
+
+      const crewIds = [...new Set((item.crew ?? []).map((row) => row.workforceUserId).filter(Boolean))];
+      const verifierIds = [
+        ...new Set((item.verifiers ?? []).map((row) => row.workforceUserId).filter(Boolean)),
+      ];
+      if (crewIds.length > 0) {
+        await db.insert(permitLototoCrew).values(
+          crewIds.map((workforceUserId) => ({
+            instanceId: instance.id,
+            workforceUserId,
+            createdBy: userId,
+            updatedBy: userId,
+          })),
+        );
+      }
+      if (verifierIds.length > 0) {
+        await db.insert(permitLototoVerifiers).values(
+          verifierIds.map((workforceUserId) => ({
+            instanceId: instance.id,
+            workforceUserId,
+            createdBy: userId,
+            updatedBy: userId,
+          })),
+        );
+      }
+    }
   }
 
   private async insertGasTesting(

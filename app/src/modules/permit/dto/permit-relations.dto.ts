@@ -31,9 +31,79 @@ export class PermitPpeDto {
   quantity?: number;
 }
 
+export class PermitLototoExtraPointDto {
+  @IsString()
+  pointCode!: string;
+
+  @IsString()
+  energyType!: string;
+
+  @IsOptional()
+  @IsString()
+  magnitude?: string;
+
+  @IsOptional()
+  @IsString()
+  locationText?: string;
+
+  @IsOptional()
+  @IsString()
+  action?: string;
+
+  @IsOptional()
+  @IsString()
+  device?: string;
+
+  @IsOptional()
+  @IsString()
+  verificationMethod?: string;
+}
+
+export class PermitLototoStepNaDto {
+  @IsOptional()
+  @IsUUID()
+  basePointId?: string;
+
+  @IsOptional()
+  @IsString()
+  extraPointCode?: string;
+
+  @IsString()
+  reason!: string;
+}
+
+export class PermitLototoPersonDto {
+  @IsUUID()
+  workforceUserId!: string;
+}
+
 export class PermitLototoDto {
   @IsUUID()
-  lototoPlanId!: string;
+  procedureId!: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PermitLototoExtraPointDto)
+  extraPoints?: PermitLototoExtraPointDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PermitLototoStepNaDto)
+  stepNa?: PermitLototoStepNaDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PermitLototoPersonDto)
+  crew?: PermitLototoPersonDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PermitLototoPersonDto)
+  verifiers?: PermitLototoPersonDto[];
 }
 
 export class PermitGasTestingDto {

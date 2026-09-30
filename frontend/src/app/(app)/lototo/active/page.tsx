@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Folded into the LOTOTO page as a view. */
-export default function ActiveLototoPage() {
-  redirect("/lototo?view=active");
+/** Isolation tracking lives on the permit. This route kept for old bookmarks. */
+export default function LototoActiveRedirect() {
+  redirect("/lototo");
 }

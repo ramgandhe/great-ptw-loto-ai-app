@@ -9,8 +9,9 @@ import { sendBackToExecutor, sendBackToIssuer } from "@/lib/execution/api";
 import type { AuditLogEntry, PermitHistoryEntry, PermitVerification } from "@/lib/closure/types";
 import { getEvidenceDownloadUrl, listEvidence, listProgress } from "@/lib/execution/api";
 import type { EvidenceRecord, ProgressRecord } from "@/lib/execution/types";
+import { PermitLototoExecution } from "@/components/permit/lototo-execution";
 import { getPermit } from "@/lib/permit/api";
-import type { PermitDetail } from "@/lib/permit/types";
+import type { PermitDetail, PermitLototoExecutionBoard } from "@/lib/permit/types";
 import { AuditTimeline } from "@/components/closure/audit-timeline";
 import { ClosureDialog } from "@/components/closure/closure-dialog";
 import { HistoryTimeline } from "@/components/closure/history-timeline";
@@ -48,6 +49,7 @@ export default function PermitClosurePage() {
   const [closeError, setCloseError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [downloadingEvidenceId, setDownloadingEvidenceId] = useState<string | null>(null);
+  const [lototoBoard, setLototoBoard] = useState<PermitLototoExecutionBoard | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -177,7 +179,10 @@ export default function PermitClosurePage() {
     return <p className="p-8 text-sm text-muted-foreground">Loading permit closure...</p>;
   }
 
-  const canVerify = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["job-issuer", "tenant-owner", "tenant-admin", "platform-admin"]);
+  const lototoRestored = !detail.permit.lototoRequired || lototoBoard?.restored === true;
+  const canVerify =
+    detail.permit.status === "execution_completed" &&
+    hasAnyRole(roles, ["job-issuer", "tenant-owner", "tenant-admin", "platform-admin"]);
   const canSendBackToExecutor = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["job-issuer", "tenant-owner", "tenant-admin", "platform-admin"]);
   const canClose = Boolean(verification) && detail.permit.status === "pending_closure" && hasAnyRole(roles, ["hod", "tenant-owner", "tenant-admin", "platform-admin"]);
   const canSendBackToIssuer = detail.permit.status === "pending_closure" && hasAnyRole(roles, ["hod", "tenant-owner", "tenant-admin", "platform-admin"]);
@@ -195,6 +200,10 @@ export default function PermitClosurePage() {
       </div>
 
       <ReadonlyPermitViewer detail={detail} verification={verification} />
+
+      {detail.permit.lototoRequired ? (
+        <PermitLototoExecution permitId={detail.permit.id} onBoardChange={setLototoBoard} />
+      ) : null}
 
       <section className="grid gap-3">
         <h2 className="text-sm font-semibold">Execution progress</h2>
@@ -249,7 +258,13 @@ export default function PermitClosurePage() {
               {actionError}
             </p>
           ) : null}
-          <Button onClick={handleVerify} disabled={isSubmitting || !isChecklistComplete(checklist) || !comment.trim()}>
+          {!lototoRestored ? (
+            <p className="text-sm text-muted-foreground">LOTOTO restoration must be verified before issuer verification.</p>
+          ) : null}
+          <Button
+            onClick={handleVerify}
+            disabled={isSubmitting || !isChecklistComplete(checklist) || !comment.trim() || !lototoRestored}
+          >
             {isSubmitting ? "Submitting..." : "Submit verification"}
           </Button>
         </section>

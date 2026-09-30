@@ -7,6 +7,7 @@ import type {
   IsolationPoint,
   LototoAssignment,
   LototoPlan,
+  LototoProcedureListItem,
 } from "./types";
 
 export function listLototoPlans(filters?: { permitId?: string; machineryId?: string }) {
@@ -43,4 +44,12 @@ export function configureIsolationSequence(planId: string, payload: ConfigureSeq
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export function listLototoProcedures(filters?: { machineryId?: string; published?: boolean }) {
+  const params = new URLSearchParams();
+  if (filters?.machineryId) params.set("machineryId", filters.machineryId);
+  if (filters?.published) params.set("published", "true");
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return fetchApi<LototoProcedureListItem[]>(`/lototo/procedures${query}`);
 }

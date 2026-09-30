@@ -17,6 +17,7 @@ import {
 import { AuditService } from '../logging/audit.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
+import { freezePermitLototo } from '../permit/permit-lototo-freeze';
 import { ApprovalCacheService } from './approval-cache.service';
 import { ApprovalLogService } from './approval-log.service';
 import { PENDING_APPROVAL_STATUS, SAFETY_VETO_ELIGIBLE_STATUSES } from './approval.constants';
@@ -193,6 +194,8 @@ export class ApprovalService {
           .update(permits)
           .set({ status: 'approved', updatedBy: user.id })
           .where(and(eq(permits.id, permitId), eq(permits.tenantId, permit.tenantId)));
+
+        await freezePermitLototo(tx, permitId, user.id);
 
         await this.approvalHistoryService.record(
           {

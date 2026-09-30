@@ -1,7 +1,7 @@
 import { fetchApi, getApiBaseUrl } from "@/lib/api/client";
 import { ApiError } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth/token-storage";
-import type { CreatePermitPayload, PermitDetail, PermitRecord, SaveDraftPayload } from "./types";
+import type { CreatePermitPayload, PermitDetail, PermitLototoExecutionBoard, PermitRecord, SaveDraftPayload } from "./types";
 
 export function listPermits(status?: string) {
   const query = status ? `?status=${encodeURIComponent(status)}` : "";
@@ -10,6 +10,54 @@ export function listPermits(status?: string) {
 
 export function getPermit(id: string) {
   return fetchApi<PermitDetail>(`/permits/${id}`);
+}
+
+export function getPermitLototoExecution(permitId: string) {
+  return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/execution`);
+}
+
+export function recordPermitLototoCrew(
+  permitId: string,
+  instanceId: string,
+  payload: { basePointId?: string; extraPointId?: string; lockTagId: string },
+) {
+  return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/instances/${instanceId}/crew`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function recordPermitLototoVerify(
+  permitId: string,
+  instanceId: string,
+  payload: { basePointId?: string; extraPointId?: string; result: "pass" | "fail"; tryOutCompleted: boolean },
+) {
+  return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/instances/${instanceId}/verify`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function recordPermitLototoRestore(
+  permitId: string,
+  instanceId: string,
+  payload: { basePointId?: string; extraPointId?: string; lockTagId: string },
+) {
+  return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/instances/${instanceId}/restore`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function recordPermitLototoRestoreVerify(
+  permitId: string,
+  instanceId: string,
+  payload: { basePointId?: string; extraPointId?: string; result: "pass" | "fail" },
+) {
+  return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/instances/${instanceId}/restore-verify`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function createPermit(payload: CreatePermitPayload) {

@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { isTenantPrivileged } from '../../common/constants/tenant-roles';
 import type { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import {
@@ -57,10 +57,42 @@ export function isAssignedExecutor(detail: PermitDetail, userId: string): boolea
   return detail.executors.some((executor) => executor.workforceUserId === userId);
 }
 
+const LOTOTO_ATTACH_FIELDS = ['lototoRequired', 'lototo'] as const;
+
+function isPrivilegedPermitEditor(user: AuthenticatedUser): boolean {
+  return isTenantPrivileged(user.roles) || user.roles.includes('platform-admin');
+}
+
+function stripLototoAttach(dto: UpdatePermitDto): UpdatePermitDto {
+  const next = { ...dto };
+  for (const field of LOTOTO_ATTACH_FIELDS) {
+    delete next[field];
+  }
+  return next;
+}
+
+export function sanitizeCreatePermitDto<T extends { lototoRequired?: boolean; lototo?: unknown }>(
+  user: AuthenticatedUser,
+  dto: T,
+): T {
+  if (isPrivilegedPermitEditor(user)) {
+    return dto;
+  }
+  return { ...dto, lototoRequired: false, lototo: undefined };
+}
+
 export function sanitizeDraftUpdateDto(
   user: AuthenticatedUser,
   dto: UpdatePermitDto,
 ): UpdatePermitDto {
+  if (isPrivilegedPermitEditor(user)) {
+    return dto;
+  }
+
+  if (hasAnyRole(user, PERMIT_CREATE_ROLES) && !hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES)) {
+    return stripLototoAttach(dto);
+  }
+
   if (hasAnyRole(user, PERMIT_CREATE_ROLES)) {
     return dto;
   }
@@ -84,6 +116,14 @@ export function assertDraftUpdateAllowed(
   detail: PermitDetail,
   dto: UpdatePermitDto,
 ): void {
+  if (isPrivilegedPermitEditor(user)) {
+    return;
+  }
+
+  if (hasAnyRole(user, PERMIT_CREATE_ROLES) && !hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES)) {
+    return;
+  }
+
   if (hasAnyRole(user, PERMIT_CREATE_ROLES)) {
     return;
   }
@@ -109,6 +149,29 @@ export function assertDraftUpdateAllowed(
   }
 
   throw new ForbiddenException('Insufficient permissions to update this permit');
+}
+
+export function assertPeopleReassignAllowed(
+  user: AuthenticatedUser,
+  detail: PermitDetail,
+  changingExecutors: boolean,
+): void {
+  if (detail.permit.status !== 'approved') {
+    throw new ConflictException('People can only be reassigned after approval and before work starts');
+  }
+
+  if (isPrivilegedPermitEditor(user) || user.roles.includes('hod')) {
+    return;
+  }
+
+  if (hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES) && isAssignedExecutor(detail, user.id)) {
+    if (changingExecutors) {
+      throw new ForbiddenException('Only the HOD can reassign job executors');
+    }
+    return;
+  }
+
+  throw new ForbiddenException('You cannot reassign people on this permit');
 }
 
 export function canEditWizardStep(

@@ -78,6 +78,34 @@ export type PermitDetail = {
   attachments: Array<{ id: string; fileName: string; fileSize: number }>;
 };
 
+export type PermitLototoPointStatus = "na" | "pending_crew" | "pending_verify" | "failed" | "passed";
+
+export type PermitLototoExecutionPoint = {
+  basePointId: string | null;
+  extraPointId: string | null;
+  pointCode: string;
+  energyType: string;
+  action: string | null;
+  locationText: string | null;
+  na: boolean;
+  naReason: string | null;
+  status: PermitLototoPointStatus;
+  restoreStatus: PermitLototoPointStatus;
+};
+
+export type PermitLototoExecutionBoard = {
+  permitId: string;
+  permitStatus: string;
+  isolated: boolean;
+  restored: boolean;
+  instances: Array<{
+    instanceId: string;
+    procedureCode: string;
+    procedureTitle: string;
+    points: PermitLototoExecutionPoint[];
+  }>;
+};
+
 export type CreatePermitPayload = {
   permitTypeId: string;
   title: string;

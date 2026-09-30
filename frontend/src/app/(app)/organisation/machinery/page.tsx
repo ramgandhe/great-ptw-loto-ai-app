@@ -5,8 +5,8 @@ import Link from "next/link";
 import { AdminEmbedContext } from "@/components/layout/admin-page-header";
 import { EntityCrudPage } from "@/components/organisation/entity-crud-page";
 import { machineryApi } from "@/lib/organisation/api";
-import { listLototoPlans } from "@/lib/lototo/api";
-import type { LototoPlan } from "@/lib/lototo/types";
+import { listLototoProcedures } from "@/lib/lototo/api";
+import type { LototoProcedureListItem } from "@/lib/lototo/types";
 import type { EntityField, OrgRecord } from "@/lib/organisation/types";
 
 const fields: EntityField[] = [
@@ -32,11 +32,11 @@ export default function MachineryPage() {
 
 function MachineryLototoList() {
   const [machinery, setMachinery] = useState<OrgRecord[]>([]);
-  const [plans, setPlans] = useState<LototoPlan[]>([]);
+  const [procedures, setProcedures] = useState<LototoProcedureListItem[]>([]);
 
   useEffect(() => {
     machineryApi.list().then(setMachinery).catch(() => setMachinery([]));
-    listLototoPlans().then(setPlans).catch(() => setPlans([]));
+    listLototoProcedures().then(setProcedures).catch(() => setProcedures([]));
   }, []);
 
   return (
@@ -47,23 +47,23 @@ function MachineryLototoList() {
       ) : (
         <div className="grid gap-3">
           {machinery.map((item) => {
-            const itemPlans = plans.filter((plan) => plan.machineryId === item.id);
+            const itemProcedures = procedures.filter((row) => row.machineryId === item.id);
             return (
               <div key={item.id} className="rounded-lg border border-border bg-card p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-medium">{item.name}</h3>
-                  <Link href={`/lototo?new=1&machineryId=${item.id}`}>
+                  <Link href={`/lototo/procedures/new?machineryId=${item.id}`}>
                     <span className="text-sm text-primary underline">Add LOTOTO</span>
                   </Link>
                 </div>
-                {itemPlans.length === 0 ? (
+                {itemProcedures.length === 0 ? (
                   <p className="mt-2 text-sm text-muted-foreground">No LOTOTO procedures yet.</p>
                 ) : (
                   <ul className="mt-2 list-disc pl-5 text-sm">
-                    {itemPlans.map((plan) => (
-                      <li key={plan.id}>
-                        <Link href={`/lototo/plans/${plan.id}`} className="underline">
-                          {plan.title}
+                    {itemProcedures.map((row) => (
+                      <li key={row.id}>
+                        <Link href={`/lototo/procedures/${row.id}`} className="underline">
+                          {row.code} — {row.title}
                         </Link>
                       </li>
                     ))}

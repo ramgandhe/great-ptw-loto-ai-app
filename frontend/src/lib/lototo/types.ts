@@ -93,3 +93,83 @@ export type LototoPlanDetail = {
   assignments: LototoAssignment[];
   sequence: IsolationSequenceStep[];
 };
+
+export type LototoLockoutPoint = {
+  id?: string;
+  sortOrder: number;
+  pointCode: string;
+  energyType: string;
+  magnitude?: string | null;
+  locationText?: string | null;
+  action?: string | null;
+  device?: string | null;
+  verificationMethod?: string | null;
+  photo?: { id: string; fileName: string; url: string } | null;
+};
+
+export type LototoSequenceStep = {
+  id?: string;
+  phase: "apply" | "remove";
+  sequenceOrder: number;
+  title: string;
+  description?: string | null;
+};
+
+export type LototoProcedureVersion = {
+  id: string;
+  versionNumber: number;
+  publishedAt: string | null;
+  facility?: string | null;
+  locationText?: string | null;
+  purpose?: string | null;
+  scope?: string | null;
+  authorization?: string | null;
+  enforcement?: string | null;
+  description?: string | null;
+  note?: string | null;
+  lockoutPoints: LototoLockoutPoint[];
+  sequenceSteps: LototoSequenceStep[];
+  authorizedRoles: string[];
+};
+
+export type LototoProcedure = {
+  id: string;
+  machineryId: string;
+  workstationId: string | null;
+  code: string;
+  title: string;
+  status: "draft" | "published";
+  publishedVersionId: string | null;
+  versions: { id: string; versionNumber: number; publishedAt: string | null }[];
+  publishedVersion: LototoProcedureVersion | null;
+  draftVersion: LototoProcedureVersion | null;
+};
+
+export type LototoProcedureListItem = {
+  id: string;
+  machineryId: string;
+  workstationId: string | null;
+  code: string;
+  title: string;
+  status: "draft" | "published";
+  publishedVersionId: string | null;
+};
+
+export type LototoProcedurePayload = {
+  machineryId: string;
+  workstationId?: string;
+  code: string;
+  title: string;
+  facility?: string;
+  locationText?: string;
+  purpose?: string;
+  scope?: string;
+  authorization?: string;
+  enforcement?: string;
+  description?: string;
+  note?: string;
+  lockoutPoints?: LototoLockoutPoint[];
+  sequenceSteps?: LototoSequenceStep[];
+  authorizedRoles?: string[];
+};
+

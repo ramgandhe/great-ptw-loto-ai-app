@@ -19,7 +19,8 @@ import {
 } from "@/lib/closure/types";
 import { listEvidence, listProgress } from "@/lib/execution/api";
 import { getPermit } from "@/lib/permit/api";
-import type { PermitDetail } from "@/lib/permit/types";
+import type { PermitDetail, PermitLototoExecutionBoard } from "@/lib/permit/types";
+import { PermitLototoExecution } from "@/components/permit/lototo-execution";
 
 const checklistLabels: Record<keyof VerificationChecklist, string> = {
   workCompleted: "Work completed as described",
@@ -45,6 +46,7 @@ export default function PermitVerificationScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [lototoBoard, setLototoBoard] = useState<PermitLototoExecutionBoard | null>(null);
 
   useEffect(() => {
     if (!permitId) {
@@ -140,6 +142,10 @@ export default function PermitVerificationScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {message ? <Text style={styles.message}>{message}</Text> : null}
 
+      {detail.permit.lototoRequired ? (
+        <PermitLototoExecution permitId={permitId} onBoardChange={setLototoBoard} />
+      ) : null}
+
       {!verified ? (
         <>
           <Text style={styles.sectionTitle}>Final inspection</Text>
@@ -162,14 +168,25 @@ export default function PermitVerificationScreen() {
           <Pressable
             style={styles.primaryButton}
             onPress={() => handleVerify(false)}
-            disabled={submitting || !isChecklistComplete(checklist)}
+            disabled={
+              submitting ||
+              !isChecklistComplete(checklist) ||
+              (Boolean(detail.permit.lototoRequired) && lototoBoard?.restored !== true)
+            }
           >
             <Text style={styles.primaryButtonText}>Submit verification</Text>
           </Pressable>
+          {detail.permit.lototoRequired && lototoBoard?.restored !== true ? (
+            <Text style={styles.meta}>LOTOTO restoration must be verified first.</Text>
+          ) : null}
           <Pressable
             style={styles.secondaryButton}
             onPress={() => handleVerify(true)}
-            disabled={submitting || !isChecklistComplete(checklist)}
+            disabled={
+              submitting ||
+              !isChecklistComplete(checklist) ||
+              (Boolean(detail.permit.lototoRequired) && lototoBoard?.restored !== true)
+            }
           >
             <Text style={styles.secondaryButtonText}>Save offline</Text>
           </Pressable>

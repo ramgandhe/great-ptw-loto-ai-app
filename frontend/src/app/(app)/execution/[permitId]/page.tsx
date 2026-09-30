@@ -17,7 +17,8 @@ import {
   uploadEvidence,
 } from "@/lib/execution/api";
 import type { EvidenceRecord, PermitExecution, ProgressRecord } from "@/lib/execution/types";
-import { getPermit } from "@/lib/permit/api";
+import { getPermit, getPermitLototoExecution } from "@/lib/permit/api";
+import { PermitLototoExecution } from "@/components/permit/lototo-execution";
 import { permitDetailToForm } from "@/lib/permit/form";
 import type { PermitDetail } from "@/lib/permit/types";
 import { ActivityLog } from "@/components/execution/activity-log";
@@ -61,6 +62,7 @@ export default function PermitExecutionPage() {
   const [suspendOpen, setSuspendOpen] = useState(false);
   const [suspendReason, setSuspendReason] = useState("");
   const [suspendError, setSuspendError] = useState<string | null>(null);
+  const [lototoIsolated, setLototoIsolated] = useState<boolean | null>(null);
   const [completeComment, setCompleteComment] = useState("");
   const [completeChecklist, setCompleteChecklist] = useState({
     workDescribedComplete: false,
@@ -72,6 +74,13 @@ export default function PermitExecutionPage() {
   async function loadData() {
     const permitDetail = await getPermit(params.permitId);
     setDetail(permitDetail);
+
+    if (permitDetail.permit.lototoRequired) {
+      const board = await getPermitLototoExecution(params.permitId);
+      setLototoIsolated(board.isolated);
+    } else {
+      setLototoIsolated(true);
+    }
 
     if (permitDetail.permit.status === "active" || permitDetail.permit.status === "suspended") {
       const [progressItems, evidenceItems] = await Promise.all([
@@ -244,11 +253,25 @@ export default function PermitExecutionPage() {
         </div>
       ) : null}
 
+      {permit.lototoRequired && (isApproved || isActive || permit.status === "execution_completed") ? (
+        <PermitLototoExecution
+          permitId={permit.id}
+          onBoardChange={(board) => {
+            setLototoIsolated(board.isolated);
+          }}
+        />
+      ) : null}
+
       <section className="flex flex-wrap gap-2">
         {isApproved ? (
-          <Button onClick={handleActivate} disabled={isSubmitting}>
+          <Button onClick={handleActivate} disabled={isSubmitting || lototoIsolated === false}>
             {isSubmitting ? "Starting..." : "Start work"}
           </Button>
+        ) : null}
+        {isApproved && permit.lototoRequired && lototoIsolated === false ? (
+          <p className="w-full text-sm text-muted-foreground">
+            Isolation and try-out must be verified before work can start.
+          </p>
         ) : null}
         {isApproved || isActive ? (
           hasAnyRole(roles, SUSPEND_ROLES) ? (
@@ -359,7 +382,10 @@ export default function PermitExecutionPage() {
                     rows={3}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   />
-                  <Button onClick={() => void handleCompleteExecution()} disabled={isSubmitting || !completeComment.trim()}>
+                  <Button
+                    onClick={() => void handleCompleteExecution()}
+                    disabled={isSubmitting || !completeComment.trim()}
+                  >
                     {isSubmitting ? "Submitting..." : "Mark execution completed"}
                   </Button>
                 </section>

@@ -1,5 +1,5 @@
 import type { PermitTemplate } from "@/lib/organisation/templates";
-import type { FormAnswer, PermitDetail, PermitFormState, SaveDraftPayload } from "./types";
+import type { FormAnswer, PermitDetail, PermitFormState, PermitLototoExtraInput, PermitLototoInput, SaveDraftPayload } from "./types";
 
 /** "shared": either the issuer or the assigned executor fills it in. */
 export type WizardParticipant = "job-issuer" | "operator" | "shared";
@@ -37,6 +37,28 @@ export function canRoleSubmitPermit(roles: string[]): boolean {
     roles.includes("tenant-admin") ||
     roles.includes("platform-admin")
   );
+}
+
+export function emptyLototoExtraPoint(): PermitLototoExtraInput {
+  return {
+    pointCode: "",
+    energyType: "",
+    magnitude: "",
+    locationText: "",
+    action: "",
+    device: "",
+    verificationMethod: "",
+  };
+}
+
+export function emptyLototoAttach(): PermitLototoInput {
+  return {
+    procedureId: "",
+    extraPoints: [],
+    stepNa: [],
+    crew: [{ workforceUserId: "" }],
+    verifiers: [{ workforceUserId: "" }],
+  };
 }
 
 export function createEmptyPermitForm(): PermitFormState {
@@ -112,7 +134,33 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
     lototoRequired: permit.lototoRequired === true,
     lototo:
       lototo.length > 0
-        ? lototo.map((item) => ({ lototoPlanId: item.lototoPlanId }))
+        ? lototo.map((item) => ({
+            procedureId: item.procedureId,
+            procedureVersionId: item.procedureVersionId,
+            frozenAt: item.frozenAt ?? null,
+            extraPoints: (item.extraPoints ?? []).map((point) => ({
+              pointCode: point.pointCode,
+              energyType: point.energyType,
+              magnitude: point.magnitude ?? "",
+              locationText: point.locationText ?? "",
+              action: point.action ?? "",
+              device: point.device ?? "",
+              verificationMethod: point.verificationMethod ?? "",
+            })),
+            stepNa: (item.stepNa ?? []).map((row) => ({
+              basePointId: row.basePointId ?? "",
+              extraPointCode: row.extraPointCode ?? "",
+              reason: row.reason,
+            })),
+            crew:
+              item.crew.length > 0
+                ? item.crew.map((row) => ({ workforceUserId: row.workforceUserId }))
+                : [{ workforceUserId: "" }],
+            verifiers:
+              item.verifiers.length > 0
+                ? item.verifiers.map((row) => ({ workforceUserId: row.workforceUserId }))
+                : [{ workforceUserId: "" }],
+          }))
         : [],
     gasTestingRequired: permit.gasTestingRequired === true,
     gasTesting:
@@ -157,7 +205,21 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
     hazards: form.hazards.filter((h) => h.hazardCategoryId.trim()),
     ppe: form.ppe.filter((p) => p.ppeCatalogueId.trim()),
     lototoRequired: form.lototoRequired,
-    lototo: form.lototo.filter((item) => item.lototoPlanId.trim()),
+    lototo: form.lototo
+      .filter((item) => item.procedureId.trim())
+      .map((item) => ({
+        procedureId: item.procedureId,
+        extraPoints: item.extraPoints.filter((point) => point.pointCode.trim()),
+        stepNa: item.stepNa
+          .filter((row) => row.basePointId || row.extraPointCode)
+          .map((row) => ({
+            ...(row.basePointId ? { basePointId: row.basePointId } : {}),
+            ...(row.extraPointCode ? { extraPointCode: row.extraPointCode } : {}),
+            reason: row.reason,
+          })),
+        crew: item.crew.filter((row) => row.workforceUserId.trim()),
+        verifiers: item.verifiers.filter((row) => row.workforceUserId.trim()),
+      })),
     gasTestingRequired: form.gasTestingRequired,
     gasTesting: form.gasTesting.filter((item) => item.gasTestingCatalogueId.trim()),
     executors: form.executors.filter((e) => (e.workforceUserId ?? "").trim()),
@@ -255,8 +317,19 @@ export function validateStep(
       if (!form.machineryId.trim()) {
         errors.push("Machinery is required when LOTOTO is required");
       }
-      if (!form.lototo.some((item) => item.lototoPlanId.trim())) {
+      if (!form.lototo.some((item) => item.procedureId.trim())) {
         errors.push("Select at least one LOTOTO procedure");
+      }
+      for (const item of form.lototo.filter((row) => row.procedureId.trim())) {
+        if (!item.crew.some((row) => row.workforceUserId.trim())) {
+          errors.push("Each LOTOTO procedure needs at least one crew member");
+        }
+        if (!item.verifiers.some((row) => row.workforceUserId.trim())) {
+          errors.push("Each LOTOTO procedure needs at least one verifier");
+        }
+        if (item.stepNa.some((row) => (row.basePointId || row.extraPointCode) && !row.reason.trim())) {
+          errors.push("N/A isolation steps require a reason");
+        }
       }
     }
     if (form.gasTestingRequired) {

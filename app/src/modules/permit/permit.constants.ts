@@ -32,6 +32,14 @@ export const PERMIT_WRITE_ROLES = [
 
 export const PERMIT_READ_ROLES = [...PERMIT_WRITE_ROLES, 'viewer', 'safety-officer'] as const;
 
+export const LOTOTO_EXECUTE_ROLES = [
+  'operator',
+  'safety-officer',
+  'tenant-owner',
+  'tenant-admin',
+  'platform-admin',
+] as const;
+
 export const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 
 export const ALLOWED_ATTACHMENT_CONTENT_TYPES = [

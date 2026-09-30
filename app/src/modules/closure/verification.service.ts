@@ -13,6 +13,7 @@ import {
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
+import { PermitLototoExecutionService } from '../permit/permit-lototo-execution.service';
 import { PermitService } from '../permit/permit.service';
 import { StatusTransitionService } from '../execution/status-transition.service';
 import { isTenantPrivileged } from '../../common/constants/tenant-roles';
@@ -27,6 +28,7 @@ export class VerificationService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly permitService: PermitService,
+    private readonly lototoExecutionService: PermitLototoExecutionService,
     private readonly statusTransitionService: StatusTransitionService,
     private readonly auditService: AuditService,
     private readonly permitCacheService: PermitCacheService,
@@ -53,6 +55,7 @@ export class VerificationService {
     }
 
     this.assertChecklistComplete(dto);
+    await this.lototoExecutionService.assertRestorationComplete(permitId, user);
 
     const [existing] = await this.db
       .select()

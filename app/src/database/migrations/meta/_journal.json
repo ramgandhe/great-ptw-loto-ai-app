@@ -292,71 +292,106 @@
     {
       "idx": 41,
       "version": "7",
-      "when": 1758800000000,
+      "when": 1790910000000,
       "tag": "0041_access_requests",
       "breakpoints": true
     },
     {
       "idx": 42,
       "version": "7",
-      "when": 1758900000000,
+      "when": 1790911000000,
       "tag": "0042_organisation_setup_progress",
       "breakpoints": true
     },
     {
       "idx": 43,
       "version": "7",
-      "when": 1759000000000,
+      "when": 1790912000000,
       "tag": "0043_permit_template_types",
       "breakpoints": true
     },
     {
       "idx": 44,
       "version": "7",
-      "when": 1759100000000,
+      "when": 1790913000000,
       "tag": "0044_permit_form_responses",
       "breakpoints": true
     },
     {
       "idx": 45,
       "version": "7",
-      "when": 1759200000000,
+      "when": 1790914000000,
       "tag": "0045_permit_template_all_types",
       "breakpoints": true
     },
     {
       "idx": 46,
       "version": "7",
-      "when": 1759300000000,
+      "when": 1790915000000,
       "tag": "0046_permit_expiry_history",
       "breakpoints": true
     },
     {
       "idx": 47,
       "version": "7",
-      "when": 1759400000000,
+      "when": 1790916000000,
       "tag": "0047_certificate_start_date",
       "breakpoints": true
     },
     {
       "idx": 48,
       "version": "7",
-      "when": 1759500000000,
+      "when": 1790917000000,
       "tag": "0048_notification_role_changed",
       "breakpoints": true
     },
     {
       "idx": 49,
       "version": "7",
-      "when": 1759600000000,
+      "when": 1790918000000,
       "tag": "0049_gas_testing_active",
       "breakpoints": true
     },
     {
       "idx": 50,
       "version": "7",
-      "when": 1759700000000,
+      "when": 1790919000000,
       "tag": "0050_password_reset_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1790800000000,
+      "tag": "0051_lototo_procedure_library",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1790900000000,
+      "tag": "0052_permit_lototo_execution",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1791000000000,
+      "tag": "0053_permit_lototo_during_checks",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791100000000,
+      "tag": "0054_permit_lototo_restoration",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1791200000000,
+      "tag": "0055_lototo_procedure_note",
       "breakpoints": true
     }
   ]

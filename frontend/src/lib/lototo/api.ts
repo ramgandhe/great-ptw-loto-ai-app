@@ -8,6 +8,10 @@ import type {
   LototoAssignment,
   LototoPlan,
   LototoPlanDetail,
+  LototoProcedure,
+  LototoProcedureListItem,
+  LototoProcedurePayload,
+  LototoProcedureVersion,
 } from "./types";
 
 export function listLototoPlans(filters?: { permitId?: string; machineryId?: string }) {
@@ -51,5 +55,62 @@ export function configureIsolationSequence(planId: string, payload: ConfigureSeq
   return fetchApi<{ configured: number } | IsolationPoint[]>(`/lototo/plans/${planId}/sequence`, {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function listLototoProcedures(filters?: { machineryId?: string; published?: boolean }) {
+  const params = new URLSearchParams();
+  if (filters?.machineryId) params.set("machineryId", filters.machineryId);
+  if (filters?.published) params.set("published", "true");
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return fetchApi<LototoProcedureListItem[]>(`/lototo/procedures${query}`);
+}
+
+export function getLototoProcedure(id: string) {
+  return fetchApi<LototoProcedure>(`/lototo/procedures/${id}`);
+}
+
+export function getLototoProcedureVersion(versionId: string) {
+  return fetchApi<LototoProcedureVersion & { procedure: LototoProcedure }>(`/lototo/procedure-versions/${versionId}`);
+}
+
+export function createLototoProcedure(payload: LototoProcedurePayload) {
+  return fetchApi<LototoProcedure>("/lototo/procedures", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateLototoProcedure(id: string, payload: Partial<LototoProcedurePayload>) {
+  return fetchApi<LototoProcedure>(`/lototo/procedures/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function publishLototoProcedure(id: string) {
+  return fetchApi<LototoProcedure>(`/lototo/procedures/${id}/publish`, { method: "POST" });
+}
+
+export function reviseLototoProcedure(id: string) {
+  return fetchApi<LototoProcedure>(`/lototo/procedures/${id}/revisions`, { method: "POST" });
+}
+
+export function deleteLototoProcedure(id: string) {
+  return fetchApi<{ id: string; deleted: boolean }>(`/lototo/procedures/${id}`, { method: "DELETE" });
+}
+
+export function uploadLototoPointPhoto(procedureId: string, pointId: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return fetchApi<LototoProcedure>(`/lototo/procedures/${procedureId}/lockout-points/${pointId}/photo`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export function removeLototoPointPhoto(procedureId: string, pointId: string) {
+  return fetchApi<LototoProcedure>(`/lototo/procedures/${procedureId}/lockout-points/${pointId}/photo`, {
+    method: "DELETE",
   });
 }

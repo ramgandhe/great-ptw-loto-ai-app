@@ -20,8 +20,9 @@ import {
   uploadEvidence,
 } from "@/lib/execution/api";
 import { initExecutionOfflineStorage, queueOfflineEvidence, queueOfflineProgress } from "@/lib/execution/offline";
-import { getPermit } from "@/lib/permit/api";
+import { getPermit, getPermitLototoExecution } from "@/lib/permit/api";
 import type { PermitDetail } from "@/lib/permit/types";
+import { PermitLototoExecution } from "@/components/permit/lototo-execution";
 
 export default function ExecutePermitScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -33,13 +34,21 @@ export default function ExecutePermitScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [lototoIsolated, setLototoIsolated] = useState<boolean | null>(null);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
       await initExecutionOfflineStorage();
-      setDetail(await getPermit(permitId));
+      const permitDetail = await getPermit(permitId);
+      setDetail(permitDetail);
+      if (permitDetail.permit.lototoRequired) {
+        const board = await getPermitLototoExecution(permitId);
+        setLototoIsolated(board.isolated);
+      } else {
+        setLototoIsolated(true);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load permit");
     } finally {
@@ -183,9 +192,16 @@ export default function ExecutePermitScreen() {
 
       <View style={styles.actions}>
         {isApproved ? (
-          <Pressable style={styles.primaryButton} onPress={handleActivate} disabled={submitting}>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={handleActivate}
+            disabled={submitting || (Boolean(permit.lototoRequired) && lototoIsolated === false)}
+          >
             <Text style={styles.primaryButtonText}>{submitting ? "Starting..." : "Start work"}</Text>
           </Pressable>
+        ) : null}
+        {isApproved && permit.lototoRequired && lototoIsolated === false ? (
+          <Text style={styles.meta}>Isolation and try-out must be verified before work can start.</Text>
         ) : null}
         {isSuspended ? (
           <Pressable style={styles.primaryButton} onPress={handleResume} disabled={submitting}>
@@ -198,6 +214,13 @@ export default function ExecutePermitScreen() {
           </Pressable>
         ) : null}
       </View>
+
+      {permit.lototoRequired && (isApproved || isActive || permit.status === "execution_completed") ? (
+        <PermitLototoExecution
+          permitId={permitId}
+          onBoardChange={(board) => setLototoIsolated(board.isolated)}
+        />
+      ) : null}
 
       {isActive ? (
         <>

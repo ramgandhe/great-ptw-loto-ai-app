@@ -48,6 +48,8 @@ export const ORGANISATION_READ_ROLES = [
 
 export const ORGANISATION_WRITE_ROLES = ["tenant-owner", "tenant-admin", "platform-admin"] as const;
 
+export const LOTOTO_LIBRARY_WRITE_ROLES = ORGANISATION_WRITE_ROLES;
+
 export const MASTER_DATA_READ_ROLES = [
   "tenant-owner", "tenant-admin",
   "platform-admin",

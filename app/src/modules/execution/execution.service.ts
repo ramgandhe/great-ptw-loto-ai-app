@@ -15,6 +15,7 @@ import { AuditService } from '../logging/audit.service';
 import { WorkflowEngineService } from '../approval/workflow-engine.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
+import { PermitLototoExecutionService } from '../permit/permit-lototo-execution.service';
 import {
   ACTIVE_STATUS,
   APPROVED_STATUS,
@@ -34,6 +35,7 @@ export class ExecutionService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly permitService: PermitService,
+    private readonly lototoExecutionService: PermitLototoExecutionService,
     private readonly statusTransitionService: StatusTransitionService,
     private readonly notificationService: NotificationService,
     private readonly auditService: AuditService,
@@ -54,6 +56,7 @@ export class ExecutionService {
     }
 
     await this.requireExecutor(permitId, user);
+    await this.lototoExecutionService.assertIsolationReadyToStart(permitId, user);
 
     const actualStartAt = dto.actualStartAt ? new Date(dto.actualStartAt) : new Date();
 

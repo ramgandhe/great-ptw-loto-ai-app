@@ -12,6 +12,7 @@ import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { CreatePermitDto } from './dto/create-permit.dto';
+import { ReassignPermitPeopleDto } from './dto/reassign-permit-people.dto';
 import { RenewPermitDto } from './dto/renew-permit.dto';
 import {
   PERMIT_CREATE_ROLES,
@@ -57,6 +58,16 @@ export class PermitController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.permitService.removeDraft(id, user);
+  }
+
+  @Roles(...PERMIT_WRITE_ROLES)
+  @Post(':id/reassign-people')
+  reassignPeople(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReassignPermitPeopleDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.permitService.reassignPeople(id, dto, user);
   }
 
   @Roles(...PERMIT_WRITE_ROLES)

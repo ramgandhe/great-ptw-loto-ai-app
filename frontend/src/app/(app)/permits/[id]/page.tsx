@@ -11,6 +11,8 @@ import type { PermitDetail } from "@/lib/permit/types";
 import { isEditablePermitStatus } from "@/lib/permit/status";
 import { toast } from "@/components/ui/toast";
 import { PermitApprovalStatus } from "@/components/permit/permit-approval-status";
+import { PermitLototoExecution } from "@/components/permit/lototo-execution";
+import { PermitPeopleReassign } from "@/components/permit/permit-people-reassign";
 import { PermitSummary } from "@/components/permit/permit-summary";
 import { PermitFormResponses } from "@/components/permit/permit-form-responses";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
@@ -176,7 +178,7 @@ export default function PermitDetailPage() {
     { href: `/permits/${detail.permit.id}/journey`, label: "Journey and current state", icon: Route, show: true },
     { href: `/execution/${detail.permit.id}`, label: "Execution", icon: Wrench, show: inExecution && nextAction?.href !== `/execution/${detail.permit.id}` },
     { href: `/permits/${detail.permit.id}/multi-day`, label: "Daily progress", icon: CalendarDays, show: inExecution },
-    { href: `/lototo?new=1${detail.permit.machineryId ? `&machineryId=${detail.permit.machineryId}` : ""}`, label: "Configure LOTOTO", icon: LockKeyhole, show: inExecution },
+    { href: `/lototo${detail.permit.machineryId ? `?machineryId=${detail.permit.machineryId}` : ""}`, label: "LOTOTO procedures", icon: LockKeyhole, show: inExecution },
   ].filter((link) => link.show);
 
   return (
@@ -291,6 +293,11 @@ export default function PermitDetailPage() {
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] print:block">
         <div className="grid min-w-0 gap-6">
           <PermitSummary form={form} status={detail.permit.status} attachments={detail.attachments} showHeader={false} />
+          <PermitPeopleReassign detail={detail} onSaved={setDetail} />
+          {detail.permit.lototoRequired &&
+          ["approved", "active", "execution_completed", "pending_closure"].includes(detail.permit.status) ? (
+            <PermitLototoExecution permitId={detail.permit.id} />
+          ) : null}
           <PermitFormResponses responses={detail.permit.formResponses ?? []} />
         </div>
         {/* One box: where the permit is in its lifecycle, its history, and where to go from here. */}

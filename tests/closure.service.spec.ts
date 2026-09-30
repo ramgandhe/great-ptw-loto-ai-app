@@ -91,6 +91,7 @@ describe('Closure services integration (PUS-146)', () => {
     verificationService = new VerificationService(
       db,
       permitService,
+      { assertRestorationComplete: jest.fn().mockResolvedValue(undefined) } as never,
       new StatusTransitionService(db),
       auditService,
       permitCacheService,

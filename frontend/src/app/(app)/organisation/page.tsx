@@ -24,7 +24,7 @@ const GROUPS: HubGroup[] = [
       { href: "/organisation/departments", label: "Departments", description: "Teams that own work", icon: Network },
       { href: "/organisation/locations", label: "Locations", description: "Work areas within plants", icon: DOMAIN_ICONS.location },
       { href: "/organisation/workstations", label: "Workstations", description: "Where equipment is installed", icon: DOMAIN_ICONS.workstation },
-      { href: "/organisation/machinery", label: "Machinery", description: "Equipment and its isolation plans", icon: DOMAIN_ICONS.machinery },
+      { href: "/organisation/machinery", label: "Machinery", description: "Equipment and LOTOTO procedures", icon: DOMAIN_ICONS.machinery },
     ],
   },
   {
