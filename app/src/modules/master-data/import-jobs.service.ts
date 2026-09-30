@@ -172,6 +172,7 @@ export class ImportJobsService implements OnModuleInit {
             tenantId,
             code: row.code.trim(),
             name: row.name.trim(),
+            category: row.category?.trim() || '',
             severity: row.severity ?? 'medium',
             description: row.description,
             createdBy: actorId,

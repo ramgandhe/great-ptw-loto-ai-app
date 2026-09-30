@@ -9,6 +9,10 @@ import { MasterDataCacheService } from './master-data-cache.service';
 import { MasterDataLogService } from './master-data-log.service';
 import { ReferenceIntegrityService } from './reference-integrity.service';
 
+function trimLines(values?: string[]): string[] {
+  return (values ?? []).map((value) => value.trim()).filter(Boolean);
+}
+
 @Injectable()
 export class HazardService {
   constructor(
@@ -29,8 +33,11 @@ export class HazardService {
           tenantId,
           code: dto.code.trim(),
           name: dto.name.trim(),
+          category: dto.category.trim(),
           description: dto.description,
           severity: dto.severity ?? 'medium',
+          consequences: trimLines(dto.consequences),
+          controls: trimLines(dto.controls),
           isActive: dto.isActive ?? true,
           createdBy: user.id,
           updatedBy: user.id,
@@ -54,8 +61,11 @@ export class HazardService {
       .set({
         ...(dto.code !== undefined ? { code: dto.code.trim() } : {}),
         ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.category !== undefined ? { category: dto.category.trim() } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
         ...(dto.severity !== undefined ? { severity: dto.severity } : {}),
+        ...(dto.consequences !== undefined ? { consequences: trimLines(dto.consequences) } : {}),
+        ...(dto.controls !== undefined ? { controls: trimLines(dto.controls) } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         updatedBy: user.id,
         updatedAt: new Date(),

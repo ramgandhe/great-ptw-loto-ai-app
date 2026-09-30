@@ -9,6 +9,13 @@ export type MasterDataRecord = {
   isActive?: boolean;
 };
 
+export type HazardRecord = MasterDataRecord & {
+  category?: string | null;
+  severity?: string;
+  consequences?: string[];
+  controls?: string[];
+};
+
 export const masterDataApi = {
   permitTypes: () => fetchApi<MasterDataRecord[]>("/permit-types"),
   createPermitType: (payload: {
@@ -32,7 +39,7 @@ export const masterDataApi = {
     }),
   deletePermitType: (id: string) =>
     fetchApi<MasterDataRecord>(`/permit-types/${id}`, { method: "DELETE" }),
-  hazards: () => fetchApi<(MasterDataRecord & { severity?: string })[]>("/hazards"),
+  hazards: () => fetchApi<HazardRecord[]>("/hazards"),
   ppe: () => fetchApi<MasterDataRecord[]>("/ppe"),
 };
 

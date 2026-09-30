@@ -15,6 +15,8 @@ export type OrgRecord = {
   departmentId?: string | null;
   locationId?: string | null;
   workstationId?: string | null;
+  consequences?: string[];
+  controls?: string[];
   createdAt?: string;
   updatedAt?: string;
 };

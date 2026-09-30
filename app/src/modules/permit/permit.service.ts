@@ -658,7 +658,8 @@ export class PermitService {
           source.hazards.map((hazard) => ({
             permitId: renewal.id,
             hazardCategoryId: hazard.hazardCategoryId,
-            description: hazard.description,
+            extraConsequences: hazard.extraConsequences ?? [],
+            extraControls: hazard.extraControls ?? [],
             createdBy: user.id,
             updatedBy: user.id,
           })),
@@ -876,7 +877,8 @@ export class PermitService {
       hazards.map((hazard) => ({
         permitId,
         hazardCategoryId: hazard.hazardCategoryId,
-        description: hazard.description,
+        extraConsequences: (hazard.extraConsequences ?? []).map((value) => value.trim()).filter(Boolean),
+        extraControls: (hazard.extraControls ?? []).map((value) => value.trim()).filter(Boolean),
         createdBy: userId,
         updatedBy: userId,
       })),

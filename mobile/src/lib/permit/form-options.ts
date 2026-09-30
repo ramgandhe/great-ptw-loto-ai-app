@@ -1,5 +1,5 @@
 import { getProfile } from "@/lib/auth/api";
-import { masterDataApi, type MasterDataRecord } from "@/lib/master-data/api";
+import { masterDataApi, type HazardRecord, type MasterDataRecord } from "@/lib/master-data/api";
 import {
   listDepartments,
   listLocations,
@@ -18,7 +18,7 @@ export type PermitFormOptions = {
   locations: MasterDataRecord[];
   workstations: MasterDataRecord[];
   machinery: MachineryRecord[];
-  hazards: MasterDataRecord[];
+  hazards: HazardRecord[];
   ppe: MasterDataRecord[];
   executors: WorkforceRecord[];
   userRoles: string[];

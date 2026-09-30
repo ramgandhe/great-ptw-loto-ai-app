@@ -33,7 +33,7 @@ const GROUPS: HubGroup[] = [
     links: [
       { href: "/organisation/permit-types", label: "Permit types", description: "Types, fields and colours", icon: Tags },
       { href: "/organisation/templates", label: "Permit templates", description: "Pre-filled starting points", icon: FileStack },
-      { href: "/organisation/hazards", label: "Hazards", description: "Hazard categories", icon: DOMAIN_ICONS.hazard },
+      { href: "/organisation/hazards", label: "Hazards", description: "Codes, consequences and default controls", icon: DOMAIN_ICONS.hazard },
       { href: "/organisation/ppe", label: "PPE", description: "Protective equipment requirements", icon: DOMAIN_ICONS.ppe },
       { href: "/organisation/gas-testing", label: "Gas testing", description: "Parameters and limits by workstation", icon: DOMAIN_ICONS.gas },
       { href: "/organisation/checklists", label: "Safety checklists", description: "Reusable checklist items", icon: ClipboardCheck },

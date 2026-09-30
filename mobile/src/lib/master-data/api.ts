@@ -6,9 +6,17 @@ export type MasterDataRecord = {
   name: string;
 };
 
+export type HazardRecord = MasterDataRecord & {
+  category?: string | null;
+  description?: string | null;
+  severity?: string;
+  consequences?: string[];
+  controls?: string[];
+};
+
 export const masterDataApi = {
   permitTypes: () => fetchApi<MasterDataRecord[]>("/permit-types"),
-  hazards: () => fetchApi<MasterDataRecord[]>("/hazards"),
+  hazards: () => fetchApi<HazardRecord[]>("/hazards"),
   ppe: () => fetchApi<MasterDataRecord[]>("/ppe"),
 };
 

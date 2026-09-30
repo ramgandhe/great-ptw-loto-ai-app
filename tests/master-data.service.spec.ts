@@ -104,12 +104,35 @@ describe('Master data services (PUS-70)', () => {
     const user = adminUser(tenantId);
 
     const hazard = await hazardService.create(
-      { code: 'FIRE', name: 'Fire hazard', severity: 'high' },
+      {
+        code: 'FIRE',
+        name: 'Flammable atmosphere',
+        category: 'Fire / Explosion',
+        severity: 'high',
+        consequences: ['Fire / Explosion'],
+        controls: ['Gas testing', 'Fire watch'],
+      },
       user,
     );
+    expect(hazard.category).toBe('Fire / Explosion');
+    expect(hazard.consequences).toEqual(['Fire / Explosion']);
+    expect(hazard.controls).toEqual(['Gas testing', 'Fire watch']);
 
     const removed = await hazardService.remove(hazard.id, user);
     expect(removed.id).toBe(hazard.id);
+  });
+
+  dbTest('rejects duplicate hazard codes within tenant', async () => {
+    const tenantId = randomUUID();
+    const user = adminUser(tenantId);
+    const payload = {
+      code: 'FIRE',
+      name: 'Flammable atmosphere',
+      category: 'Fire / Explosion',
+      severity: 'high' as const,
+    };
+    await hazardService.create(payload, user);
+    await expect(hazardService.create({ ...payload, name: 'Other' }, user)).rejects.toBeInstanceOf(ConflictException);
   });
 
   dbTest('lists permit types with tenant isolation', async () => {

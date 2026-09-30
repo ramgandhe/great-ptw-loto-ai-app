@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   boolean,
   doublePrecision,
@@ -132,7 +133,10 @@ export const hazardCategories = pgTable(
     code: varchar('code', { length: 64 }).notNull(),
     name: varchar('name', { length: 255 }).notNull(),
     description: text('description'),
+    category: varchar('category', { length: 255 }).notNull().default(''),
     severity: varchar('severity', { length: 32 }).notNull().default('medium'),
+    consequences: jsonb('consequences').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    controls: jsonb('controls').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     isActive: boolean('is_active').notNull().default(true),
   },
   (table) => [

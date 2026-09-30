@@ -38,6 +38,8 @@ describe('PermitValidationService', () => {
         permitId: 'permit-id',
         hazardCategoryId: 'hazard-cat-id',
         description: null,
+        extraConsequences: [],
+        extraControls: [],
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: 'user-id',

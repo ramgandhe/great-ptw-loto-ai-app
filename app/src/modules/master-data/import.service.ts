@@ -46,6 +46,7 @@ export interface MasterDataImportFile {
   hazards?: Array<{
     code: string;
     name: string;
+    category?: string;
     severity?: string;
     description?: string;
   }>;

@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ApiError } from "@/lib/api";
 import { getProfile } from "@/lib/auth/api";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
-import { masterDataApi, type MasterDataRecord } from "@/lib/master-data/api";
+import { gasTestingApi, masterDataApi, type GasTestingRecord, type HazardRecord, type MasterDataRecord } from "@/lib/master-data/api";
 import {
   departmentsApi,
   locationsApi,
@@ -19,7 +19,6 @@ import type { MachineryRecord } from "@/lib/organisation/types";
 import { permitTemplatesApi, type PermitTemplate, type TemplatePrefillSource } from "@/lib/organisation/templates";
 import { listLototoProcedures, getLototoProcedure } from "@/lib/lototo/api";
 import type { LototoProcedure, LototoProcedureListItem } from "@/lib/lototo/types";
-import { gasTestingApi, type GasTestingRecord } from "@/lib/master-data/api";
 import {
   createPermit,
   getPermit,
@@ -64,6 +63,7 @@ import { Button } from "@/components/ui/button";
 import { FileUploadField } from "@/components/ui/file-upload-field";
 import { DraftBanner } from "./draft-banner";
 import { LototoAttachFields } from "./lototo-attach-fields";
+import { StringListField } from "@/components/organisation/string-list-field";
 import { fieldClassName, FormField } from "./form-field";
 import { MasterDataSelect } from "./master-data-select";
 import { formatWorkforceOptionLabel } from "@/components/lototo/select-field";
@@ -209,7 +209,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [locations, setLocations] = useState<MasterDataRecord[]>([]);
   const [workstations, setWorkstations] = useState<MasterDataRecord[]>([]);
   const [machinery, setMachinery] = useState<MachineryRecord[]>([]);
-  const [hazards, setHazards] = useState<MasterDataRecord[]>([]);
+  const [hazards, setHazards] = useState<HazardRecord[]>([]);
   const [ppeItems, setPpeItems] = useState<MasterDataRecord[]>([]);
   const [machineryLototo, setMachineryLototo] = useState<LototoProcedureListItem[]>([]);
   const [lototoDetails, setLototoDetails] = useState<Record<string, LototoProcedure>>({});
@@ -1225,7 +1225,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     ...form,
                     hazards: [
                       ...form.hazards,
-                      { hazardCategoryId: "", description: "" },
+                      { hazardCategoryId: "", extraConsequences: [], extraControls: [] },
                     ],
                   })
                 }
@@ -1233,48 +1233,93 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 Add hazard
               </Button>
             </div>
-            {form.hazards.map((hazard, index) => (
+            {form.hazards.map((hazard, index) => {
+              const selected = hazards.find((item) => item.id === hazard.hazardCategoryId);
+              const taken = new Set(
+                form.hazards
+                  .map((row, i) => (i === index ? "" : row.hazardCategoryId))
+                  .filter(Boolean),
+              );
+              return (
               <div
                 key={`hazard-${index}`}
-                className="grid items-end gap-3 rounded-lg border border-border p-4 md:grid-cols-[1fr_1fr_auto]"
+                className="grid gap-3 rounded-lg border border-border p-4"
               >
-                <FormField label="Hazard category" htmlFor={`hazard-${index}`}>
+                <FormField label="Hazard" htmlFor={`hazard-${index}`}>
                   <MasterDataSelect
                     id={`hazard-${index}`}
                     value={hazard.hazardCategoryId}
-                    options={hazards}
+                    options={hazards.filter((item) => item.id === hazard.hazardCategoryId || !taken.has(item.id))}
                     disabled={fieldDisabled || masterDataLoading}
                     placeholder="Select hazard"
                     onChange={(hazardCategoryId) => {
                       const hazardRows = [...form.hazards];
-                      hazardRows[index] = { ...hazard, hazardCategoryId };
+                      hazardRows[index] = {
+                        hazardCategoryId,
+                        extraConsequences: [],
+                        extraControls: [],
+                      };
                       setForm({ ...form, hazards: hazardRows });
                     }}
                   />
                 </FormField>
-                <FormField label="Description" htmlFor={`hazard-desc-${index}`}>
-                  <input
-                    id={`hazard-desc-${index}`}
-                    className={fieldClassName}
-                    value={hazard.description}
-                    disabled={fieldDisabled}
-                    onChange={(e) => {
-                      const hazards = [...form.hazards];
-                      hazards[index] = {
-                        ...hazard,
-                        description: e.target.value,
-                      };
-                      setForm({ ...form, hazards });
-                    }}
-                  />
-                </FormField>
+                {selected ? (
+                  <div className="grid gap-2 text-sm">
+                    <p>
+                      <span className="text-muted-foreground">Category · </span>
+                      {selected.category || "—"}
+                      <span className="text-muted-foreground"> · Severity · </span>
+                      <span className="capitalize">{selected.severity ?? "medium"}</span>
+                    </p>
+                    {selected.description ? <p className="whitespace-pre-wrap text-muted-foreground">{selected.description}</p> : null}
+                    <div>
+                      <p className="text-xs text-muted-foreground">Potential consequences</p>
+                      <ul className="mt-1 list-disc pl-5">
+                        {(selected.consequences ?? []).map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Controls</p>
+                      <ul className="mt-1 list-disc pl-5">
+                        {(selected.controls ?? []).map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <StringListField
+                      label="Extra consequences for this permit"
+                      values={hazard.extraConsequences ?? []}
+                      disabled={fieldDisabled}
+                      addLabel="Add consequence"
+                      onChange={(extraConsequences) => {
+                        const hazardRows = [...form.hazards];
+                        hazardRows[index] = { ...hazard, extraConsequences };
+                        setForm({ ...form, hazards: hazardRows });
+                      }}
+                    />
+                    <StringListField
+                      label="Extra controls for this permit"
+                      values={hazard.extraControls ?? []}
+                      disabled={fieldDisabled}
+                      addLabel="Add control"
+                      onChange={(extraControls) => {
+                        const hazardRows = [...form.hazards];
+                        hazardRows[index] = { ...hazard, extraControls };
+                        setForm({ ...form, hazards: hazardRows });
+                      }}
+                    />
+                  </div>
+                ) : null}
                 <RemoveRowButton
                   label="Remove hazard"
                   disabled={fieldDisabled}
                   onClick={() => setForm({ ...form, hazards: form.hazards.filter((_, i) => i !== index) })}
                 />
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="grid gap-3">

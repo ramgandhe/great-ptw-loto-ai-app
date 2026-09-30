@@ -22,7 +22,8 @@ export type PermitRecord = {
 
 export type PermitHazardInput = {
   hazardCategoryId: string;
-  description: string;
+  extraConsequences: string[];
+  extraControls: string[];
 };
 
 export type PermitPpeInput = {
@@ -70,7 +71,11 @@ export type PermitDetail = {
     currentStep: number;
     formSnapshot: Record<string, unknown> | null;
   } | null;
-  hazards: Array<{ hazardCategoryId: string; description: string | null }>;
+  hazards: Array<{
+    hazardCategoryId: string;
+    extraConsequences?: string[] | null;
+    extraControls?: string[] | null;
+  }>;
   ppe: Array<{ ppeCatalogueId: string; quantity: number | null }>;
   lototo?: Array<{ lototoPlanId: string }>;
   gasTesting?: Array<{ gasTestingCatalogueId: string }>;

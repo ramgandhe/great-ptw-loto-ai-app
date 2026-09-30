@@ -393,6 +393,13 @@
       "when": 1791200000000,
       "tag": "0055_lototo_procedure_note",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1791300000000,
+      "tag": "0056_hazard_detail",
+      "breakpoints": true
     }
   ]
 }

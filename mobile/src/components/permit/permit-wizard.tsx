@@ -433,10 +433,12 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
       {step === 2 ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Hazards</Text>
-          {form.hazards.map((hazard, index) => (
+          {form.hazards.map((hazard, index) => {
+            const selected = (formOptions?.hazards ?? []).find((item) => item.id === hazard.hazardCategoryId);
+            return (
             <View key={`hazard-${index}`} style={styles.card}>
               <SelectField
-                label="Hazard category"
+                label="Hazard"
                 value={hazard.hazardCategoryId}
                 options={(formOptions?.hazards ?? []).map((item) => ({
                   value: item.id,
@@ -446,29 +448,66 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
                 disabled={isReadOnly || optionsLoading}
                 onChange={(hazardCategoryId) => {
                   const hazards = [...form.hazards];
-                  hazards[index] = { ...hazard, hazardCategoryId };
+                  hazards[index] = { hazardCategoryId, extraConsequences: [], extraControls: [] };
                   setForm({ ...form, hazards });
                 }}
               />
-              <TextInput
-                style={[inputStyle, styles.textArea]}
-                placeholder="Description"
-                multiline
-                value={hazard.description}
-                onChangeText={(value) => {
-                  const hazards = [...form.hazards];
-                  hazards[index] = { ...hazard, description: value };
-                  setForm({ ...form, hazards });
-                }}
-              />
+              {selected ? (
+                <View>
+                  <Text style={styles.summaryLine}>
+                    {selected.category || "—"} · {selected.severity ?? "medium"}
+                  </Text>
+                  {(selected.consequences ?? []).map((line) => (
+                    <Text key={line} style={styles.summaryLine}>
+                      {line}
+                    </Text>
+                  ))}
+                  {(selected.controls ?? []).map((line) => (
+                    <Text key={`c-${line}`} style={styles.summaryLine}>
+                      {line}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+              {(hazard.extraConsequences.length ? hazard.extraConsequences : [""]).map((value, extraIndex) => (
+                <TextInput
+                  key={`xc-${extraIndex}`}
+                  style={inputStyle}
+                  placeholder="Extra consequence for this permit"
+                  value={value}
+                  onChangeText={(next) => {
+                    const extras = [...(hazard.extraConsequences.length ? hazard.extraConsequences : [""])];
+                    extras[extraIndex] = next;
+                    const hazards = [...form.hazards];
+                    hazards[index] = { ...hazard, extraConsequences: extras };
+                    setForm({ ...form, hazards });
+                  }}
+                />
+              ))}
+              {(hazard.extraControls.length ? hazard.extraControls : [""]).map((value, extraIndex) => (
+                <TextInput
+                  key={`ctrl-${extraIndex}`}
+                  style={inputStyle}
+                  placeholder="Extra control for this permit"
+                  value={value}
+                  onChangeText={(next) => {
+                    const extras = [...(hazard.extraControls.length ? hazard.extraControls : [""])];
+                    extras[extraIndex] = next;
+                    const hazards = [...form.hazards];
+                    hazards[index] = { ...hazard, extraControls: extras };
+                    setForm({ ...form, hazards });
+                  }}
+                />
+              ))}
             </View>
-          ))}
+            );
+          })}
           <Pressable
             style={styles.secondaryButton}
             onPress={() =>
               setForm({
                 ...form,
-                hazards: [...form.hazards, { hazardCategoryId: "", description: "" }],
+                hazards: [...form.hazards, { hazardCategoryId: "", extraConsequences: [], extraControls: [] }],
               })
             }
           >

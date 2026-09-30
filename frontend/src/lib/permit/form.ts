@@ -73,7 +73,7 @@ export function createEmptyPermitForm(): PermitFormState {
     machineryId: "",
     plannedStartAt: "",
     plannedEndAt: "",
-    hazards: [{ hazardCategoryId: "", description: "" }],
+    hazards: [{ hazardCategoryId: "", extraConsequences: [], extraControls: [] }],
     ppe: [{ ppeCatalogueId: "", quantity: 1 }],
     lototoRequired: false,
     lototo: [],
@@ -121,9 +121,10 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
       hazards.length > 0
         ? hazards.map((h) => ({
             hazardCategoryId: h.hazardCategoryId,
-            description: h.description ?? "",
+            extraConsequences: h.extraConsequences ?? [],
+            extraControls: h.extraControls ?? [],
           }))
-        : [{ hazardCategoryId: "", description: "" }],
+        : [{ hazardCategoryId: "", extraConsequences: [], extraControls: [] }],
     ppe:
       ppe.length > 0
         ? ppe.map((item) => ({
@@ -202,7 +203,13 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
     plannedStartAt: form.plannedStartAt ? new Date(form.plannedStartAt).toISOString() : undefined,
     plannedEndAt: form.plannedEndAt ? new Date(form.plannedEndAt).toISOString() : undefined,
     currentStep: form.currentStep,
-    hazards: form.hazards.filter((h) => h.hazardCategoryId.trim()),
+    hazards: form.hazards
+      .filter((h) => h.hazardCategoryId.trim())
+      .map((h) => ({
+        hazardCategoryId: h.hazardCategoryId,
+        extraConsequences: (h.extraConsequences ?? []).map((value) => value.trim()).filter(Boolean),
+        extraControls: (h.extraControls ?? []).map((value) => value.trim()).filter(Boolean),
+      })),
     ppe: form.ppe.filter((p) => p.ppeCatalogueId.trim()),
     lototoRequired: form.lototoRequired,
     lototo: form.lototo

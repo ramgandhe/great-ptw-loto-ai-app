@@ -17,8 +17,16 @@ export class PermitHazardDto {
   hazardCategoryId!: string;
 
   @IsOptional()
-  @IsString()
-  description?: string;
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  extraConsequences?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  extraControls?: string[];
 }
 
 export class PermitPpeDto {

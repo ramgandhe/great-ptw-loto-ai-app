@@ -5,7 +5,7 @@ import { ChevronRight, Paperclip, TriangleAlert, type LucideIcon } from "lucide-
 import { DOMAIN_ICONS } from "@/lib/domain-icons";
 import { PermitTypeChip } from "./permit-type-chip";
 import type { PermitAttachment, PermitFormState } from "@/lib/permit/types";
-import { gasTestingApi, masterDataApi } from "@/lib/master-data/api";
+import { gasTestingApi, masterDataApi, type HazardRecord } from "@/lib/master-data/api";
 import { getLototoProcedure, getLototoProcedureVersion, listLototoProcedures } from "@/lib/lototo/api";
 import type { LototoProcedureVersion } from "@/lib/lototo/types";
 import { formatWindow } from "@/lib/format";
@@ -13,7 +13,7 @@ import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
 import { PermitStatusBadge } from "./permit-status-badge";
 
 type Catalogues = {
-  hazards: Map<string, string>;
+  hazards: Map<string, HazardRecord>;
   ppe: Map<string, string>;
   lototo: Map<string, string>;
   gas: Map<string, string>;
@@ -133,7 +133,7 @@ export function PermitSummary({
       gasTestingApi.list().catch(() => []),
     ]).then(([hazards, ppe, lototo, gas]) =>
       setCatalogues({
-        hazards: named(hazards, (row) => row.name),
+        hazards: new Map(hazards.map((row) => [row.id, row])),
         ppe: named(ppe, (row) => row.name),
         lototo: named(lototo, (row) => `${row.code} ${row.title}`),
         gas: named(gas, (row) => `${row.parameter} (${row.unit})`),
@@ -184,9 +184,7 @@ export function PermitSummary({
     // A workstation often shares its location's name; don't print it twice.
     .filter((part, index, parts) => part !== parts[index - 1]);
 
-  const hazards = form.hazards
-    .filter((h) => h.hazardCategoryId)
-    .map((h) => `${pick(catalogues?.hazards, h.hazardCategoryId)}${h.description ? `: ${h.description}` : ""}`);
+  const hazardRows = form.hazards.filter((h) => h.hazardCategoryId);
   const ppe = form.ppe
     .filter((p) => p.ppeCatalogueId)
     .map((p) => `${pick(catalogues?.ppe, p.ppeCatalogueId)}${p.quantity > 1 ? ` × ${p.quantity}` : ""}`);
@@ -246,7 +244,67 @@ export function PermitSummary({
       </Section>
 
       <Section kind="hazards" title="Hazards">
-        <Chips items={hazards} empty="None recorded" missing />
+        {hazardRows.length === 0 ? (
+          <span className="font-semibold text-(--status-danger)">None recorded</span>
+        ) : (
+          <div className="grid gap-4">
+            {hazardRows.map((item) => {
+              const catalogue = catalogues?.hazards.get(item.hazardCategoryId);
+              return (
+                <div key={item.hazardCategoryId} className="grid gap-2">
+                  <p className="font-medium">
+                    {catalogue?.name ?? "Hazard"}
+                    {catalogue?.code ? ` (${catalogue.code})` : ""}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {catalogue?.category || "—"} · <span className="capitalize">{catalogue?.severity ?? "medium"}</span>
+                  </p>
+                  {catalogue?.description ? <p className="whitespace-pre-wrap text-sm">{catalogue.description}</p> : null}
+                  <Field label="Potential consequences">
+                    {(catalogue?.consequences ?? []).length ? (
+                      <ul className="list-disc pl-5 font-normal">
+                        {(catalogue?.consequences ?? []).map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="font-normal text-muted-foreground">None listed</span>
+                    )}
+                  </Field>
+                  {item.extraConsequences.filter((line) => line.trim()).length ? (
+                    <Field label="Extra consequences (this permit)">
+                      <ul className="list-disc pl-5 font-normal">
+                        {item.extraConsequences.filter((line) => line.trim()).map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    </Field>
+                  ) : null}
+                  <Field label="Controls">
+                    {(catalogue?.controls ?? []).length ? (
+                      <ul className="list-disc pl-5 font-normal">
+                        {(catalogue?.controls ?? []).map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="font-normal text-muted-foreground">None listed</span>
+                    )}
+                  </Field>
+                  {item.extraControls.filter((line) => line.trim()).length ? (
+                    <Field label="Extra controls (this permit)">
+                      <ul className="list-disc pl-5 font-normal">
+                        {item.extraControls.filter((line) => line.trim()).map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    </Field>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Section>
       <Section kind="ppe" title="PPE">
         <Chips items={ppe} empty="None recorded" missing />

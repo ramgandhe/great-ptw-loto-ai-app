@@ -1,7 +1,8 @@
 import { fetchApi } from "@/lib/api";
+import type { HazardRecord } from "@/lib/master-data/api";
 import type { MachineryRecord, NotificationPreference, Organisation, OrgRecord } from "./types";
 
-function crud<T extends OrgRecord>(basePath: string) {
+function crud<T extends { id: string }>(basePath: string) {
   return {
     list: () => fetchApi<T[]>(basePath),
     /** Archived records (plants, departments, locations, workflows). */
@@ -43,5 +44,5 @@ export const approvalWorkflowsApi = {
 };
 export const safetyChecklistsApi = crud<OrgRecord>("/safety-checklists");
 export const ppeConfigurationsApi = crud<OrgRecord>("/ppe-configurations");
-export const hazardsApi = crud<OrgRecord>("/hazards");
+export const hazardsApi = crud<HazardRecord>("/hazards");
 export const notificationPreferencesApi = crud<NotificationPreference>("/notification-preferences");

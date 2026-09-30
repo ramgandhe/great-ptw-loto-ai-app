@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -109,6 +110,8 @@ export const permitHazards = pgTable(
       .references(() => permits.id, { onDelete: 'cascade' }),
     hazardCategoryId: uuid('hazard_category_id').notNull(),
     description: text('description'),
+    extraConsequences: jsonb('extra_consequences').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    extraControls: jsonb('extra_controls').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   },
   (table) => [
     uniqueIndex('permit_hazards_permit_hazard_unique').on(
