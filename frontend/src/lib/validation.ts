@@ -24,7 +24,8 @@ export const PHONE_COUNTRIES = [
 
 /** "+91 9876543210" → { code: "+91", number: "9876543210" }. Anything else keeps the default code. */
 export function splitPhone(value: string | null | undefined): { code: string; number: string } {
-  const match = /^(\+\d{1,3})\s*(\d+)$/.exec((value ?? "").trim());
+  // The number may be empty: a new form holds just the country code ("+91 "), which is not a number.
+  const match = /^(\+\d{1,3})\s*(\d*)$/.exec((value ?? "").trim());
   if (match && PHONE_COUNTRIES.some((c) => c.code === match[1])) return { code: match[1], number: match[2] };
   return { code: PHONE_COUNTRIES[0].code, number: (value ?? "").replace(/\D/g, "") };
 }

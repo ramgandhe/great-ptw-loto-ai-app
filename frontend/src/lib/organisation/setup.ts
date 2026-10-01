@@ -279,13 +279,47 @@ export function stepStatus(step: SetupStep, measure: number | undefined, skipped
   return skipped.includes(step.key) ? "skipped" : "todo";
 }
 
-/** Share of setup information in place: each step counts equally, the profile by fields filled. */
-export function completionPercent(measures: Partial<Record<SetupStepKey, number>>): number {
-  const score = SETUP_STEPS.reduce(
-    (sum, step) => sum + (step.key === "profile" ? (measures.profile ?? 0) : (measures[step.key] ?? 0) > 0 ? 1 : 0),
-    0,
-  );
-  return Math.round((score / SETUP_STEPS.length) * 100);
+export type SetupAreaKey = "organisation" | "sites" | "permits" | "people" | "preferences";
+
+/** Setup grouped into five work areas; each opens as one page with its lists together. */
+export const SETUP_AREAS: { key: SetupAreaKey; title: string; summary: string; steps: SetupStepKey[] }[] = [
+  { key: "organisation", title: "Organisation", summary: "Name, legal details and time zone.", steps: ["profile"] },
+  {
+    key: "sites",
+    title: "Sites and equipment",
+    summary: "Plants, their departments and work locations, workstations and machinery.",
+    steps: ["plants", "departments", "locations", "workstations", "machinery"],
+  },
+  {
+    key: "permits",
+    title: "Permit configuration",
+    summary: "Permit types, hazards, PPE, checklists, gas testing limits and permit forms.",
+    steps: ["permit-types", "hazards", "ppe", "checklists", "gas-testing", "templates"],
+  },
+  {
+    key: "people",
+    title: "People and responsibilities",
+    summary: "Who approves, who signs in with which role, and who can be named on permits.",
+    steps: ["workflows", "users", "employees", "agencies", "contractors", "competencies"],
+  },
+  { key: "preferences", title: "Notifications", summary: "Which events send messages, and how.", steps: ["notifications"] },
+];
+
+export function areaOf(step: SetupStepKey): SetupAreaKey {
+  return SETUP_AREAS.find((area) => area.steps.includes(step))!.key;
+}
+
+/**
+ * The configuration checklist: required steps with nothing recorded, and steps that could not be
+ * checked (their request failed). An empty list is not permission to work; submission and approval
+ * still apply their own checks.
+ */
+export function configurationGaps(measures: Partial<Record<SetupStepKey, number>>) {
+  const required = SETUP_STEPS.filter((step) => !step.optional);
+  return {
+    missing: required.filter((step) => measures[step.key] !== undefined && stepStatus(step, measures[step.key], []) !== "complete"),
+    unknown: SETUP_STEPS.filter((step) => measures[step.key] === undefined),
+  };
 }
 
 /** Measures the given steps; a step whose request fails is left out rather than counted as empty. */

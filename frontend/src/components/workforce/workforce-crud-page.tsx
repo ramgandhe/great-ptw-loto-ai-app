@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { agenciesApi, competenciesApi, contractorsApi, employeesApi } from "@/lib/workforce/api";
@@ -25,6 +25,9 @@ const workforceApis = {
 
 export type WorkforceEntityResource = keyof typeof workforceApis;
 
+/** Set by a page that embeds this list (People): open the add form for this resource straight away. */
+export const WorkforceOpenAddContext = createContext<WorkforceEntityResource | null>(null);
+
 type WorkforceItem = WorkforceRecord | CompetencyRecord;
 
 function emptyForm(fields: EntityField[]) {
@@ -32,7 +35,7 @@ function emptyForm(fields: EntityField[]) {
 }
 
 const INPUT_CLASS =
-  "h-9 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 user-invalid:border-destructive";
+  "h-11 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 user-invalid:border-destructive";
 const isDate = (key: string) => key.endsWith("Date");
 
 /** Country code plus a national number of the right length; stored as "+91 9876543210". */
@@ -82,7 +85,7 @@ export function WorkforceCrudPage({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(useContext(WorkforceOpenAddContext) === resource);
   const [query, setQuery] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const singular = title.replace(/ management$/i, "").replace(/ies$/, "y").replace(/s$/, "").toLowerCase();
@@ -187,6 +190,12 @@ export function WorkforceCrudPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, query, parentLabels]);
 
+  // The same person added twice is the usual duplicate; an exact email match is a reliable sign.
+  const typedEmail = form.email?.trim().toLowerCase();
+  const duplicate = typedEmail
+    ? items.find((item) => item.id !== editingId && "email" in item && item.email?.toLowerCase() === typedEmail)
+    : undefined;
+
   function startEdit(item: WorkforceItem) {
     setEditingId(item.id);
     setCreatedLogin(null);
@@ -263,6 +272,11 @@ export function WorkforceCrudPage({
       {formOpen ? (
       <form ref={formRef} onSubmit={handleSubmit} className="reveal-in grid scroll-mt-[calc(4.5rem+var(--page-head-h,0px))] gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
         <h2 className="font-semibold sm:col-span-2">{editingId ? `Edit ${form.name || singular}` : `New ${singular}`}</h2>
+        {duplicate ? (
+          <p role="status" className="rounded-lg bg-(--status-warning-bg) px-3 py-2 text-sm sm:col-span-2">
+            {duplicate.name} already has this email on this list. Edit that record instead of adding the same person twice.
+          </p>
+        ) : null}
         {fields.map((field) => (
           <label key={field.key} className="grid gap-1.5 text-sm">
             <span className="font-medium">

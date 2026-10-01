@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import {
@@ -44,6 +44,18 @@ const entityApis = {
 
 export type OrganisationEntityResource = keyof typeof entityApis;
 
+/**
+ * Lets a page that shows several lists together (setup's Sites and equipment) carry context between
+ * them: new records start with `defaults` (e.g. the plant just added), `onSaved` reports each new
+ * record, and a changed `version` reloads the parent pickers so a just-added parent is offered.
+ * Absent on the standalone pages.
+ */
+export const EntityParentContext = createContext<{
+  defaults: Partial<Record<OrganisationEntityResource, Record<string, string>>>;
+  onSaved: (resource: OrganisationEntityResource, record: OrgRecord) => void;
+  version: number;
+} | null>(null);
+
 type EntityApi = (typeof entityApis)[OrganisationEntityResource];
 
 type EntityCrudPageProps = {
@@ -82,6 +94,7 @@ export function EntityCrudPage({
   nameField = "name",
 }: EntityCrudPageProps) {
   const api = entityApis[resource] as EntityApi;
+  const parentContext = useContext(EntityParentContext);
   const [items, setItems] = useState<OrgRecord[]>([]);
   const [form, setForm] = useState<Record<string, string>>(() => emptyForm(fields));
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -136,7 +149,7 @@ export function EntityCrudPage({
     loadEntitySelectOptions(selectResources)
       .then(setSelectOptions)
       .catch(() => setSelectOptions({}));
-  }, [selectResources.join(",")]);
+  }, [selectResources.join(","), parentContext?.version]);
 
   function resetForm() {
     setForm(emptyForm(fields));
@@ -145,7 +158,7 @@ export function EntityCrudPage({
   }
 
   function openCreate() {
-    setForm(emptyForm(fields));
+    setForm({ ...emptyForm(fields), ...(parentContext?.defaults[resource] ?? {}) });
     setEditingId(null);
     setFormOpen(true);
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
@@ -187,7 +200,8 @@ export function EntityCrudPage({
       if (editingId) {
         await api.update(editingId, payload);
       } else {
-        await api.create(payload);
+        const created = await api.create(payload);
+        parentContext?.onSaved(resource, created);
       }
       const savedName = form[String(nameField)] || form.name || singular;
       toast(`${savedName} ${editingId ? "saved" : "added"}`);
