@@ -358,6 +358,13 @@
       "when": 1759700000000,
       "tag": "0050_password_reset_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1759800000000,
+      "tag": "0051_permit_draft_revision",
+      "breakpoints": true
     }
   ]
 }

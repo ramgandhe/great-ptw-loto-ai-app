@@ -1,5 +1,5 @@
 import type { PermitTemplate } from "@/lib/organisation/templates";
-import type { FormAnswer, PermitDetail, PermitFormState, SaveDraftPayload } from "./types";
+import type { FormAnswer, PermitDetail, PermitFormState, DraftFields } from "./types";
 
 /** "shared": either the issuer or the assigned executor fills it in. */
 export type WizardParticipant = "job-issuer" | "operator" | "shared";
@@ -141,7 +141,7 @@ function optionalUuid(value: string): string | undefined {
   return value.trim() ? value.trim() : undefined;
 }
 
-export function formToSavePayload(form: PermitFormState, options?: { executorOnly?: boolean }): SaveDraftPayload {
+export function formToSavePayload(form: PermitFormState, options?: { executorOnly?: boolean }): DraftFields {
   const payload = {
     permitTypeId: form.permitTypeId,
     title: form.title,

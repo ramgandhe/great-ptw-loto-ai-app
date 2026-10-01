@@ -1,6 +1,6 @@
 import * as SQLite from "expo-sqlite";
 import { enqueueSyncItem } from "@/lib/storage";
-import type { CreatePermitPayload, PermitRecord, SaveDraftPayload } from "./types";
+import type { CreatePermitPayload, DraftFields, PermitRecord } from "./types";
 
 const DB_NAME = "ptw_offline.db";
 
@@ -29,7 +29,7 @@ export async function initPermitOfflineStorage(): Promise<void> {
   `);
 }
 
-export async function saveLocalPermitDraft(id: string, title: string, payload: SaveDraftPayload | CreatePermitPayload) {
+export async function saveLocalPermitDraft(id: string, title: string, payload: DraftFields | CreatePermitPayload) {
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO permit_local_drafts (id, title, status, payload, updated_at)
@@ -135,6 +135,8 @@ export function localDraftToPermitRecord(draft: LocalPermitDraft): PermitRecord 
     plannedStartAt: payload.plannedStartAt ?? null,
     plannedEndAt: payload.plannedEndAt ?? null,
     submittedAt: null,
+    // Never saved to the server yet: the create it replays with starts at revision 0.
+    draftRevision: 0,
     createdAt: now,
     updatedAt: draft.updatedAt,
   };

@@ -29,6 +29,8 @@ export type PermitRecord = {
   createdBy?: string | null;
   updatedBy?: string | null;
   formResponses?: StoredFormResponse[];
+  /** Send back on every save and submit; the server refuses an older one with PERMIT_REVISION_CONFLICT. */
+  draftRevision: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -139,4 +141,5 @@ export type CreatePermitPayload = {
   formResponses?: { templateId: string; answers: FormAnswers }[];
 };
 
-export type SaveDraftPayload = Partial<CreatePermitPayload>;
+export type DraftFields = Partial<CreatePermitPayload>;
+export type SaveDraftPayload = DraftFields & { expectedRevision: number };

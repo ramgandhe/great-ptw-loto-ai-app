@@ -13,7 +13,7 @@ export function formatPermitReference(year: number, sequence: number): string {
  * Relies on existing references in the permits table (no separate sequence table).
  */
 export async function generatePermitReference(
-  db: Database,
+  db: Pick<Database, 'execute'>,
   tenantId: string,
 ): Promise<string> {
   const year = new Date().getFullYear();

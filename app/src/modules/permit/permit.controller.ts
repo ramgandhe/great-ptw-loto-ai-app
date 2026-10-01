@@ -13,6 +13,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { CreatePermitDto } from './dto/create-permit.dto';
 import { RenewPermitDto } from './dto/renew-permit.dto';
+import { SubmitPermitDto } from './dto/save-draft.dto';
 import {
   PERMIT_CREATE_ROLES,
   PERMIT_DELETE_ROLES,
@@ -73,8 +74,9 @@ export class PermitController {
   @Post(':id/submit')
   submit(
     @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SubmitPermitDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.permitService.submit(id, user);
+    return this.permitService.submit(id, dto, user);
   }
 }

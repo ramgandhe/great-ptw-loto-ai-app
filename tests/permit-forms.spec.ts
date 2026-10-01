@@ -1,4 +1,4 @@
-import { buildFormResponses, missingFormAnswers, sanitizeAnswers } from '../app/src/modules/permit/permit-forms';
+import { buildFormResponses, diffFormAnswers, missingFormAnswers, sanitizeAnswers } from '../app/src/modules/permit/permit-forms';
 import { REFERENCE_TEMPLATES, type TemplateConfig } from '../app/src/modules/organisation/permit-template-library';
 
 const config: TemplateConfig = {
@@ -73,5 +73,24 @@ describe('Permit form answers', () => {
     }
     const responses = buildFormResponses([{ templateId: 'hw', answers }], [{ id: 'hw', name: hotWork.name, config: hotWork.config }]);
     expect(missingFormAnswers([{ id: 'hw', name: hotWork.name, config: hotWork.config }], responses)).toEqual([]);
+  });
+});
+
+describe('diffFormAnswers', () => {
+  const response = (answers: Record<string, string | number>) => ({ templateId: 't', name: 'Checks', config, answers });
+
+  it('lists added, changed and cleared answers with their section, and nothing for unchanged ones', () => {
+    const changes = diffFormAnswers([response({ isolated: 'no', oxygen: 20.9 })], [response({ isolated: 'yes' })]);
+    expect(changes).toEqual([
+      { templateId: 't', sectionId: 's', fieldId: 'isolated', from: 'no', to: 'yes' },
+      { templateId: 't', sectionId: 's', fieldId: 'oxygen', from: 20.9, to: null },
+    ]);
+    expect(diffFormAnswers([response({ isolated: 'yes' })], [response({ isolated: 'yes' })])).toEqual([]);
+  });
+
+  it('records every answer of a removed form as cleared', () => {
+    expect(diffFormAnswers([response({ isolated: 'yes' })], [])).toEqual([
+      { templateId: 't', sectionId: 's', fieldId: 'isolated', from: 'yes', to: null },
+    ]);
   });
 });

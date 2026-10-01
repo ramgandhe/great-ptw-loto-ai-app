@@ -85,6 +85,40 @@ export function buildFormResponses(
   });
 }
 
+export type FormAnswerChange = {
+  templateId: string;
+  sectionId: string;
+  fieldId: string;
+  from: FormAnswer | null;
+  to: FormAnswer | null;
+};
+
+/** Every answer that differs between two saves of a permit's forms, including removed forms and cleared answers. */
+export function diffFormAnswers(before: PermitFormResponse[], after: PermitFormResponse[]): FormAnswerChange[] {
+  const changes: FormAnswerChange[] = [];
+  const templateIds = new Set([...before, ...after].map((response) => response.templateId));
+  for (const templateId of templateIds) {
+    const old = before.find((response) => response.templateId === templateId);
+    const next = after.find((response) => response.templateId === templateId);
+    const oldAnswers = old?.answers ?? {};
+    const newAnswers = next?.answers ?? {};
+    const sectionOf = new Map<string, string>();
+    for (const config of [old?.config, next?.config]) {
+      for (const section of config?.sections ?? []) {
+        for (const field of section.fields) sectionOf.set(field.id, section.id);
+      }
+    }
+    for (const fieldId of new Set([...Object.keys(oldAnswers), ...Object.keys(newAnswers)])) {
+      const from = oldAnswers[fieldId] ?? null;
+      const to = newAnswers[fieldId] ?? null;
+      if (JSON.stringify(from) !== JSON.stringify(to)) {
+        changes.push({ templateId, sectionId: sectionOf.get(fieldId) ?? '', fieldId, from, to });
+      }
+    }
+  }
+  return changes;
+}
+
 /** Required fields left empty, per template that applies to the permit. */
 export function missingFormAnswers(applicable: TemplateForForms[], responses: PermitFormResponse[]): string[] {
   const errors: string[] = [];

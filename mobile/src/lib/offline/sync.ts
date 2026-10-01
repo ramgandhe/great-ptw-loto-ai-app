@@ -4,6 +4,7 @@ import { getNetworkOnline } from "./connectivity";
 import {
   getPendingSyncItems,
   incrementSyncAttempt,
+  markSyncItemFailed,
   removeSyncItem,
 } from "./queue";
 
@@ -36,6 +37,14 @@ export async function processSyncQueue(): Promise<SyncResult> {
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         return { processed, failed, skipped: false };
+      }
+
+      // Someone else changed the record: retrying the same stale request can never succeed.
+      // Keep it as a failed item (its payload is the person's input) and stop, so requests
+      // queued after it, such as a submit, do not run against a permit they did not see.
+      if (error instanceof ApiError && error.status === 409) {
+        await markSyncItemFailed(item.id);
+        return { processed, failed: failed + 1, skipped: false };
       }
 
       const markedFailed = await incrementSyncAttempt(item.id);

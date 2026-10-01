@@ -26,10 +26,16 @@ export function savePermitDraft(id: string, payload: SaveDraftPayload) {
   });
 }
 
-export function submitPermit(id: string) {
+export function submitPermit(id: string, expectedRevision: number) {
   return fetchApi<PermitDetail>(`/permits/${id}/submit`, {
     method: "POST",
+    body: JSON.stringify({ expectedRevision }),
   });
+}
+
+/** The server refused a save or submit because the permit changed since it was loaded. */
+export function isRevisionConflict(error: unknown): boolean {
+  return error instanceof ApiError && error.code === "PERMIT_REVISION_CONFLICT";
 }
 
 export async function uploadPermitAttachment(

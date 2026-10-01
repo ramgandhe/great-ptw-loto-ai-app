@@ -25,6 +25,7 @@ import {
   getPermit,
   removePermitAttachment,
   savePermitDraft,
+  isRevisionConflict,
   submitPermit,
   uploadPermitAttachment,
 } from "@/lib/permit/api";
@@ -195,6 +196,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     initialDetail?.permit.reference ?? null,
   );
   const [status, setStatus] = useState(initialDetail?.permit.status ?? "draft");
+  // The revision this form was loaded or last saved at; the server refuses saves made against an older one.
+  const [revision, setRevision] = useState(initialDetail?.permit.draftRevision ?? 0);
+  // Set when someone else saved first: local values stay, and saving again is an explicit choice.
+  const [conflict, setConflict] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -397,6 +402,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       setReference(initialDetail.permit.reference);
       setStatus(initialDetail.permit.status);
       setPermitId(initialDetail.permit.id);
+      setRevision(initialDetail.permit.draftRevision);
+      setConflict(false);
     }
   }, [initialDetail]);
 
@@ -413,24 +420,42 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       delete payload.formResponses;
     }
 
-    if (!permitId) {
+    let id = permitId;
+    let baseRevision = revision;
+    if (!id) {
       const created = await createPermit({
         permitTypeId: form.permitTypeId,
         title: form.title,
         workScope: form.workScope,
         currentStep: form.currentStep,
       });
-      setPermitId(created.permit.id);
+      // Keep the id before the follow-up save, so a failed save is retried as a save, not a second create.
+      id = created.permit.id;
+      baseRevision = created.permit.draftRevision;
+      setPermitId(id);
+      setRevision(baseRevision);
       setStatus(created.permit.status);
       // Update the address only: a router navigation would remount the wizard on the saved
       // step, so the first Next click appeared to do nothing.
-      window.history.replaceState(null, "", `/permits/${created.permit.id}/edit`);
-      return created.permit.id;
+      window.history.replaceState(null, "", `/permits/${id}/edit`);
     }
 
-    await savePermitDraft(permitId, payload);
-    return permitId;
-  }, [authRoles, form, permitId, templates, templatesLoaded, userRoles]);
+    // Create stores only type, title and scope; this save stores the rest of the form.
+    try {
+      const saved = await savePermitDraft(id, { ...payload, expectedRevision: baseRevision });
+      setRevision(saved.permit.draftRevision);
+      setConflict(false);
+      return { id, revision: saved.permit.draftRevision };
+    } catch (error) {
+      if (isRevisionConflict(error)) {
+        // Keep the typed values; the next save is the person's explicit choice to replace the newer copy.
+        const latest = await getPermit(id);
+        setRevision(latest.permit.draftRevision);
+        setConflict(true);
+      }
+      throw error;
+    }
+  }, [authRoles, form, permitId, revision, templates, templatesLoaded, userRoles]);
 
   const forms = applicableTemplates(templates, form.permitTypeId);
   const signerName =
@@ -552,14 +577,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     setIsSubmitting(true);
     setApiError(null);
     try {
-      const id = permitId ?? (await persistDraft());
-      if (!id) {
-        throw new Error("Permit ID missing");
-      }
-      const result = await submitPermit(id);
+      // Always save the current edits first; submit only after that save succeeded, at its revision.
+      const saved = await persistDraft();
+      const result = await submitPermit(saved.id, saved.revision);
       setReference(result.permit.reference);
       setStatus(result.permit.status);
-      router.push(`/permits/${id}`);
+      router.push(`/permits/${saved.id}`);
     } catch (error) {
       if (error instanceof ApiError && Array.isArray(error.details)) {
         setErrors(error.details as string[]);
@@ -651,6 +674,15 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
         >
           {apiError}
+          {conflict ? (
+            <p className="mt-2 text-foreground">
+              Another person saved this permit after you opened it.{" "}
+              <a href={`/permits/${permitId}`} target="_blank" rel="noreferrer" className="underline">
+                Open the saved version
+              </a>{" "}
+              to compare. Save draft again to replace it with what you see here. Submit stays unavailable until then.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -1552,7 +1584,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           <Button
             type="button"
             onClick={() => void handleSubmit()}
-            disabled={isSubmitting || !canSubmit || !canEditStep}
+            disabled={isSubmitting || !canSubmit || !canEditStep || conflict}
           >
             {isSubmitting ? "Submitting..." : "Submit permit"}
           </Button>

@@ -10,13 +10,14 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { ApiError } from "@/lib/api";
-import { createPermit, savePermitDraft, submitPermit, uploadPermitAttachment } from "@/lib/permit/api";
+import { createPermit, getPermit, isRevisionConflict, savePermitDraft, submitPermit, uploadPermitAttachment } from "@/lib/permit/api";
 import {
   createEmptyPermitForm,
   formToSavePayload,
   PERMIT_WIZARD_STEPS,
   permitDetailToForm,
   shouldSaveExecutorPayload,
+  toStoredStep,
   validateStep,
 } from "@/lib/permit/form";
 import {
@@ -67,6 +68,8 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   const [message, setMessage] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [queuedOffline, setQueuedOffline] = useState(false);
+  // The revision this form was loaded or last saved at; the server refuses saves made against an older one.
+  const [revision, setRevision] = useState(initialDetail?.permit.draftRevision ?? 0);
   const [attachments, setAttachments] = useState(initialDetail?.attachments ?? []);
   const [formOptions, setFormOptions] = useState<Awaited<ReturnType<typeof loadPermitFormOptions>> | null>(
     null,
@@ -132,66 +135,73 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   const permitStatus = initialDetail?.permit.status ?? "draft";
   const isReadOnly = !isEditablePermitStatus(permitStatus);
 
-  const persistDraft = useCallback(async () => {
+  const persistDraft = useCallback(async (): Promise<{ id: string; revision: number; queued: boolean }> => {
     const payload = formToSavePayload(form, {
       executorOnly: shouldSaveExecutorPayload(formOptions?.userRoles ?? []),
     });
+    let id = currentPermitId;
+    let baseRevision = revision;
 
     try {
-      if (!currentPermitId) {
+      if (!id) {
         const created = await createPermit({
-          permitTypeId: payload.permitTypeId!,
-          title: payload.title!,
-          workScope: payload.workScope,
-          currentStep: form.currentStep,
+          permitTypeId: form.permitTypeId,
+          title: form.title,
+          workScope: form.workScope || undefined,
+          currentStep: toStoredStep(form.currentStep),
         });
-        setCurrentPermitId(created.permit.id);
-        await savePermitDraft(created.permit.id, payload);
-        setQueuedOffline(false);
-        return created.permit.id;
+        // Keep the id before the follow-up save, so a failed save is retried as a save, not a second create.
+        id = created.permit.id;
+        baseRevision = created.permit.draftRevision;
+        setCurrentPermitId(id);
+        setRevision(baseRevision);
       }
 
-      await savePermitDraft(currentPermitId, payload);
+      const saved = await savePermitDraft(id, { ...payload, expectedRevision: baseRevision });
+      setRevision(saved.permit.draftRevision);
       setQueuedOffline(false);
-      return currentPermitId;
+      return { id, revision: saved.permit.draftRevision, queued: false };
     } catch (error) {
+      if (isRevisionConflict(error) && id) {
+        // Keep the typed values; the next save is the person's explicit choice to replace the newer copy.
+        const latest = await getPermit(id);
+        setRevision(latest.permit.draftRevision);
+        throw new ApiError(
+          "This permit changed since you opened it. Your changes are still here. Save again to replace the saved version with yours.",
+          "PERMIT_REVISION_CONFLICT",
+          409,
+        );
+      }
       if (!isOfflineError(error)) {
         throw error;
       }
 
-      const localId = currentPermitId ?? createLocalId();
-      await saveLocalPermitDraft(localId, payload.title ?? "Untitled permit", payload);
+      const localId = id ?? createLocalId();
+      await saveLocalPermitDraft(localId, form.title || "Untitled permit", payload);
 
-      if (!currentPermitId) {
-        await queuePermitMutation({
-          method: "POST",
-          path: "/permits",
-          payload,
-          localDraftId: localId,
-          title: form.title || "Untitled permit",
-        });
-      } else {
-        await queuePermitMutation({
-          method: "PATCH",
-          path: `/permits/${currentPermitId}`,
-          payload,
-          localDraftId: localId,
-          title: form.title || "Untitled permit",
-        });
-      }
+      // Queued saves carry the revision they were made against; on replay a newer server copy
+      // makes them fail visibly instead of overwriting it.
+      await queuePermitMutation({
+        method: id ? "PATCH" : "POST",
+        path: id ? `/permits/${id}` : "/permits",
+        payload: id ? { ...payload, expectedRevision: baseRevision } : payload,
+        localDraftId: localId,
+        title: form.title || "Untitled permit",
+      });
 
       setCurrentPermitId(localId);
       setQueuedOffline(true);
-      return localId;
+      // A queued save bumps the revision once when it replays.
+      return { id: localId, revision: id ? baseRevision + 1 : 0, queued: true };
     }
-  }, [currentPermitId, form, formOptions?.userRoles]);
+  }, [currentPermitId, form, formOptions?.userRoles, revision]);
 
   const handleSaveDraft = async () => {
     setIsBusy(true);
     setMessage(null);
     try {
-      await persistDraft();
-      setMessage(queuedOffline ? "Draft saved offline and queued for sync" : "Draft saved");
+      const saved = await persistDraft();
+      setMessage(saved.queued ? "Draft saved offline and queued for sync" : "Draft saved");
     } catch (error) {
       setMessage(error instanceof ApiError ? error.message : "Failed to save draft");
     } finally {
@@ -264,20 +274,22 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     setIsBusy(true);
     setMessage(null);
     try {
-      const id = (await persistDraft())!;
-      if (queuedOffline) {
+      // Always save the current edits first; submit only after that save, at its revision.
+      const { id, revision: savedRevision, queued } = await persistDraft();
+      if (queued) {
         await queuePermitMutation({
           method: "POST_SUBMIT",
           path: `/permits/${id}/submit`,
+          payload: { expectedRevision: savedRevision },
           localDraftId: id,
           title: form.title,
         });
-        setMessage("Permit queued for submission when online");
+        setMessage("Submission is waiting for the server. It is not submitted until it syncs.");
         router.replace("/permits");
         return;
       }
 
-      await submitPermit(id);
+      await submitPermit(id, savedRevision);
       router.replace(`/permits/${id}`);
     } catch (error) {
       if (error instanceof ApiError && Array.isArray(error.details)) {

@@ -16,6 +16,8 @@ export type PermitRecord = {
   plannedStartAt: string | null;
   plannedEndAt: string | null;
   submittedAt: string | null;
+  /** Send back on every save and submit; the server refuses an older one with PERMIT_REVISION_CONFLICT. */
+  draftRevision: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -99,4 +101,5 @@ export type CreatePermitPayload = {
   executors?: PermitExecutorInput[];
 };
 
-export type SaveDraftPayload = Partial<CreatePermitPayload>;
+export type DraftFields = Partial<CreatePermitPayload>;
+export type SaveDraftPayload = DraftFields & { expectedRevision: number };
