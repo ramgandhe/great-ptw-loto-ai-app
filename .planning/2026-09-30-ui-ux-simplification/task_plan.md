@@ -4,7 +4,7 @@
 Simplify web and mobile data entry, onboarding, page flow, and feedback using existing components and approved themes; preserve validated safety workflows, RBAC, tenant isolation, and auditability. Review the complete plan before implementation.
 
 ## Next Step
-Review S3 with the user and commit; next S4 (one permit context and task queue), including approval/closure-stage form answers.
+Review S4 with the user and commit; next S0b (offline queue hardening) or S5 (supporting screens), per the user.
 
 ## Current Phase
 Phase 4 — S0a implementation
