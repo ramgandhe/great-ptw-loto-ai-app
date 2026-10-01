@@ -26,6 +26,7 @@ describe('PermitValidationService', () => {
       submittedAt: null,
       submittedBy: null,
       formResponses: [],
+      draftRevision: 0,
       renewedFromPermitId: null,
       createdAt: new Date(),
       updatedAt: new Date(),

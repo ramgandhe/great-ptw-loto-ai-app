@@ -142,6 +142,7 @@ describe('CI / environment parity guardrails (PUS-160)', () => {
   });
 
   it('does not commit real MinIO credentials (uses env interpolation with dev fallback)', () => {
-    expect(compose).toContain('${MINIO_SECRET_KEY:-');
+    // Since 26bc08c the API's key comes from the same .env variable as the MinIO server password.
+    expect(compose).toContain('MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-');
   });
 });

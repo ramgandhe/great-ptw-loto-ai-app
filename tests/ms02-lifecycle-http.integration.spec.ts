@@ -153,6 +153,18 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
       .expect(201);
     const locationId = locationRes.body.data.id;
 
+    // Submit requires a department and a workstation on the permit.
+    const departmentRes = await request(app.getHttpServer())
+      .post('/api/v1/departments')
+      .send({ name: 'Maintenance', code: `DEP-${randomUUID().slice(0, 6)}`, plantId })
+      .expect(201);
+    const departmentId = departmentRes.body.data.id;
+    const workstationRes = await request(app.getHttpServer())
+      .post('/api/v1/workstations')
+      .send({ name: 'Pump skid', code: `WS-${randomUUID().slice(0, 6)}`, locationId })
+      .expect(201);
+    const workstationId = workstationRes.body.data.id;
+
     const hazardRes = await request(app.getHttpServer())
       .post('/api/v1/hazards')
       .send({
@@ -196,6 +208,8 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
         title: 'MS-02 lifecycle integration permit',
         locationId,
         plantId,
+        departmentId,
+        workstationId,
         plannedStartAt: '2026-09-01T08:00:00Z',
         plannedEndAt: '2026-09-01T16:00:00Z',
         hazards: [{ hazardCategoryId }],
@@ -210,6 +224,7 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
 
     const submitRes = await request(app.getHttpServer())
       .post(`/api/v1/permits/${permitId}/submit`)
+      .send({ expectedRevision: createRes.body.data.permit.draftRevision })
       .expect(201);
     expect(submitRes.body.data.permit.status).toBe('pending_approval');
 
