@@ -120,12 +120,12 @@ export function PlannedDateTimeField({
             id={listboxId}
             role="dialog"
             aria-label="Choose date"
-            className="absolute left-0 top-[calc(100%+0.25rem)] z-50 w-[18rem] rounded-lg border border-border bg-popover p-3 shadow-md"
+            className="absolute left-0 top-[calc(100%+0.25rem)] z-50 w-[22rem] max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-popover p-3 shadow-md"
           >
             <div className="mb-3 flex items-center justify-between">
               <button
                 type="button"
-                className="rounded-md px-2 py-1 text-sm hover:bg-muted"
+                className="min-h-11 min-w-11 rounded-md px-2 text-sm hover:bg-muted"
                 onClick={() => {
                   if (viewMonth === 0) {
                     setViewMonth(11);
@@ -142,7 +142,7 @@ export function PlannedDateTimeField({
               </p>
               <button
                 type="button"
-                className="rounded-md px-2 py-1 text-sm hover:bg-muted"
+                className="min-h-11 min-w-11 rounded-md px-2 text-sm hover:bg-muted"
                 onClick={() => {
                   if (viewMonth === 11) {
                     setViewMonth(0);
@@ -174,7 +174,7 @@ export function PlannedDateTimeField({
                     type="button"
                     disabled={disabledDay}
                     className={cn(
-                      "h-8 rounded-md text-sm",
+                      "h-11 rounded-md text-sm",
                       day.inMonth ? "text-foreground" : "text-muted-foreground/40",
                       selected && "bg-primary text-primary-foreground",
                       !selected && day.inMonth && !disabledDay && "hover:bg-muted",

@@ -10,6 +10,8 @@ module.exports = {
       'ts-jest',
       {
         tsconfig: '<rootDir>/tsconfig.spec.json',
+        // Web modules are type-checked by the web app's own tsc (browser types); here they only run.
+        diagnostics: { exclude: ['**/frontend/src/**'] },
       },
     ],
   },
@@ -23,5 +25,7 @@ module.exports = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@ptw/shared$': '<rootDir>/../packages/shared/src/index.ts',
+    // Web app modules under test use its "@/" alias (the API itself never does).
+    '^@/(.*)$': '<rootDir>/../frontend/src/$1',
   },
 };

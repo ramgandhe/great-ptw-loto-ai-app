@@ -13,6 +13,27 @@ export const PERMIT_WIZARD_STEPS = [
   { label: "Review & submit", owner: "job-issuer" satisfies WizardParticipant },
 ] as const;
 
+/**
+ * The one-page editor's sections, over the stored step indices above (the server, the journey page
+ * and the native app keep using those). `steps[0]` is what currentStep records for the section.
+ */
+export const PERMIT_EDITOR_SECTIONS = [
+  { id: "work", label: "Work", steps: [0] },
+  { id: "place", label: "Place and schedule", steps: [1] },
+  { id: "site", label: "Site and crew", steps: [2, 3] },
+  { id: "forms", label: "Forms and evidence", steps: [4] },
+  { id: "review", label: "Review", steps: [5] },
+] as const;
+export type PermitEditorSectionId = (typeof PERMIT_EDITOR_SECTIONS)[number]["id"];
+
+/** A short title suggested from the work scope: its first line or sentence, at most 120 characters. */
+export function titleFromScope(scope: string): string {
+  const first = scope.trim().split(/\n|(?<=[.!?])\s/)[0]?.trim().replace(/[.!?]+$/, "") ?? "";
+  if (first.length <= 120) return first;
+  const cut = first.slice(0, 120);
+  return cut.slice(0, cut.lastIndexOf(" ") > 60 ? cut.lastIndexOf(" ") : 120).trimEnd() + "…";
+}
+
 export function getWizardStepOwner(step: number): WizardParticipant {
   return PERMIT_WIZARD_STEPS[step]?.owner ?? "job-issuer";
 }

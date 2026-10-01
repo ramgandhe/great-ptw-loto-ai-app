@@ -4,7 +4,8 @@
     "rootDir": "..",
     "noEmit": true,
     "paths": {
-      "@ptw/shared": ["../packages/shared/src/index.ts"]
+      "@ptw/shared": ["../packages/shared/src/index.ts"],
+      "@/*": ["../frontend/src/*"]
     }
   },
   "include": ["src/**/*", "../tests/**/*"]

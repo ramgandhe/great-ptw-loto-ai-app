@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CheckCheck, PenLine } from "lucide-react";
 import { laterStageNote, requiredForSubmit, type TemplateConfig, type TemplateField } from "@/lib/organisation/templates";
 import { isAnswered } from "@/lib/permit/form";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const INPUT =
-  "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60";
+  "h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60";
 
 const CHECK_OPTIONS = [
   { value: "yes", label: "Yes", on: "border-(--status-success) bg-(--status-success-bg) text-(--status-success)" },
@@ -28,7 +29,7 @@ function Chip({ selected, disabled, onClick, children }: { selected: boolean; di
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "min-h-9 rounded-full border px-3 text-sm transition-colors disabled:opacity-60",
+        "min-h-11 rounded-full border px-3.5 text-sm transition-colors disabled:opacity-60",
         selected ? "border-primary bg-primary/10 font-medium" : "border-border hover:bg-muted",
       )}
     >
@@ -66,7 +67,7 @@ function FieldInput({
                 disabled={disabled}
                 onClick={() => onChange(selected ? undefined : option.value)}
                 className={cn(
-                  "min-h-9 min-w-12 border-l border-border px-3 text-sm first:border-l-0 disabled:opacity-60",
+                  "min-h-11 min-w-12 border-l border-border px-3 text-sm first:border-l-0 disabled:opacity-60",
                   selected ? option.on : "hover:bg-muted",
                 )}
               >
@@ -161,7 +162,7 @@ function FieldInput({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            className="min-h-11"
             disabled={disabled}
             onClick={() => {
               const now = new Date();
@@ -183,7 +184,11 @@ function FieldInput({
   }
 }
 
-/** Fill in one permit template. Yes/No/N.A. answers are one tap; "All yes" answers a section's open checks at once. */
+/**
+ * Fill in one permit template. Yes/No/N.A. answers are one tap. A section's unanswered checks can be
+ * confirmed as Yes together, after the questions and with an explicit confirmation that lists them;
+ * answers already given (No, N/A) are never changed. The server records each answer under the signed-in person.
+ */
 export function TemplateFormFill({
   name,
   config,
@@ -202,6 +207,7 @@ export function TemplateFormFill({
   const fields = config.sections.flatMap((section) => section.fields);
   const answered = fields.filter((field) => isAnswered(answers[field.id])).length;
   const requiredLeft = fields.filter((field) => requiredForSubmit(field) && !isAnswered(answers[field.id])).length;
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   const setAnswer = (fieldId: string, value: FormAnswer | undefined) => {
     const next = { ...answers };
@@ -231,17 +237,6 @@ export function TemplateFormFill({
                 <h4 id={`sec-${section.id}`} className="text-sm font-semibold">
                   {section.title}
                 </h4>
-                {openChecks.length > 1 && !disabled ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onChange({ ...answers, ...Object.fromEntries(openChecks.map((field) => [field.id, "yes"])) })}
-                  >
-                    <CheckCheck aria-hidden />
-                    All yes ({openChecks.length})
-                  </Button>
-                ) : null}
               </div>
               <ol className="grid gap-3">
                 {section.fields.map((field) => (
@@ -265,6 +260,41 @@ export function TemplateFormFill({
                   </li>
                 ))}
               </ol>
+              {openChecks.length > 1 && !disabled ? (
+                confirming === section.id ? (
+                  <div role="group" aria-labelledby={`confirm-${section.id}`} className="mt-3 grid gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+                    <p id={`confirm-${section.id}`} className="font-medium">
+                      Confirm these {openChecks.length} checks are Yes
+                    </p>
+                    <ul className="list-disc pl-5">
+                      {openChecks.map((field) => (
+                        <li key={field.id}>{field.label}</li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-muted-foreground">Your answers are recorded under your name.</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        className="min-h-11"
+                        onClick={() => {
+                          onChange({ ...answers, ...Object.fromEntries(openChecks.map((field) => [field.id, "yes"])) });
+                          setConfirming(null);
+                        }}
+                      >
+                        I confirm these {openChecks.length} checks are Yes
+                      </Button>
+                      <Button type="button" variant="ghost" className="min-h-11" onClick={() => setConfirming(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button type="button" variant="outline" className="mt-3 min-h-11" onClick={() => setConfirming(section.id)}>
+                    <CheckCheck aria-hidden />
+                    Confirm {openChecks.length} unanswered checks as Yes
+                  </Button>
+                )
+              ) : null}
             </section>
           );
         })}
