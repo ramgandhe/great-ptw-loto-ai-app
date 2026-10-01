@@ -32,6 +32,7 @@ export function ConflictWorkflow({ detail, onUpdated }: ConflictWorkflowProps) {
   );
   const [approvalComments, setApprovalComments] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
 
   const status = detail.conflict.status;
   const isResolved = status === "approved" || status === "rejected";
@@ -189,8 +190,15 @@ export function ConflictWorkflow({ detail, onUpdated }: ConflictWorkflowProps) {
         </div>
       )}
 
+      {/* Rejecting suspends the permits, so its form only opens on request. */}
+      {!rejecting ? (
+        <Button variant="outline" className="min-h-11" onClick={() => setRejecting(true)}>
+          Reject and suspend permits…
+        </Button>
+      ) : (
       <div className="rounded-lg border border-destructive/30 p-4 space-y-3">
         <h2 className="text-lg font-medium text-destructive">Reject conflict</h2>
+        <p className="text-sm text-muted-foreground">Every permit in this clash is suspended.</p>
         <label className="block text-sm">
           Rejection reason
           <textarea
@@ -213,7 +221,11 @@ export function ConflictWorkflow({ detail, onUpdated }: ConflictWorkflowProps) {
         >
           Reject and suspend permits
         </Button>
+        <Button variant="ghost" className="ml-2" disabled={isSubmitting} onClick={() => setRejecting(false)}>
+          Cancel
+        </Button>
       </div>
+      )}
 
       {detail.history.length > 0 ? (
         <div className="rounded-lg border border-border p-4 space-y-2">

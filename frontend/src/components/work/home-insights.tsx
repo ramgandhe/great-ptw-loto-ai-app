@@ -7,7 +7,7 @@ import { ArrowRight } from "lucide-react";
 import { AnimatedNumber } from "@/components/analytics/animated-number";
 import { SegmentedBar, StatTile } from "@/components/analytics/charts";
 import { SectionTitle } from "@/components/layout/page-header";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { PERMIT_STAGES } from "@/lib/analytics/labels";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
@@ -23,11 +23,30 @@ const WEEK_MS = 7 * 86_400_000;
 /** Site-wide attention figures for people who manage the site. */
 function SiteAttention() {
   const [data, setData] = useState<InsightsPayload | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    getInsights(30).then(setData, () => undefined);
-  }, []);
+    getInsights(30).then(
+      (payload) => {
+        setData(payload);
+        setFailed(false);
+      },
+      () => setFailed(true),
+    );
+  }, [attempt]);
 
+  // A failed read must not look like "All clear" on every tile.
+  if (failed && !data) {
+    return (
+      <p role="alert" className="flex flex-wrap items-center gap-3 text-sm text-destructive">
+        Site figures could not be loaded.
+        <Button type="button" variant="outline" size="sm" onClick={() => setAttempt((n) => n + 1)}>
+          Retry
+        </Button>
+      </p>
+    );
+  }
   if (!data) return <p className="text-sm text-muted-foreground">Loading site figures…</p>;
   const a = data.attention;
   const tiles = [
@@ -68,17 +87,18 @@ function MyPermits() {
     })
     .sort((a, b) => a.plannedStartAt!.localeCompare(b.plannedStartAt!))
     .slice(0, 5);
-  const live = permits.filter((p) => ["approved", "active", "suspended"].includes(p.status)).length;
 
+  // Totals live on the permit list's views; here only the shape and what starts soon.
   return (
-    <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid gap-4 lg:grid-cols-[14rem_1fr_1fr]">
-      <motion.div variants={staggerItem} className="grid gap-3">
-        <StatTile label="Permits you can see" value={<AnimatedNumber value={permits.length} />} href="/permits" />
-        <StatTile label="Approved or in progress" value={<AnimatedNumber value={live} />} href="/permits?stage=live" />
-      </motion.div>
+    <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid gap-4 lg:grid-cols-2">
       <motion.section variants={staggerItem} className="rounded-xl border border-border bg-card p-5">
         <h3 className="font-semibold">Where your permits stand</h3>
-        <p className="mb-4 text-sm text-muted-foreground">By lifecycle stage.</p>
+        <p className="mb-4 text-sm text-muted-foreground">
+          By lifecycle stage.{" "}
+          <Link href="/permits?view=all" className="text-primary hover:underline">
+            All {permits.length} permits
+          </Link>
+        </p>
         <SegmentedBar
           emptyMessage="No permits yet."
           segments={PERMIT_STAGES.map((s) => ({ ...s, count: permits.filter((p) => p.status === s.key).length })).filter((s) => s.count > 0)}

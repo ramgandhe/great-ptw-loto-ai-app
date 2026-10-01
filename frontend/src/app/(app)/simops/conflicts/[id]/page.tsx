@@ -35,8 +35,15 @@ export default function ConflictDetailPage() {
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
         <BackLink href="/simops" label="SIMOPS" />
-        <h1 className="font-heading text-3xl font-bold tracking-tight">Conflict details</h1>
-        <p className="text-sm text-muted-foreground">Assess, plan mitigation, and resolve SIMOPS conflicts.</p>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">{detail?.conflict.summary ?? "Work clash"}</h1>
+          {detail ? <ConflictSeverityBadge severity={detail.conflict.severity} /> : null}
+        </div>
+        {detail ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {detail.conflict.conflictType.replace(/_/g, " ")} clash · now {detail.conflict.status.replace(/_/g, " ")}
+          </p>
+        ) : null}
       </div>
 
       {error ? (
@@ -52,21 +59,10 @@ export default function ConflictDetailPage() {
         <p className="text-sm text-muted-foreground">Loading conflict…</p>
       ) : detail ? (
         <>
-          <section className="rounded-lg border border-border p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="font-medium">{detail.conflict.summary}</p>
-                <p className="text-sm text-muted-foreground">
-                  Type: {detail.conflict.conflictType.replace(/_/g, " ")} · Status:{" "}
-                  {detail.conflict.status.replace(/_/g, " ")}
-                </p>
-              </div>
-              <ConflictSeverityBadge severity={detail.conflict.severity} />
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-lg font-medium">Permit timeline</h2>
+          <section aria-labelledby="permits-heading" className="grid gap-3">
+            <h2 id="permits-heading" className="text-lg font-semibold">
+              Permits in this clash
+            </h2>
             <ConflictTimeline participants={detail.participants} />
           </section>
 
@@ -78,8 +74,8 @@ export default function ConflictDetailPage() {
             }}
           />
 
-          <section className="space-y-3">
-            <h2 className="text-lg font-medium">Alerts</h2>
+          <details className="rounded-xl border border-border bg-card px-5 py-3">
+            <summary className="cursor-pointer text-sm font-semibold">Alerts sent ({detail.alerts.length})</summary>
             {detail.alerts.length === 0 ? (
               <p className="text-sm text-muted-foreground">No alerts for this conflict.</p>
             ) : (
@@ -97,7 +93,7 @@ export default function ConflictDetailPage() {
                 ))}
               </ul>
             )}
-          </section>
+          </details>
         </>
       ) : null}
     </main>

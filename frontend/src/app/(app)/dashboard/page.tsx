@@ -21,7 +21,7 @@ function greeting(date = new Date()): string {
 /** Home: the site figures (for managers) and what needs you, above the fold. */
 export default function DashboardPage() {
   const { roles, profile } = useAuthProfile();
-  const { items, loaded } = useWorkQueue();
+  const { items, loaded, failed } = useWorkQueue();
   const canCreate = hasAnyRole(roles, PERMIT_CREATE_ROLES);
   const canReport = hasAnyRole(roles, INCIDENT_REPORT_ROLES);
   const managesSite = hasAnyRole(roles, DASHBOARD_ANALYTICS_ROLES);
@@ -35,7 +35,7 @@ export default function DashboardPage() {
           !loaded ? (
             "Checking your work…"
           ) : items.length === 0 ? (
-            "You are all caught up."
+            failed.length ? "Some of your work could not be checked." : "You are all caught up."
           ) : (
             <>
               <strong className="font-heading text-lg font-extrabold text-(--accent-primary) tabular-nums">{items.length}</strong>{" "}

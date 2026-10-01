@@ -2,7 +2,7 @@
 
 import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { getIsolationExecutionDetail } from "@/lib/isolation-execution/api";
@@ -18,9 +18,12 @@ import {
 } from "@/lib/restoration/api";
 import type { RestorationDetail } from "@/lib/restoration/types";
 import { ExecutionStatusBadge } from "@/components/isolation-execution/execution-status-badge";
-import { RestorationChecklist } from "@/components/restoration/restoration-checklist";
 import { RestorationTimeline } from "@/components/restoration/restoration-timeline";
 import { Button } from "@/components/ui/button";
+import { restorationProgress } from "@/lib/restoration/progress";
+import { formatDateTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { CheckCircle2, Circle } from "lucide-react";
 
 export default function RestorationWorkspacePage() {
   const params = useParams<{ executionId: string }>();
@@ -39,24 +42,7 @@ export default function RestorationWorkspacePage() {
   const [restoreMethod, setRestoreMethod] = useState("re-energise");
   const [removalReason, setRemovalReason] = useState("");
 
-  const pointLabels = useMemo(() => {
-    const labels: Record<string, string> = {};
-    for (const step of executionDetail?.sequence ?? []) {
-      labels[step.isolationPointId] = step.isolationNumber;
-    }
-    return labels;
-  }, [executionDetail?.sequence]);
-
-  const removedLockIds = useMemo(
-    () => new Set(restoration?.lockRemovals.map((item) => item.appliedLockId) ?? []),
-    [restoration?.lockRemovals],
-  );
-  const removedTagIds = useMemo(
-    () => new Set(restoration?.tagRemovals.map((item) => item.appliedTagId) ?? []),
-    [restoration?.tagRemovals],
-  );
-
-  async function load() {
+  async function load(advance = false) {
     const [iso, rest, hist] = await Promise.all([
       getIsolationExecutionDetail(executionId),
       getRestoration(executionId),
@@ -65,8 +51,9 @@ export default function RestorationWorkspacePage() {
     setExecutionDetail(iso);
     setRestoration(rest);
     setHistory(hist);
-    if (!selectedPointId && iso.sequence[0]) {
-      setSelectedPointId(iso.sequence[0].isolationPointId);
+    // Start on the first point with something to do; move on only once a point's verification is recorded.
+    if (advance || !selectedPointId) {
+      setSelectedPointId(restorationProgress(iso.sequence, iso.locks, iso.tags, rest).current?.step.isolationPointId ?? "");
     }
   }
 
@@ -79,14 +66,14 @@ export default function RestorationWorkspacePage() {
       .finally(() => setIsLoading(false));
   }, [executionId]);
 
-  async function runAction(action: () => Promise<void>, successMessage: string) {
+  async function runAction(action: () => Promise<void>, successMessage: string, advance = false) {
     setIsSubmitting(true);
     setActionError(null);
     setMessage(null);
     try {
       await action();
+      await load(advance);
       setMessage(successMessage);
-      await load();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Action failed");
     } finally {
@@ -107,29 +94,33 @@ export default function RestorationWorkspacePage() {
   }
 
   const canRestore = restoration.execution.status === "verified";
-  const activeLocks = executionDetail.locks.filter(
-    (lock) => lock.status === "applied" && !removedLockIds.has(lock.id),
-  );
-  const activeTags = executionDetail.tags.filter(
-    (tag) => tag.status === "applied" && !removedTagIds.has(tag.id),
-  );
+  const { points, current, outstanding } = restorationProgress(executionDetail.sequence, executionDetail.locks, executionDetail.tags, restoration);
+  const selected = points.find((p) => p.step.isolationPointId === selectedPointId) ?? current;
+  const confirmed = (question: string, run: () => Promise<unknown>, done: string, advance = false) => {
+    if (window.confirm(question)) void runAction(async () => void (await run()), done, advance);
+  };
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
         <BackLink href="/lototo?view=restoration" label="LOTOTO restoration" />
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="font-heading text-3xl font-bold tracking-tight">
-            {executionDetail.plan?.title ?? "Equipment restoration"}
-          </h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">{executionDetail.plan?.title ?? "Equipment restoration"}</h1>
           <ExecutionStatusBadge status={restoration.execution.status} />
         </div>
-        {executionDetail.plan ? (
-          <p className="mt-1 text-sm text-muted-foreground">
-            <Link href={`/lototo/history/${executionDetail.plan.id}`} className="underline">
-              View LOTOTO history
+        <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-muted-foreground">
+          <span>
+            Still on: {outstanding.locks} lock{outstanding.locks === 1 ? "" : "s"}, {outstanding.tags} tag{outstanding.tags === 1 ? "" : "s"};{" "}
+            {outstanding.points} of {points.length} points to restore
+          </span>
+          {executionDetail.plan ? (
+            <Link href={`/lototo/history/${executionDetail.plan.id}`} className="text-primary hover:underline">
+              LOTOTO history
             </Link>
-          </p>
+          ) : null}
+        </p>
+        {!canRestore && restoration.execution.status !== "restored" ? (
+          <p className="mt-2 text-sm text-(--status-warning)">Restoration starts once the isolation is verified.</p>
         ) : null}
       </div>
 
@@ -139,194 +130,164 @@ export default function RestorationWorkspacePage() {
         </div>
       ) : null}
       {message ? (
-        <p className="text-sm text-emerald-700 dark:text-emerald-400" role="status">
+        <p className="text-sm text-(--status-success)" role="status">
           {message}
         </p>
       ) : null}
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-border p-4">
-          <h2 className="text-lg font-medium">Restoration checklist</h2>
-          <div className="mt-4">
-            <RestorationChecklist
-              sequence={executionDetail.sequence}
-              restorations={restoration.restorations}
-            />
-          </div>
-        </div>
+      <nav aria-label="Isolation points" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <ol className="flex w-max gap-2">
+          {points.map((p) => (
+            <li key={p.step.isolationPointId}>
+              <button
+                type="button"
+                aria-current={p === selected ? "step" : undefined}
+                onClick={() => setSelectedPointId(p.step.isolationPointId)}
+                className={cn(
+                  "flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm",
+                  p === selected ? "border-primary bg-primary/10 font-semibold" : "border-border bg-card hover:bg-muted",
+                )}
+              >
+                {p.done ? <CheckCircle2 className="size-4 text-(--status-success)" aria-label="Done" /> : <Circle className="size-4 text-muted-foreground" aria-hidden />}
+                {p.step.sequenceOrder}. {p.step.isolationNumber}
+              </button>
+            </li>
+          ))}
+        </ol>
+      </nav>
 
-        <div className="space-y-6">
-          <div className="rounded-lg border border-border p-4">
-            <h2 className="text-lg font-medium">Remove locks</h2>
-            {activeLocks.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">All locks removed.</p>
+      {selected ? (
+        <section aria-labelledby="point-heading" className="grid gap-5 rounded-xl border border-border bg-card p-5">
+          <div>
+            <h2 id="point-heading" className="text-lg font-semibold">
+              Point {selected.step.sequenceOrder}: {selected.step.isolationNumber}
+            </h2>
+            {selected.step.description ? <p className="text-sm text-muted-foreground">{selected.step.description}</p> : null}
+          </div>
+
+          {/* Each removal, the restoration and its verification is its own confirmed step. */}
+          <div className="grid gap-2">
+            <h3 className="text-sm font-semibold">1. Remove locks and tags</h3>
+            {selected.locks.length + selected.tags.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nothing left on this point.</p>
             ) : (
-              <ul className="mt-3 space-y-2">
-                {activeLocks.map((lock) => (
-                  <li key={lock.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span>
-                      {pointLabels[lock.isolationPointId] ?? "Unknown point"} ·{" "}
-                      {lock.lockTag}
-                    </span>
+              <ul className="grid gap-2">
+                {selected.locks.map((lock) => (
+                  <li key={lock.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <span>Lock {lock.lockTag}</span>
                     <Button
-                      size="sm"
                       variant="outline"
+                      className="min-h-11"
                       disabled={!canRestore || isSubmitting}
-                      onClick={() =>
-                        void runAction(async () => {
-                          await removeLock(executionId, lock.id, removalReason.trim() || undefined);
-                        }, "Lock removed")
-                      }
+                      onClick={() => confirmed(`Remove lock ${lock.lockTag}?`, () => removeLock(executionId, lock.id, removalReason.trim() || undefined), "Lock removed")}
                     >
-                      Remove
+                      Remove lock
+                    </Button>
+                  </li>
+                ))}
+                {selected.tags.map((tag) => (
+                  <li key={tag.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <span>Tag {tag.tagNumber}</span>
+                    <Button
+                      variant="outline"
+                      className="min-h-11"
+                      disabled={!canRestore || isSubmitting}
+                      onClick={() => confirmed(`Remove tag ${tag.tagNumber}?`, () => removeTag(executionId, tag.id, removalReason.trim() || undefined), "Tag removed")}
+                    >
+                      Remove tag
                     </Button>
                   </li>
                 ))}
               </ul>
             )}
+            {selected.locks.length + selected.tags.length > 0 ? (
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Removal reason (optional)</span>
+                <input value={removalReason} onChange={(e) => setRemovalReason(e.target.value)} className={FIELD} />
+              </label>
+            ) : null}
           </div>
 
-          <div className="rounded-lg border border-border p-4">
-            <h2 className="text-lg font-medium">Remove tags</h2>
-            {activeTags.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">All tags removed.</p>
+          <div className="grid gap-2">
+            <h3 className="text-sm font-semibold">2. Restore and verify</h3>
+            {selected.restored ? (
+              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <CheckCircle2 className="size-4 text-(--status-success)" aria-hidden />
+                Restored {formatDateTime(selected.restored.restoredAt)}
+                {selected.restored.method ? ` · ${selected.restored.method}` : ""}
+              </p>
             ) : (
-              <ul className="mt-3 space-y-2">
-                {activeTags.map((tag) => (
-                  <li key={tag.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span>
-                      {pointLabels[tag.isolationPointId] ?? "Unknown point"} ·{" "}
-                      {tag.tagNumber}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={!canRestore || isSubmitting}
-                      onClick={() =>
-                        void runAction(async () => {
-                          await removeTag(executionId, tag.id, removalReason.trim() || undefined);
-                        }, "Tag removed")
-                      }
-                    >
-                      Remove
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+              <label className="grid gap-1 text-sm md:max-w-sm">
+                <span className="font-medium">Method</span>
+                <input value={restoreMethod} onChange={(e) => setRestoreMethod(e.target.value)} disabled={!canRestore || isSubmitting} className={FIELD} />
+              </label>
             )}
-            <label className="mt-3 grid gap-1 text-sm">
-              <span className="font-medium">Removal reason (optional)</span>
-              <input
-                value={removalReason}
-                onChange={(event) => setRemovalReason(event.target.value)}
-                className="rounded-md border border-input bg-background px-3 py-2"
-              />
-            </label>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-border p-4">
-        <h2 className="text-lg font-medium">Restore equipment</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <label className="grid gap-1 text-sm">
-            <span className="font-medium">Isolation point</span>
-            <select
-              value={selectedPointId}
-              onChange={(event) => setSelectedPointId(event.target.value)}
-              disabled={!canRestore || isSubmitting}
-              className="rounded-md border border-input bg-background px-3 py-2"
-            >
-              {executionDetail.sequence.map((step) => (
-                <option key={step.isolationPointId} value={step.isolationPointId}>
-                  {step.sequenceOrder}. {step.isolationNumber}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1 text-sm">
-            <span className="font-medium">Method</span>
-            <input
-              value={restoreMethod}
-              onChange={(event) => setRestoreMethod(event.target.value)}
-              disabled={!canRestore || isSubmitting}
-              className="rounded-md border border-input bg-background px-3 py-2"
-            />
-          </label>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button
-            disabled={!canRestore || isSubmitting || !selectedPointId}
-            onClick={() =>
-              void runAction(async () => {
-                await restoreEquipment(executionId, {
-                  isolationPointId: selectedPointId,
-                  method: restoreMethod.trim() || undefined,
-                });
-              }, "Equipment restored")
-            }
-          >
-            Restore point
-          </Button>
-          <Button
-            variant="outline"
-            disabled={!canRestore || isSubmitting || !selectedPointId}
-            onClick={() => {
-              const confirmed = window.confirm("Record a passing restoration verification?");
-              if (!confirmed) {
-                return;
-              }
-              void runAction(async () => {
-                await recordRestorationVerification(executionId, {
-                  isolationPointId: selectedPointId,
-                  result: "pass",
-                  method: restoreMethod.trim() || undefined,
-                });
-              }, "Restoration verified");
-            }}
-          >
-            Record verification
-          </Button>
-          {canRestore ? (
-            <Button
-              variant="secondary"
-              disabled={isSubmitting}
-              onClick={() => {
-                const confirmed = window.confirm(
-                  "Complete restoration for all points? Equipment must be restored first.",
-                );
-                if (!confirmed) {
-                  return;
+            <div className="flex flex-wrap gap-2">
+              {selected.restored ? null : (
+                <Button
+                  className="min-h-11"
+                  disabled={!canRestore || isSubmitting}
+                  onClick={() =>
+                    confirmed(
+                      `Restore ${selected.step.isolationNumber}?${selected.locks.length + selected.tags.length ? " Locks or tags are still on this point." : ""}`,
+                      () => restoreEquipment(executionId, { isolationPointId: selected.step.isolationPointId, method: restoreMethod.trim() || undefined }),
+                      "Equipment restored",
+                    )
+                  }
+                >
+                  Restore point
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                className="min-h-11"
+                disabled={(!canRestore && restoration.execution.status !== "restored") || isSubmitting}
+                onClick={() =>
+                  confirmed(
+                    "Record a passing restoration verification?",
+                    () => recordRestorationVerification(executionId, { isolationPointId: selected.step.isolationPointId, result: "pass", method: restoreMethod.trim() || undefined }),
+                    "Restoration verified",
+                    true,
+                  )
                 }
-                void runAction(async () => {
-                  await completeRestoration(executionId);
-                }, "Restoration complete");
-              }}
-            >
-              Complete restoration
-            </Button>
-          ) : null}
-        </div>
-      </section>
+              >
+                Record verification
+              </Button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {canRestore ? (
+        <section className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-5">
+          <p className="flex-1 text-sm text-muted-foreground">When every point is restored, complete the restoration.</p>
+          <Button
+            className="min-h-11"
+            disabled={isSubmitting || outstanding.points > 0}
+            onClick={() => confirmed("Complete restoration for all points?", () => completeRestoration(executionId), "Restoration complete")}
+          >
+            Complete restoration
+          </Button>
+        </section>
+      ) : null}
 
       {restoration.execution.status === "restored" ? (
-        <section className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">
-          <h2 className="text-lg font-medium text-emerald-800 dark:text-emerald-300">
-            Restoration summary
-          </h2>
-          <p className="mt-2 text-sm text-emerald-800 dark:text-emerald-300">
-            {restoration.restorations.length} points restored · {restoration.lockRemovals.length}{" "}
-            locks removed · {restoration.tagRemovals.length} tags removed
+        <section className="rounded-xl border border-(--status-success) bg-(--status-success-bg) p-5 text-sm">
+          <h2 className="font-semibold">Restoration complete</h2>
+          <p className="mt-1">
+            {restoration.restorations.length} points restored · {restoration.lockRemovals.length} locks removed · {restoration.tagRemovals.length} tags removed
           </p>
         </section>
       ) : null}
 
-      <section className="rounded-lg border border-border p-4">
-        <h2 className="text-lg font-medium">LOTOTO history</h2>
-        <div className="mt-4">
+      <details className="rounded-xl border border-border bg-card px-5 py-3">
+        <summary className="cursor-pointer text-sm font-semibold">LOTOTO register and history ({history.length})</summary>
+        <div className="mt-3">
           <RestorationTimeline entries={history} />
         </div>
-      </section>
+      </details>
     </main>
   );
 }
+
+const FIELD = "h-11 rounded-lg border border-input bg-background px-3 disabled:opacity-60";

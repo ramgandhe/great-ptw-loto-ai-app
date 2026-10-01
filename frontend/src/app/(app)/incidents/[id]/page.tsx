@@ -19,6 +19,7 @@ import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { INCIDENT_HOD_DECISION_ROLES, INCIDENT_REPORT_ROLES } from "@/lib/auth/roles";
 import { formatDateTime } from "@/lib/format";
+import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
 import {
   getIncident,
   getIncidentEvidenceUrl,
@@ -78,6 +79,16 @@ function HodDecision({ incidentId, onDone }: { incidentId: string; onDone: () =>
   );
 }
 
+/** Who acts next at each stage (mirrors the work queue's incident actions). */
+const NEXT_OWNER: Record<string, string> = {
+  draft: "The reporter submits it",
+  pending_hod_decision: "HOD decides whether work continues",
+  open: "Safety officer assigns an investigator",
+  investigating: "Investigator completes the investigation",
+  pending_verification: "Safety officer verifies the actions",
+  verified: "Safety officer closes it",
+};
+
 export default function IncidentDetailPage() {
   const params = useParams<{ id: string }>();
   const { roles } = useAuthProfile();
@@ -89,6 +100,11 @@ export default function IncidentDetailPage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [lookups, setLookups] = useState<Lookups | null>(null);
+
+  useEffect(() => {
+    loadLookups().then(setLookups, () => undefined);
+  }, []);
 
   const load = useCallback(async () => {
     const incidentDetail = await getIncident(params.id);
@@ -193,38 +209,73 @@ export default function IncidentDetailPage() {
         }
       />
 
+      {/* Where it stands: who acts next, who investigates, and what it affects. */}
+      <dl className="grid gap-x-6 gap-y-3 rounded-xl border border-border bg-card p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <dt className="text-xs text-muted-foreground">Next</dt>
+          <dd className="mt-0.5 font-medium">{NEXT_OWNER[incident.status] ?? "Nothing pending"}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Investigator</dt>
+          <dd className="mt-0.5 font-medium">
+            {investigation
+              ? `${nameOf(lookups?.people, investigation.investigation.investigatorId) ?? "Assigned"}${investigation.investigation.dueDate ? `, due ${formatDateTime(investigation.investigation.dueDate)}` : ""}`
+              : "Not assigned"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Related permits</dt>
+          <dd className="mt-0.5 flex flex-wrap gap-x-3">
+            {detail.permits.length
+              ? detail.permits.map((link) => (
+                  <Link key={link.permitId} href={`/permits/${link.permitId}`} className="font-medium text-primary hover:underline">
+                    {link.permit.reference ?? link.permit.title}
+                  </Link>
+                ))
+              : "None"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Occurred</dt>
+          <dd className="mt-0.5 font-medium">
+            {formatDateTime(incident.occurredAt)}
+            {incident.locationDescription ? `, ${incident.locationDescription}` : ""}
+          </dd>
+        </div>
+      </dl>
+
       {incident.status === "pending_hod_decision" && hasAnyRole(roles, INCIDENT_HOD_DECISION_ROLES) ? (
         <HodDecision incidentId={incident.id} onDone={load} />
       ) : null}
 
-      <section className="grid gap-3 rounded-xl border border-border bg-card p-4 text-sm">
-        <p className="whitespace-pre-line">{incident.description}</p>
-        <p className="text-muted-foreground">
-          Occurred {formatDateTime(incident.occurredAt)}
-          {incident.locationDescription ? ` · ${incident.locationDescription}` : ""}
-        </p>
-        {detail.permits.length > 0 || detail.equipment.length > 0 ? (
-          <dl className="grid gap-2 border-t border-border pt-3 sm:grid-cols-2">
-            {detail.permits.length > 0 ? (
-              <div>
-                <dt className="text-xs text-muted-foreground">Related permits</dt>
-                <dd className="mt-0.5 flex flex-wrap gap-x-3">
-                  {detail.permits.map((link) => (
-                    <Link key={link.permitId} href={`/permits/${link.permitId}`} className="font-medium text-primary hover:underline">
-                      {link.permit.reference ?? link.permit.title}
-                    </Link>
-                  ))}
-                </dd>
-              </div>
-            ) : null}
-            {detail.equipment.length > 0 ? (
-              <div>
-                <dt className="text-xs text-muted-foreground">Equipment</dt>
-                <dd className="mt-0.5 font-medium">{detail.equipment.map((e) => e.machinery.name).join(", ")}</dd>
-              </div>
-            ) : null}
-          </dl>
-        ) : null}
+      {showInvestigation ? (
+        <section aria-labelledby="investigation" className="grid gap-3">
+          <SectionTitle id="investigation" title="Investigation" />
+          <InvestigationWorkflow incidentId={incident.id} detail={investigation} onUpdated={load} />
+        </section>
+      ) : null}
+
+      {incident.status !== "draft" && incident.status !== "pending_hod_decision" ? (
+        <IncidentClosureWorkflow
+          incidentId={incident.id}
+          status={incident.status}
+          hasVerification={hasVerification}
+          investigationCompleted={investigation?.investigation.status === "completed"}
+          onUpdated={load}
+        />
+      ) : null}
+
+      <section aria-labelledby="report" className="grid gap-3">
+        <SectionTitle id="report" title="Report" />
+        <div className="grid gap-3 rounded-xl border border-border bg-card p-4 text-sm">
+          <p className="whitespace-pre-line">{incident.description}</p>
+          {detail.equipment.length > 0 ? (
+            <p>
+              <span className="text-muted-foreground">Equipment: </span>
+              <span className="font-medium">{detail.equipment.map((e) => e.machinery.name).join(", ")}</span>
+            </p>
+          ) : null}
+        </div>
       </section>
 
       <section aria-labelledby="evidence" className="grid gap-3">
@@ -263,23 +314,6 @@ export default function IncidentDetailPage() {
           </div>
         ) : null}
       </section>
-
-      {showInvestigation ? (
-        <section aria-labelledby="investigation" className="grid gap-3">
-          <SectionTitle id="investigation" title="Investigation" />
-          <InvestigationWorkflow incidentId={incident.id} detail={investigation} onUpdated={load} />
-        </section>
-      ) : null}
-
-      {incident.status !== "draft" && incident.status !== "pending_hod_decision" ? (
-        <IncidentClosureWorkflow
-          incidentId={incident.id}
-          status={incident.status}
-          hasVerification={hasVerification}
-          investigationCompleted={investigation?.investigation.status === "completed"}
-          onUpdated={load}
-        />
-      ) : null}
 
       {history.length > 0 ? (
         <section aria-labelledby="history" className="grid gap-3">

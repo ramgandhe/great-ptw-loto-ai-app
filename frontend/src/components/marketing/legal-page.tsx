@@ -22,7 +22,7 @@ export function LegalPage({
   sections: LegalSection[];
 }) {
   return (
-    <div className="mx-auto grid max-w-6xl gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[14rem_1fr] lg:py-20">
+    <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[14rem_minmax(0,1fr)] lg:py-20">
       <aside className="lg:sticky lg:top-24 lg:self-start">
         <nav aria-label="Legal documents" className="flex flex-wrap gap-2 lg:flex-col lg:gap-1">
           {DOCS.map((doc) => (

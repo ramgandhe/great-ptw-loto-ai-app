@@ -7,7 +7,9 @@ import { ApiError } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import { listNotifications, markNotificationRead } from "@/lib/notifications/api";
 import type { Notification } from "@/lib/notifications/types";
+import { notificationTarget } from "@/lib/notifications/routes";
 import { cn } from "@/lib/utils";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 const VISIBLE_GROUPS = 4;
 
@@ -18,36 +20,22 @@ const PRIORITY_DOT: Record<string, string> = {
   low: "bg-muted-foreground",
 };
 
-/** Where a notification's record lives, so a message opens the thing it is about. */
-function recordHref(n: Notification): string | null {
-  if (!n.entityId) return null;
-  switch (n.entityType) {
-    case "permit":
-      return `/permits/${n.entityId}`;
-    case "incident":
-      return `/incidents/${n.entityId}`;
-    case "simops_conflict":
-    case "conflict":
-      return `/simops/conflicts/${n.entityId}`;
-    case "lototo_plan":
-      return `/lototo/plans/${n.entityId}`;
-    default:
-      return `/notifications/${n.id}`;
-  }
-}
-
 type Group = { key: string; latest: Notification; ids: string[]; unread: string[] };
 
 /** Recent messages with repeats collapsed, newest first. The full inbox lives on Notifications. */
 export function DashboardNotificationsPanel({ limit = VISIBLE_GROUPS, inbox = false }: { limit?: number; inbox?: boolean } = {}) {
   const [notifications, setNotifications] = useState<Notification[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     listNotifications()
-      .then(setNotifications)
+      .then((list) => {
+        setNotifications(list);
+        setError(null);
+      })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Messages could not be loaded."));
-  }, []);
+  }, [attempt]);
 
   const groups = useMemo(() => {
     const map = new Map<string, Group>();
@@ -86,7 +74,7 @@ export function DashboardNotificationsPanel({ limit = VISIBLE_GROUPS, inbox = fa
             </h2>
           )}
           <p className="text-sm text-muted-foreground">
-            {notifications === null ? "Loading…" : unread === 0 ? "Nothing unread." : `${unread} unread.`}
+            {notifications === null ? (error ? "Not loaded." : "Loading…") : unread === 0 ? "Nothing unread." : `${unread} unread.`}
           </p>
         </div>
         {!inbox && groups.length > limit ? (
@@ -98,12 +86,17 @@ export function DashboardNotificationsPanel({ limit = VISIBLE_GROUPS, inbox = fa
       </div>
 
       {error ? (
-        <p role="alert" className="mb-3 text-sm text-destructive">
+        <p role="alert" className="mb-3 flex flex-wrap items-center gap-3 text-sm text-destructive">
           {error}
+          {notifications === null ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => setAttempt((n) => n + 1)}>
+              Retry
+            </Button>
+          ) : null}
         </p>
       ) : null}
 
-      {notifications !== null && groups.length === 0 ? (
+      {notifications === null ? null : groups.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border px-5 py-6 text-sm text-muted-foreground">
           No messages yet. Approvals, clashes and reminders will appear here.
         </p>
@@ -111,8 +104,9 @@ export function DashboardNotificationsPanel({ limit = VISIBLE_GROUPS, inbox = fa
         <ul className="divide-y divide-border rounded-xl border border-border bg-card">
           {groups.slice(0, limit).map((group) => {
             const n = group.latest;
-            const href = recordHref(n);
+            const target = notificationTarget(n);
             const isUnread = group.unread.length > 0;
+            const read = () => isUnread && void markRead(group);
             return (
               <li key={group.key} className="flex items-start gap-3 px-4 py-3 sm:px-5">
                 <span
@@ -121,13 +115,10 @@ export function DashboardNotificationsPanel({ limit = VISIBLE_GROUPS, inbox = fa
                 />
                 <div className="min-w-0 flex-1">
                   <p className={cn("text-sm", isUnread ? "font-semibold" : "font-medium text-muted-foreground")}>
-                    {href ? (
-                      <Link href={href} onClick={() => isUnread && void markRead(group)} className="hover:underline">
-                        {n.title}
-                      </Link>
-                    ) : (
-                      n.title
-                    )}
+                    {/* Without a linked record, the message's own page explains it. */}
+                    <Link href={`/notifications/${n.id}`} onClick={read} className="hover:underline">
+                      {n.title}
+                    </Link>
                     {group.ids.length > 1 ? (
                       <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                         ×{group.ids.length}
@@ -138,12 +129,20 @@ export function DashboardNotificationsPanel({ limit = VISIBLE_GROUPS, inbox = fa
                   <p className="truncate text-sm text-muted-foreground">{n.body}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-xs text-muted-foreground">{formatRelative(n.createdAt)}</span>
-                  {isUnread ? (
-                    <button type="button" onClick={() => void markRead(group)} className="text-xs font-medium text-primary hover:underline">
-                      Mark read
-                    </button>
+                  {/* Opening the record is the main move; marking read is secondary. */}
+                  {target ? (
+                    <Link href={target.href} onClick={read} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                      {target.label}
+                    </Link>
                   ) : null}
+                  <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {formatRelative(n.createdAt)}
+                    {isUnread ? (
+                      <button type="button" onClick={() => void markRead(group)} className="font-medium text-primary hover:underline">
+                        Mark read
+                      </button>
+                    ) : null}
+                  </span>
                 </div>
               </li>
             );

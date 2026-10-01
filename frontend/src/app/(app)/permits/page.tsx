@@ -11,6 +11,7 @@ import { PermitTypeChip } from "@/components/permit/permit-type-chip";
 import { buttonVariants } from "@/components/ui/button";
 import { MultiToggle, SegmentedToggle } from "@/components/ui/toggle-group";
 import { ActionLink } from "@/components/work/action-link";
+import { WorkQueueUnavailable } from "@/components/work/work-queue-panel";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { PERMIT_CREATE_ROLES } from "@/lib/auth/roles";
@@ -206,6 +207,7 @@ function PermitsBoard() {
         ) : null}
       </PageHeader>
 
+      <WorkQueueUnavailable />
       {!loaded ? (
         <p className="text-sm text-muted-foreground">Loading permits…</p>
       ) : visible.length === 0 ? (

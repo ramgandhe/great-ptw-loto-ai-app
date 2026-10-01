@@ -17,12 +17,15 @@ import {
 } from "@/lib/isolation-execution/api";
 import type { IsolationExecutionDetail } from "@/lib/isolation-execution/types";
 import { ExecutionStatusBadge } from "@/components/isolation-execution/execution-status-badge";
-import { IsolationChecklist } from "@/components/isolation-execution/isolation-checklist";
 import { LockRegisterTable } from "@/components/isolation-execution/lock-register-table";
 import { TagRegisterTable } from "@/components/isolation-execution/tag-register-table";
 import { EvidenceUpload } from "@/components/execution/evidence-upload";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
+import { isolationProgress } from "@/lib/isolation-execution/progress";
+import { workspaceHref } from "@/lib/permit/workspace-tabs";
+import { cn } from "@/lib/utils";
+import { CheckCircle2, Circle, Lock } from "lucide-react";
 
 export default function IsolationExecutionPage() {
   const params = useParams<{ planId: string }>();
@@ -57,9 +60,9 @@ export default function IsolationExecutionPage() {
     try {
       const data = await getIsolationExecutionForPlan(planId);
       setDetail(data);
-      if (!selectedPointId && data.sequence[0]) {
-        setSelectedPointId(data.sequence[0].isolationPointId);
-      }
+      // After each action, move on to the first point still to finish.
+      const next = isolationProgress(data.sequence, data.locks, data.tags, data.verifications).current;
+      setSelectedPointId(next?.step.isolationPointId ?? "");
     } catch (err) {
       if (err instanceof ApiError && err.message.includes("not found")) {
         setDetail(null);
@@ -85,8 +88,8 @@ export default function IsolationExecutionPage() {
     setMessage(null);
     try {
       await action();
-      setMessage(successMessage);
       await loadDetail();
+      setMessage(successMessage);
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Action failed");
     } finally {
@@ -246,26 +249,30 @@ export default function IsolationExecutionPage() {
 
   const execution = detail.execution;
   const canApplyLocks = execution.status === "in_progress";
-  const canVerify =
-    execution.status === "in_progress" || execution.status === "isolated";
+  const canVerify = execution.status === "in_progress" || execution.status === "isolated";
+  const { points, current, left } = isolationProgress(detail.sequence, detail.locks, detail.tags, detail.verifications);
+  const selected = points.find((p) => p.step.isolationPointId === selectedPointId) ?? current;
+  const finished = points.filter((p) => p.done && p !== selected);
+  const pointEvidence = detail.evidence.filter((e) => e.isolationPointId === selected?.step.isolationPointId);
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
         <BackLink href="/lototo?view=active" label="LOTOTO" />
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="font-heading text-3xl font-bold tracking-tight">
-            {detail.plan?.title ?? "Isolation execution"}
-          </h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">{detail.plan?.title ?? "Isolation execution"}</h1>
           <ExecutionStatusBadge status={execution.status} />
         </div>
-        {detail.plan?.permitId ? (
-          <p className="mt-1 text-sm text-muted-foreground">
-            <Link href={`/permits/${detail.plan.permitId}`} className="underline">
-              View permit
+        <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-muted-foreground">
+          <span>
+            {points.length === 0 ? "No isolation sequence configured for this plan." : left === 0 ? `All ${points.length} points done` : `${left} of ${points.length} points to do`}
+          </span>
+          {detail.plan?.permitId ? (
+            <Link href={workspaceHref(detail.plan.permitId, "work")} className="text-primary hover:underline">
+              Permit
             </Link>
-          </p>
-        ) : null}
+          ) : null}
+        </p>
       </div>
 
       {actionError ? (
@@ -274,196 +281,215 @@ export default function IsolationExecutionPage() {
         </div>
       ) : null}
       {message ? (
-        <p className="text-sm text-emerald-700 dark:text-emerald-400" role="status">
+        <p className="text-sm text-(--status-success)" role="status">
           {message}
         </p>
       ) : null}
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-border p-4">
-          <h2 className="text-lg font-medium">Isolation checklist</h2>
-          <p className="mb-4 text-sm text-muted-foreground">
-            Follow the approved sequence. Locks and tags must be applied in order.
+      {/* Points in the approved order. A point opens once every earlier point is locked. */}
+      <nav aria-label="Isolation points" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <ol className="flex w-max gap-2">
+          {points.map((p) => (
+            <li key={p.step.isolationPointId}>
+              <button
+                type="button"
+                aria-current={p === selected ? "step" : undefined}
+                disabled={!p.open && !p.done}
+                title={!p.open && !p.done ? "Lock the earlier points first" : undefined}
+                onClick={() => setSelectedPointId(p.step.isolationPointId)}
+                className={cn(
+                  "flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm disabled:opacity-50",
+                  p === selected ? "border-primary bg-primary/10 font-semibold" : "border-border bg-card hover:bg-muted",
+                )}
+              >
+                {p.done ? (
+                  <CheckCircle2 className="size-4 text-(--status-success)" aria-label="Done" />
+                ) : p.open ? (
+                  <Circle className="size-4 text-muted-foreground" aria-hidden />
+                ) : (
+                  <Lock className="size-4 text-muted-foreground" aria-label="Waiting for earlier points" />
+                )}
+                {p.step.sequenceOrder}. {p.step.isolationNumber}
+              </button>
+            </li>
+          ))}
+        </ol>
+      </nav>
+
+      {selected ? (
+        <section aria-labelledby="point-heading" className="grid gap-5 rounded-xl border border-border bg-card p-5">
+          <div>
+            <h2 id="point-heading" className="text-lg font-semibold">
+              Point {selected.step.sequenceOrder}: {selected.step.isolationNumber}
+            </h2>
+            {selected.step.description ? <p className="text-sm text-muted-foreground">{selected.step.description}</p> : null}
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            {selected.lock ? (
+              <PointRecord label="Lock" detail={`${selected.lock.lockTag} · ${selected.lock.lockMethod} · ${formatDateTime(selected.lock.appliedAt)}`} />
+            ) : (
+              <form className="grid gap-3" onSubmit={handleApplyLock}>
+                <h3 className="text-sm font-semibold">Lock</h3>
+                <label className="grid gap-1 text-sm">
+                  <span className="font-medium">Lock tag</span>
+                  <input value={lockTag} onChange={(e) => setLockTag(e.target.value)} disabled={!canApplyLocks || !selected.open || isSubmitting} className={FIELD} />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="font-medium">Lock method</span>
+                  <input value={lockMethod} onChange={(e) => setLockMethod(e.target.value)} disabled={!canApplyLocks || !selected.open || isSubmitting} className={FIELD} />
+                </label>
+                <Button type="submit" className="min-h-11" disabled={!canApplyLocks || !selected.open || isSubmitting}>
+                  Apply lock
+                </Button>
+              </form>
+            )}
+
+            {selected.tag ? (
+              <PointRecord label="Tag" detail={`${selected.tag.tagNumber} · ${selected.tag.tagType} · ${formatDateTime(selected.tag.appliedAt)}`} />
+            ) : (
+              <form className="grid gap-3" onSubmit={handleApplyTag}>
+                <h3 className="text-sm font-semibold">Tag</h3>
+                <label className="grid gap-1 text-sm">
+                  <span className="font-medium">Tag number</span>
+                  <input value={tagNumber} onChange={(e) => setTagNumber(e.target.value)} disabled={!canApplyLocks || isSubmitting} className={FIELD} />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="font-medium">Tag type</span>
+                  <input value={tagType} onChange={(e) => setTagType(e.target.value)} disabled={!canApplyLocks || isSubmitting} className={FIELD} />
+                </label>
+                <Button type="submit" className="min-h-11" disabled={!canApplyLocks || isSubmitting}>
+                  Apply tag
+                </Button>
+              </form>
+            )}
+          </div>
+
+          {selected.step.requiresVerification ? (
+            selected.verification ? (
+              <PointRecord
+                label="Verified"
+                detail={`${selected.verification.method ?? "Pass"} · ${formatDateTime(selected.verification.verifiedAt)}${selected.verification.comment ? ` · ${selected.verification.comment}` : ""}`}
+              />
+            ) : (
+              <div className="grid gap-3">
+                <h3 className="text-sm font-semibold">Verify isolation</h3>
+                {selected.lock ? null : <p className="text-sm text-muted-foreground">Lock this point before verifying it.</p>}
+                <div className="grid gap-3 md:grid-cols-[14rem_1fr]">
+                  <label className="grid gap-1 text-sm">
+                    <span className="font-medium">Method</span>
+                    <input value={verifyMethod} onChange={(e) => setVerifyMethod(e.target.value)} disabled={!canVerify || !selected.lock || isSubmitting} className={FIELD} />
+                  </label>
+                  <label className="grid gap-1 text-sm">
+                    <span className="font-medium">Comment (optional)</span>
+                    <input value={verifyComment} onChange={(e) => setVerifyComment(e.target.value)} disabled={!canVerify || !selected.lock || isSubmitting} className={FIELD} />
+                  </label>
+                </div>
+                <Button variant="outline" className="min-h-11 justify-self-start" onClick={handleVerifyPoint} disabled={!canVerify || !selected.lock || isSubmitting}>
+                  Record pass verification
+                </Button>
+              </div>
+            )
+          ) : null}
+
+          <div className="grid gap-2">
+            <h3 className="text-sm font-semibold">Evidence for this point</h3>
+            <EvidenceUpload disabled={isSubmitting} isUploading={isUploading} error={uploadError} onUpload={(file) => void handleEvidenceUpload(file)} />
+            {pointEvidence.length > 0 ? (
+              <ul className="grid gap-1 text-sm">
+                {pointEvidence.map((item) => (
+                  <li key={item.id}>
+                    {item.fileName} · {formatDateTime(item.capturedAt)}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Isolation as a whole: two separate confirmed steps, never done for the person. */}
+      {execution.status === "in_progress" || execution.status === "isolated" ? (
+        <section className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-5">
+          <p className="flex-1 text-sm text-muted-foreground">
+            {execution.status === "in_progress"
+              ? "When every point is locked, mark the isolation complete."
+              : "When every point that needs it is verified, complete the verification so work can start."}
           </p>
-          <IsolationChecklist
-            sequence={detail.sequence}
-            locks={detail.locks}
-            tags={detail.tags}
-            verifications={detail.verifications}
-          />
-        </div>
-
-        <div className="space-y-6">
-          <div className="rounded-lg border border-border p-4">
-            <h2 className="text-lg font-medium">Apply lock</h2>
-            <form className="mt-4 grid gap-3" onSubmit={handleApplyLock}>
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium">Isolation point</span>
-                <select
-                  value={selectedPointId}
-                  onChange={(event) => setSelectedPointId(event.target.value)}
-                  disabled={!canApplyLocks || isSubmitting}
-                  className="rounded-md border border-input bg-background px-3 py-2"
-                >
-                  {detail.sequence.map((step) => (
-                    <option key={step.isolationPointId} value={step.isolationPointId}>
-                      {step.sequenceOrder}. {step.isolationNumber}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium">Lock tag</span>
-                <input
-                  value={lockTag}
-                  onChange={(event) => setLockTag(event.target.value)}
-                  disabled={!canApplyLocks || isSubmitting}
-                  className="rounded-md border border-input bg-background px-3 py-2"
-                />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium">Lock method</span>
-                <input
-                  value={lockMethod}
-                  onChange={(event) => setLockMethod(event.target.value)}
-                  disabled={!canApplyLocks || isSubmitting}
-                  className="rounded-md border border-input bg-background px-3 py-2"
-                />
-              </label>
-              <Button type="submit" disabled={!canApplyLocks || isSubmitting}>
-                Apply lock
-              </Button>
-            </form>
-          </div>
-
-          <div className="rounded-lg border border-border p-4">
-            <h2 className="text-lg font-medium">Apply tag</h2>
-            <form className="mt-4 grid gap-3" onSubmit={handleApplyTag}>
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium">Tag number</span>
-                <input
-                  value={tagNumber}
-                  onChange={(event) => setTagNumber(event.target.value)}
-                  disabled={!canApplyLocks || isSubmitting}
-                  className="rounded-md border border-input bg-background px-3 py-2"
-                />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium">Tag type</span>
-                <input
-                  value={tagType}
-                  onChange={(event) => setTagType(event.target.value)}
-                  disabled={!canApplyLocks || isSubmitting}
-                  className="rounded-md border border-input bg-background px-3 py-2"
-                />
-              </label>
-              <Button type="submit" disabled={!canApplyLocks || isSubmitting}>
-                Apply tag
-              </Button>
-            </form>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-border p-4">
-          <h2 className="text-lg font-medium">Lock register</h2>
-          <div className="mt-4">
-            <LockRegisterTable locks={detail.locks} pointLabels={pointLabels} />
-          </div>
-        </div>
-        <div className="rounded-lg border border-border p-4">
-          <h2 className="text-lg font-medium">Tag register</h2>
-          <div className="mt-4">
-            <TagRegisterTable tags={detail.tags} pointLabels={pointLabels} />
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-border p-4">
-        <h2 className="text-lg font-medium">Verification</h2>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Record verification for locked isolation points before authorising work.
-        </p>
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="grid gap-1 text-sm">
-            <span className="font-medium">Method</span>
-            <input
-              value={verifyMethod}
-              onChange={(event) => setVerifyMethod(event.target.value)}
-              disabled={!canVerify || isSubmitting}
-              className="rounded-md border border-input bg-background px-3 py-2"
-            />
-          </label>
-          <label className="grid gap-1 text-sm md:col-span-2">
-            <span className="font-medium">Comment (optional)</span>
-            <textarea
-              value={verifyComment}
-              onChange={(event) => setVerifyComment(event.target.value)}
-              disabled={!canVerify || isSubmitting}
-              className="rounded-md border border-input bg-background px-3 py-2"
-            />
-          </label>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={handleVerifyPoint}
-            disabled={!canVerify || isSubmitting}
-          >
-            Record pass verification
-          </Button>
           {execution.status === "in_progress" ? (
-            <Button onClick={handleMarkIsolated} disabled={isSubmitting}>
+            <Button className="min-h-11" onClick={handleMarkIsolated} disabled={isSubmitting || points.some((p) => !p.lock)}>
               Mark isolation complete
             </Button>
-          ) : null}
-          {execution.status === "isolated" ? (
-            <Button onClick={handleMarkVerified} disabled={isSubmitting}>
+          ) : (
+            <Button className="min-h-11" onClick={handleMarkVerified} disabled={isSubmitting}>
               Complete verification
             </Button>
-          ) : null}
-        </div>
-      </section>
+          )}
+        </section>
+      ) : null}
 
-      <section className="rounded-lg border border-border p-4">
-        <h2 className="text-lg font-medium">Evidence</h2>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Capture photos or documents as isolation evidence.
-        </p>
-        <EvidenceUpload
-          disabled={isSubmitting}
-          isUploading={isUploading}
-          error={uploadError}
-          onUpload={(file) => void handleEvidenceUpload(file)}
-        />
-        {detail.evidence.length > 0 ? (
-          <ul className="mt-4 space-y-2 text-sm">
-            {detail.evidence.map((item) => (
-              <li key={item.id}>
-                {item.fileName} · {formatDateTime(item.capturedAt)}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </section>
+      {finished.length > 0 ? (
+        <section aria-labelledby="done-heading" className="grid gap-2">
+          <h2 id="done-heading" className="text-sm font-semibold">
+            Finished points ({finished.length})
+          </h2>
+          {finished.map((p) => (
+            <details key={p.step.isolationPointId} className="rounded-lg border border-border bg-card px-4 py-2 text-sm">
+              <summary className="cursor-pointer py-1 font-medium">
+                {p.step.sequenceOrder}. {p.step.isolationNumber}
+              </summary>
+              <dl className="grid gap-1 pb-2 sm:grid-cols-[6rem_1fr]">
+                <dt className="text-muted-foreground">Lock</dt>
+                <dd>{p.lock ? `${p.lock.lockTag} · ${p.lock.lockMethod} · ${formatDateTime(p.lock.appliedAt)}` : "—"}</dd>
+                <dt className="text-muted-foreground">Tag</dt>
+                <dd>{p.tag ? `${p.tag.tagNumber} · ${p.tag.tagType} · ${formatDateTime(p.tag.appliedAt)}` : "—"}</dd>
+                {p.step.requiresVerification ? (
+                  <>
+                    <dt className="text-muted-foreground">Verified</dt>
+                    <dd>{p.verification ? `${p.verification.method ?? "Pass"} · ${formatDateTime(p.verification.verifiedAt)}` : "—"}</dd>
+                  </>
+                ) : null}
+              </dl>
+            </details>
+          ))}
+        </section>
+      ) : null}
+
+      <details className="rounded-xl border border-border bg-card px-5 py-3">
+        <summary className="cursor-pointer text-sm font-semibold">Lock and tag registers</summary>
+        <div className="mt-3 grid gap-4 lg:grid-cols-2">
+          <LockRegisterTable locks={detail.locks} pointLabels={pointLabels} />
+          <TagRegisterTable tags={detail.tags} pointLabels={pointLabels} />
+        </div>
+      </details>
 
       {execution.status === "verified" ? (
-        <section className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">
-          <h2 className="text-lg font-medium text-emerald-800 dark:text-emerald-300">
-            Completion summary
-          </h2>
-          <p className="mt-2 text-sm text-emerald-800 dark:text-emerald-300">
-            Isolation verified. {detail.locks.length} locks, {detail.tags.length} tags,{" "}
-            {detail.verifications.length} verifications, {detail.evidence.length} evidence items.
+        <section className="rounded-xl border border-(--status-success) bg-(--status-success-bg) p-5">
+          <h2 className="font-semibold">Isolation verified</h2>
+          <p className="mt-1 text-sm">
+            {detail.locks.length} locks, {detail.tags.length} tags, {detail.verifications.length} verifications, {detail.evidence.length} evidence items.
           </p>
           {detail.plan?.permitId ? (
-            <Link href={`/execution/${detail.plan.permitId}`} className="mt-4 inline-block">
-              <Button>Open permit execution</Button>
+            <Link href={workspaceHref(detail.plan.permitId, "work")} className={cn(buttonVariants(), "mt-3")}>
+              Open permit work
             </Link>
           ) : null}
         </section>
       ) : null}
     </main>
+  );
+}
+
+const FIELD = "h-11 rounded-lg border border-input bg-background px-3 disabled:opacity-60";
+
+function PointRecord({ label, detail }: { label: string; detail: string }) {
+  return (
+    <div className="grid content-start gap-1">
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+        <CheckCircle2 className="size-4 text-(--status-success)" aria-hidden />
+        {label}
+      </h3>
+      <p className="text-sm text-muted-foreground">{detail}</p>
+    </div>
   );
 }
