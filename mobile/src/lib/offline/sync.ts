@@ -1,12 +1,16 @@
-import { fetchApi, type FetchApiOptions } from "@/lib/api/client";
+import { fetchApi } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { getNetworkOnline } from "./connectivity";
+import { getDatabase } from "./database";
 import {
+  getLocalIdMap,
   getPendingSyncItems,
   incrementSyncAttempt,
   markSyncItemFailed,
   removeSyncItem,
+  saveLocalId,
 } from "./queue";
+import { replayQueue, type ReplayOutcome } from "./replay";
 
 export type SyncResult = {
   processed: number;
@@ -20,41 +24,31 @@ export async function processSyncQueue(): Promise<SyncResult> {
     return { processed: 0, failed: 0, skipped: true };
   }
 
-  const items = await getPendingSyncItems();
-  let processed = 0;
-  let failed = 0;
-
-  for (const item of items) {
-    const options: FetchApiOptions = {
-      method: item.method,
-      body: item.payload,
-    };
-
-    try {
-      await fetchApi(item.path, options);
+  const result = await replayQueue(await getPendingSyncItems(), await getLocalIdMap(), {
+    async send(path, method, body) {
+      try {
+        const response = await fetchApi<{ permit?: { id: string } }>(path, { method, body });
+        return { outcome: "done" as ReplayOutcome, serverId: response.permit?.id };
+      } catch (error) {
+        const status = error instanceof ApiError ? (error.status ?? 0) : 0;
+        if (status === 401) return { outcome: "signed-out" as ReplayOutcome };
+        // Refused (conflict, validation, access): the same request can never succeed.
+        if (status >= 400 && status < 500) return { outcome: "refused" as ReplayOutcome, reason: (error as ApiError).message };
+        return { outcome: "unreachable" as ReplayOutcome };
+      }
+    },
+    async done(item, created) {
+      if (created) {
+        await saveLocalId(created.localId, created.serverId);
+        // The server copy replaces the local draft in lists.
+        await getDatabase()
+          .then((db) => db.runAsync("DELETE FROM permit_local_drafts WHERE id = ?", created.localId))
+          .catch(() => undefined);
+      }
       await removeSyncItem(item.id);
-      processed += 1;
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        return { processed, failed, skipped: false };
-      }
-
-      // Someone else changed the record: retrying the same stale request can never succeed.
-      // Keep it as a failed item (its payload is the person's input) and stop, so requests
-      // queued after it, such as a submit, do not run against a permit they did not see.
-      if (error instanceof ApiError && error.status === 409) {
-        await markSyncItemFailed(item.id);
-        return { processed, failed: failed + 1, skipped: false };
-      }
-
-      const markedFailed = await incrementSyncAttempt(item.id);
-      if (markedFailed) {
-        failed += 1;
-      }
-
-      break;
-    }
-  }
-
-  return { processed, failed, skipped: false };
+    },
+    failed: (item, reason) => markSyncItemFailed(item.id, reason),
+    unreachable: (item) => incrementSyncAttempt(item.id),
+  });
+  return { ...result, skipped: false };
 }

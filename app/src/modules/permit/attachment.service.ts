@@ -42,43 +42,40 @@ export class AttachmentService {
 
     this.validateFile(file);
 
-    const [permit] = await this.db
-      .select()
-      .from(permits)
-      .where(and(eq(permits.id, permitId), eq(permits.tenantId, user.tenantId)));
-
-    if (!permit) {
-      throw new NotFoundException('Permit not found');
-    }
-
-    if (!isEditablePermitStatus(permit.status)) {
-      throw new ConflictException('Attachments can only be changed on editable permits');
-    }
+    // A quick check first, so a closed permit does not get a file stored at all.
+    await this.assertEditable(this.db, permitId, user.tenantId);
 
     const bucket = this.storageService.getBucket();
     const storageKey = `${user.tenantId}/${permitId}/${randomUUID()}-${file.originalname}`;
 
-    await this.storageService.putObject(
-      storageKey,
-      file.buffer,
-      file.mimetype,
-      file.size,
-    );
+    // Storage I/O stays outside the row lock; the metadata insert re-checks the permit under it,
+    // so a submit that won the race leaves no attachment behind (and the stored file is removed).
+    await this.storageService.putObject(storageKey, file.buffer, file.mimetype, file.size);
 
-    const [attachment] = await this.db
-      .insert(permitAttachments)
-      .values({
-        permitId,
-        fileName: file.originalname,
-        contentType: file.mimetype,
-        fileSize: file.size,
-        storageBucket: bucket,
-        storageKey,
-        uploadedBy: user.id,
-        createdBy: user.id,
-        updatedBy: user.id,
-      })
-      .returning();
+    let attachment: typeof permitAttachments.$inferSelect;
+    try {
+      attachment = await this.db.transaction(async (tx) => {
+        await this.assertEditable(tx, permitId, user.tenantId!, true);
+        const [created] = await tx
+          .insert(permitAttachments)
+          .values({
+            permitId,
+            fileName: file.originalname,
+            contentType: file.mimetype,
+            fileSize: file.size,
+            storageBucket: bucket,
+            storageKey,
+            uploadedBy: user.id,
+            createdBy: user.id,
+            updatedBy: user.id,
+          })
+          .returning();
+        return created;
+      });
+    } catch (error) {
+      await this.storageService.deleteObject(storageKey).catch(() => undefined);
+      throw error;
+    }
 
     await this.auditService.log({
       action: 'permit.attachment.uploaded',
@@ -111,37 +108,23 @@ export class AttachmentService {
       throw new BadRequestException('Tenant context is required');
     }
 
-    const [permit] = await this.db
-      .select()
-      .from(permits)
-      .where(and(eq(permits.id, permitId), eq(permits.tenantId, user.tenantId)));
+    const tenantId = user.tenantId;
+    // Metadata goes first, under the permit lock; the stored file is removed only once that commits.
+    const attachment = await this.db.transaction(async (tx) => {
+      await this.assertEditable(tx, permitId, tenantId, true);
+      const [found] = await tx
+        .select()
+        .from(permitAttachments)
+        .where(and(eq(permitAttachments.id, attachmentId), eq(permitAttachments.permitId, permitId)));
+      if (!found) {
+        throw new NotFoundException('Attachment not found');
+      }
+      await tx.delete(permitAttachments).where(eq(permitAttachments.id, attachmentId));
+      return found;
+    });
 
-    if (!permit) {
-      throw new NotFoundException('Permit not found');
-    }
-
-    if (!isEditablePermitStatus(permit.status)) {
-      throw new ConflictException('Attachments can only be changed on editable permits');
-    }
-
-    const [attachment] = await this.db
-      .select()
-      .from(permitAttachments)
-      .where(
-        and(eq(permitAttachments.id, attachmentId), eq(permitAttachments.permitId, permitId)),
-      );
-
-    if (!attachment) {
-      throw new NotFoundException('Attachment not found');
-    }
-
-    try {
-      await this.storageService.deleteObject(attachment.storageKey);
-    } catch {
-      // Object may already be absent; continue with metadata removal.
-    }
-
-    await this.db.delete(permitAttachments).where(eq(permitAttachments.id, attachmentId));
+    // An object left behind costs storage only; the attachment is already gone from the permit.
+    await this.storageService.deleteObject(attachment.storageKey).catch(() => undefined);
 
     await this.auditService.log({
       action: 'permit.attachment.removed',
@@ -161,6 +144,21 @@ export class AttachmentService {
     });
 
     await this.permitCacheService.invalidatePermit(user.tenantId, permitId);
+  }
+
+  /** The tenant's permit exists and is editable; with `lock`, holds its row for the transaction. */
+  private async assertEditable(db: Pick<Database, 'select'>, permitId: string, tenantId: string, lock = false) {
+    const query = db
+      .select({ status: permits.status })
+      .from(permits)
+      .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
+    const [permit] = lock ? await query.for('update') : await query;
+    if (!permit) {
+      throw new NotFoundException('Permit not found');
+    }
+    if (!isEditablePermitStatus(permit.status)) {
+      throw new ConflictException('Attachments can only be changed on editable permits');
+    }
   }
 
   private validateFile(file: UploadedFilePayload): void {

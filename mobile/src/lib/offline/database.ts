@@ -1,7 +1,7 @@
 import * as SQLite from "expo-sqlite";
 
 export const DB_NAME = "ptw_offline.db";
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 let database: SQLite.SQLiteDatabase | null = null;
 
@@ -56,6 +56,21 @@ async function applyMigrations(db: SQLite.SQLiteDatabase, fromVersion: number): 
         "ALTER TABLE sync_queue ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;",
       );
     }
+  }
+
+  if (fromVersion < 4) {
+    // local_ref: the local permit a queued create makes; last_error: why an item stopped.
+    // local_ids: server ids of permits created offline, for the requests queued after them.
+    const columns = await db.getAllAsync<{ name: string }>("PRAGMA table_info(sync_queue)");
+    const columnNames = new Set(columns.map((column) => column.name));
+    if (!columnNames.has("local_ref")) await db.execAsync("ALTER TABLE sync_queue ADD COLUMN local_ref TEXT;");
+    if (!columnNames.has("last_error")) await db.execAsync("ALTER TABLE sync_queue ADD COLUMN last_error TEXT;");
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS local_ids (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        server_id TEXT NOT NULL
+      );
+    `);
   }
 }
 

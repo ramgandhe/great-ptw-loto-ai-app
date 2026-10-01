@@ -3,7 +3,7 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { ApiError } from "@/lib/api";
 import { getPermit } from "@/lib/permit/api";
-import { getLocalPermitDraft } from "@/lib/permit/offline";
+import { getLocalPermitDraft, resolvePermitId } from "@/lib/permit/offline";
 import { createEmptyPermitForm } from "@/lib/permit/form";
 import type { PermitDetail, PermitFormState } from "@/lib/permit/types";
 import { PermitWizard } from "@/components/permit/permit-wizard";
@@ -19,7 +19,9 @@ export default function EditPermitScreen() {
       return;
     }
 
-    getPermit(id)
+    // A permit created offline keeps its local id in links until its create syncs.
+    resolvePermitId(id)
+      .then(getPermit)
       .then(setDetail)
       .catch(async (err) => {
         const local = await getLocalPermitDraft(id);

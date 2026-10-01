@@ -22,9 +22,11 @@ import {
 } from "@/lib/permit/form";
 import {
   isOfflineError,
+  isLocalPermitId,
   queuePermitMutation,
   saveLocalPermitDraft,
 } from "@/lib/permit/offline";
+import { countPendingSaves, getLocalIdMap } from "@/lib/offline";
 import type { PermitDetail, PermitFormState } from "@/lib/permit/types";
 import { isEditablePermitStatus } from "@/lib/permit/status";
 import * as DocumentPicker from "expo-document-picker";
@@ -141,8 +143,23 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     });
     let id = currentPermitId;
     let baseRevision = revision;
+    // A permit created offline has a local id until its create syncs; then use the server id.
+    if (isLocalPermitId(id)) {
+      const serverId = (await getLocalIdMap()).get(id);
+      if (serverId) {
+        id = serverId;
+        setCurrentPermitId(serverId);
+      } else {
+        // Created offline at revision 0; each save queued behind the create adds one.
+        baseRevision = await countPendingSaves(`/permits/${id}`);
+      }
+    }
 
     try {
+      if (isLocalPermitId(id)) {
+        // Its create has not synced yet, so this save can only be queued behind it.
+        throw new TypeError("Network request failed");
+      }
       if (!id) {
         const created = await createPermit({
           permitTypeId: form.permitTypeId,
@@ -179,19 +196,19 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
       const localId = id ?? createLocalId();
       await saveLocalPermitDraft(localId, form.title || "Untitled permit", payload);
 
-      // Queued saves carry the revision they were made against; on replay a newer server copy
-      // makes them fail visibly instead of overwriting it.
-      await queuePermitMutation({
-        method: id ? "PATCH" : "POST",
-        path: id ? `/permits/${id}` : "/permits",
-        payload: id ? { ...payload, expectedRevision: baseRevision } : payload,
-        localDraftId: localId,
-        title: form.title || "Untitled permit",
-      });
+      // A new permit is queued as one create with everything entered (it starts at revision 0).
+      // Saves carry the revision they were made against; on replay a newer server copy makes
+      // them fail visibly instead of overwriting it.
+      if (id) {
+        await queuePermitMutation({ method: "PATCH", path: `/permits/${id}`, payload: { ...payload, expectedRevision: baseRevision } });
+      } else {
+        await queuePermitMutation({ method: "POST", path: "/permits", payload, localRef: localId });
+      }
 
       setCurrentPermitId(localId);
+      setRevision(id ? baseRevision + 1 : 0);
       setQueuedOffline(true);
-      // A queued save bumps the revision once when it replays.
+      // A queued save bumps the revision once when it replays; a create leaves it at 0.
       return { id: localId, revision: id ? baseRevision + 1 : 0, queued: true };
     }
   }, [currentPermitId, form, formOptions?.userRoles, revision]);
@@ -277,13 +294,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
       // Always save the current edits first; submit only after that save, at its revision.
       const { id, revision: savedRevision, queued } = await persistDraft();
       if (queued) {
-        await queuePermitMutation({
-          method: "POST_SUBMIT",
-          path: `/permits/${id}/submit`,
-          payload: { expectedRevision: savedRevision },
-          localDraftId: id,
-          title: form.title,
-        });
+        await queuePermitMutation({ method: "POST", path: `/permits/${id}/submit`, payload: { expectedRevision: savedRevision } });
         setMessage("Submission is waiting for the server. It is not submitted until it syncs.");
         router.replace("/permits");
         return;

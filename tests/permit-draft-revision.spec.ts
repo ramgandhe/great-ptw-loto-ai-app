@@ -13,6 +13,8 @@ import { PermitCacheService } from '../app/src/modules/permit/permit-cache.servi
 import { PermitLogService } from '../app/src/modules/permit/permit-log.service';
 import { PermitValidationService } from '../app/src/modules/permit/permit-validation.service';
 import { assertStageAnswered, PermitService, REVISION_CONFLICT_CODE } from '../app/src/modules/permit/permit.service';
+import { AttachmentService } from '../app/src/modules/permit/attachment.service';
+import type { StorageService } from '../app/src/infrastructure/storage/storage.service';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 
 /** S0a: draft saves and submits carry the revision they loaded; stale or racing writes get 409. */
@@ -280,5 +282,58 @@ describe('Permit draft revision contract (S0a)', () => {
       .from(schema.auditLogs)
       .where(and(eq(schema.auditLogs.entityId, permitId), eq(schema.auditLogs.action, 'permit.form_answer_changed')));
     expect(audits.find((a) => (a.metadata as { fieldId: string }).fieldId === 'hod')).toMatchObject({ userId: hod.id, metadata: { revision: 2 } });
+  });
+
+  dbTest('attachments: stored file removed when the permit stopped being editable, and after metadata removal', async () => {
+    const { issuer, permitId } = await context();
+    const stored = new Set<string>();
+    const storage = {
+      getBucket: () => 'test',
+      putObject: jest.fn(async (key: string) => void stored.add(key)),
+      deleteObject: jest.fn(async (key: string) => void stored.delete(key)),
+    } as unknown as StorageService;
+    const attachments = new AttachmentService(
+      db,
+      storage,
+      { log: jest.fn().mockResolvedValue(undefined) } as unknown as AuditService,
+      { invalidatePermit: jest.fn().mockResolvedValue(undefined) } as unknown as PermitCacheService,
+      { logEvent: jest.fn() } as unknown as PermitLogService,
+    );
+    const file = { originalname: 'photo.png', mimetype: 'image/png', size: 3, buffer: Buffer.from('abc') } as never;
+
+    const attachment = await attachments.upload(permitId, file, issuer);
+    expect(stored.size).toBe(1);
+    await attachments.remove(permitId, attachment.id, issuer);
+    expect(stored.size).toBe(0);
+    expect(await db.select().from(schema.permitAttachments).where(eq(schema.permitAttachments.permitId, permitId))).toHaveLength(0);
+
+    // A submit wins between the file being stored and its metadata: nothing is attached, nothing is left stored.
+    const putObject = storage.putObject as jest.Mock;
+    putObject.mockImplementationOnce(async (key: string) => {
+      stored.add(key);
+      await db.update(schema.permits).set({ status: 'pending_approval' }).where(eq(schema.permits.id, permitId));
+    });
+    await expect(attachments.upload(permitId, file, issuer)).rejects.toBeInstanceOf(ConflictException);
+    expect(stored.size).toBe(0);
+    expect(await db.select().from(schema.permitAttachments).where(eq(schema.permitAttachments.permitId, permitId))).toHaveLength(0);
+  });
+
+  dbTest('deleting a draft removes its attachments\' stored files after the delete commits', async () => {
+    const { issuer, permitId } = await context();
+    const deleteObject = jest.fn().mockResolvedValue(undefined);
+    const withStorage = Object.assign(Object.create(Object.getPrototypeOf(service)), service, { storageService: { deleteObject } });
+    await db.insert(schema.permitAttachments).values({
+      permitId,
+      fileName: 'a.png',
+      contentType: 'image/png',
+      fileSize: 1,
+      storageBucket: 'test',
+      storageKey: 'k/a.png',
+      uploadedBy: issuer.id,
+      createdBy: issuer.id,
+    } as typeof schema.permitAttachments.$inferInsert);
+    const admin = { ...issuer, roles: ['tenant-admin'] };
+    await (withStorage as PermitService).removeDraft(permitId, admin);
+    expect(deleteObject).toHaveBeenCalledWith('k/a.png');
   });
 });

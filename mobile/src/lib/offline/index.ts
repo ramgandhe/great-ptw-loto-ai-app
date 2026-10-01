@@ -2,6 +2,9 @@ export { initOfflineDatabase, getOfflineDatabaseStatus } from "./database";
 export {
   enqueueSyncItem,
   getFailedSyncCount,
+  getFailedSyncItems,
+  getLocalIdMap,
+  countPendingSaves,
   getPendingSyncCount,
   getPendingSyncItems,
   MAX_SYNC_ATTEMPTS,

@@ -6,6 +6,7 @@ import {
   NotFoundException,
   ConflictException,
   forwardRef,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { and, arrayContains, desc, eq, inArray, ne, or } from 'drizzle-orm';
@@ -31,6 +32,7 @@ import {
   tenantUsers,
 } from '../../database/schema';
 import { MailService } from '../../infrastructure/mail/mail.service';
+import { StorageService } from '../../infrastructure/storage/storage.service';
 import { AuditService } from '../logging/audit.service';
 import { ApprovalHistoryService } from '../approval/approval-history.service';
 import { NotificationService } from '../approval/notification.service';
@@ -118,6 +120,8 @@ export class PermitService {
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => NotificationService))
     private readonly approvalNotifications: NotificationService,
+    // Optional so specs that build the service by hand need not provide storage.
+    @Optional() private readonly storageService?: StorageService,
   ) {}
 
   async create(dto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -261,20 +265,20 @@ export class PermitService {
 
   async removeDraft(id: string, user: AuthenticatedUser): Promise<{ id: string; deleted: boolean }> {
     const tenantId = this.requireTenant(user);
-    const detail = await this.loadDetail(this.db, id, tenantId);
+    // Under the row lock, so a submit or an attachment upload cannot slip in between check and delete.
+    const detail = await this.db.transaction(async (tx) => {
+      const locked = await this.loadLockedDetail(tx, id, tenantId);
+      if (locked.permit.status !== 'draft') {
+        throw new ConflictException('Only draft permits can be deleted');
+      }
+      await tx.delete(permits).where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
+      return locked;
+    });
 
-    if (detail.permit.status !== 'draft') {
-      throw new ConflictException('Only draft permits can be deleted');
-    }
-
-    // Status is re-checked in the delete itself, so a permit submitted meanwhile is never deleted.
-    const deleted = await this.db
-      .delete(permits)
-      .where(and(eq(permits.id, id), eq(permits.tenantId, tenantId), eq(permits.status, 'draft')))
-      .returning({ id: permits.id });
-    if (deleted.length === 0) {
-      throw new ConflictException('Only draft permits can be deleted');
-    }
+    // Attachment rows went with the permit; their stored files are removed once that committed.
+    await Promise.all(
+      detail.attachments.map((attachment) => this.storageService?.deleteObject(attachment.storageKey).catch(() => undefined)),
+    );
 
     await this.auditService.log({
       action: 'permit.deleted',

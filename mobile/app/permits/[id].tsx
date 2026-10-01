@@ -5,7 +5,7 @@ import { ApiError } from "@/lib/api";
 import { getApprovalHistory, getApprovalReview } from "@/lib/approval/api";
 import type { ApprovalHistoryEntry, ApprovalReview } from "@/lib/approval/types";
 import { getPermit } from "@/lib/permit/api";
-import { getLocalPermitDraft } from "@/lib/permit/offline";
+import { getLocalPermitDraft, resolvePermitId } from "@/lib/permit/offline";
 import { permitDetailToForm } from "@/lib/permit/form";
 import { isEditablePermitStatus } from "@/lib/permit/status";
 import type { PermitDetail } from "@/lib/permit/types";
@@ -30,7 +30,9 @@ export default function PermitDetailScreen() {
       return;
     }
 
-    getPermit(id)
+    // A permit created offline keeps its local id in links until its create syncs.
+    resolvePermitId(id)
+      .then(getPermit)
       .then(async (permitDetail) => {
         setDetail(permitDetail);
         if (APPROVAL_STATUSES.has(permitDetail.permit.status)) {
