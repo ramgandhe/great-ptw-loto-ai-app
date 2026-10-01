@@ -38,7 +38,7 @@ The deliverable is a reliable **web permit editor**, not an application-wide com
 
 ### S0b — remaining draft safeguards (deferred, before S6 closes)
 
-Draft attachment upload/remove under the revision lock with MinIO cleanup, and full offline replay reconciliation (stop dependent requests, reconcile legacy queued requests without a revision). Until S0b lands, attachment edits keep today's behavior; this known gap is recorded, not hidden. S2 must not add new attachment interactions that depend on S0b.
+Draft attachment upload/remove under the revision lock with MinIO cleanup, and full offline replay reconciliation (stop dependent requests, reconcile legacy queued requests without a revision). Until S0b lands, attachment edits keep today's behavior; this known gap is recorded, not hidden. S2 must not add new attachment interactions that depend on S0b. *Implemented 2026-10-01:* attachments re-check the locked permit and clean up storage; they do not bump the draft revision (saves never replace attachments). Offline replay maps local ids, holds dependent requests after a refusal, and fails legacy saves without a revision for review.
 
 ### Rollout of the revision contract
 
