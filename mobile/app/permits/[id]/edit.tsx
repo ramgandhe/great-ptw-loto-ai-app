@@ -5,7 +5,7 @@ import { ApiError } from "@/lib/api";
 import { getPermit } from "@/lib/permit/api";
 import { getLocalPermitDraft, resolvePermitId } from "@/lib/permit/offline";
 import { createEmptyPermitForm } from "@/lib/permit/form";
-import type { PermitDetail, PermitFormState } from "@/lib/permit/types";
+import type { DraftFields, PermitDetail, PermitFormState } from "@/lib/permit/types";
 import { PermitWizard } from "@/components/permit/permit-wizard";
 
 export default function EditPermitScreen() {
@@ -26,8 +26,14 @@ export default function EditPermitScreen() {
       .catch(async (err) => {
         const local = await getLocalPermitDraft(id);
         if (local) {
-          const payload = JSON.parse(local.payload) as Partial<PermitFormState>;
-          setLocalForm({ ...createEmptyPermitForm(), ...payload, title: local.title });
+          const payload = JSON.parse(local.payload) as DraftFields;
+          // Saved in the request's shape: forms are a list there, keyed by template in the form.
+          setLocalForm({
+            ...createEmptyPermitForm(),
+            ...(payload as Partial<PermitFormState>),
+            title: local.title,
+            formResponses: Object.fromEntries((payload.formResponses ?? []).map((r) => [r.templateId, r.answers])),
+          });
           return;
         }
         setError(err instanceof ApiError ? err.message : "Failed to load permit");

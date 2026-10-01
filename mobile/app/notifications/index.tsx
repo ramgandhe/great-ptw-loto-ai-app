@@ -5,6 +5,7 @@ import { ApiError } from "@/lib/api";
 import { listNotifications, markNotificationRead } from "@/lib/notifications/api";
 import { queueOfflineMarkNotificationRead } from "@/lib/notifications/offline";
 import type { Notification } from "@/lib/notifications/types";
+import { getNotificationEntityRoute } from "@/lib/notifications/routes";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
 
@@ -136,6 +137,20 @@ export default function NotificationsScreen() {
               {notification.category.replace(/_/g, " ")} · {notification.priority} ·{" "}
               {new Date(notification.createdAt).toLocaleString()}
             </Text>
+            {/* Opening the record is the main move; it also marks the message read. */}
+            {getNotificationEntityRoute(notification) ? (
+              <Pressable
+                accessibilityRole="button"
+                style={[styles.markReadButton, { borderColor: tokens.colors.primary, minHeight: 44, justifyContent: "center" }]}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  if (notification.readAt === null) void handleMarkRead(notification);
+                  router.push(getNotificationEntityRoute(notification)!);
+                }}
+              >
+                <Text style={{ color: tokens.colors.primary, fontWeight: "600" }}>Open record</Text>
+              </Pressable>
+            ) : null}
             {notification.readAt === null ? (
               <Pressable
                 style={[styles.markReadButton, { borderColor: tokens.colors.border }]}

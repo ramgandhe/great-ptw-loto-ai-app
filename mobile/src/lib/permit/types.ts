@@ -1,3 +1,5 @@
+import type { FormAnswers, StoredFormResponse } from "./forms";
+
 export type PermitRecord = {
   id: string;
   tenantId: string;
@@ -18,6 +20,8 @@ export type PermitRecord = {
   submittedAt: string | null;
   /** Send back on every save and submit; the server refuses an older one with PERMIT_REVISION_CONFLICT. */
   draftRevision: number;
+  /** Filled-in forms and check sheets, each with the form as it was when filled in. */
+  formResponses?: StoredFormResponse[];
   createdAt: string;
   updatedAt: string;
 };
@@ -63,6 +67,8 @@ export type PermitFormState = {
   gasTestingRequired: boolean;
   gasTesting: PermitGasTestingInput[];
   executors: PermitExecutorInput[];
+  /** Answers per template id. */
+  formResponses: Record<string, FormAnswers>;
   currentStep: number;
 };
 
@@ -99,6 +105,7 @@ export type CreatePermitPayload = {
   gasTestingRequired?: boolean;
   gasTesting?: PermitGasTestingInput[];
   executors?: PermitExecutorInput[];
+  formResponses?: { templateId: string; answers: FormAnswers }[];
 };
 
 export type DraftFields = Partial<CreatePermitPayload>;

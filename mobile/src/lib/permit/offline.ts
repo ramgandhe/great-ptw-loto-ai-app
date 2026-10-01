@@ -114,7 +114,7 @@ export async function resolvePermitId(id: string): Promise<string> {
   return isLocalPermitId(id) ? ((await getLocalIdMap()).get(id) ?? id) : id;
 }
 
-export function isLocalPermitId(id: string | null | undefined): id is string {
+export function isLocalPermitId(id: string | null | undefined): boolean {
   return Boolean(id?.startsWith("local-"));
 }
 

@@ -6,6 +6,7 @@ import { listPermits } from "@/lib/permit/api";
 import {
   initPermitOfflineStorage,
   listLocalPermitDrafts,
+  isLocalPermitId,
   localDraftToPermitRecord,
 } from "@/lib/permit/offline";
 import { isEditablePermitStatus } from "@/lib/permit/status";
@@ -112,7 +113,10 @@ export default function PermitsScreen() {
             >
               <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.cardMeta}>
-                {item.reference ?? item.id.slice(0, 8)} · {item.status.replace(/_/g, " ")}
+                {/* A permit made offline is not on the server yet; say so instead of a status it does not have. */}
+                {isLocalPermitId(item.id)
+                  ? "Pending server confirmation"
+                  : `${item.reference ?? item.id.slice(0, 8)} · ${item.status.replace(/_/g, " ")}`}
               </Text>
             </Pressable>
           )}

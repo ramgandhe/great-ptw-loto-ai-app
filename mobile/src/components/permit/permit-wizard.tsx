@@ -13,6 +13,7 @@ import { ApiError } from "@/lib/api";
 import { createPermit, getPermit, isRevisionConflict, savePermitDraft, submitPermit, uploadPermitAttachment } from "@/lib/permit/api";
 import {
   createEmptyPermitForm,
+  FORMS_STEP,
   formToSavePayload,
   PERMIT_WIZARD_STEPS,
   permitDetailToForm,
@@ -31,6 +32,8 @@ import type { PermitDetail, PermitFormState } from "@/lib/permit/types";
 import { isEditablePermitStatus } from "@/lib/permit/status";
 import * as DocumentPicker from "expo-document-picker";
 import { SelectField } from "@/components/ui/select-field";
+import { TemplateFormFill } from "@/components/permit/template-form-fill";
+import { applicableTemplates, missingFormAnswers, withPrefill } from "@/lib/permit/forms";
 import { listLototoPlans } from "@/lib/lototo/api";
 import type { LototoPlan } from "@/lib/lototo/types";
 import { listGasTesting, type GasTestingRecord } from "@/lib/master-data/api";
@@ -137,14 +140,37 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   const permitStatus = initialDetail?.permit.status ?? "draft";
   const isReadOnly = !isEditablePermitStatus(permitStatus);
 
+  const forms = useMemo(() => applicableTemplates(formOptions?.templates ?? [], form.permitTypeId), [formOptions?.templates, form.permitTypeId]);
+  // Prefilled answers follow the permit until someone edits them, and are saved with it.
+  const prefilled = useMemo(() => {
+    const nameOf = (list: { id: string; name: string }[] | undefined, id: string) => list?.find((row) => row.id === id)?.name ?? "";
+    const crew = form.executors
+      .map((e) => formOptions?.executors.find((o) => o.id === e.workforceUserId)?.name.replace(/ \(you\)$/, ""))
+      .filter((name): name is string => Boolean(name));
+    const place = [...new Set([nameOf(formOptions?.locations, form.locationId), nameOf(formOptions?.workstations, form.workstationId)].filter(Boolean))];
+    return {
+      ...form,
+      formResponses: withPrefill(form.formResponses, forms, {
+        department: nameOf(formOptions?.departments, form.departmentId),
+        location: place.join(", "),
+        equipment: nameOf(formOptions?.machinery, form.machineryId),
+        "job-description": [form.title, form.workScope].filter((v) => v.trim()).join("\n\n"),
+        "valid-from": form.plannedStartAt.slice(0, 10),
+        "valid-to": form.plannedEndAt.slice(0, 10),
+        "crew-names": crew.join(", "),
+        "crew-count": crew.length || "",
+      }),
+    };
+  }, [form, forms, formOptions]);
+
   const persistDraft = useCallback(async (): Promise<{ id: string; revision: number; queued: boolean }> => {
-    const payload = formToSavePayload(form, {
+    const payload = formToSavePayload(prefilled, {
       executorOnly: shouldSaveExecutorPayload(formOptions?.userRoles ?? []),
     });
     let id = currentPermitId;
     let baseRevision = revision;
     // A permit created offline has a local id until its create syncs; then use the server id.
-    if (isLocalPermitId(id)) {
+    if (id && isLocalPermitId(id)) {
       const serverId = (await getLocalIdMap()).get(id);
       if (serverId) {
         id = serverId;
@@ -211,7 +237,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
       // A queued save bumps the revision once when it replays; a create leaves it at 0.
       return { id: localId, revision: id ? baseRevision + 1 : 0, queued: true };
     }
-  }, [currentPermitId, form, formOptions?.userRoles, revision]);
+  }, [currentPermitId, form, prefilled, formOptions?.userRoles, revision]);
 
   const handleSaveDraft = async () => {
     setIsBusy(true);
@@ -227,7 +253,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   };
 
   const handleNext = async () => {
-    const stepErrors = validateStep(form, form.currentStep);
+    const stepErrors = form.currentStep === FORMS_STEP ? missingFormAnswers(forms, prefilled.formResponses) : validateStep(form, form.currentStep);
     setErrors(stepErrors);
     if (stepErrors.length > 0) {
       return;
@@ -282,7 +308,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   };
 
   const handleSubmit = async () => {
-    const allErrors = PERMIT_WIZARD_STEPS.flatMap((_, index) => validateStep(form, index));
+    const allErrors = [...PERMIT_WIZARD_STEPS.flatMap((_, index) => validateStep(form, index)), ...missingFormAnswers(forms, prefilled.formResponses)];
     setErrors(allErrors);
     if (allErrors.length > 0) {
       return;
@@ -667,11 +693,31 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
         </View>
       ) : null}
 
-      {step === 4 ? (
+      {step === FORMS_STEP ? (
+        <View style={styles.section}>
+          {forms.length === 0 ? (
+            <Text style={styles.hint}>No forms or check sheets apply to this permit type.</Text>
+          ) : (
+            forms.map((template) => (
+              <TemplateFormFill
+                key={template.id}
+                name={template.name}
+                config={template.config!}
+                answers={prefilled.formResponses[template.id] ?? {}}
+                disabled={isReadOnly}
+                signerName={formOptions?.userName ?? ""}
+                onChange={(answers) => setForm({ ...form, formResponses: { ...form.formResponses, [template.id]: answers } })}
+              />
+            ))
+          )}
+        </View>
+      ) : null}
+
+      {step === FORMS_STEP + 1 ? (
         <View style={styles.section}>
           <Text style={styles.summaryTitle}>{form.title}</Text>
-          <Text style={styles.summaryLine}>Type: {form.permitTypeId || "—"}</Text>
-          <Text style={styles.summaryLine}>Location: {form.locationId || "—"}</Text>
+          <Text style={styles.summaryLine}>Type: {formOptions?.permitTypes.find((t) => t.id === form.permitTypeId)?.name ?? "—"}</Text>
+          <Text style={styles.summaryLine}>Location: {formOptions?.locations.find((l) => l.id === form.locationId)?.name ?? "—"}</Text>
           <Text style={styles.summaryLine}>
             Hazards: {form.hazards.filter((h) => h.hazardCategoryId.trim()).length}
           </Text>

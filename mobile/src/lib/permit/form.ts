@@ -1,23 +1,23 @@
 import type { DraftFields, PermitDetail, PermitFormState } from "./types";
 
+/** Same order and stored step index as the web editor's sections (0 work … 4 forms, 5 review). */
 export const PERMIT_WIZARD_STEPS = [
   "Basic",
   "Location",
   "Hazards & PPE",
   "Executors",
+  "Forms",
   "Review",
 ] as const;
 
-/**
- * The server stores the web wizard's step index (0 basic, 1 location, 2 on-site, 3 crew,
- * 4 forms, 5 review). This app has no forms step, so web steps 4 and 5 open the review step.
- */
+export const FORMS_STEP = 4;
+
 export function fromStoredStep(stored: number): number {
-  return stored >= 4 ? 4 : Math.max(stored, 0);
+  return Math.min(Math.max(stored, 0), PERMIT_WIZARD_STEPS.length - 1);
 }
 
 export function toStoredStep(step: number): number {
-  return step >= 4 ? 5 : step;
+  return fromStoredStep(step);
 }
 
 /**
@@ -51,6 +51,7 @@ export function createEmptyPermitForm(): PermitFormState {
     gasTestingRequired: false,
     gasTesting: [],
     executors: [{ workforceUserId: "", isPrimary: true }],
+    formResponses: {},
     currentStep: 0,
   };
 }
@@ -100,6 +101,7 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
             isPrimary: e.isPrimary ?? false,
           }))
         : [{ workforceUserId: "", isPrimary: true }],
+    formResponses: Object.fromEntries((permit.formResponses ?? []).map((response) => [response.templateId, response.answers])),
     currentStep: fromStoredStep(draft?.currentStep ?? 0),
   };
 }
@@ -141,6 +143,7 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
     gasTestingRequired: form.gasTestingRequired,
     gasTesting: form.gasTesting.filter((item) => item.gasTestingCatalogueId.trim()),
     executors: form.executors.filter((e) => (e.workforceUserId ?? "").trim()),
+    formResponses: Object.entries(form.formResponses).map(([templateId, answers]) => ({ templateId, answers })),
   };
 
   if (!options?.executorOnly) {
@@ -158,6 +161,7 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
     gasTestingRequired: payload.gasTestingRequired,
     gasTesting: payload.gasTesting,
     executors: payload.executors,
+    formResponses: payload.formResponses,
   };
 }
 

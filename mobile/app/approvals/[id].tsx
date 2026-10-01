@@ -19,10 +19,14 @@ import {
 } from "@/lib/approval/api";
 import type { ApprovalReview } from "@/lib/approval/types";
 import { permitDetailToForm } from "@/lib/permit/form";
+import { stageAnswersLeft, stageAnswersPayload, type StageAnswerEdits } from "@/lib/permit/forms";
+import { StageAnswers, useSignerName } from "@/components/permit/stage-answers";
+import { useOrgNames } from "@/lib/permit/names";
 
 type ActionMode = "approve" | "reject" | "defer" | null;
 
 export default function PermitApprovalReviewScreen() {
+  const names = useOrgNames();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [review, setReview] = useState<ApprovalReview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,6 +34,8 @@ export default function PermitApprovalReviewScreen() {
   const [actionMode, setActionMode] = useState<ActionMode>(null);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [stageEdits, setStageEdits] = useState<StageAnswerEdits>({});
+  const signerName = useSignerName();
 
   useEffect(() => {
     if (!id) {
@@ -74,7 +80,7 @@ export default function PermitApprovalReviewScreen() {
     try {
       let updated: ApprovalReview;
       if (mode === "approve") {
-        updated = await approvePermit(id, comment);
+        updated = await approvePermit(id, comment, review ? stageAnswersPayload(stageEdits, review.permit.draftRevision) : undefined);
       } else if (mode === "reject") {
         updated = await rejectPermit(id, comment);
       } else {
@@ -84,11 +90,16 @@ export default function PermitApprovalReviewScreen() {
       setReview(updated);
       setActionMode(null);
       setComment("");
+      setStageEdits({});
 
       if (mode !== "approve" || updated.permit.status !== "pending_approval") {
         router.replace("/approvals");
       }
     } catch (err) {
+      // Someone changed or signed the permit meanwhile: reload it and keep this person's entries.
+      if (err instanceof ApiError && err.status === 409) {
+        getApprovalReview(id).then(setReview, () => undefined);
+      }
       Alert.alert("Action failed", err instanceof ApiError ? err.message : "Please try again.");
     } finally {
       setSubmitting(false);
@@ -144,7 +155,7 @@ export default function PermitApprovalReviewScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Summary</Text>
         <Text style={styles.meta}>Work scope: {form.workScope || "—"}</Text>
-        <Text style={styles.meta}>Location: {form.locationId || "—"}</Text>
+        <Text style={styles.meta}>Location: {names.location(form.locationId)}</Text>
         <Text style={styles.meta}>Hazards: {form.hazards.filter((h) => h.hazardCategoryId).length}</Text>
         <Text style={styles.meta}>
           Attachments: {review.attachments.length}
@@ -171,6 +182,23 @@ export default function PermitApprovalReviewScreen() {
             </>
           ) : (
             <View style={styles.commentBox}>
+              {actionMode === "approve" ? (
+                <>
+                  <StageAnswers
+                    responses={review.permit.formResponses ?? []}
+                    stage="approval"
+                    edits={stageEdits}
+                    onChange={setStageEdits}
+                    signerName={signerName}
+                    disabled={submitting}
+                  />
+                  {stageAnswersLeft(review.permit.formResponses ?? [], "approval", stageEdits) > 0 ? (
+                    <Text style={styles.meta}>
+                      {`${stageAnswersLeft(review.permit.formResponses ?? [], "approval", stageEdits)} left to sign. The final approval needs them.`}
+                    </Text>
+                  ) : null}
+                </>
+              ) : null}
               <Text style={styles.sectionTitle}>
                 {actionMode === "approve"
                   ? "Approval comment"

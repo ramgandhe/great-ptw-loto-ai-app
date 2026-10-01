@@ -1,122 +1,169 @@
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { router, useFocusEffect } from "expo-router";
 import { ConnectivityBanner } from "@/components/offline/connectivity-banner";
-import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
-import { PLATFORM_VERSION } from "@ptw/shared";
-import { ApiError } from "@/lib/api";
-import { getHealth } from "@/lib/api";
-import { useAuth } from "@/providers/auth-provider";
+import { listPendingApprovals } from "@/lib/approval/api";
+import { getProfile } from "@/lib/auth/api";
+import { getFailedSyncCount } from "@/lib/offline";
+import { listPermits } from "@/lib/permit/api";
+import { buildWorkQueue, WORK_ACTIONS, type WorkAction, type WorkItem } from "@/lib/work-queue";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
 
-export default function HomeScreen() {
-  const { isAuthenticated } = useAuth();
-  const { isOnline, isReady, pendingCount, isSyncing } = useOffline();
-  const { tokens } = useTheme();
-  const [apiStatus, setApiStatus] = useState<string>("checking");
+const APPROVAL_READ = ["job-issuer", "hod", "tenant-owner", "tenant-admin", "platform-admin", "viewer"];
+const CREATE = ["job-issuer", "tenant-owner", "tenant-admin"];
+const MORE = [
+  { label: "Permits", href: "/permits" },
+  { label: "LOTOTO", href: "/lototo" },
+  { label: "SIMOPS", href: "/simops" },
+  { label: "Incidents", href: "/incidents" },
+  { label: "Messages", href: "/notifications" },
+  { label: "Site figures", href: "/dashboard" },
+  { label: "Organisation", href: "/organisation" },
+  { label: "Workforce", href: "/workforce" },
+] as const;
 
-  useEffect(() => {
-    getHealth()
-      .then((health) => setApiStatus(health.status))
-      .catch((error) => {
-        if (error instanceof ApiError && error.code === "OFFLINE_CACHE_MISS") {
-          setApiStatus("offline (no cache)");
-          return;
-        }
-        setApiStatus("unreachable");
-      });
+/** Home: what needs this person now, how their offline changes stand, and the way to everything else. */
+export default function HomeScreen() {
+  const { tokens } = useTheme();
+  const { isOnline, pendingCount } = useOffline();
+  const [items, setItems] = useState<WorkItem[] | null>(null);
+  const [failed, setFailed] = useState<string[]>([]);
+  const [roles, setRoles] = useState<string[]>([]);
+  const [name, setName] = useState("");
+  const [needsAttention, setNeedsAttention] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    const missing: string[] = [];
+    try {
+      const profile = await getProfile();
+      setRoles(profile.roles);
+      setName(profile.firstName || profile.username);
+      const [permits, approvals] = await Promise.all([
+        listPermits().catch(() => (missing.push("permits"), [])),
+        profile.roles.some((r) => APPROVAL_READ.includes(r)) ? listPendingApprovals().catch(() => (missing.push("approvals"), [])) : Promise.resolve([]),
+      ]);
+      setItems(buildWorkQueue(profile.roles, permits, approvals));
+    } catch {
+      missing.push("your profile");
+      setItems([]);
+    }
+    setFailed(missing);
+    setNeedsAttention(await getFailedSyncCount().catch(() => 0));
   }, []);
+
+  // Refresh whenever Home comes back into view, so it reflects what was just done elsewhere.
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+  useEffect(() => {
+    if (isOnline) void load();
+  }, [isOnline, load]);
+
+  const groups = (Object.keys(WORK_ACTIONS) as WorkAction[])
+    .map((action) => ({ action, rows: (items ?? []).filter((item) => item.action === action) }))
+    .filter((group) => group.rows.length > 0);
+  const text = { color: tokens.colors.foreground };
+  const muted = { color: tokens.colors.mutedForeground };
 
   return (
     <View style={{ flex: 1, backgroundColor: tokens.colors.background }}>
       <ConnectivityBanner />
-      <View style={[styles.container, { padding: tokens.spacing.lg }]}>
-      <Text style={[styles.title, { color: tokens.colors.foreground, fontSize: tokens.typography.title + 2 }]}>
-        Permit-to-Work Platform
-      </Text>
-      <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body }}>
-        Mobile foundation (SP-01.01)
-      </Text>
-      <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body - 2 }}>
-        Version {PLATFORM_VERSION}
-      </Text>
-      <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body - 2 }}>
-        Network: {isOnline ? "online" : "offline"}
-      </Text>
-      <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body - 2 }}>
-        Storage: {isReady ? "ready" : "initialising"}
-      </Text>
-      <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body - 2 }}>
-        Sync queue: {pendingCount} pending{isSyncing ? " (syncing)" : ""}
-      </Text>
-      <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body - 2 }}>
-        API: {apiStatus}
-      </Text>
-      <Text style={{ color: tokens.colors.mutedForeground, fontSize: tokens.typography.body - 2 }}>
-        Auth: {isAuthenticated ? "signed in" : "signed out"}
-      </Text>
-      <Pressable
-        style={[styles.linkButton, { borderColor: tokens.colors.border }]}
-        onPress={() => router.push("/organisation")}
+      <ScrollView
+        contentContainerStyle={[styles.container, { padding: tokens.spacing.lg }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              await load();
+              setRefreshing(false);
+            }}
+          />
+        }
       >
-        <Text style={{ color: tokens.colors.foreground, fontWeight: "500" }}>Organisation</Text>
-      </Pressable>
-      <Pressable
-        style={[styles.linkButton, { borderColor: tokens.colors.border }]}
-        onPress={() => router.push("/lototo")}
-      >
-        <Text style={{ color: tokens.colors.foreground, fontWeight: "500" }}>LOTOTO</Text>
-      </Pressable>
-      <Pressable
-        style={[styles.linkButton, { borderColor: tokens.colors.border }]}
-        onPress={() => router.push("/simops")}
-      >
-        <Text style={{ color: tokens.colors.foreground, fontWeight: "500" }}>SIMOPS</Text>
-      </Pressable>
-      <Pressable
-        style={[styles.linkButton, { borderColor: tokens.colors.border }]}
-        onPress={() => router.push("/incidents")}
-      >
-        <Text style={{ color: tokens.colors.foreground, fontWeight: "500" }}>Incidents</Text>
-      </Pressable>
-      <Pressable
-        style={[styles.linkButton, { borderColor: tokens.colors.border }]}
-        onPress={() => router.push("/dashboard")}
-      >
-        <Text style={{ color: tokens.colors.foreground, fontWeight: "500" }}>Dashboard</Text>
-      </Pressable>
-      <Pressable
-        style={[styles.linkButton, { borderColor: tokens.colors.border }]}
-        onPress={() => router.push("/notifications")}
-      >
-        <Text style={{ color: tokens.colors.foreground, fontWeight: "500" }}>Notifications</Text>
-      </Pressable>
-      <Pressable
-        style={[styles.linkButton, { borderColor: tokens.colors.border }]}
-        onPress={() => router.push("/workforce")}
-      >
-        <Text style={{ color: tokens.colors.foreground, fontWeight: "500" }}>Workforce</Text>
-      </Pressable>
-      </View>
+        <Text style={[styles.title, text]}>{name ? `Hello, ${name}` : "Home"}</Text>
+
+        {/* Offline changes are not done until the server has them. */}
+        {pendingCount > 0 || needsAttention > 0 ? (
+          <Pressable accessibilityRole="button" onPress={() => router.push("/settings")} style={[styles.card, { borderColor: tokens.colors.border }]}>
+            <Text style={text}>
+              {pendingCount > 0 ? `${pendingCount} change${pendingCount === 1 ? "" : "s"} pending server confirmation` : ""}
+              {pendingCount > 0 && needsAttention > 0 ? " · " : ""}
+              {needsAttention > 0 ? `${needsAttention} need${needsAttention === 1 ? "s" : ""} your attention` : ""}
+            </Text>
+            <Text style={muted}>Open sync status</Text>
+          </Pressable>
+        ) : null}
+
+        <View style={styles.row}>
+          {roles.some((r) => CREATE.includes(r)) ? (
+            <Pressable accessibilityRole="button" style={[styles.primary, { backgroundColor: tokens.colors.primary }]} onPress={() => router.push("/permits/new")}>
+              <Text style={{ color: tokens.colors.primaryForeground, fontWeight: "600" }}>Create permit</Text>
+            </Pressable>
+          ) : null}
+          <Pressable accessibilityRole="button" style={[styles.secondary, { borderColor: tokens.colors.border }]} onPress={() => router.push("/incidents/new")}>
+            <Text style={[text, { fontWeight: "500" }]}>Report incident</Text>
+          </Pressable>
+        </View>
+
+        <Text style={[styles.section, text]}>Needs you</Text>
+        {failed.length > 0 ? (
+          <Pressable accessibilityRole="button" onPress={() => void load()} style={[styles.card, { borderColor: "#d97706" }]}>
+            <Text style={text}>{`Could not check ${failed.join(", ")}${isOnline ? "" : " while offline"}. What needs you may be missing.`}</Text>
+            <Text style={{ color: tokens.colors.primary, fontWeight: "600" }}>Retry</Text>
+          </Pressable>
+        ) : null}
+        {items === null ? (
+          <Text style={muted}>Checking what needs you…</Text>
+        ) : groups.length === 0 && failed.length === 0 ? (
+          <Text style={muted}>Nothing needs you right now.</Text>
+        ) : (
+          groups.map(({ action, rows }) => (
+            <View key={action} style={[styles.card, { borderColor: tokens.colors.border }]}>
+              <Text style={[text, { fontWeight: "600" }]}>{`${WORK_ACTIONS[action].group} (${rows.length})`}</Text>
+              {rows.map((item) => (
+                <Pressable
+                  key={item.key}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${WORK_ACTIONS[action].verb}: ${item.permit.title}`}
+                  onPress={() => router.push(item.href as never)}
+                  style={styles.item}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={text}>{item.permit.title}</Text>
+                    {item.permit.reference ? <Text style={muted}>{item.permit.reference}</Text> : null}
+                  </View>
+                  <Text style={{ color: tokens.colors.primary, fontWeight: "600" }}>{WORK_ACTIONS[action].verb}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ))
+        )}
+
+        <Text style={[styles.section, text]}>Everything else</Text>
+        <View style={styles.row}>
+          {MORE.map((link) => (
+            <Pressable key={link.href} accessibilityRole="button" style={[styles.secondary, { borderColor: tokens.colors.border }]} onPress={() => router.push(link.href)}>
+              <Text style={[text, { fontWeight: "500" }]}>{link.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  title: {
-    fontWeight: "600",
-  },
-  linkButton: {
-    marginTop: 8,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
+  container: { gap: 12 },
+  title: { fontSize: 22, fontWeight: "600" },
+  section: { fontSize: 16, fontWeight: "600", marginTop: 8 },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  card: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 8 },
+  item: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 12 },
+  primary: { minHeight: 44, justifyContent: "center", paddingHorizontal: 16, borderRadius: 8 },
+  secondary: { minHeight: 44, justifyContent: "center", paddingHorizontal: 16, borderRadius: 8, borderWidth: 1 },
 });

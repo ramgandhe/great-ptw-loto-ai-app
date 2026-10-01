@@ -19,6 +19,9 @@ import {
 } from "@/lib/closure/types";
 import { listEvidence, listProgress } from "@/lib/execution/api";
 import { getPermit } from "@/lib/permit/api";
+import { isOfflineError } from "@/lib/permit/offline";
+import { stageAnswersLeft, stageAnswersPayload, type StageAnswerEdits } from "@/lib/permit/forms";
+import { StageAnswers, useSignerName } from "@/components/permit/stage-answers";
 import type { PermitDetail } from "@/lib/permit/types";
 
 const checklistLabels: Record<keyof VerificationChecklist, string> = {
@@ -45,6 +48,10 @@ export default function PermitVerificationScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [closeChecklist, setCloseChecklist] = useState(defaultVerificationChecklist);
+  const [closeComment, setCloseComment] = useState("");
+  const [stageEdits, setStageEdits] = useState<StageAnswerEdits>({});
+  const signerName = useSignerName();
 
   useEffect(() => {
     if (!permitId) {
@@ -72,8 +79,8 @@ export default function PermitVerificationScreen() {
   }
 
   async function handleVerify(offline: boolean) {
-    if (!isChecklistComplete(checklist)) {
-      setError("Complete all checklist items");
+    if (!isChecklistComplete(checklist) || !comment.trim()) {
+      setError("Complete all checklist items and add a comment");
       return;
     }
 
@@ -84,22 +91,26 @@ export default function PermitVerificationScreen() {
     try {
       if (offline) {
         await queueOfflineVerification(permitId, checklist, comment.trim() || undefined);
-        setMessage("Inspection saved offline");
+        setMessage("Inspection saved on this phone. It is not verified until it reaches the server.");
       } else {
         await verifyPermit(permitId, {
           checklist,
-          comment: comment.trim() || undefined,
+          comment: comment.trim(),
+          stageAnswers: detail ? stageAnswersPayload(stageEdits, detail.permit.draftRevision) : undefined,
         });
         setVerified(true);
+        setStageEdits({});
+        setDetail(await getPermit(permitId));
         setMessage("Verification submitted");
       }
     } catch (err) {
-      if (!offline && err instanceof ApiError) {
+      // Only a lost connection is queued; a refusal from the server is shown, never queued.
+      if (!offline && isOfflineError(err)) {
         try {
           await queueOfflineVerification(permitId, checklist, comment.trim() || undefined);
-          setMessage("Network error — inspection queued offline");
+          setMessage("No connection. Inspection saved on this phone; it is not verified until it reaches the server.");
         } catch {
-          setError(err.message);
+          setError("The inspection could not be saved offline.");
         }
       } else {
         setError(err instanceof ApiError ? err.message : "Verification failed");
@@ -110,10 +121,18 @@ export default function PermitVerificationScreen() {
   }
 
   async function handleClose() {
+    if (!isChecklistComplete(closeChecklist) || !closeComment.trim()) {
+      setError("Complete the closure checklist and add a closure comment");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
-      await closePermit(permitId);
+      await closePermit(permitId, {
+        comment: closeComment.trim(),
+        checklist: closeChecklist,
+        stageAnswers: detail ? stageAnswersPayload(stageEdits, detail.permit.draftRevision) : undefined,
+      });
       router.replace(`/closure/archive/${permitId}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Closure failed");
@@ -129,6 +148,8 @@ export default function PermitVerificationScreen() {
   if (!detail) {
     return <Text style={styles.error}>{error ?? "Permit not found"}</Text>;
   }
+
+  const closureLeft = stageAnswersLeft(detail.permit.formResponses ?? [], "closure", stageEdits);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -156,13 +177,21 @@ export default function PermitVerificationScreen() {
             style={styles.input}
             value={comment}
             onChangeText={setComment}
-            placeholder="Verification comments..."
+            placeholder="Verification comment (required)"
             multiline
+          />
+          <StageAnswers
+            responses={detail.permit.formResponses ?? []}
+            stage="closure"
+            edits={stageEdits}
+            onChange={setStageEdits}
+            signerName={signerName}
+            disabled={submitting}
           />
           <Pressable
             style={styles.primaryButton}
             onPress={() => handleVerify(false)}
-            disabled={submitting || !isChecklistComplete(checklist)}
+            disabled={submitting || !isChecklistComplete(checklist) || !comment.trim()}
           >
             <Text style={styles.primaryButtonText}>Submit verification</Text>
           </Pressable>
@@ -176,8 +205,29 @@ export default function PermitVerificationScreen() {
         </>
       ) : (
         <>
-          <Text style={styles.message}>Verification complete. You can now close this permit.</Text>
-          <Pressable style={styles.primaryButton} onPress={handleClose} disabled={submitting}>
+          <Text style={styles.message}>Verification complete. The HOD signs off and closes the permit.</Text>
+          <Text style={styles.sectionTitle}>Final sign-off</Text>
+          {(Object.keys(checklistLabels) as Array<keyof VerificationChecklist>).map((key) => (
+            <View key={key} style={styles.row}>
+              <Text style={styles.rowLabel}>{checklistLabels[key]}</Text>
+              <Switch value={closeChecklist[key]} onValueChange={(value) => setCloseChecklist((c) => ({ ...c, [key]: value }))} />
+            </View>
+          ))}
+          <StageAnswers
+            responses={detail.permit.formResponses ?? []}
+            stage="closure"
+            edits={stageEdits}
+            onChange={setStageEdits}
+            signerName={signerName}
+            disabled={submitting}
+          />
+          {closureLeft > 0 ? <Text style={styles.meta}>{`${closureLeft} left to sign before closing.`}</Text> : null}
+          <TextInput style={styles.input} value={closeComment} onChangeText={setCloseComment} placeholder="Closure comment (required)" multiline />
+          <Pressable
+            style={styles.primaryButton}
+            onPress={handleClose}
+            disabled={submitting || closureLeft > 0 || !isChecklistComplete(closeChecklist) || !closeComment.trim()}
+          >
             <Text style={styles.primaryButtonText}>{submitting ? "Closing..." : "Close permit"}</Text>
           </Pressable>
         </>

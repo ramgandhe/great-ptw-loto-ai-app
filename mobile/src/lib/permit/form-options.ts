@@ -1,3 +1,4 @@
+import { listPermitTemplates, type PermitTemplate } from "./forms";
 import { getProfile } from "@/lib/auth/api";
 import { masterDataApi, type MasterDataRecord } from "@/lib/master-data/api";
 import {
@@ -22,6 +23,9 @@ export type PermitFormOptions = {
   ppe: MasterDataRecord[];
   executors: WorkforceRecord[];
   userRoles: string[];
+  /** The signed-in person's name, used when they sign a form ("Me, now"). */
+  userName: string;
+  templates: PermitTemplate[];
 };
 
 function executorRoleLabel(kind?: TenantUser["executorKind"]) {
@@ -101,6 +105,7 @@ export async function loadPermitFormOptions(): Promise<PermitFormOptions> {
     ppe,
     executorUsers,
     profile,
+    templates,
   ] = await Promise.all([
     masterDataApi.permitTypes(),
     listPlants(),
@@ -112,6 +117,8 @@ export async function loadPermitFormOptions(): Promise<PermitFormOptions> {
     masterDataApi.ppe(),
     listPermitExecutors(),
     getProfile(),
+    // Forms are optional for the editor: an unreadable list means no forms step content, not a failed load.
+    listPermitTemplates().catch(() => [] as PermitTemplate[]),
   ]);
 
   return {
@@ -125,6 +132,8 @@ export async function loadPermitFormOptions(): Promise<PermitFormOptions> {
     ppe,
     executors: mergeExecutors(tenantUsersToExecutors(executorUsers), profile),
     userRoles: profile.roles,
+    userName: [profile.firstName, profile.lastName].filter(Boolean).join(" ") || profile.username,
+    templates,
   };
 }
 

@@ -9,6 +9,7 @@ import { getLocalPermitDraft, resolvePermitId } from "@/lib/permit/offline";
 import { permitDetailToForm } from "@/lib/permit/form";
 import { isEditablePermitStatus } from "@/lib/permit/status";
 import type { PermitDetail } from "@/lib/permit/types";
+import { useOrgNames } from "@/lib/permit/names";
 
 const APPROVAL_STATUSES = new Set([
   "pending_approval",
@@ -18,6 +19,7 @@ const APPROVAL_STATUSES = new Set([
 ]);
 
 export default function PermitDetailScreen() {
+  const names = useOrgNames();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
   const [review, setReview] = useState<ApprovalReview | null>(null);
@@ -95,7 +97,7 @@ export default function PermitDetailScreen() {
       <Text style={styles.meta}>
         {detail!.permit.reference ?? "Draft"} · {status.replace(/_/g, " ")}
       </Text>
-      <Text style={styles.line}>Location: {form.locationId || "—"}</Text>
+      <Text style={styles.line}>Location: {names.location(form.locationId)}</Text>
       <Text style={styles.line}>Hazards: {detail!.hazards.length}</Text>
       <Text style={styles.line}>Executors: {detail!.executors.length}</Text>
       <Text style={styles.line}>Attachments: {detail!.attachments.length}</Text>
