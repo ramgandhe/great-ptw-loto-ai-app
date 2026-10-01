@@ -21,6 +21,8 @@ The [replay script](replay-baselines.cjs) takes `PTW_UX_ISSUER_EMAIL`, `PTW_UX_I
 |---|---:|---:|---:|---|
 | P1: issuer creates and assigns a fresh routine permit | 2 → **1** | 13 → **≤10** | 3 → **2** | 1: S0a→S2 |
 | P2: executor prepares site, crew and required forms | 1 → **1** | 31 → **≤21** | 5 → **2** | 1: S0a→S2 |
+
+**Measured after S2 (2026-10-01, two identical runs, [script](replay-s2-after.cjs), [trace](s2-after-replay.json)):** P1 **1 typed, 10 clicks, 2 views**; P2 **1 typed, 19 clicks, 2 views** (All yes counted with its confirmation). Both meet their targets. P1 now saves for real in the replay and stores the plant derived from the location.
 | H1: add plant, department, location and workstation through setup | 4 → **4** | 18 → **≤9** | 5 → **2** | 2: S3 |
 | E1: add a genuinely new employee and department from Directory | 2 → **2** | 6 → **≤4** | 3 → **1** | 2: S3 |
 

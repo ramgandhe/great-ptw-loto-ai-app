@@ -4,7 +4,7 @@
 Simplify web and mobile data entry, onboarding, page flow, and feedback using existing components and approved themes; preserve validated safety workflows, RBAC, tenant isolation, and auditability. Review the complete plan before implementation.
 
 ## Next Step
-Decide how later-stage required form signatures behave at submit (P2 finding), then start S2 (permit editor).
+Review S2 with the user (open items in progress.md), then commit; next S3 (setup, sites and people).
 
 ## Current Phase
 Phase 4 — S0a implementation
@@ -44,7 +44,7 @@ Phase 4 — S0a implementation
   - [x] S0a native: type errors fixed, local-time dates, web/native step mapping, revision on saves/submits including queued ones, 409 stops the sync queue as a failed item.
   - [x] S0a runtime check in the rebuilt Docker stack (browser): s0a-runtime-check.cjs, 3 runs × 10/10.
   - [x] P2 baseline replay before S2: 1 typed, 31 clicks, 5 views; target ≤21 clicks, 2 views.
-  - [ ] S2 permit editor.
+  - [x] S2 permit editor: one page, P1 1/10/2 and P2 1/19/2 measured; open items listed in progress.md.
 - [ ] Reuse existing shared components, tokens, APIs, and business rules.
 - **Status:** in_progress
 
