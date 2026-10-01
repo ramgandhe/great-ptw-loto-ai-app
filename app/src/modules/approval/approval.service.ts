@@ -16,7 +16,7 @@ import {
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
-import { PermitService } from '../permit/permit.service';
+import { assertStageAnswered, PermitService } from '../permit/permit.service';
 import { ApprovalCacheService } from './approval-cache.service';
 import { ApprovalLogService } from './approval-log.service';
 import { PENDING_APPROVAL_STATUS, SAFETY_VETO_ELIGIBLE_STATUSES } from './approval.constants';
@@ -136,6 +136,14 @@ export class ApprovalService {
     }
 
     await this.db.transaction(async (tx) => {
+      const missing = await this.permitService.saveStageAnswers(tx, {
+        permitId,
+        tenantId: permit.tenantId,
+        userId: user.id,
+        stage: 'approval',
+        status: PENDING_APPROVAL_STATUS,
+        input: dto.stageAnswers,
+      });
       const [approval] = await tx
         .insert(permitApprovals)
         .values({
@@ -171,6 +179,8 @@ export class ApprovalService {
       }
 
       const hasNext = await this.workflowEngine.hasNextStep(permitId, step.stepSequence, tx);
+      // Earlier approvers may sign; the final approval needs every approval-stage answer.
+      if (!hasNext) assertStageAnswered(missing, 'approving');
 
       if (hasNext) {
         await this.workflowEngine.activateNextStep(permitId, step.stepSequence, user.id, tx);

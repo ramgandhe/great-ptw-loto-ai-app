@@ -15,7 +15,7 @@ import {
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
-import { PermitService } from '../permit/permit.service';
+import { assertStageAnswered, PermitService } from '../permit/permit.service';
 import { StatusTransitionService } from '../execution/status-transition.service';
 import { isTenantPrivileged } from '../../common/constants/tenant-roles';
 import { CLOSED_STATUS, PENDING_CLOSURE_STATUS } from './closure.constants';
@@ -80,6 +80,15 @@ export class ClosureService {
     const actualEndAt = dto.actualEndAt ? new Date(dto.actualEndAt) : new Date();
 
     const closure = await this.db.transaction(async (tx) => {
+      const missing = await this.permitService.saveStageAnswers(tx, {
+        permitId,
+        tenantId,
+        userId: user.id,
+        stage: 'closure',
+        status: PENDING_CLOSURE_STATUS,
+        input: dto.stageAnswers,
+      });
+      assertStageAnswered(missing, 'closing');
       const [record] = await tx
         .insert(permitClosures)
         .values({

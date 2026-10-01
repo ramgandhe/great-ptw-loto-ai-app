@@ -1,4 +1,5 @@
 import type { Notification } from "./types";
+import { workspaceHref } from "@/lib/permit/workspace-tabs";
 
 export function getNotificationEntityHref(notification: Notification): string | null {
   if (!notification.entityType || !notification.entityId) {
@@ -11,15 +12,15 @@ export function getNotificationEntityHref(notification: Notification): string | 
     case "incident":
       return `/incidents/${notification.entityId}`;
     case "approval":
-      return `/approvals/${notification.entityId}`;
+      return workspaceHref(notification.entityId, "review");
     case "execution":
-      return `/execution/${notification.entityId}`;
+      return workspaceHref(notification.entityId, "work");
     case "lototo_plan":
       return `/lototo/${notification.entityId}`;
     case "simops_conflict":
       return `/simops/${notification.entityId}`;
     case "closure":
-      return `/closure/${notification.entityId}`;
+      return workspaceHref(notification.entityId, "review");
     default:
       return null;
   }

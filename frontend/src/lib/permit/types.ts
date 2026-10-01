@@ -6,6 +6,8 @@ export type FormAnswers = Record<string, FormAnswer>;
 
 /** A permit template filled in on a permit, with the form as it was when filled in. */
 export type StoredFormResponse = { templateId: string; name: string; config: TemplateConfig; answers: FormAnswers };
+/** Answers to fields signed at approval or closure, sent with that decision. */
+export type StageAnswersPayload = { expectedRevision: number; formResponses: { templateId: string; answers: FormAnswers }[] };
 
 export type PermitRecord = {
   id: string;

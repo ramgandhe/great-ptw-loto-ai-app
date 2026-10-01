@@ -36,9 +36,15 @@ import { ApprovalHistoryService } from '../approval/approval-history.service';
 import { NotificationService } from '../approval/notification.service';
 import { WorkflowEngineService } from '../approval/workflow-engine.service';
 import { CreatePermitDto } from './dto/create-permit.dto';
-import { buildFormResponses, diffFormAnswers, missingFormAnswers, type PermitFormResponse } from './permit-forms';
+import {
+  applyStageAnswers,
+  buildFormResponses,
+  diffFormAnswers,
+  missingFormAnswers,
+  type PermitFormResponse,
+} from './permit-forms';
 import { RenewPermitDto } from './dto/renew-permit.dto';
-import { SaveDraftDto, SubmitPermitDto } from './dto/save-draft.dto';
+import { SaveDraftDto, StageAnswersDto, SubmitPermitDto } from './dto/save-draft.dto';
 import { UpdatePermitDto } from './dto/update-permit.dto';
 import { isEditablePermitStatus, isSubmittablePermitStatus } from './permit.constants';
 import {
@@ -56,7 +62,7 @@ import { PermitCacheService } from './permit-cache.service';
 import { PermitLogService } from './permit-log.service';
 import { PermitValidationService } from './permit-validation.service';
 
-type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
 export const REVISION_CONFLICT_CODE = 'PERMIT_REVISION_CONFLICT';
 
@@ -68,6 +74,17 @@ function assertExpectedRevision(detail: PermitDetail, expectedRevision: number):
       error: REVISION_CONFLICT_CODE,
       message: 'This permit changed since you opened it. Your changes are still here.',
       details: { currentRevision: detail.permit.draftRevision },
+    });
+  }
+}
+
+/** Refuses a final approval or closure while that stage's required form answers are empty. */
+export function assertStageAnswered(missing: string[], action: 'approving' | 'closing'): void {
+  if (missing.length) {
+    throw new BadRequestException({
+      error: 'STAGE_ANSWERS_MISSING',
+      message: `Complete these before ${action}: ${missing.join('; ')}`,
+      details: { missing },
     });
   }
 }
@@ -454,19 +471,7 @@ export class PermitService {
       }
       assertExpectedRevision(detail, dto.expectedRevision);
 
-      const applicable = await tx
-        .select({ id: permitTemplates.id, name: permitTemplates.name, config: permitTemplates.config })
-        .from(permitTemplates)
-        .where(
-          and(
-            eq(permitTemplates.tenantId, tenantId),
-            eq(permitTemplates.status, 'published'),
-            or(
-              eq(permitTemplates.appliesToAllTypes, true),
-              arrayContains(permitTemplates.permitTypeIds, [detail.permit.permitTypeId]),
-            ),
-          ),
-        );
+      const applicable = await this.applicableTemplates(tx, tenantId, detail.permit.permitTypeId);
       this.validationService.validateForSubmit(
         detail,
         missingFormAnswers(applicable, detail.permit.formResponses as PermitFormResponse[]),
@@ -695,6 +700,61 @@ export class PermitService {
 
       return this.loadDetail(tx, renewal.id, tenantId);
     });
+  }
+
+  /**
+   * Records the template answers required at approval or closure, in the decision's transaction:
+   * locks the permit, checks its status (and the revision when answers are sent), writes the same
+   * per-answer audit as a draft save, and returns the stage's required answers still missing.
+   * The caller checks the person's role and refuses its decision while answers are missing.
+   */
+  async saveStageAnswers(
+    tx: Transaction,
+    params: {
+      permitId: string;
+      tenantId: string;
+      userId: string;
+      stage: 'approval' | 'closure';
+      status: string;
+      input?: StageAnswersDto;
+    },
+  ): Promise<string[]> {
+    const { permitId, tenantId, userId, stage, status, input } = params;
+    const detail = await this.loadLockedDetail(tx, permitId, tenantId);
+    if (detail.permit.status !== status) {
+      throw new ConflictException('This permit moved on since you opened it. Reload to see where it is now.');
+    }
+    const applicable = await this.applicableTemplates(tx, tenantId, detail.permit.permitTypeId);
+    let responses = detail.permit.formResponses as PermitFormResponse[];
+    if (input?.formResponses.length) {
+      assertExpectedRevision(detail, input.expectedRevision);
+      const revision = detail.permit.draftRevision + 1;
+      responses = applyStageAnswers(responses, input.formResponses, applicable, stage);
+      await this.recordAnswerChanges(tx, detail, responses, revision, userId, tenantId);
+      await tx
+        .update(permits)
+        .set({ formResponses: responses, draftRevision: revision, updatedBy: userId, updatedAt: new Date() })
+        .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
+    }
+    // The form copied onto the permit decides which fields belong to this stage.
+    const forms = applicable.map((template) => ({
+      ...template,
+      config: responses.find((response) => response.templateId === template.id)?.config ?? template.config,
+    }));
+    return missingFormAnswers(forms, responses, stage);
+  }
+
+  private applicableTemplates(db: Pick<Database, 'select'>, tenantId: string, permitTypeId: string) {
+    return db
+      .select({ id: permitTemplates.id, name: permitTemplates.name, config: permitTemplates.config })
+      .from(permitTemplates)
+      .where(
+        and(
+          eq(permitTemplates.tenantId, tenantId),
+          eq(permitTemplates.status, 'published'),
+          or(eq(permitTemplates.appliesToAllTypes, true), arrayContains(permitTemplates.permitTypeIds, [permitTypeId])),
+        ),
+      );
   }
 
   /** Locks the tenant's permit row for the rest of the transaction, then loads it. */

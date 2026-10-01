@@ -4,6 +4,7 @@ import type { SimopsConflict } from "@/lib/simops/types";
 import type { PermitRecord } from "@/lib/permit/types";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { NAV_OPERATOR_DRAFTS_ROLES, PERMIT_CREATE_ROLES } from "@/lib/auth/roles";
+import { workspaceHref } from "@/lib/permit/workspace-tabs";
 
 export type WorkAction =
   | "review"
@@ -124,7 +125,7 @@ export function buildWorkQueue(
   const reviewing = new Set<string>();
   for (const item of approvals) {
     reviewing.add(item.permit.id);
-    add("review", item.permit, `/approvals/${item.permit.id}`, item.step?.name ? `Stage: ${item.step.name}` : undefined);
+    add("review", item.permit, workspaceHref(item.permit.id, "review"), item.step?.name ? `Stage: ${item.step.name}` : undefined);
   }
 
   const canCreate = hasAnyRole(roles, PERMIT_CREATE_ROLES);
@@ -152,23 +153,23 @@ export function buildWorkQueue(
       case "approved":
         if (isExecutor) {
           const note = startsSoonNote(permit, now);
-          add("start-work", permit, `/execution/${permit.id}`, note, Boolean(note));
+          add("start-work", permit, workspaceHref(permit.id, "work"), note, Boolean(note));
         }
         break;
       case "active":
         if (isExecutor) {
           const note = overdueNote(permit, now);
-          add("log-progress", permit, `/execution/${permit.id}`, note, Boolean(note));
+          add("log-progress", permit, workspaceHref(permit.id, "work"), note, Boolean(note));
         }
         break;
       case "suspended":
-        if (hasAnyRole(roles, REVALIDATE_ROLES)) add("revalidate", permit, `/execution/${permit.id}`, undefined, true);
+        if (hasAnyRole(roles, REVALIDATE_ROLES)) add("revalidate", permit, workspaceHref(permit.id, "work"), undefined, true);
         break;
       case "execution_completed":
-        if (hasAnyRole(roles, COMPLETION_ROLES)) add("approve-completion", permit, `/closure/${permit.id}`);
+        if (hasAnyRole(roles, COMPLETION_ROLES)) add("approve-completion", permit, workspaceHref(permit.id, "review"));
         break;
       case "pending_closure":
-        if (hasAnyRole(roles, FINAL_APPROVAL_ROLES)) add("final-approval", permit, `/closure/${permit.id}`);
+        if (hasAnyRole(roles, FINAL_APPROVAL_ROLES)) add("final-approval", permit, workspaceHref(permit.id, "review"));
         break;
     }
   }

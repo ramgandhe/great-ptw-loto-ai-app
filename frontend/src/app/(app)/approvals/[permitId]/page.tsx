@@ -3,19 +3,23 @@
 import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Check, History, RotateCcw, X } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { approvePermit, deferPermit, getApprovalReview, rejectPermit } from "@/lib/approval/api";
 import type { ApprovalReview } from "@/lib/approval/types";
 import { formatDateTime, formatStatus } from "@/lib/format";
+import { isRevisionConflict } from "@/lib/permit/api";
 import { permitDetailToForm } from "@/lib/permit/form";
+import { PermitPageShell, useInPermitWorkspace, usePermitPageId } from "@/lib/permit/workspace";
+import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { cn } from "@/lib/utils";
 import { useWorkQueue } from "@/lib/work-queue-context";
 import { WorkflowTimeline } from "@/components/approval/workflow-timeline";
 import { PermitSummary, permitGaps } from "@/components/permit/permit-summary";
 import { PermitFormResponses } from "@/components/permit/permit-form-responses";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
+import { StageAnswers, stageAnswersLeft, stageAnswersPayload, type StageAnswerEdits } from "@/components/permit/stage-answers";
 import { Button, buttonVariants } from "@/components/ui/button";
 
 type Decision = "approve" | "defer" | "reject";
@@ -51,9 +55,13 @@ const COMMON_REASONS = [
 ];
 
 export default function PermitReviewPage() {
-  const params = useParams<{ permitId: string }>();
+  const permitId = usePermitPageId("permitId");
+  const embedded = useInPermitWorkspace();
   const router = useRouter();
   const { items } = useWorkQueue();
+  const { profile } = useAuthProfile();
+  const signerName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || profile?.displayName || "";
+  const [stageEdits, setStageEdits] = useState<StageAnswerEdits>({});
   const [review, setReview] = useState<ApprovalReview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -62,14 +70,14 @@ export default function PermitReviewPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    getApprovalReview(params.permitId)
+    getApprovalReview(permitId)
       .then(setReview)
       .catch((err) => setError(err instanceof ApiError ? err.message : "This permit could not be loaded."));
-  }, [params.permitId]);
+  }, [permitId]);
 
   const nextReview = useMemo(
-    () => items.find((item) => item.action === "review" && item.permit && item.permit.id !== params.permitId),
-    [items, params.permitId],
+    () => items.find((item) => item.action === "review" && item.permit && item.permit.id !== permitId),
+    [items, permitId],
   );
 
   if (error) {
@@ -101,6 +109,7 @@ export default function PermitReviewPage() {
         : decision === "defer"
           ? (step?.commentRequiredOnDefer ?? true)
           : false;
+  const stageLeft = stageAnswersLeft(review.permit.formResponses ?? [], "approval", stageEdits);
   const suggestions = decision && decision !== "approve" ? [...(gaps.length ? [`Missing: ${gaps.join(", ")}`] : []), ...COMMON_REASONS] : [];
 
   async function submit() {
@@ -112,16 +121,25 @@ export default function PermitReviewPage() {
     setIsSubmitting(true);
     setActionError(null);
     try {
-      const run = decision === "approve" ? approvePermit : decision === "reject" ? rejectPermit : deferPermit;
-      const updated = await run(params.permitId, comment.trim());
+      const updated =
+        decision === "approve"
+          ? await approvePermit(permitId, comment.trim(), stageAnswersPayload(stageEdits, review!.permit.draftRevision))
+          : await (decision === "reject" ? rejectPermit : deferPermit)(permitId, comment.trim());
       setReview(updated);
       setDecision(null);
       setComment("");
+      setStageEdits({});
       // Another stage of this permit may also be yours; otherwise move on to the next permit.
       if (!(decision === "approve" && updated.permit.status === "pending_approval" && updated.activeAssignment)) {
         router.push(nextReview ? nextReview.href : "/approvals");
       }
     } catch (err) {
+      if (isRevisionConflict(err)) {
+        // Someone signed or changed the form meanwhile: reload it, keep what this person entered.
+        getApprovalReview(permitId).then(setReview).catch(() => undefined);
+        setActionError("Someone else updated this permit. It has been reloaded with your entries kept. Check it and confirm again.");
+        return;
+      }
       setActionError(err instanceof ApiError ? err.message : "The decision was not saved. Try again.");
     } finally {
       setIsSubmitting(false);
@@ -129,7 +147,8 @@ export default function PermitReviewPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+    <PermitPageShell>
+      {embedded ? null : (
       <div>
         <BackLink href="/permits" label="Permits" />
         <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -144,6 +163,7 @@ export default function PermitReviewPage() {
           </Link>
         </p>
       </div>
+      )}
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="grid min-w-0 gap-6">
@@ -192,6 +212,23 @@ export default function PermitReviewPage() {
 
                 {decision ? (
                   <div className="mt-4 grid gap-2">
+                    {decision === "approve" ? (
+                      <div className="mb-2 grid gap-2 border-b border-border pb-4">
+                        <StageAnswers
+                          responses={review.permit.formResponses ?? []}
+                          stage="approval"
+                          edits={stageEdits}
+                          onChange={setStageEdits}
+                          signerName={signerName}
+                          disabled={isSubmitting}
+                        />
+                        {stageLeft ? (
+                          <p className="text-xs text-muted-foreground">
+                            {stageLeft} left to sign. The final approval needs {stageLeft === 1 ? "it" : "them"}.
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <label htmlFor="decision-comment" className="text-sm font-medium">
                       {DECISIONS[decision].prompt}
                       {commentRequired ? "" : <span className="font-normal text-muted-foreground"> (optional)</span>}
@@ -244,7 +281,7 @@ export default function PermitReviewPage() {
                 Approval route
               </h2>
               <Link
-                href={`/approvals/${review.permit.id}/history`}
+                href={embedded ? `/permits/${review.permit.id}?tab=history` : `/approvals/${review.permit.id}/history`}
                 className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
               >
                 <History className="size-3.5" aria-hidden />
@@ -270,6 +307,6 @@ export default function PermitReviewPage() {
           </section>
         </aside>
       </div>
-    </main>
+    </PermitPageShell>
   );
 }

@@ -4,6 +4,8 @@
  * services). Both the process map and the per-permit journey are drawn from this.
  */
 
+import { workspaceHref } from "@/lib/permit/workspace-tabs";
+
 export type LaneId = "issuer" | "executor" | "approvers" | "hod" | "safety" | "system";
 
 export const LANES: { id: LaneId; label: string; roles: string; top: number; height: number }[] = [
@@ -111,7 +113,7 @@ export const NODES: ProcessNode[] = [
       "Any 'No' answers on the check sheets explained",
     ],
     records: ["Decision per stage, with comment", "Who decided, and on whose behalf", "Stage deadlines (SLA)"],
-    screen: (id) => `/approvals/${id}`,
+    screen: (id) => workspaceHref(id, "review"),
   },
   {
     id: "approved",
@@ -124,7 +126,7 @@ export const NODES: ProcessNode[] = [
     owner: "An assigned executor",
     needs: ["Isolations applied and verified", "Gas test readings in limits, when required", "Crew briefed"],
     records: ["Actual start time", "Who started the work"],
-    screen: (id) => `/execution/${id}`,
+    screen: (id) => workspaceHref(id, "work"),
   },
   {
     id: "active",
@@ -141,7 +143,7 @@ export const NODES: ProcessNode[] = [
       "Completion checklist: work done, procedure followed, LOTOTO and gas tests done",
     ],
     records: ["Progress updates and evidence", "Daily revalidations", "Extension requests"],
-    screen: (id) => `/execution/${id}`,
+    screen: (id) => workspaceHref(id, "work"),
   },
   {
     id: "suspended",
@@ -154,7 +156,7 @@ export const NODES: ProcessNode[] = [
     owner: "HOD or issuer revalidates; an executor or HOD resumes",
     needs: ["The suspension reason resolved", "Site made safe again"],
     records: ["Suspension reason, who and when", "Resume or revalidation"],
-    screen: (id) => `/execution/${id}`,
+    screen: (id) => workspaceHref(id, "work"),
   },
   {
     id: "execution_completed",
@@ -167,7 +169,7 @@ export const NODES: ProcessNode[] = [
     owner: "Job issuer",
     needs: ["Work completed", "Evidence reviewed", "Area secured", "Hazards removed"],
     records: ["Verification checklist and comment"],
-    screen: (id) => `/closure/${id}`,
+    screen: (id) => workspaceHref(id, "review"),
   },
   {
     id: "pending_closure",
@@ -180,7 +182,7 @@ export const NODES: ProcessNode[] = [
     owner: "HOD, or an organisation admin",
     needs: ["Issuer's verification in place", "Closure checklist complete", "Actual end time"],
     records: ["Closure checklist, comment and actual end"],
-    screen: (id) => `/closure/${id}`,
+    screen: (id) => workspaceHref(id, "review"),
   },
   {
     id: "closed",

@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
@@ -12,7 +12,7 @@ import { AuditService } from '../app/src/modules/logging/audit.service';
 import { PermitCacheService } from '../app/src/modules/permit/permit-cache.service';
 import { PermitLogService } from '../app/src/modules/permit/permit-log.service';
 import { PermitValidationService } from '../app/src/modules/permit/permit-validation.service';
-import { PermitService, REVISION_CONFLICT_CODE } from '../app/src/modules/permit/permit.service';
+import { assertStageAnswered, PermitService, REVISION_CONFLICT_CODE } from '../app/src/modules/permit/permit.service';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 
 /** S0a: draft saves and submits carry the revision they loaded; stale or racing writes get 409. */
@@ -230,5 +230,55 @@ describe('Permit draft revision contract (S0a)', () => {
     const { issuer, permitId } = await context();
     await db.update(schema.permits).set({ status: 'pending_approval' }).where(eq(schema.permits.id, permitId));
     await expect(service.removeDraft(permitId, issuer)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  dbTest('stage answers: status and revision checked under lock, audited, other answers kept, missing listed', async () => {
+    const { tenantId, issuer, permitId } = await context();
+    const hod: AuthenticatedUser = { id: randomUUID(), username: 'hod', tenantId, roles: ['hod'], email: 'hod@example.com' };
+    const [template] = await db
+      .insert(schema.permitTemplates)
+      .values({
+        tenantId,
+        name: 'Safe work permit',
+        status: 'published',
+        appliesToAllTypes: true,
+        config: {
+          sections: [
+            {
+              id: 'a',
+              title: 'Authorisation',
+              fields: [
+                { id: 'issuer', label: 'Job issued by', type: 'signature', required: true },
+                { id: 'hod', label: 'HOD of job issuer', type: 'signature', required: true, requiredAt: 'approval' },
+              ],
+            },
+          ],
+        },
+        createdBy: issuer.id,
+      } as typeof schema.permitTemplates.$inferInsert)
+      .returning();
+    await service.update(permitId, { expectedRevision: 0, formResponses: [{ templateId: template.id, answers: { issuer: { name: 'I' } } }] }, issuer);
+    await db.update(schema.permits).set({ status: 'pending_approval' }).where(eq(schema.permits.id, permitId));
+    const save = (input?: { expectedRevision: number; formResponses: { templateId: string; answers: Record<string, unknown> }[] }, status = 'pending_approval') =>
+      db.transaction((tx) => service.saveStageAnswers(tx, { permitId, tenantId, userId: hod.id, stage: 'approval', status, input }));
+
+    // Nothing sent: no revision needed, nothing written, the missing HOD signature is reported.
+    const missing = await save();
+    expect(missing).toEqual(['Safe work permit: 1 required answer missing (HOD of job issuer)']);
+    expect(() => assertStageAnswered(missing, 'approving')).toThrow(BadRequestException);
+    await expect(save(undefined, 'pending_closure')).rejects.toBeInstanceOf(ConflictException);
+
+    const answer = { templateId: template.id, answers: { hod: { name: 'H' }, issuer: { name: 'Overwritten?' } } };
+    expect(conflictCode(await save({ expectedRevision: 0, formResponses: [answer] }).catch((e) => e))).toBe(REVISION_CONFLICT_CODE);
+    expect(await save({ expectedRevision: 1, formResponses: [answer] })).toEqual([]);
+
+    const [row] = await db.select().from(schema.permits).where(eq(schema.permits.id, permitId));
+    expect(row.draftRevision).toBe(2);
+    expect((row.formResponses as { answers: Record<string, { name: string }> }[])[0].answers).toMatchObject({ issuer: { name: 'I' }, hod: { name: 'H' } });
+    const audits = await db
+      .select()
+      .from(schema.auditLogs)
+      .where(and(eq(schema.auditLogs.entityId, permitId), eq(schema.auditLogs.action, 'permit.form_answer_changed')));
+    expect(audits.find((a) => (a.metadata as { fieldId: string }).fieldId === 'hod')).toMatchObject({ userId: hod.id, metadata: { revision: 2 } });
   });
 });

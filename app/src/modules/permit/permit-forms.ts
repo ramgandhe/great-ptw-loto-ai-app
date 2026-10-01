@@ -119,6 +119,35 @@ export function diffFormAnswers(before: PermitFormResponse[], after: PermitFormR
   return changes;
 }
 
+const fieldsAt = (config: TemplateConfig, stage: TemplateRequiredStage) =>
+  config.sections.flatMap((section) => section.fields).filter((field) => (field.requiredAt ?? 'submit') === stage);
+
+/**
+ * Sets the answers to fields required at `stage` (approval or closure), leaving every other answer
+ * as it was. Uses the form copied onto the permit, or the template's form when the permit has none yet.
+ */
+export function applyStageAnswers(
+  responses: PermitFormResponse[],
+  input: { templateId: string; answers: Record<string, unknown> }[],
+  templates: TemplateForForms[],
+  stage: TemplateRequiredStage,
+): PermitFormResponse[] {
+  const next = [...responses];
+  for (const { templateId, answers } of input) {
+    const index = next.findIndex((response) => response.templateId === templateId);
+    const template = templates.find((candidate) => candidate.id === templateId);
+    const stored = next[index] ?? (template && { templateId, name: template.name, config: template.config as TemplateConfig, answers: {} });
+    if (!stored) throw new BadRequestException('A form on this permit refers to a template that no longer exists');
+    const fields = fieldsAt(stored.config, stage);
+    const kept = Object.fromEntries(Object.entries(stored.answers).filter(([id]) => !fields.some((field) => field.id === id)));
+    const clean = sanitizeAnswers({ ...stored.config, sections: [{ id: stage, title: stage, fields }] }, answers);
+    const updated = { ...stored, answers: { ...kept, ...clean } };
+    if (index === -1) next.push(updated);
+    else next[index] = updated;
+  }
+  return next;
+}
+
 /** Required fields for this stage left empty, per template that applies to the permit. */
 export function missingFormAnswers(
   applicable: TemplateForForms[],

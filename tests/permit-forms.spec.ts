@@ -1,4 +1,4 @@
-import { buildFormResponses, diffFormAnswers, missingFormAnswers, sanitizeAnswers } from '../app/src/modules/permit/permit-forms';
+import { applyStageAnswers, buildFormResponses, diffFormAnswers, missingFormAnswers, sanitizeAnswers } from '../app/src/modules/permit/permit-forms';
 import { REFERENCE_TEMPLATES, type TemplateConfig } from '../app/src/modules/organisation/permit-template-library';
 
 const config: TemplateConfig = {
@@ -136,5 +136,27 @@ describe('required-at stage', () => {
     const hotWork = REFERENCE_TEMPLATES.find((t) => t.code === 'SOP-ES-023-F4')!;
     const fireWatch = hotWork.config.sections.flatMap((s) => s.fields).find((f) => f.label === 'Fire watch: three hours after completion');
     expect(fireWatch?.requiredAt).toBe('closure');
+  });
+
+  it('a stage sets only its own fields and keeps every other answer', () => {
+    const stored = [{ templateId: 't', name: 'Safe work permit', config: staged, answers: { issuer: { name: 'A' } } }];
+    const next = applyStageAnswers(
+      stored,
+      [{ templateId: 't', answers: { issuer: { name: 'Changed' }, hod: { name: 'H', date: '2026-10-01' }, done: { name: 'Too early' } } }],
+      template,
+      'approval',
+    );
+    expect(next[0].answers).toEqual({ issuer: { name: 'A' }, hod: { name: 'H', date: '2026-10-01', time: undefined } });
+    expect(missingFormAnswers(template, next, 'approval')).toEqual([]);
+    // Clearing a stage answer is allowed; the stored permit is never mutated.
+    expect(applyStageAnswers(next, [{ templateId: 't', answers: {} }], template, 'approval')[0].answers).toEqual({ issuer: { name: 'A' } });
+    expect(stored[0].answers).toEqual({ issuer: { name: 'A' } });
+  });
+
+  it('adds a response for an applicable form the permit has none for, and refuses unknown templates', () => {
+    expect(applyStageAnswers([], [{ templateId: 't', answers: { done: { name: 'C' } } }], template, 'closure')).toEqual([
+      { templateId: 't', name: 'Safe work permit', config: staged, answers: { done: { name: 'C', date: undefined, time: undefined } } },
+    ]);
+    expect(() => applyStageAnswers([], [{ templateId: 'gone', answers: {} }], template, 'closure')).toThrow('no longer exists');
   });
 });

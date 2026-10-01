@@ -57,6 +57,10 @@ export function laterStageNote(field: TemplateField): string | null {
   if (!field.required || (field.requiredAt ?? "submit") === "submit") return null;
   return field.requiredAt === "approval" ? "Required at approval" : "Required at closure";
 }
+/** Required fields that belong to a later stage (approval or closure). */
+export function fieldsAtStage(config: TemplateConfig, stage: Exclude<TemplateRequiredStage, "submit">): TemplateField[] {
+  return config.sections.flatMap((section) => section.fields).filter((field) => field.required && field.requiredAt === stage);
+}
 export type TemplateSection = { id: string; title: string; fields: TemplateField[] };
 export type TemplateKind = "permit" | "check-sheet";
 export type TemplateConfig = { kind: TemplateKind; reference?: string; declaration?: string; sections: TemplateSection[] };

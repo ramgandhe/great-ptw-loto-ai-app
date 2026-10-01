@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { PermitPageShell, useInPermitWorkspace, usePermitPageId } from "@/lib/permit/workspace";
 import { ApiError } from "@/lib/api";
 import {
   listDailyActivityHistory,
@@ -30,8 +30,8 @@ import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 
 export default function MultiDayPermitPage() {
-  const params = useParams<{ id: string }>();
-  const permitId = params.id;
+  const permitId = usePermitPageId("id");
+  const embedded = useInPermitWorkspace();
 
   const [detail, setDetail] = useState<PermitDetail | null>(null);
   const [progress, setProgress] = useState<DailyProgressRecord[]>([]);
@@ -79,7 +79,10 @@ export default function MultiDayPermitPage() {
   const canManage = ["active", "suspended"].includes(detail.permit.status);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+    <PermitPageShell>
+      {embedded ? (
+        <h2 className="text-lg font-semibold">Daily operations</h2>
+      ) : (
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="mb-2 flex items-center gap-3">
@@ -97,6 +100,7 @@ export default function MultiDayPermitPage() {
           </Link>
         </div>
       </div>
+      )}
 
       {!canManage ? (
         <p className="text-sm text-muted-foreground">
@@ -163,6 +167,6 @@ export default function MultiDayPermitPage() {
           <RevalidationHistoryTimeline events={revalidationHistory} />
         </div>
       </section>
-    </main>
+    </PermitPageShell>
   );
 }

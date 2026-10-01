@@ -72,6 +72,7 @@ describe('Approval workflow remediation (SP-09.01)', () => {
     } as unknown as ApprovalLogService;
 
     const permitService = {
+      saveStageAnswers: jest.fn(async () => []),
       findOne: jest.fn(async (permitId: string, user: AuthenticatedUser) => {
         const [permit] = await db
           .select()

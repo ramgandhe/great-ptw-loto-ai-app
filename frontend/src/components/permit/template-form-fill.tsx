@@ -38,7 +38,7 @@ function Chip({ selected, disabled, onClick, children }: { selected: boolean; di
   );
 }
 
-function FieldInput({
+export function FieldInput({
   field,
   value,
   disabled,
@@ -146,8 +146,10 @@ function FieldInput({
     case "signature": {
       const sig = (value as SignatureAnswer | undefined) ?? { name: "" };
       const set = (patch: Partial<SignatureAnswer>) => onChange({ ...sig, ...patch });
+      // Sized by its container, so it also fits a narrow decision panel.
       return (
-        <div className="grid gap-2 sm:grid-cols-[1fr_9rem_7rem_auto] sm:items-center">
+        <div className="@container">
+        <div className="grid gap-2 @lg:grid-cols-[1fr_9rem_7rem_auto] @lg:items-center">
           <input
             id={id}
             aria-label={`${field.label}: name`}
@@ -176,6 +178,7 @@ function FieldInput({
             <PenLine aria-hidden />
             {sig.name ? "Now" : "Me, now"}
           </Button>
+        </div>
         </div>
       );
     }

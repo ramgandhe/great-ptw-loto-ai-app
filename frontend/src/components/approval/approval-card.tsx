@@ -6,6 +6,7 @@ import type { PendingApprovalItem } from "@/lib/approval/types";
 import { buttonVariants } from "@/components/ui/button";
 import { formatRelative, formatWindow } from "@/lib/format";
 import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
+import { workspaceHref } from "@/lib/permit/workspace-tabs";
 
 export function ApprovalCard({ item }: { item: PendingApprovalItem }) {
   const { permit, step } = item;
@@ -30,7 +31,7 @@ export function ApprovalCard({ item }: { item: PendingApprovalItem }) {
       />
       <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
         <h3 className="font-semibold">
-          <Link href={`/approvals/${permit.id}`} className="hover:underline">
+          <Link href={workspaceHref(permit.id, "review")} className="hover:underline">
             {permit.title}
           </Link>
         </h3>
@@ -47,7 +48,7 @@ export function ApprovalCard({ item }: { item: PendingApprovalItem }) {
           {permit.submittedAt ? `Waiting since ${formatRelative(permit.submittedAt)}` : "Not submitted"}
         </p>
       </div>
-      <Link href={`/approvals/${permit.id}`} className={buttonVariants()}>
+      <Link href={workspaceHref(permit.id, "review")} className={buttonVariants()}>
         Review
       </Link>
     </article>

@@ -64,6 +64,15 @@ export class VerificationService {
     }
 
     const verification = await this.db.transaction(async (tx) => {
+      // The issuer may sign closure-stage fields here; the HOD's closure requires them.
+      await this.permitService.saveStageAnswers(tx, {
+        permitId,
+        tenantId,
+        userId: user.id,
+        stage: 'closure',
+        status: EXECUTION_COMPLETED_STATUS,
+        input: dto.stageAnswers,
+      });
       const [record] = await tx
         .insert(permitVerifications)
         .values({

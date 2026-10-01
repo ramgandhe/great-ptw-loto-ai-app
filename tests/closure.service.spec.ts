@@ -51,6 +51,7 @@ describe('Closure services integration (PUS-146)', () => {
     }
 
     const permitService = {
+      saveStageAnswers: jest.fn(async () => []),
       findOne: jest.fn(async (permitId: string, user: AuthenticatedUser) => {
         const [permit] = await db
           .select()
