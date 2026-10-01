@@ -10,12 +10,17 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { CONFLICT_SEVERITIES, CONFLICT_STATUSES } from '../../../database/schema';
+import {
+  CONFLICT_SEVERITIES,
+  CONFLICT_STATUSES,
+  SIMOPS_CASE_STATUSES,
+  SIMOPS_PERMIT_DECISIONS,
+} from '../../../database/schema';
 
 export class ConflictSearchDto {
   @IsOptional()
-  @IsIn([...CONFLICT_STATUSES])
-  status?: (typeof CONFLICT_STATUSES)[number];
+  @IsIn([...CONFLICT_STATUSES, ...SIMOPS_CASE_STATUSES])
+  status?: (typeof CONFLICT_STATUSES)[number] | (typeof SIMOPS_CASE_STATUSES)[number];
 
   @IsOptional()
   @IsIn([...CONFLICT_SEVERITIES])
@@ -81,4 +86,48 @@ export class RejectConflictDto {
   @IsNotEmpty()
   @MaxLength(4000)
   reason!: string;
+}
+
+export class SimopsCaseControlDto {
+  @IsUUID()
+  permitId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(4000)
+  controlText!: string;
+
+  @IsUUID()
+  responsibleUserId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  comments?: string;
+}
+
+export class SimopsCaseDecisionDto {
+  @IsUUID()
+  permitId!: string;
+
+  @IsIn([...SIMOPS_PERMIT_DECISIONS])
+  decision!: (typeof SIMOPS_PERMIT_DECISIONS)[number];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  comments?: string;
+}
+
+export class ResolveSimopsCaseDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SimopsCaseDecisionDto)
+  decisions!: SimopsCaseDecisionDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SimopsCaseControlDto)
+  controls?: SimopsCaseControlDto[];
 }

@@ -10,6 +10,7 @@ import {
   ConflictSearchDto,
   MitigationPlanDto,
   RejectConflictDto,
+  ResolveSimopsCaseDto,
 } from './dto/simops.dto';
 import { SIMOPS_READ_ROLES, SIMOPS_RESOLVE_ROLES, SIMOPS_WRITE_ROLES } from './simops.constants';
 import { SimopsService } from './simops.service';
@@ -28,21 +29,33 @@ export class SimopsController {
   }
 
   @Roles(...SIMOPS_READ_ROLES)
+  @Get('cases')
+  listCases(@CurrentUser() user: AuthenticatedUser, @Query() query: ConflictSearchDto) {
+    return this.simopsService.listCases(user, query);
+  }
+
+  @Roles(...SIMOPS_READ_ROLES)
   @Get('history')
   listHistory(@CurrentUser() user: AuthenticatedUser) {
-    return this.resolutionService.listHistory(user);
+    return this.simopsService.listHistory(user);
   }
 
   @Roles(...SIMOPS_READ_ROLES)
   @Get('history/:id')
   getHistoryRecord(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.resolutionService.getHistoryRecord(id, user);
+    return this.simopsService.getHistoryRecord(id, user);
   }
 
   @Roles(...SIMOPS_READ_ROLES)
   @Get('conflicts/:id')
   findConflict(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.simopsService.findConflict(id, user);
+  }
+
+  @Roles(...SIMOPS_READ_ROLES)
+  @Get('cases/:id')
+  findCase(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.simopsService.findCase(id, user);
   }
 
   @Roles(...SIMOPS_WRITE_ROLES)
@@ -53,8 +66,18 @@ export class SimopsController {
 
   @Roles(...SIMOPS_READ_ROLES)
   @Get('alerts')
-  listAlerts(@CurrentUser() user: AuthenticatedUser) {
-    return this.simopsService.listAlerts(user);
+  listAlerts() {
+    return this.simopsService.listAlerts();
+  }
+
+  @Roles(...SIMOPS_RESOLVE_ROLES)
+  @Post('cases/:id/resolve')
+  resolveCase(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ResolveSimopsCaseDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.simopsService.resolveCase(id, dto, user);
   }
 
   @Roles(...SIMOPS_RESOLVE_ROLES)

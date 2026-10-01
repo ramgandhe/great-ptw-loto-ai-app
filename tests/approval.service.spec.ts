@@ -112,6 +112,10 @@ describe('ApprovalService integration (PUS-136)', () => {
       approvalCacheService,
       approvalLogService,
       delegationService,
+      {
+        findOpenCaseForPermit: jest.fn().mockResolvedValue(null),
+        assertNoOpenCase: jest.fn().mockResolvedValue(undefined),
+      } as never,
     );
   });
 

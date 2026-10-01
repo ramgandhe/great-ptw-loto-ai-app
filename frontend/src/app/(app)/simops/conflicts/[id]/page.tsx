@@ -4,25 +4,27 @@ import { BackLink } from "@/components/layout/page-header";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
-import { getSimopsConflict } from "@/lib/simops/api";
-import type { ConflictDetail } from "@/lib/simops/types";
-import { ConflictSeverityBadge } from "@/components/simops/conflict-severity-badge";
-import { ConflictTimeline } from "@/components/simops/conflict-timeline";
-import { ConflictWorkflow } from "@/components/simops/conflict-workflow";
+import { getSimopsCase } from "@/lib/simops/api";
+import type { SimopsCaseDetail } from "@/lib/simops/types";
+import { CaseResolve } from "@/components/simops/case-resolve";
+import { useAuthProfile } from "@/lib/auth/auth-profile-context";
+import { hasAnyRole } from "@/lib/auth/rbac";
+import { SIMOPS_RESOLVE_ROLES } from "@/lib/auth/roles";
 
 export default function ConflictDetailPage() {
   const params = useParams<{ id: string }>();
-  const [detail, setDetail] = useState<ConflictDetail | null>(null);
+  const { roles } = useAuthProfile();
+  const canResolve = hasAnyRole(roles, SIMOPS_RESOLVE_ROLES);
+  const [detail, setDetail] = useState<SimopsCaseDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const load = useCallback(() => {
     if (!params.id) return Promise.resolve();
-
-    return getSimopsConflict(params.id)
+    return getSimopsCase(params.id)
       .then(setDetail)
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : "Failed to load conflict");
+        setError(err instanceof ApiError ? err.message : "Failed to load SIMOPS case");
       });
   }, [params.id]);
 
@@ -35,8 +37,10 @@ export default function ConflictDetailPage() {
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
         <BackLink href="/simops" label="SIMOPS" />
-        <h1 className="font-heading text-3xl font-bold tracking-tight">Conflict details</h1>
-        <p className="text-sm text-muted-foreground">Assess, plan mitigation, and resolve SIMOPS conflicts.</p>
+        <h1 className="font-heading text-3xl font-bold tracking-tight">SIMOPS case</h1>
+        <p className="text-sm text-muted-foreground">
+          Compare overlapping permits, then allow, add controls, or reject each one.
+        </p>
       </div>
 
       {error ? (
@@ -49,56 +53,16 @@ export default function ConflictDetailPage() {
       ) : null}
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading conflict…</p>
+        <p className="text-sm text-muted-foreground">Loading case…</p>
       ) : detail ? (
-        <>
-          <section className="rounded-lg border border-border p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="font-medium">{detail.conflict.summary}</p>
-                <p className="text-sm text-muted-foreground">
-                  Type: {detail.conflict.conflictType.replace(/_/g, " ")} · Status:{" "}
-                  {detail.conflict.status.replace(/_/g, " ")}
-                </p>
-              </div>
-              <ConflictSeverityBadge severity={detail.conflict.severity} />
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-lg font-medium">Permit timeline</h2>
-            <ConflictTimeline participants={detail.participants} />
-          </section>
-
-          <ConflictWorkflow
-            detail={detail}
-            onUpdated={() => {
-              setIsLoading(true);
-              load().finally(() => setIsLoading(false));
-            }}
-          />
-
-          <section className="space-y-3">
-            <h2 className="text-lg font-medium">Alerts</h2>
-            {detail.alerts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No alerts for this conflict.</p>
-            ) : (
-              <ul className="divide-y divide-border rounded-lg border border-border">
-                {detail.alerts.map((alert) => (
-                  <li key={alert.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                    <div>
-                      <p className="text-sm font-medium">{alert.message}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {alert.recipientRole} · {alert.status}
-                      </p>
-                    </div>
-                    <ConflictSeverityBadge severity={alert.severity} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </>
+        <CaseResolve
+          detail={detail}
+          canResolve={canResolve}
+          onUpdated={() => {
+            setIsLoading(true);
+            load().finally(() => setIsLoading(false));
+          }}
+        />
       ) : null}
     </main>
   );

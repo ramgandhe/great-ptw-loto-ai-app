@@ -64,4 +64,5 @@ export type ApprovalReview = PermitDetail & {
   workflow: WorkflowAssignmentRow[];
   activeAssignment: WorkflowAssignmentRow | null;
   decisions: PermitApprovalDecision[];
+  simopsCase?: { id: string; summary: string; severity: string } | null;
 };

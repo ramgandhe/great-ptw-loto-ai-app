@@ -12,12 +12,12 @@ import {
   permitStatusHistory,
   permitTypes,
   permits,
-  simopsConflicts,
+  simopsCases,
 } from '../../database/schema';
 
 const DAY_MS = 86_400_000;
 const OPEN_INCIDENT_STATUSES = ['open', 'pending_hod_decision', 'investigating', 'pending_verification', 'verified'];
-const OPEN_CONFLICT_STATUSES = ['open', 'assessed', 'mitigation_planned'];
+const OPEN_CONFLICT_STATUSES = ['review_required'];
 const LIVE_PERMIT_STATUSES = ['pending_approval', 'approved', 'active', 'suspended'];
 
 type Bucket = { key: string; label: string; count: number };
@@ -177,9 +177,9 @@ export class InsightsService {
         .from(incidents)
         .where(and(eq(incidents.tenantId, tenantId), gte(incidents.occurredAt, from))),
       this.db
-        .select({ severity: simopsConflicts.severity, status: simopsConflicts.status })
-        .from(simopsConflicts)
-        .where(eq(simopsConflicts.tenantId, tenantId)),
+        .select({ severity: simopsCases.severity, status: simopsCases.status })
+        .from(simopsCases)
+        .where(eq(simopsCases.tenantId, tenantId)),
       this.db
         .select({ status: correctiveActions.status, dueDate: correctiveActions.dueDate })
         .from(correctiveActions)

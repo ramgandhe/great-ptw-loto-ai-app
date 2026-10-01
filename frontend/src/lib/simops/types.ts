@@ -132,3 +132,72 @@ export type ApproveConflictPayload = {
 export type RejectConflictPayload = {
   reason: string;
 };
+
+export type SimopsPermitDecision = "allow" | "allow_with_controls" | "reject";
+
+export type SimopsCasePermit = {
+  id: string;
+  permitId: string;
+  decision: SimopsPermitDecision | null;
+  comments: string | null;
+  permit: {
+    id: string;
+    reference: string | null;
+    title: string;
+    status: string;
+    plannedStartAt: string | null;
+    plannedEndAt: string | null;
+  };
+  hazards: Array<{ hazardCatalogueId: string; extraConsequences?: unknown; extraControls?: unknown }>;
+  ppe: Array<{ ppeCatalogueId: string }>;
+  lototo: Array<{ procedureId?: string | null }>;
+};
+
+export type SimopsCaseInteraction = {
+  id: string;
+  permitIdA: string;
+  permitIdB: string;
+  conflictType: ConflictType;
+  severity: ConflictSeverity;
+  summary: string;
+};
+
+export type SimopsCaseControl = {
+  id: string;
+  permitId: string;
+  controlText: string;
+  responsibleUserId: string;
+  comments: string | null;
+};
+
+export type SimopsCasePerson = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+};
+
+export type SimopsCaseDetail = {
+  case: {
+    id: string;
+    status: "review_required" | "resolved";
+    severity: ConflictSeverity;
+    summary: string;
+    detectedAt: string;
+    resolvedAt: string | null;
+  };
+  members: SimopsCasePermit[];
+  interactions: SimopsCaseInteraction[];
+  controls: SimopsCaseControl[];
+  people: SimopsCasePerson[];
+};
+
+export type ResolveSimopsCasePayload = {
+  decisions: Array<{ permitId: string; decision: SimopsPermitDecision; comments?: string }>;
+  controls?: Array<{
+    permitId: string;
+    controlText: string;
+    responsibleUserId: string;
+    comments?: string;
+  }>;
+};

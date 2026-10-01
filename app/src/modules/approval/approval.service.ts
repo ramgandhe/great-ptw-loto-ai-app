@@ -28,6 +28,7 @@ import { RejectPermitDto } from './dto/reject-permit.dto';
 import { DelegationService } from './delegation.service';
 import { NotificationService } from './notification.service';
 import { WorkflowEngineService } from './workflow-engine.service';
+import { SimopsService } from '../simops/simops.service';
 
 @Injectable()
 export class ApprovalService {
@@ -42,6 +43,7 @@ export class ApprovalService {
     private readonly approvalCacheService: ApprovalCacheService,
     private readonly approvalLogService: ApprovalLogService,
     private readonly delegationService: DelegationService,
+    private readonly simopsService: SimopsService,
   ) {}
 
   async listPending(user: AuthenticatedUser) {
@@ -120,11 +122,15 @@ export class ApprovalService {
       .from(permitApprovals)
       .where(eq(permitApprovals.permitId, permitId));
 
+    const tenantId = this.requireTenant(user);
+    const simopsCase = await this.simopsService.findOpenCaseForPermit(permitId, tenantId);
+
     return {
       ...(await this.permitService.findOne(permitId, user)),
       workflow,
       activeAssignment: active,
       decisions,
+      simopsCase,
     };
   }
 
@@ -426,6 +432,10 @@ export class ApprovalService {
 
     if (existing) {
       throw new ConflictException('This approval step has already been decided');
+    }
+
+    if (decision === 'approve') {
+      await this.simopsService.assertNoOpenCase(permitId, permit.tenantId);
     }
 
     return { permit, assignment, step, onBehalfOf };

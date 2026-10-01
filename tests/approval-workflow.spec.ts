@@ -108,6 +108,10 @@ describe('Approval workflow remediation (SP-09.01)', () => {
       approvalCacheService,
       approvalLogService,
       delegationService,
+      {
+        findOpenCaseForPermit: jest.fn().mockResolvedValue(null),
+        assertNoOpenCase: jest.fn().mockResolvedValue(undefined),
+      } as never,
     );
 
     approvalJobsService = new ApprovalJobsService(

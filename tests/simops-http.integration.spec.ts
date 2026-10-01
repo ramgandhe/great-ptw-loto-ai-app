@@ -173,47 +173,33 @@ describe('SIMOPS HTTP integration (PUS-166 / PUS-171)', () => {
     expect(listRes.body.data[0].severity).toBeDefined();
   });
 
-  httpTest('resolves conflict through assess → mitigation → approve', async () => {
+  httpTest('resolves a case with per-permit decisions', async () => {
     await seedOverlappingPermits();
 
     await request(app.getHttpServer()).post('/api/v1/simops/analyse').send({}).expect(201);
 
     const listRes = await request(app.getHttpServer()).get('/api/v1/simops/conflicts').expect(200);
-    const conflictId = listRes.body.data[0].id as string;
+    const caseId = listRes.body.data[0].id as string;
 
-    const detailRes = await request(app.getHttpServer())
-      .get(`/api/v1/simops/conflicts/${conflictId}`)
-      .expect(200);
+    const detailRes = await request(app.getHttpServer()).get(`/api/v1/simops/cases/${caseId}`).expect(200);
+    const members = detailRes.body.data.members as Array<{ permitId: string }>;
+    expect(members.length).toBeGreaterThanOrEqual(2);
 
-    expect(detailRes.body.data.participants.length).toBeGreaterThanOrEqual(2);
-
-    await request(app.getHttpServer())
-      .post(`/api/v1/simops/conflicts/${conflictId}/assess`)
+    const resolveRes = await request(app.getHttpServer())
+      .post(`/api/v1/simops/cases/${caseId}/resolve`)
       .send({
-        assessedSeverity: 'high',
-        riskSummary: 'Overlapping equipment isolation required',
+        decisions: members.map((member) => ({
+          permitId: member.permitId,
+          decision: 'allow',
+          comments: 'Overlap accepted',
+        })),
       })
       .expect(201);
 
-    await request(app.getHttpServer())
-      .post(`/api/v1/simops/conflicts/${conflictId}/mitigation`)
-      .send({
-        planSummary: 'Stagger work windows',
-        actions: [{ description: 'Delay second permit start by 2 hours' }],
-      })
-      .expect(201);
-
-    const approveRes = await request(app.getHttpServer())
-      .post(`/api/v1/simops/conflicts/${conflictId}/approve`)
-      .send({ comments: 'Mitigation accepted' })
-      .expect(201);
-
-    expect(approveRes.body.data.outcome).toBe('approved');
+    expect(resolveRes.body.data.case.status).toBe('resolved');
 
     const historyRes = await request(app.getHttpServer()).get('/api/v1/simops/history').expect(200);
-
-    expect(historyRes.body.data.length).toBeGreaterThanOrEqual(1);
-    expect(historyRes.body.data.some((item: { conflict: { id: string } }) => item.conflict.id === conflictId)).toBe(
+    expect(historyRes.body.data.some((item: { conflict: { id: string } }) => item.conflict.id === caseId)).toBe(
       true,
     );
   });

@@ -1,8 +1,10 @@
 import { randomUUID } from 'crypto';
 import {
   buildFingerprint,
+  clusterConflicts,
   detectConflicts,
   detectPairConflict,
+  excludeResolvedOverlaps,
   schedulesOverlap,
   type PermitForAnalysis,
 } from '../app/src/modules/simops/conflict-detection.service';
@@ -96,5 +98,20 @@ describe('SIMOPS conflict detection (PUS-166)', () => {
 
     const conflicts = detectConflicts([a, b, c]);
     expect(conflicts).toHaveLength(3);
+    const clusters = clusterConflicts(conflicts);
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].permitIds).toHaveLength(3);
+  });
+
+  it('does not reopen a pair already on a resolved case', () => {
+    const machineryId = randomUUID();
+    const a = permit({ machineryId });
+    const b = permit({ id: randomUUID(), machineryId });
+    const d = permit({ id: randomUUID(), machineryId });
+    const remaining = excludeResolvedOverlaps(detectConflicts([a, b, d]), [[a.id, b.id]]);
+    expect(remaining.every((item) => !(item.permitIds.includes(a.id) && item.permitIds.includes(b.id)))).toBe(
+      true,
+    );
+    expect(remaining.some((item) => item.permitIds.includes(d.id))).toBe(true);
   });
 });

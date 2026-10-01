@@ -38,6 +38,7 @@ import {
 import { MailService } from '../../infrastructure/mail/mail.service';
 import { AuditService } from '../logging/audit.service';
 import { ApprovalHistoryService } from '../approval/approval-history.service';
+import { SimopsService } from '../simops/simops.service';
 import { NotificationService } from '../approval/notification.service';
 import { WorkflowEngineService } from '../approval/workflow-engine.service';
 import { CreatePermitDto } from './dto/create-permit.dto';
@@ -110,6 +111,8 @@ export class PermitService {
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => NotificationService))
     private readonly approvalNotifications: NotificationService,
+    @Inject(forwardRef(() => SimopsService))
+    private readonly simopsService: SimopsService,
   ) {}
 
   async create(rawDto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -594,6 +597,8 @@ export class PermitService {
       actorId: user.id,
       metadata: { submittedAt: new Date().toISOString() },
     });
+
+    await this.simopsService.syncOnSubmit(id, user);
 
     return this.loadDetail(this.db, id, tenantId);
   }

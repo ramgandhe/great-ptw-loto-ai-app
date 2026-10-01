@@ -4,22 +4,19 @@ import { BackLink } from "@/components/layout/page-header";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
-import { getSimopsHistoryRecord } from "@/lib/simops/api";
-import type { ConflictDetail } from "@/lib/simops/types";
-import { ConflictSeverityBadge } from "@/components/simops/conflict-severity-badge";
-import { ConflictTimeline } from "@/components/simops/conflict-timeline";
-import { formatDateTime } from "@/lib/format";
+import { getSimopsCase } from "@/lib/simops/api";
+import type { SimopsCaseDetail } from "@/lib/simops/types";
+import { CaseResolve } from "@/components/simops/case-resolve";
 
 export default function SimopsHistoryDetailPage() {
   const params = useParams<{ id: string }>();
-  const [detail, setDetail] = useState<ConflictDetail | null>(null);
+  const [detail, setDetail] = useState<SimopsCaseDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!params.id) return;
-
-    getSimopsHistoryRecord(params.id)
+    getSimopsCase(params.id)
       .then(setDetail)
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : "Failed to load history record");
@@ -30,66 +27,18 @@ export default function SimopsHistoryDetailPage() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
-        <BackLink href="/simops?view=history" label="Resolved clashes" />
-        <h1 className="font-heading text-3xl font-bold tracking-tight">Conflict history record</h1>
-        <p className="text-sm text-muted-foreground">Immutable resolution record for audit.</p>
+        <BackLink href="/simops?view=history" label="Resolved cases" />
+        <h1 className="font-heading text-3xl font-bold tracking-tight">Resolved SIMOPS case</h1>
       </div>
-
       {error ? (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
+        <p role="alert" className="text-sm text-destructive">
           {error}
-        </div>
+        </p>
       ) : null}
-
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading record…</p>
       ) : detail ? (
-        <>
-          <section className="rounded-lg border border-border p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="font-medium">{detail.conflict.summary}</p>
-                <p className="text-sm text-muted-foreground">
-                  Outcome: {detail.resolution?.outcome} · {detail.resolution?.comments}
-                </p>
-              </div>
-              <ConflictSeverityBadge severity={detail.conflict.severity} />
-            </div>
-          </section>
-
-          {detail.assessment ? (
-            <section className="rounded-lg border border-border p-4">
-              <h2 className="text-lg font-medium">Assessment</h2>
-              <p className="mt-2 text-sm text-muted-foreground">{detail.assessment.riskSummary}</p>
-            </section>
-          ) : null}
-
-          {detail.mitigation ? (
-            <section className="rounded-lg border border-border p-4">
-              <h2 className="text-lg font-medium">Mitigation plan</h2>
-              <p className="mt-2 text-sm text-muted-foreground">{detail.mitigation.planSummary}</p>
-            </section>
-          ) : null}
-
-          <section className="space-y-3">
-            <h2 className="text-lg font-medium">Permit timeline</h2>
-            <ConflictTimeline participants={detail.participants} />
-          </section>
-
-          <section className="rounded-lg border border-border p-4">
-            <h2 className="text-lg font-medium">Activity log</h2>
-            <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
-              {detail.history.map((entry) => (
-                <li key={entry.id}>
-                  {entry.action.replace(/_/g, " ")} · {formatDateTime(entry.createdAt)}
-                </li>
-              ))}
-            </ul>
-          </section>
-        </>
+        <CaseResolve detail={detail} canResolve={false} onUpdated={() => undefined} />
       ) : null}
     </main>
   );

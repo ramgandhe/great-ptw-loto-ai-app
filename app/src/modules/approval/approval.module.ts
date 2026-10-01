@@ -13,8 +13,10 @@ import { NotificationService } from './notification.service';
 import { WorkflowController } from './workflow.controller';
 import { WorkflowEngineService } from './workflow-engine.service';
 
+import { SimopsModule } from '../simops/simops.module';
+
 @Module({
-  imports: [forwardRef(() => PermitModule), NotificationsModule],
+  imports: [forwardRef(() => PermitModule), NotificationsModule, SimopsModule],
   controllers: [ApprovalController, WorkflowController],
   providers: [
     ApprovalService,

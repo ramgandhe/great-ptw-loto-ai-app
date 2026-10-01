@@ -10,7 +10,7 @@ import {
   incidents,
   lototoPlans,
   permits,
-  simopsConflicts,
+  simopsCases,
 } from '../../database/schema';
 import { DashboardCacheService } from './dashboard-cache.service';
 import { DashboardLogService } from './dashboard-log.service';
@@ -192,8 +192,8 @@ export class AnalyticsService {
 
     if (scope === 'simops') {
       return {
-        open: await this.countSimopsConflicts(tenantId, ['open', 'assessed', 'mitigation_planned']),
-        resolved: await this.countSimopsConflicts(tenantId, ['approved', 'rejected']),
+        open: await this.countSimopsConflicts(tenantId, ['review_required']),
+        resolved: await this.countSimopsConflicts(tenantId, ['resolved']),
       };
     }
 
@@ -227,9 +227,9 @@ export class AnalyticsService {
   private async countSimopsConflicts(tenantId: string, statuses: string[]): Promise<number> {
     const [row] = await this.db
       .select({ value: count() })
-      .from(simopsConflicts)
+      .from(simopsCases)
       .where(
-        and(eq(simopsConflicts.tenantId, tenantId), inArray(simopsConflicts.status, statuses)),
+        and(eq(simopsCases.tenantId, tenantId), inArray(simopsCases.status, statuses)),
       );
     return Number(row?.value ?? 0);
   }

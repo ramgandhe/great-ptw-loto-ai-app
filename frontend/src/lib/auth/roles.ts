@@ -163,6 +163,7 @@ export const SIMOPS_READ_ROLES = [
 
 /** Roles that can run SIMOPS analysis (matches the API). */
 export const SIMOPS_ANALYSE_ROLES = ["hod", "tenant-owner", "tenant-admin", "platform-admin", "job-issuer"] as const;
+export const SIMOPS_RESOLVE_ROLES = ["hod", "tenant-owner", "tenant-admin", "platform-admin"] as const;
 
 export const INCIDENT_READ_ROLES = [
   "operator",

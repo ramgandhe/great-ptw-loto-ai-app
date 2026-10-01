@@ -91,7 +91,7 @@ function SimopsBoard() {
     <main className="flex flex-1 flex-col gap-6 px-4 pb-8 sm:px-8">
       <PageHeader
         title="SIMOPS"
-        description="Simultaneous operations: work that clashes on place, equipment, time or permit type. Resolve high severity before work starts."
+        description="Overlapping work on the same location, workstation, or machinery. HOD decides each permit in the case."
         actions={
           canAnalyse ? (
             <Button type="button" size="lg" onClick={analyse} disabled={analysing}>
@@ -130,9 +130,9 @@ function SimopsBoard() {
 
         <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           {[
-            { label: "Open clashes", value: open.length, tone: "warning" as const, href: "/simops" },
+            { label: "Open cases", value: open.length, tone: "warning" as const, href: "/simops" },
             { label: "High severity", value: open.filter((c) => c.severity === "high").length, tone: "danger" as const, href: "/simops?severity=high" },
-            { label: "Not assessed yet", value: open.filter((c) => c.status === "open").length, tone: "warning" as const, href: "/simops" },
+            { label: "Needs HOD", value: open.filter((c) => c.status === "open").length, tone: "warning" as const, href: "/simops" },
             { label: "Resolved", value: history.length, href: "/simops?view=history" },
           ].map((t) => (
             <motion.div key={t.label} variants={staggerItem}>
@@ -152,7 +152,7 @@ function SimopsBoard() {
           {rows.length === 0 ? (
             <EmptyState
               title={view === "active" ? "No open clashes match" : "No resolved clashes match"}
-              hint={view === "active" && open.length === 0 ? "Run a clash check after new permits are approved." : "Remove a filter above to widen the list."}
+              hint={view === "active" && open.length === 0 ? "Cases appear when an issuer submits overlapping work." : "Remove a filter above to widen the list."}
             />
           ) : (
             <RecordList headers={["Clash", view === "active" ? "Detected" : "Outcome", "Status", view === "active" ? "Next step" : ""]}>

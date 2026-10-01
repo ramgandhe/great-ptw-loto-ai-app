@@ -70,25 +70,13 @@ export function detectPairConflict(
 
   const equipmentConflict = sharesEquipment(a, b);
   const locationConflict = sharesLocation(a, b);
-  const permitTypeConflict = a.permitTypeId !== b.permitTypeId && (locationConflict || equipmentConflict);
 
-  if (!equipmentConflict && !locationConflict && !permitTypeConflict) {
+  if (!equipmentConflict && !locationConflict) {
     return null;
   }
 
-  let conflictType: ConflictType;
-  let severity: ConflictSeverity;
-
-  if (equipmentConflict) {
-    conflictType = 'equipment';
-    severity = 'high';
-  } else if (locationConflict) {
-    conflictType = 'location';
-    severity = 'medium';
-  } else {
-    conflictType = 'permit_type';
-    severity = 'low';
-  }
+  const conflictType: ConflictType = equipmentConflict ? 'equipment' : 'location';
+  const severity: ConflictSeverity = equipmentConflict ? 'high' : 'medium';
 
   const overlapStart = new Date(
     Math.max(a.plannedStartAt!.getTime(), b.plannedStartAt!.getTime()),
@@ -97,9 +85,7 @@ export function detectPairConflict(
 
   const summary = equipmentConflict
     ? 'Overlapping permits share equipment during the same schedule window.'
-    : locationConflict
-      ? 'Overlapping permits share a work location during the same schedule window.'
-      : 'Overlapping permits with different types share operational scope during the same schedule window.';
+    : 'Overlapping permits share a work location during the same schedule window.';
 
   const fingerprint = buildFingerprint(a.id, b.id, conflictType);
 
@@ -116,7 +102,6 @@ export function detectPairConflict(
         'schedule',
         ...(equipmentConflict ? ['equipment'] : []),
         ...(locationConflict ? ['location'] : []),
-        ...(permitTypeConflict ? ['permit_type'] : []),
       ],
       permits: [
         { id: a.id, reference: a.reference, title: a.title },
@@ -143,4 +128,67 @@ export function detectConflicts(permits: PermitForAnalysis[]): DetectedConflict[
   }
 
   return results;
+}
+
+export function clusterConflicts(conflicts: DetectedConflict[]): Array<{
+  permitIds: string[];
+  interactions: DetectedConflict[];
+}> {
+  const parent = new Map<string, string>();
+
+  function find(id: string): string {
+    if (!parent.has(id)) {
+      parent.set(id, id);
+    }
+    const current = parent.get(id)!;
+    if (current !== id) {
+      parent.set(id, find(current));
+    }
+    return parent.get(id)!;
+  }
+
+  function union(left: string, right: string) {
+    const a = find(left);
+    const b = find(right);
+    if (a !== b) {
+      parent.set(a, b);
+    }
+  }
+
+  for (const item of conflicts) {
+    union(item.permitIds[0], item.permitIds[1]);
+  }
+
+  const groups = new Map<string, { permitIds: Set<string>; interactions: DetectedConflict[] }>();
+  for (const item of conflicts) {
+    const root = find(item.permitIds[0]);
+    let group = groups.get(root);
+    if (!group) {
+      group = { permitIds: new Set(), interactions: [] };
+      groups.set(root, group);
+    }
+    group.permitIds.add(item.permitIds[0]);
+    group.permitIds.add(item.permitIds[1]);
+    group.interactions.push(item);
+  }
+
+  return [...groups.values()].map((group) => ({
+    permitIds: [...group.permitIds].sort(),
+    interactions: group.interactions,
+  }));
+}
+
+export function clusterFingerprint(permitIds: string[]): string {
+  return [...permitIds].sort().join(':');
+}
+
+/** Skip a pair already decided together on a resolved case. */
+export function excludeResolvedOverlaps(
+  conflicts: DetectedConflict[],
+  resolvedPermitSets: string[][],
+): DetectedConflict[] {
+  return conflicts.filter((item) => {
+    const [left, right] = item.permitIds;
+    return !resolvedPermitSets.some((set) => set.includes(left) && set.includes(right));
+  });
 }

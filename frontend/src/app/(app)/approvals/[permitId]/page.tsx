@@ -158,6 +158,15 @@ export default function PermitReviewPage() {
             </h2>
             {step ? <p className="mt-0.5 text-sm text-muted-foreground">Stage: {step.name}</p> : null}
 
+            {review.simopsCase ? (
+              <p className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+                Approve is blocked until the SIMOPS case is decided.{" "}
+                <Link href={`/simops/conflicts/${review.simopsCase.id}`} className="underline">
+                  Open case
+                </Link>
+              </p>
+            ) : null}
+
             {!canAct ? (
               <p className="mt-3 text-sm text-muted-foreground">
                 Nothing to decide here. The permit is {formatStatus(review.permit.status).toLowerCase()}.
@@ -171,6 +180,7 @@ export default function PermitReviewPage() {
                       type="button"
                       role="radio"
                       aria-checked={decision === key}
+                      disabled={key === "approve" && Boolean(review.simopsCase)}
                       onClick={() => {
                         setDecision(key);
                         setActionError(null);

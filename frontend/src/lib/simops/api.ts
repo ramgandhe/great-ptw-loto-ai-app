@@ -13,6 +13,8 @@ import type {
   MitigationPlan,
   MitigationPlanPayload,
   RejectConflictPayload,
+  ResolveSimopsCasePayload,
+  SimopsCaseDetail,
   SimopsConflict,
 } from "./types";
 
@@ -31,6 +33,17 @@ export function listSimopsConflicts(params?: {
 
 export function getSimopsConflict(conflictId: string) {
   return fetchApi<ConflictDetail>(`/simops/conflicts/${conflictId}`);
+}
+
+export function getSimopsCase(caseId: string) {
+  return fetchApi<SimopsCaseDetail>(`/simops/cases/${caseId}`);
+}
+
+export function resolveSimopsCase(caseId: string, payload: ResolveSimopsCasePayload) {
+  return fetchApi<SimopsCaseDetail>(`/simops/cases/${caseId}/resolve`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function analyseSimopsConflicts(permitId?: string) {

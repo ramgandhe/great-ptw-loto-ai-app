@@ -13,8 +13,10 @@ import { PermitLototoExecutionController } from './permit-lototo-execution.contr
 import { PermitLototoExecutionService } from './permit-lototo-execution.service';
 import { PermitLogService } from './permit-log.service';
 
+import { SimopsModule } from '../simops/simops.module';
+
 @Module({
-  imports: [forwardRef(() => ApprovalModule)],
+  imports: [forwardRef(() => ApprovalModule), forwardRef(() => SimopsModule)],
   controllers: [PermitController, DraftController, AttachmentController, PermitLototoExecutionController],
   providers: [
     PermitService,
