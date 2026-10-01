@@ -1,0 +1,4080 @@
+{
+  "role": "orgadmin",
+  "results": [
+    {
+      "title": "PermitWiseAI",
+      "url": "/dashboard",
+      "headings": [
+        "Good evening, John",
+        "Site at a glance",
+        "Needs you",
+        "Incidents waiting for your decision4",
+        "Clashing work to resolve (SIMOPS)7",
+        "Waiting for your approval7",
+        "Waiting for final sign-off1",
+        "Sent back to you2",
+        "Drafts to finish13",
+        "Incidents needing an investigator1",
+        "Investigations in progress7"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nGood evening, John\n\n42 items need your action.\n\nReport incident\nCreate permit\nSite at a glance\n\nLast 30 days. Anything above zero needs someone's attention.\n\nOpen analytics\n\n0\n\nWork past planned end\n\nAll clear\n\n7\n\nApprovals waiting over a day\n\nOpen to act\n\n7\n\nHigh-severity SIMOPS clashes\n\nOpen to act\n\n0\n\nSerious incidents open\n\nAll clear\n\nNeeds you\n\nGrouped by what you have to do. Urgent jobs glow.\n\nIncidents waiting for your decision\n4\nNear-miss — dropped tool from scaffold\n\nINC-DEMO-002\nNear miss, high priority\n\nDecide\nUI check: loose grating×3\n\nINC-2026-A1340D97\nNear miss, medium priority\n\nDecide\nShow all 4\nClashing work to resolve (SIMOPS)\n7\nOverlapping permits share equipment during the same schedule window.×6\n\nHigh severity, equipment clash\n\nNot assessed yet\nResolve\nOverlapping hot work and excavation at tank farm\n\nHigh severity, location clash\n\nNot assessed yet\nResolve\nShow all 7\nWaiting for your approval\n7\nPending HOD review — confined space entry\n\nPending approval\nPTW-DEMO-003\nConfined Space\nMain compressor\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nStage: HOD initial review\nReview\nPending HOD initial review — welding repair\n\nPending approval\nPTW-DEMO-002\nHot Work\nMain compressor\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nStage: HOD initial review\nReview\nAPI bug check 1790659741903\n\nPending approval\nPTW-2026-000001\nCold Work\nCompressor Bay\nWed 30 Sept, 10:59 to 14:59\n\nStage: HOD initial review\nReview\nShow all 7\nWaiting for final sign-off\n1\nPending closure — valve replacement complete\n\nFinal sign-off\nPTW-DEMO-009\nGeneral Work\nMain compressor\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nSign off\nSent back to you\n2\nRejected — inadequate controls\n\nRejected\nPTW-DEMO-005\nElectrical\nMain compressor\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nRevise\nDeferred — missing hazard assessment\n\nDeferred\nPTW-DEMO-004\nHot Work\nMain compressor\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nRevise\nDrafts to finish\n13\nBug check mumiga6m\n\nDraft\nHot Work\nSchedule not set\n\nContinue\nBug check mumidzfb\n\nDraft\nHot Work\nSchedule not set\n\nContinue\nBug check mum9rjpn\n\nDraft\nHot Work\nSchedule not set\n\nContinue\nShow all 13\nIncidents needing an investigator\n1\nOpen — oil leak near work area\n\nINC-DEMO-001\nUnsafe condition, medium priority\n\nAssign\nInvestigations in progress\n7\nNear miss mumiga6m\n\nINC-2026-9A244249\nNear miss, medium priority\n\nContinue\nNear miss mumidzfb\n\nINC-2026-C35816B0\nNear miss, medium priority\n\nContinue\nNear miss mum9rjpn\n\nINC-2026-C7B34838\nNear miss, medium priority\n\nContinue\nShow all 7",
+      "links": [
+        {
+          "text": "Report incident",
+          "href": "/incidents?new=1"
+        },
+        {
+          "text": "Create permit",
+          "href": "/permits/new"
+        },
+        {
+          "text": "Open analytics",
+          "href": "/analytics"
+        },
+        {
+          "text": "0Work past planned endAll clear",
+          "href": "/execution"
+        },
+        {
+          "text": "7Approvals waiting over a dayOpen to act",
+          "href": "/approvals"
+        },
+        {
+          "text": "7High-severity SIMOPS clashesOpen to act",
+          "href": "/simops/conflicts"
+        },
+        {
+          "text": "0Serious incidents openAll clear",
+          "href": "/incidents"
+        },
+        {
+          "text": "Near-miss — dropped tool from scaffold",
+          "href": "/incidents/00000000-0000-4000-8000-000000000502"
+        },
+        {
+          "text": "Decide",
+          "href": "/incidents/00000000-0000-4000-8000-000000000502"
+        },
+        {
+          "text": "UI check: loose grating",
+          "href": "/incidents/ff6e4874-8a15-4ad9-bff1-d4e6ba0e04ac"
+        },
+        {
+          "text": "Decide",
+          "href": "/incidents/ff6e4874-8a15-4ad9-bff1-d4e6ba0e04ac"
+        },
+        {
+          "text": "Overlapping permits share equipment during the same schedule window.",
+          "href": "/simops/conflicts/8a6aaabc-fd02-4800-b080-51fb8d821439"
+        },
+        {
+          "text": "Resolve",
+          "href": "/simops/conflicts/8a6aaabc-fd02-4800-b080-51fb8d821439"
+        },
+        {
+          "text": "Overlapping hot work and excavation at tank farm",
+          "href": "/simops/conflicts/00000000-0000-4000-8000-000000000601"
+        },
+        {
+          "text": "Resolve",
+          "href": "/simops/conflicts/00000000-0000-4000-8000-000000000601"
+        },
+        {
+          "text": "Pending HOD review — confined space entry",
+          "href": "/approvals/00000000-0000-4000-8000-000000000203"
+        },
+        {
+          "text": "Review",
+          "href": "/approvals/00000000-0000-4000-8000-000000000203"
+        },
+        {
+          "text": "Pending HOD initial review — welding repair",
+          "href": "/approvals/00000000-0000-4000-8000-000000000202"
+        },
+        {
+          "text": "Review",
+          "href": "/approvals/00000000-0000-4000-8000-000000000202"
+        },
+        {
+          "text": "API bug check 1790659741903",
+          "href": "/approvals/d82949a5-fa0b-4a84-a7c0-c7e273265672"
+        },
+        {
+          "text": "Review",
+          "href": "/approvals/d82949a5-fa0b-4a84-a7c0-c7e273265672"
+        },
+        {
+          "text": "Pending closure — valve replacement complete",
+          "href": "/closure/00000000-0000-4000-8000-000000000209"
+        },
+        {
+          "text": "Sign off",
+          "href": "/closure/00000000-0000-4000-8000-000000000209"
+        },
+        {
+          "text": "Rejected — inadequate controls",
+          "href": "/permits/00000000-0000-4000-8000-000000000205/edit"
+        },
+        {
+          "text": "Revise",
+          "href": "/permits/00000000-0000-4000-8000-000000000205/edit"
+        },
+        {
+          "text": "Deferred — missing hazard assessment",
+          "href": "/permits/00000000-0000-4000-8000-000000000204/edit"
+        },
+        {
+          "text": "Revise",
+          "href": "/permits/00000000-0000-4000-8000-000000000204/edit"
+        },
+        {
+          "text": "Bug check mumiga6m",
+          "href": "/permits/a16576ce-f7f0-4229-88f5-d4e1ca755ed7/edit"
+        },
+        {
+          "text": "Continue",
+          "href": "/permits/a16576ce-f7f0-4229-88f5-d4e1ca755ed7/edit"
+        },
+        {
+          "text": "Bug check mumidzfb",
+          "href": "/permits/5185081e-3cdf-41e3-bb89-3492ecced86c/edit"
+        },
+        {
+          "text": "Continue",
+          "href": "/permits/5185081e-3cdf-41e3-bb89-3492ecced86c/edit"
+        },
+        {
+          "text": "Bug check mum9rjpn",
+          "href": "/permits/f2d02cb8-82f7-4a85-99f0-8f95c5552d22/edit"
+        },
+        {
+          "text": "Continue",
+          "href": "/permits/f2d02cb8-82f7-4a85-99f0-8f95c5552d22/edit"
+        },
+        {
+          "text": "Open — oil leak near work area",
+          "href": "/incidents/00000000-0000-4000-8000-000000000501"
+        },
+        {
+          "text": "Assign",
+          "href": "/incidents/00000000-0000-4000-8000-000000000501"
+        },
+        {
+          "text": "Near miss mumiga6m",
+          "href": "/incidents/0c225aaf-7e56-46bf-9be5-f04b0318c6b0"
+        },
+        {
+          "text": "Continue",
+          "href": "/incidents/0c225aaf-7e56-46bf-9be5-f04b0318c6b0"
+        },
+        {
+          "text": "Near miss mumidzfb",
+          "href": "/incidents/f57da014-6c11-4335-a199-84f1f497c589"
+        },
+        {
+          "text": "Continue",
+          "href": "/incidents/f57da014-6c11-4335-a199-84f1f497c589"
+        },
+        {
+          "text": "Near miss mum9rjpn",
+          "href": "/incidents/041540d6-0851-4902-a229-db6bf56e62ed"
+        },
+        {
+          "text": "Continue",
+          "href": "/incidents/041540d6-0851-4902-a229-db6bf56e62ed"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Show all 4",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Show all 7",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Show all 7",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Show all 13",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Show all 7",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/dashboard",
+      "http": 200,
+      "mobile": {
+        "overflow": false,
+        "sticky": [
+          {
+            "text": "Good evening, John42 items need your action.Report incidentCreate permit",
+            "height": 155
+          }
+        ]
+      }
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation",
+      "headings": [
+        "Organisation",
+        "Organisation setup: 95% done",
+        "Site structure",
+        "Permits and safety catalogues",
+        "People and workflow"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nOrganisation\n\nDemo Organisation\n\nOrganisation setup: 95% done\n\n18 of 19 steps done. Review or change anything in the setup wizard.\n\nContinue setup\nSite structure\n\nSet up in this order: each level is picked from the one above it.\n\nPlants\nTop-level operational sites\nDepartments\nTeams that own work\nLocations\nWork areas within plants\nWorkstations\nWhere equipment is installed\nMachinery\nEquipment and its isolation plans\nPermits and safety catalogues\n\nWhat people pick when they raise a permit.\n\nPermit types\nTypes, fields and colours\nPermit templates\nPre-filled starting points\nHazards\nHazard categories\nPPE\nProtective equipment requirements\nGas testing\nParameters and limits by workstation\nSafety checklists\nReusable checklist items\nPeople and workflow\n\nWho can do what, and how approvals and messages flow.\n\nUsers and roles\nLogins and organisation roles\nApproval workflows\nApproval stages and routing\nNotification preferences\nChannels and events\nOrganisation profile\nRegistration and details",
+      "links": [
+        {
+          "text": "Continue setup",
+          "href": "/organisation/setup"
+        },
+        {
+          "text": "PlantsTop-level operational sites",
+          "href": "/organisation/plants"
+        },
+        {
+          "text": "DepartmentsTeams that own work",
+          "href": "/organisation/departments"
+        },
+        {
+          "text": "LocationsWork areas within plants",
+          "href": "/organisation/locations"
+        },
+        {
+          "text": "WorkstationsWhere equipment is installed",
+          "href": "/organisation/workstations"
+        },
+        {
+          "text": "MachineryEquipment and its isolation plans",
+          "href": "/organisation/machinery"
+        },
+        {
+          "text": "Permit typesTypes, fields and colours",
+          "href": "/organisation/permit-types"
+        },
+        {
+          "text": "Permit templatesPre-filled starting points",
+          "href": "/organisation/templates"
+        },
+        {
+          "text": "HazardsHazard categories",
+          "href": "/organisation/hazards"
+        },
+        {
+          "text": "PPEProtective equipment requirements",
+          "href": "/organisation/ppe"
+        },
+        {
+          "text": "Gas testingParameters and limits by workstation",
+          "href": "/organisation/gas-testing"
+        },
+        {
+          "text": "Safety checklistsReusable checklist items",
+          "href": "/organisation/checklists"
+        },
+        {
+          "text": "Users and rolesLogins and organisation roles",
+          "href": "/workforce/roles"
+        },
+        {
+          "text": "Approval workflowsApproval stages and routing",
+          "href": "/organisation/workflows"
+        },
+        {
+          "text": "Notification preferencesChannels and events",
+          "href": "/organisation/notifications"
+        },
+        {
+          "text": "Organisation profileRegistration and details",
+          "href": "/organisation/profile"
+        }
+      ],
+      "controls": [],
+      "overflow": false,
+      "route": "/organisation",
+      "http": 200,
+      "mobile": {
+        "overflow": false,
+        "sticky": [
+          {
+            "text": "OrganisationDemo Organisation",
+            "height": 94
+          }
+        ]
+      }
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/setup",
+      "headings": [
+        "Organisation setup",
+        "Organisation profile"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n\nSafety\n\nLOTOTO\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\nJ\nJohn Doe\nTenant Owner\nBack to\nOrganisation\nOrganisation setup\n\nEverything your site needs before the first permit, in the order it builds up. Skip anything and come back later.\n\nSave and exit\n\n…\nof setup information in place\n\n0\ndone\n0\nskipped\n19\nto go\n\nOrganisation\n\nOrganisation profile\n, Not started\n\nSite structure\n\nPlants\n, Not started\nDepartments\n, Not started\nLocations\n, Not started\nWorkstations\n, Not started\nMachinery\nOptional\n, Not started\n\nSafety catalogues\n\nHazards\n, Not started\nPPE\n, Not started\n\nPermits\n\nPermit types\n, Not started\nSafety checklists\n, Not started\nGas testing\nOptional\n, Not started\nPermit templates\nOptional\n, Not started\n\nApprovals\n\nApproval workflow\n, Not started\n\nPeople\n\nUsers and roles\n, Not started\nEmployees\n, Not started\nContractor agencies\nOptional\n, Not started\nContractors\nOptional\n, Not started\nCompetencies and certificates\nOptional\n, Not started\n\nNotifications\n\nNotification preferences\nOptional\n, Not started\nReview and finish\n\nStep 1 of 19 · Organisation\n\nOrganisation profile\nNot started\n\nName, legal details and time zone.\n\nWhy this matters\n\nPrinted permits, audit records and every date in the app use these details.\n\nUse the legal name exactly as registered.\nPick the time zone of your main site; permit windows follow it.\n\nLoading…\n\nBack\nSkip\nfor now\nNext: Plants",
+      "links": [
+        {
+          "text": "Back to Organisation",
+          "href": "/organisation"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Save and exit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 1, Organisation profile: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 2, Plants: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 3, Departments: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 4, Locations: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 5, Workstations: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 6, Machinery: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 7, Hazards: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 8, PPE: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 9, Permit types: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 10, Safety checklists: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 11, Gas testing: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 12, Permit templates: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 13, Approval workflow: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 14, Users and roles: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 15, Employees: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 16, Contractor agencies: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 17, Contractors: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 18, Competencies and certificates: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Step 19, Notification preferences: Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Organisation profile, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Plants, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Departments, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Locations, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Workstations, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "MachineryOptional, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Hazards, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "PPE, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Permit types, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Safety checklists, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Gas testingOptional, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Permit templatesOptional, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Approval workflow, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Users and roles, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Employees, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Contractor agenciesOptional, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "ContractorsOptional, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Competencies and certificatesOptional, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Notification preferencesOptional, Not started",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Review and finish",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Previous step",
+          "disabled": true
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Skip for now",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Next: Plants",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/setup",
+      "http": 200,
+      "mobile": {
+        "overflow": false,
+        "sticky": [
+          {
+            "text": "Back to OrganisationOrganisation setupEverything your site needs before the first permit, in the order it builds up. Skip anything and come back later",
+            "height": 205
+          },
+          {
+            "text": "OrganisationOrganisation profile, DoneSite structurePlants, DoneDepartments, DoneLocations, DoneWorkstations, DoneMachineryOptional, DoneSafety catalo",
+            "height": 0
+          },
+          {
+            "text": "BackNext: Plants",
+            "height": 57
+          }
+        ]
+      }
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/profile",
+      "headings": [
+        "Organisation profile"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nOrganisation setup\nOrganisation profile\n\nTenant name is set when the organisation is invited. You can change it here.\n\nActive\nOrganisation name\nShown to everyone in the app and on printed permits.\nLegal name (optional)\nAs registered, for permit records and audits.\nRegistration number (optional)\nCompany or factory licence number (e.g. CIN).\nTime zone\nAfrica/Abidjan\nAfrica/Accra\nAfrica/Addis_Ababa\nAfrica/Algiers\nAfrica/Asmera\nAfrica/Bamako\nAfrica/Bangui\nAfrica/Banjul\nAfrica/Bissau\nAfrica/Blantyre\nAfrica/Brazzaville\nAfrica/Bujumbura\nAfrica/Cairo\nAfrica/Casablanca\nAfrica/Ceuta\nAfrica/Conakry\nAfrica/Dakar\nAfrica/Dar_es_Salaam\nAfrica/Djibouti\nAfrica/Douala\nAfrica/El_Aaiun\nAfrica/Freetown\nAfrica/Gaborone\nAfrica/Harare\nAfrica/Johannesburg\nAfrica/Juba\nAfrica/Kampala\nAfrica/Khartoum\nAfrica/Kigali\nAfrica/Kinshasa\nAfrica/Lagos\nAfrica/Libreville\nAfrica/Lome\nAfrica/Luanda\nAfrica/Lubumbashi\nAfrica/Lusaka\nAfrica/Malabo\nAfrica/Maputo\nAfrica/Maseru\nAfrica/Mbabane\nAfrica/Mogadishu\nAfrica/Monrovia\nAfrica/Nairobi\nAfrica/Ndjamena\nAfrica/Niamey\nAfrica/Nouakchott\nAfrica/Ouagadougou\nAfrica/Porto-Novo\nAfrica/Sao_Tome\nAfrica/Tripoli\nAfrica/Tunis\nAfrica/Windhoek\nAmerica/Adak\nAmerica/Anchorage\nAmerica/Anguilla\nAmerica/Antigua\nAmerica/Araguaina\nAmerica/Argentina/La_Rioja\nAmerica/Argentina/Rio_Gallegos\nAmerica/Argentina/Salta\nAmerica/Argentina/San_Juan\nAmerica/Argentina/San_Luis\nAmerica/Argentina/Tucuman\nAmerica/Argentina/Ushuaia\nAmerica/Aruba\nAmerica/Asuncion\nAmerica/Bahia\nAmerica/Bahia_Banderas\nAmerica/Barbados\nAmerica/Belem\nAmerica/Belize\nAmerica/Blanc-Sablon\nAmerica/Boa_Vista\nAmerica/Bogota\nAmerica/Boise\nAmerica/Buenos_Aires\nAmerica/Cambridge_Bay\nAmerica/Campo_Grande\nAmerica/Cancun\nAmerica/Caracas\nAmerica/Catamarca\nAmerica/Cayenne\nAmerica/Cayman\nAmerica/Chicago\nAmerica/Chihuahua\nAmerica/Ciudad_Juarez\nAmerica/Coral_Harbour\nAmerica/Cordoba\nAmerica/Costa_Rica\nAmerica/Coyhaique\nAmerica/Creston\nAmerica/Cuiaba\nAmerica/Curacao\nAmerica/Danmarkshavn\nAmerica/Dawson\nAmerica/Dawson_Creek\nAmerica/Denver\nAmerica/Detroit\nAmerica/Dominica\nAmerica/Edmonton\nAmerica/Eirunepe\nAmerica/El_Salvador\nAmerica/Fort_Nelson\nAmerica/Fortaleza\nAmerica/Glace_Bay\nAmerica/Godthab\nAmerica/Goose_Bay\nAmerica/Grand_Turk\nAmerica/Grenada\nAmerica/Guadeloupe\nAmerica/Guatemala\nAmerica/Guayaquil\nAmerica/Guyana\nAmerica/Halifax\nAmerica/Havana\nAmerica/Hermosillo\nAmerica/Indiana/Knox\nAmerica/Indiana/Marengo\nAmerica/Indiana/Petersburg\nAmerica/Indiana/Tell_City\nAmerica/Indiana/Vevay\nAmerica/Indiana/Vincennes\nAmerica/Indiana/Winamac\nAmerica/Indianapolis\nAmerica/Inuvik\nAmerica/Iqaluit\nAmerica/Jamaica\nAmerica/Jujuy\nAmerica/Juneau\nAmerica/Kentucky/Monticello\nAmerica/Kralendijk\nAmerica/La_Paz\nAmerica/Lima\nAmerica/Los_Angeles\nAmerica/Louisville\nAmerica/Lower_Princes\nAmerica/Maceio\nAmerica/Managua\nAmerica/Manaus\nAmerica/Marigot\nAmerica/Martinique\nAmerica/Matamoros\nAmerica/Mazatlan\nAmerica/Mendoza\nAmerica/Menominee\nAmerica/Merida\nAmerica/Metlakatla\nAmerica/Mexico_City\nAmerica/Miquelon\nAmerica/Moncton\nAmerica/Monterrey\nAmerica/Montevideo\nAmerica/Montserrat\nAmerica/Nassau\nAmerica/New_York\nAmerica/Nome\nAmerica/Noronha\nAmerica/North_Dakota/Beulah\nAmerica/North_Dakota/Center\nAmerica/North_Dakota/New_Salem\nAmerica/Ojinaga\nAmerica/Panama\nAmerica/Paramaribo\nAmerica/Phoenix\nAmerica/Port-au-Prince\nAmerica/Port_of_Spain\nAmerica/Porto_Velho\nAmerica/Puerto_Rico\nAmerica/Punta_Arenas\nAmerica/Rankin_Inlet\nAmerica/Recife\nAmerica/Regina\nAmerica/Resolute\nAmerica/Rio_Branco\nAmerica/Santarem\nAmerica/Santiago\nAmerica/Santo_Domingo\nAmerica/Sao_Paulo\nAmerica/Scoresbysund\nAmerica/Sitka\nAmerica/St_Barthelemy\nAmerica/St_Johns\nAmerica/St_Kitts\nAmerica/St_Lucia\nAmerica/St_Thomas\nAmerica/St_Vincent\nAmerica/Swift_Current\nAmerica/Tegucigalpa\nAmerica/Thule\nAmerica/Tijuana\nAmerica/Toronto\nAmerica/Tortola\nAmerica/Vancouver\nAmerica/Whitehorse\nAmerica/Winnipeg\nAmerica/Yakutat\nAntarctica/Casey\nAntarctica/Davis\nAntarctica/DumontDUrville\nAntarctica/Macquarie\nAntarctica/Mawson\nAntarctica/McMurdo\nAntarctica/Palmer\nAntarctica/Rothera\nAntarctica/Syowa\nAntarctica/Troll\nAntarctica/Vostok\nArctic/Longyearbyen\nAsia/Aden\nAsia/Almaty\nAsia/Amman\nAsia/Anadyr\nAsia/Aqtau\nAsia/Aqtobe\nAsia/Ashgabat\nAsia/Atyrau\nAsia/Baghdad\nAsia/Bahrain\nAsia/Baku\nAsia/Bangkok\nAsia/Barnaul\nAsia/Beirut\nAsia/Bishkek\nAsia/Brunei\nAsia/Calcutta\nAsia/Chita\nAsia/Colombo\nAsia/Damascus\nAsia/Dhaka\nAsia/Dili\nAsia/Dubai\nAsia/Dushanbe\nAsia/Famagusta\nAsia/Gaza\nAsia/Hebron\nAsia/Hong_Kong\nAsia/Hovd\nAsia/Irkutsk\nAsia/Jakarta\nAsia/Jayapura\nAsia/Jerusalem\nAsia/Kabul\nAsia/Kamchatka\nAsia/Karachi\nAsia/Katmandu\nAsia/Khandyga\nAsia/Krasnoyarsk\nAsia/Kuala_Lumpur\nAsia/Kuching\nAsia/Kuwait\nAsia/Macau\nAsia/Magadan\nAsia/Makassar\nAsia/Manila\nAsia/Muscat\nAsia/Nicosia\nAsia/Novokuznetsk\nAsia/Novosibirsk\nAsia/Omsk\nAsia/Oral\nAsia/Phnom_Penh\nAsia/Pontianak\nAsia/Pyongyang\nAsia/Qatar\nAsia/Qostanay\nAsia/Qyzylorda\nAsia/Rangoon\nAsia/Riyadh\nAsia/Saigon\nAsia/Sakhalin\nAsia/Samarkand\nAsia/Seoul\nAsia/Shanghai\nAsia/Singapore\nAsia/Srednekolymsk\nAsia/Taipei\nAsia/Tashkent\nAsia/Tbilisi\nAsia/Tehran\nAsia/Thimphu\nAsia/Tokyo\nAsia/Tomsk\nAsia/Ulaanbaatar\nAsia/Urumqi\nAsia/Ust-Nera\nAsia/Vientiane\nAsia/Vladivostok\nAsia/Yakutsk\nAsia/Yekaterinburg\nAsia/Yerevan\nAtlantic/Azores\nAtlantic/Bermuda\nAtlantic/Canary\nAtlantic/Cape_Verde\nAtlantic/Faeroe\nAtlantic/Madeira\nAtlantic/Reykjavik\nAtlantic/South_Georgia\nAtlantic/St_Helena\nAtlantic/Stanley\nAustralia/Adelaide\nAustralia/Brisbane\nAustralia/Broken_Hill\nAustralia/Darwin\nAustralia/Eucla\nAustralia/Hobart\nAustralia/Lindeman\nAustralia/Lord_Howe\nAustralia/Melbourne\nAustralia/Perth\nAustralia/Sydney\nEurope/Amsterdam\nEurope/Andorra\nEurope/Astrakhan\nEurope/Athens\nEurope/Belgrade\nEurope/Berlin\nEurope/Bratislava\nEurope/Brussels\nEurope/Bucharest\nEurope/Budapest\nEurope/Busingen\nEurope/Chisinau\nEurope/Copenhagen\nEurope/Dublin\nEurope/Gibraltar\nEurope/Guernsey\nEurope/Helsinki\nEurope/Isle_of_Man\nEurope/Istanbul\nEurope/Jersey\nEurope/Kaliningrad\nEurope/Kiev\nEurope/Kirov\nEurope/Lisbon\nEurope/Ljubljana\nEurope/London\nEurope/Luxembourg\nEurope/Madrid\nEurope/Malta\nEurope/Mariehamn\nEurope/Minsk\nEurope/Monaco\nEurope/Moscow\nEurope/Oslo\nEurope/Paris\nEurope/Podgorica\nEurope/Prague\nEurope/Riga\nEurope/Rome\nEurope/Samara\nEurope/San_Marino\nEurope/Sarajevo\nEurope/Saratov\nEurope/Simferopol\nEurope/Skopje\nEurope/Sofia\nEurope/Stockholm\nEurope/Tallinn\nEurope/Tirane\nEurope/Ulyanovsk\nEurope/Vaduz\nEurope/Vatican\nEurope/Vienna\nEurope/Vilnius\nEurope/Volgograd\nEurope/Warsaw\nEurope/Zagreb\nEurope/Zurich\nIndian/Antananarivo\nIndian/Chagos\nIndian/Christmas\nIndian/Cocos\nIndian/Comoro\nIndian/Kerguelen\nIndian/Mahe\nIndian/Maldives\nIndian/Mauritius\nIndian/Mayotte\nIndian/Reunion\nPacific/Apia\nPacific/Auckland\nPacific/Bougainville\nPacific/Chatham\nPacific/Easter\nPacific/Efate\nPacific/Enderbury\nPacific/Fakaofo\nPacific/Fiji\nPacific/Funafuti\nPacific/Galapagos\nPacific/Gambier\nPacific/Guadalcanal\nPacific/Guam\nPacific/Honolulu\nPacific/Kiritimati\nPacific/Kosrae\nPacific/Kwajalein\nPacific/Majuro\nPacific/Marquesas\nPacific/Midway\nPacific/Nauru\nPacific/Niue\nPacific/Norfolk\nPacific/Noumea\nPacific/Pago_Pago\nPacific/Palau\nPacific/Pitcairn\nPacific/Ponape\nPacific/Port_Moresby\nPacific/Rarotonga\nPacific/Saipan\nPacific/Tahiti\nPacific/Tarawa\nPacific/Tongatapu\nPacific/Truk\nPacific/Wake\nPacific/Wallis\nUsed for permit validity windows and reports.\nSave changes",
+      "links": [
+        {
+          "text": "Back to Organisation setup",
+          "href": "/organisation/setup?step=profile"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Organisation nameShown to everyone in the app and on printed permits.",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Legal name (optional)As registered, for permit records and audits.",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Registration number (optional)Company or factory licence number (e.g. CIN).",
+          "disabled": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Time zoneAfrica/AbidjanAfrica/AccraAfrica/Addis_AbabaAfrica/AlgiersAfrica/AsmeraAfrica/BamakoAfrica/BanguiAfrica/BanjulAfrica/BissauAfrica/BlantyreAfrica/BrazzavilleAfrica/BujumburaAfrica/CairoAfrica/CasablancaAfrica/CeutaAfrica/ConakryAfrica/DakarAfrica/Dar_es_SalaamAfrica/DjiboutiAfrica/DoualaAfrica/El_AaiunAfrica/FreetownAfrica/GaboroneAfrica/HarareAfrica/JohannesburgAfrica/JubaAfrica/KampalaAfrica/KhartoumAfrica/KigaliAfrica/KinshasaAfrica/LagosAfrica/LibrevilleAfrica/LomeAfrica/LuandaAfrica/LubumbashiAfrica/LusakaAfrica/MalaboAfrica/MaputoAfrica/MaseruAfrica/MbabaneAfrica/MogadishuAfrica/MonroviaAfrica/NairobiAfrica/NdjamenaAfrica/NiameyAfrica/NouakchottAfrica/OuagadougouAfrica/Porto-NovoAfrica/Sao_TomeAfrica/TripoliAfrica/TunisAfrica/WindhoekAmerica/AdakAmerica/AnchorageAmerica/AnguillaAmerica/AntiguaAmerica/AraguainaAmerica/Argentina/La_RiojaAmerica/Argentina/Rio_GallegosAmerica/Argentina/SaltaAmerica/Argentina/San_JuanAmerica/Argentina/San_LuisAmerica/Argentina/TucumanAmerica/Argentina/UshuaiaAmerica/ArubaAmerica/AsuncionAmerica/BahiaAmerica/Bahia_BanderasAmerica/BarbadosAmerica/BelemAmerica/BelizeAmerica/Blanc-SablonAmerica/Boa_VistaAmerica/BogotaAmerica/BoiseAmerica/Buenos_AiresAmerica/Cambridge_BayAmerica/Campo_GrandeAmerica/CancunAmerica/CaracasAmerica/CatamarcaAmerica/CayenneAmerica/CaymanAmerica/ChicagoAmerica/ChihuahuaAmerica/Ciudad_JuarezAmerica/Coral_HarbourAmerica/CordobaAmerica/Costa_RicaAmerica/CoyhaiqueAmerica/CrestonAmerica/CuiabaAmerica/CuracaoAmerica/DanmarkshavnAmerica/DawsonAmerica/Dawson_CreekAmerica/DenverAmerica/DetroitAmerica/DominicaAmerica/EdmontonAmerica/EirunepeAmerica/El_SalvadorAmerica/Fort_NelsonAmerica/FortalezaAmerica/Glace_BayAmerica/GodthabAmerica/Goose_BayAmerica/Grand_TurkAmerica/GrenadaAmerica/GuadeloupeAmerica/GuatemalaAmerica/GuayaquilAmerica/GuyanaAmerica/HalifaxAmerica/HavanaAmerica/HermosilloAmerica/Indiana/KnoxAmerica/Indiana/MarengoAmerica/Indiana/PetersburgAmerica/Indiana/Tell_CityAmerica/Indiana/VevayAmerica/Indiana/VincennesAmerica/Indiana/WinamacAmerica/IndianapolisAmerica/InuvikAmerica/IqaluitAmerica/JamaicaAmerica/JujuyAmerica/JuneauAmerica/Kentucky/MonticelloAmerica/KralendijkAmerica/La_PazAmerica/LimaAmerica/Los_AngelesAmerica/LouisvilleAmerica/Lower_PrincesAmerica/MaceioAmerica/ManaguaAmerica/ManausAmerica/MarigotAmerica/MartiniqueAmerica/MatamorosAmerica/MazatlanAmerica/MendozaAmerica/MenomineeAmerica/MeridaAmerica/MetlakatlaAmerica/Mexico_CityAmerica/MiquelonAmerica/MonctonAmerica/MonterreyAmerica/MontevideoAmerica/MontserratAmerica/NassauAmerica/New_YorkAmerica/NomeAmerica/NoronhaAmerica/North_Dakota/BeulahAmerica/North_Dakota/CenterAmerica/North_Dakota/New_SalemAmerica/OjinagaAmerica/PanamaAmerica/ParamariboAmerica/PhoenixAmerica/Port-au-PrinceAmerica/Port_of_SpainAmerica/Porto_VelhoAmerica/Puerto_RicoAmerica/Punta_ArenasAmerica/Rankin_InletAmerica/RecifeAmerica/ReginaAmerica/ResoluteAmerica/Rio_BrancoAmerica/SantaremAmerica/SantiagoAmerica/Santo_DomingoAmerica/Sao_PauloAmerica/ScoresbysundAmerica/SitkaAmerica/St_BarthelemyAmerica/St_JohnsAmerica/St_KittsAmerica/St_LuciaAmerica/St_ThomasAmerica/St_VincentAmerica/Swift_CurrentAmerica/TegucigalpaAmerica/ThuleAmerica/TijuanaAmerica/TorontoAmerica/TortolaAmerica/VancouverAmerica/WhitehorseAmerica/WinnipegAmerica/YakutatAntarctica/CaseyAntarctica/DavisAntarctica/DumontDUrvilleAntarctica/MacquarieAntarctica/MawsonAntarctica/McMurdoAntarctica/PalmerAntarctica/RotheraAntarctica/SyowaAntarctica/TrollAntarctica/VostokArctic/LongyearbyenAsia/AdenAsia/AlmatyAsia/AmmanAsia/AnadyrAsia/AqtauAsia/AqtobeAsia/AshgabatAsia/AtyrauAsia/BaghdadAsia/BahrainAsia/BakuAsia/BangkokAsia/BarnaulAsia/BeirutAsia/BishkekAsia/BruneiAsia/CalcuttaAsia/ChitaAsia/ColomboAsia/DamascusAsia/DhakaAsia/DiliAsia/DubaiAsia/DushanbeAsia/FamagustaAsia/GazaAsia/HebronAsia/Hong_KongAsia/HovdAsia/IrkutskAsia/JakartaAsia/JayapuraAsia/JerusalemAsia/KabulAsia/KamchatkaAsia/KarachiAsia/KatmanduAsia/KhandygaAsia/KrasnoyarskAsia/Kuala_LumpurAsia/KuchingAsia/KuwaitAsia/MacauAsia/MagadanAsia/MakassarAsia/ManilaAsia/MuscatAsia/NicosiaAsia/NovokuznetskAsia/NovosibirskAsia/OmskAsia/OralAsia/Phnom_PenhAsia/PontianakAsia/PyongyangAsia/QatarAsia/QostanayAsia/QyzylordaAsia/RangoonAsia/RiyadhAsia/SaigonAsia/SakhalinAsia/SamarkandAsia/SeoulAsia/ShanghaiAsia/SingaporeAsia/SrednekolymskAsia/TaipeiAsia/TashkentAsia/TbilisiAsia/TehranAsia/ThimphuAsia/TokyoAsia/TomskAsia/UlaanbaatarAsia/UrumqiAsia/Ust-NeraAsia/VientianeAsia/VladivostokAsia/YakutskAsia/YekaterinburgAsia/YerevanAtlantic/AzoresAtlantic/BermudaAtlantic/CanaryAtlantic/Cape_VerdeAtlantic/FaeroeAtlantic/MadeiraAtlantic/ReykjavikAtlantic/South_GeorgiaAtlantic/St_HelenaAtlantic/StanleyAustralia/AdelaideAustralia/BrisbaneAustralia/Broken_HillAustralia/DarwinAustralia/EuclaAustralia/HobartAustralia/LindemanAustralia/Lord_HoweAustralia/MelbourneAustralia/PerthAustralia/SydneyEurope/AmsterdamEurope/AndorraEurope/AstrakhanEurope/AthensEurope/BelgradeEurope/BerlinEurope/BratislavaEurope/BrusselsEurope/BucharestEurope/BudapestEurope/BusingenEurope/ChisinauEurope/CopenhagenEurope/DublinEurope/GibraltarEurope/GuernseyEurope/HelsinkiEurope/Isle_of_ManEurope/IstanbulEurope/JerseyEurope/KaliningradEurope/KievEurope/KirovEurope/LisbonEurope/LjubljanaEurope/LondonEurope/LuxembourgEurope/MadridEurope/MaltaEurope/MariehamnEurope/MinskEurope/MonacoEurope/MoscowEurope/OsloEurope/ParisEurope/PodgoricaEurope/PragueEurope/RigaEurope/RomeEurope/SamaraEurope/San_MarinoEurope/SarajevoEurope/SaratovEurope/SimferopolEurope/SkopjeEurope/SofiaEurope/StockholmEurope/TallinnEurope/TiraneEurope/UlyanovskEurope/VaduzEurope/VaticanEurope/ViennaEurope/VilniusEurope/VolgogradEurope/WarsawEurope/ZagrebEurope/ZurichIndian/AntananarivoIndian/ChagosIndian/ChristmasIndian/CocosIndian/ComoroIndian/KerguelenIndian/MaheIndian/MaldivesIndian/MauritiusIndian/MayotteIndian/ReunionPacific/ApiaPacific/AucklandPacific/BougainvillePacific/ChathamPacific/EasterPacific/EfatePacific/EnderburyPacific/FakaofoPacific/FijiPacific/FunafutiPacific/GalapagosPacific/GambierPacific/GuadalcanalPacific/GuamPacific/HonoluluPacific/KiritimatiPacific/KosraePacific/KwajaleinPacific/MajuroPacific/MarquesasPacific/MidwayPacific/NauruPacific/NiuePacific/NorfolkPacific/NoumeaPacific/Pago_PagoPacific/PalauPacific/PitcairnPacific/PonapePacific/Port_MoresbyPacific/RarotongaPacific/SaipanPacific/TahitiPacific/TarawaPacific/TongatapuPacific/TrukPacific/WakePacific/WallisUsed for permit validity windows and reports.",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "submit",
+          "label": "Save changes",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/profile",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/plants",
+      "headings": [
+        "Plants"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nProfile\nPlants\n\nManage top-level operational plants for the organisation.\n\nAdd plant\nActive\n6\nDeleted\nSearch plants\nName\tCode\tStatus\t\nActions\n\nDemo Plant\tPLANT-01\tActive\t\nEdit\nDeactivate\nDelete\n\nNorth Plant\tPLANT-02\tActive\t\nEdit\nDeactivate\nDelete\n\nSouth Plant\tPLANT-03\tActive\t\nEdit\nDeactivate\nDelete\n\nRefinery\tPLANT-04\tActive\t\nEdit\nDeactivate\nDelete\n\nUtilities\tPLANT-05\tActive\t\nEdit\nDeactivate\nDelete\n\nTank Terminal\tPLANT-06\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Profile",
+          "href": "/organisation/profile"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add plant",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Active6",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deleted",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search plants",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/plants",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/departments",
+      "headings": [
+        "Departments"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nPlants\nDepartments\n\nManage departments within the organisational hierarchy.\n\nAdd department\nActive\n6\nDeleted\nSearch departments\nName\tPlant\tCode\tStatus\t\nActions\n\nOperations\tDemo Plant (PLANT-01)\tOPS\tActive\t\nEdit\nDeactivate\nDelete\n\nMaintenance\tDemo Plant (PLANT-01)\tMAINT\tActive\t\nEdit\nDeactivate\nDelete\n\nElectrical\tNorth Plant (PLANT-02)\tELEC\tActive\t\nEdit\nDeactivate\nDelete\n\nInstrumentation\tSouth Plant (PLANT-03)\tINST\tActive\t\nEdit\nDeactivate\nDelete\n\nHSE\tRefinery (PLANT-04)\tHSE\tActive\t\nEdit\nDeactivate\nDelete\n\nUtilities\tUtilities (PLANT-05)\tUTIL\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Plants",
+          "href": "/organisation/plants"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add department",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Active6",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deleted",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search departments",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/departments",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/locations",
+      "headings": [
+        "Locations"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nDepartments\nLocations\n\nManage operational work locations.\n\nAdd location\nActive\n7\nDeleted\nSearch locations\nName\tPlant\tCode\tStatus\t\nActions\n\nCompressor Bay\tNot set\tLOC-CB-01\tActive\t\nEdit\nDeactivate\nDelete\n\nTank Farm\tNot set\tLOC-TF-01\tActive\t\nEdit\nDeactivate\nDelete\n\nBoiler House\tNot set\tLOC-BH-01\tActive\t\nEdit\nDeactivate\nDelete\n\nLoading Bay\tNot set\tLOC-LB-01\tActive\t\nEdit\nDeactivate\nDelete\n\nControl Room\tNot set\tLOC-CR-01\tActive\t\nEdit\nDeactivate\nDelete\n\nPipe Rack\tNot set\tLOC-PR-01\tActive\t\nEdit\nDeactivate\nDelete\n\nBay mumidzfb\tNot set\tBAY-MUMIDZFBBAY-MUMIDZFB\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Departments",
+          "href": "/organisation/departments"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add location",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Active7",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deleted",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search locations",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/locations",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/workstations",
+      "headings": [
+        "Workstations"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nLocations\nWorkstations\n\nManage workstations within locations.\n\nAdd workstation\nSearch workstations\nName\tLocation\tCode\tStatus\t\nActions\n\nCompressor Bay\tNot set\tWS-BAY-01\tActive\t\nEdit\nDeactivate\nDelete\n\nTank Farm Manifold\tNot set\tWS-TANK-01\tActive\t\nEdit\nDeactivate\nDelete\n\nPump Skid\tNot set\tWS-PUMP-01\tActive\t\nEdit\nDeactivate\nDelete\n\nElectrical MCC\tNot set\tWS-MCC-01\tActive\t\nEdit\nDeactivate\nDelete\n\nScaffold Platform\tNot set\tWS-SCAF-01\tActive\t\nEdit\nDeactivate\nDelete\n\nValve Station\tNot set\tWS-VALVE-01\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Locations",
+          "href": "/organisation/locations"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add workstation",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search workstations",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/workstations",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/machinery",
+      "headings": [
+        "Machinery",
+        "LOTOTO by machinery",
+        "Main compressor",
+        "Cooling water pump",
+        "Feed pump",
+        "Heat exchanger",
+        "Agitator motor",
+        "Conveyor drive"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nWorkstations\nMachinery\n\nManage machinery linked to workstations. LOTOTO procedures for each machine are listed below.\n\nAdd machinery\nSearch machinery\nName\tWorkstation\tCode\tStatus\t\nActions\n\nMain compressor\tCompressor Bay (WS-BAY-01)\tMC-COMP-01\tActive\t\nEdit\nDeactivate\nDelete\n\nCooling water pump\tCompressor Bay (WS-BAY-01)\tMC-PUMP-01\tActive\t\nEdit\nDeactivate\nDelete\n\nFeed pump\tPump Skid (WS-PUMP-01)\tMC-FEED-01\tActive\t\nEdit\nDeactivate\nDelete\n\nHeat exchanger\tPump Skid (WS-PUMP-01)\tMC-HX-01\tActive\t\nEdit\nDeactivate\nDelete\n\nAgitator motor\tValve Station (WS-VALVE-01)\tMC-AGIT-01\tActive\t\nEdit\nDeactivate\nDelete\n\nConveyor drive\tElectrical MCC (WS-MCC-01)\tMC-CONV-01\tActive\t\nEdit\nDeactivate\nDelete\nLOTOTO by machinery\nMain compressor\nAdd LOTOTO\nAPI iso check 1790660174748\nAPI iso check 1790659971472\nAPI iso check 1790659959287\nAPI iso check 1790659943180\nAPI iso check 1790659757605\nUI check: pump isolation\nCompressor electrical isolation (draft plan)\nCooling water pump\nAdd LOTOTO\nActive pump isolation — operator applying locks\nPump mechanical isolation (ready)\nFeed pump\nAdd LOTOTO\n\nNo LOTOTO procedures yet.\n\nHeat exchanger\nAdd LOTOTO\n\nNo LOTOTO procedures yet.\n\nAgitator motor\nAdd LOTOTO\n\nNo LOTOTO procedures yet.\n\nConveyor drive\nAdd LOTOTO\n\nNo LOTOTO procedures yet.",
+      "links": [
+        {
+          "text": "Back to Workstations",
+          "href": "/organisation/workstations"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add machinery",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search machinery",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/machinery",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/hazards",
+      "headings": [
+        "Hazard Configuration"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nMachinery\nHazard Configuration\n\nThe hazards permits choose from. Deactivate one to stop offering it without losing it from past permits.\n\nAdd hazard configuration\nSearch hazard configuration\nName\tCode\tSeverity\tStatus\t\nActions\n\nChemical exposure\tCHEMICAL\thigh\tActive\t\nEdit\nDeactivate\nDelete\n\nFall from height\tFALL\tcritical\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space\tCONFINED-SPACE\tcritical\tActive\t\nEdit\nDeactivate\nDelete\n\nMechanical energy\tMECHANICAL\thigh\tActive\t\nEdit\nDeactivate\nDelete\n\nFire / ignition\tFIRE\thigh\tActive\t\nEdit\nDeactivate\nDelete\n\nElectrical energy\tELECTRICAL\tcritical\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Machinery",
+          "href": "/organisation/machinery"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add hazard configuration",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search hazard configuration",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/hazards",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/ppe",
+      "headings": [
+        "PPE configuration"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nHazards\nPPE configuration\n\nConfigure organisation PPE requirements.\n\nAdd ppe configuration\nSearch ppe configuration\nName\tCode\tCategory\tStatus\t\nActions\n\nSafety glasses\tPPE-GLASSES\teye\tActive\t\nEdit\nDeactivate\nDelete\n\nSafety boots\tPPE-BOOTS\tfoot\tActive\t\nEdit\nDeactivate\nDelete\n\nChemical-resistant gloves\tPPE-GLOVES\thand\tActive\t\nEdit\nDeactivate\nDelete\n\nSafety helmet\tPPE-HELMET\thead\tActive\t\nEdit\nDeactivate\nDelete\n\nEar defenders\tPPE-EAR\thearing\tActive\t\nEdit\nDeactivate\nDelete\n\nHalf-face respirator\tPPE-RESP\trespiratory\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Hazards",
+          "href": "/organisation/hazards"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add ppe configuration",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search ppe configuration",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/ppe",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/permit-types",
+      "headings": [
+        "Permit types"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nPPE\nPermit types\n\nThe permit types this organisation can issue, such as hot work or confined space.\n\nAdd permit type\nName\tCode\tTemplates\tColour\tStatus\t\nActions\n\n\nHot Work\tHOT-WORK\t\nSafe work permit\nCheck sheet: hot work\n\t#DC2626\tActive\t\nEdit\nDeactivate\nDelete\n\n\nCold Work\tCOLD-WORK\t\nSafe work permit\n\t#2563EB\tActive\t\nEdit\nDeactivate\nDelete\n\n\nConfined Space\tCONFINED-SPACE\t\nSafe work permit\nCheck sheet: confined space entry\n\t#7C3AED\tActive\t\nEdit\nDeactivate\nDelete\n\n\nWorking at Height\tWORKING-AT-HEIGHT\t\nSafe work permit\nCheck sheet: work at height and fragile roof\n\t#CA8A04\tActive\t\nEdit\nDeactivate\nDelete\n\n\nElectrical\tELECTRICAL\t\nSafe work permit\nCheck sheet: electrical work\n\t#EA580C\tActive\t\nEdit\nDeactivate\nDelete\n\n\nExcavation\tEXCAVATION\t\nSafe work permit\nCheck sheet: excavation and civil work\n\t#92400E\tActive\t\nEdit\nDeactivate\nDelete\n\n\nLifting Operations\tLIFTING\t\nSafe work permit\nCheck sheet: EOT crane work\n\t#0D9488\tActive\t\nEdit\nDeactivate\nDelete\n\n\nBreaking Containment\tBREAKING-CONTAINMENT\t\nSafe work permit\n\t#BE185D\tActive\t\nEdit\nDeactivate\nDelete\n\n\nGeneral Work\tGENERAL-WORK\t\nSafe work permit\n\t#64748B\tActive\t\nEdit\nDeactivate\nDelete\n\n\nHazardous Area Work\tHAZARDOUS-AREA\t\nSafe work permit\nCheck sheet: work in hazardous area\n\t#65A30D\tActive\t\nEdit\nDeactivate\nDelete\n\n\nMachine / Equipment Shifting\tEQUIPMENT-SHIFTING\t\nSafe work permit\nCheck sheet: machine / equipment shifting\n\t#0369A1\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to PPE",
+          "href": "/organisation/ppe"
+        },
+        {
+          "text": "Safe work permit",
+          "href": "/organisation/templates/aae729d4-b816-4a4d-8c47-ed0d2cf99361"
+        },
+        {
+          "text": "Check sheet: hot work",
+          "href": "/organisation/templates/f5bfe9b7-641e-4696-9423-45a3402c8be9"
+        },
+        {
+          "text": "Safe work permit",
+          "href": "/organisation/templates/aae729d4-b816-4a4d-8c47-ed0d2cf99361"
+        },
+        {
+          "text": "Safe work permit",
+          "href": "/organisation/templates/aae729d4-b816-4a4d-8c47-ed0d2cf99361"
+        },
+        {
+          "text": "Check sheet: confined space entry",
+          "href": "/organisation/templates/90c0270d-c1c0-4d19-bf97-38ff6a359066"
+        },
+        {
+          "text": "Safe work permit",
+          "href": "/organisation/templates/aae729d4-b816-4a4d-8c47-ed0d2cf99361"
+        },
+        {
+          "text": "Check sheet: work at height and fragile roof",
+          "href": "/organisation/templates/96f8d81b-a283-4a2f-9514-b66892385599"
+        },
+        {
+          "text": "Safe work permit",
+          "href": "/organisation/templates/aae729d4-b816-4a4d-8c47-ed0d2cf99361"
+        },
+        {
+          "text": "Check sheet: electrical work",
+          "href": "/organisation/templates/989583ad-977e-4580-a34d-02ea3bc92d25"
+        },
+        {
+          "text": "Safe work permit",
+          "href": "/organisation/templates/aae729d4-b816-4a4d-8c47-ed0d2cf99361"
+        },
+        {
+          "text": "Check sheet: excavation and civil work",
+          "href": "/organisation/templates/22bc1bc8-0152-45a9-8965-4942445a8470"
+        },
+        {
+          "text": "Safe work permit",
+          "href": "/organisation/templates/aae729d4-b816-4a4d-8c47-ed0d2cf99361"
+        },
+        {
+          "text": "Check sheet: EOT crane work",
+          "href": "/organisation/templates/27e6175b-5a65-41d2-86ec-c33e4f886a45"
+        },
+        {
+          "text": "Safe work permit",
+          "href": "/organisation/templates/aae729d4-b816-4a4d-8c47-ed0d2cf99361"
+        },
+        {
+          "text": "Safe work permit",
+          "href": "/organisation/templates/aae729d4-b816-4a4d-8c47-ed0d2cf99361"
+        },
+        {
+          "text": "Safe work permit",
+          "href": "/organisation/templates/aae729d4-b816-4a4d-8c47-ed0d2cf99361"
+        },
+        {
+          "text": "Check sheet: work in hazardous area",
+          "href": "/organisation/templates/10e17a12-cde4-449c-8f13-74fe642c5e3b"
+        },
+        {
+          "text": "Safe work permit",
+          "href": "/organisation/templates/aae729d4-b816-4a4d-8c47-ed0d2cf99361"
+        },
+        {
+          "text": "Check sheet: machine / equipment shifting",
+          "href": "/organisation/templates/ed909c99-ff7c-4b3c-a180-8b47447246e9"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add permit type",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/permit-types",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/checklists",
+      "headings": [
+        "Safety checklists"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nPermit types\nSafety checklists\n\nReusable checklists and their items. Permits can attach published checklists.\n\nAdd checklist\nActive\n2\nDeleted\n5\nName\tCode\tItems\tStatus\t\nActions\n\n\nPre-start mum83bgi\nArea barricaded\n\tPS-MUM83BGI\t1 (1 mandatory)\tActive\t\nEdit\nDeactivate\nDelete\n\n\nPre-start mumidzfb\nArea barricaded\n\tPS-MUMIDZFB\t1 (1 mandatory)\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Permit types",
+          "href": "/organisation/permit-types"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add checklist",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Active2",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deleted5",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/checklists",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/gas-testing",
+      "headings": [
+        "Gas testing"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nChecklists\nGas testing\n\nGas testing parameters and safe limits by workstation. Permits pick these when gas testing is required.\n\nAdd parameter\nParameter\tWorkstation\tSafe range\tStatus\t\nActions\n\nOxygen\tCompressor Bay (WS-BAY-01)\t19.5 to 23.5 %\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Checklists",
+          "href": "/organisation/checklists"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add parameter",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/gas-testing",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/templates",
+      "headings": [
+        "Permit templates"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nGas testing\nPermit templates\n\nThe permit form and check sheets people fill in, linked to the permit types they apply to.\n\nImport reference set\nNew template\nSearch templates\nSafe work permit\nActive\nPermit form · SOP/ES/023-F1 · 8 sections, 28 fields\nAll permit types\nEdit\nDuplicate\nDeactivate\nDelete\nCheck sheet: electrical work\nActive\nCheck sheet · SOP/ES/023-F2 · 3 sections, 16 fields\nElectrical\nEdit\nDuplicate\nDeactivate\nDelete\nCheck sheet: work at height and fragile roof\nActive\nCheck sheet · SOP/ES/023-F3 · 4 sections, 19 fields\nWorking at Height\nEdit\nDuplicate\nDeactivate\nDelete\nCheck sheet: hot work\nActive\nCheck sheet · SOP/ES/023-F4 · 5 sections, 24 fields\nHot Work\nEdit\nDuplicate\nDeactivate\nDelete\nCheck sheet: confined space entry\nActive\nCheck sheet · SOP/ES/023-F5 · 7 sections, 32 fields\nConfined Space\nEdit\nDuplicate\nDeactivate\nDelete\nCheck sheet: excavation and civil work\nActive\nCheck sheet · SOP/ES/023-F6 · 3 sections, 20 fields\nExcavation\nEdit\nDuplicate\nDeactivate\nDelete\nCheck sheet: work in hazardous area\nActive\nCheck sheet · SOP/ES/023-F7 · 4 sections, 23 fields\nHazardous Area Work\nEdit\nDuplicate\nDeactivate\nDelete\nCheck sheet: machine / equipment shifting\nActive\nCheck sheet · SOP/ES/023-F8 · 4 sections, 20 fields\nMachine / Equipment Shifting\nEdit\nDuplicate\nDeactivate\nDelete\nCheck sheet: EOT crane work\nActive\nCheck sheet · SOP/ES/023-F9 · 2 sections, 14 fields\nLifting Operations\nEdit\nDuplicate\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Gas testing",
+          "href": "/organisation/gas-testing"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Import reference set",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "New template",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search templates",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Safe work permitactivePermit form · SOP/ES/023-F1 · 8 sections, 28 fieldsAll permit types",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Duplicate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Check sheet: electrical workactiveCheck sheet · SOP/ES/023-F2 · 3 sections, 16 fieldsElectrical",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Duplicate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Check sheet: work at height and fragile roofactiveCheck sheet · SOP/ES/023-F3 · 4 sections, 19 field",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Duplicate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Check sheet: hot workactiveCheck sheet · SOP/ES/023-F4 · 5 sections, 24 fieldsHot Work",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Duplicate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Check sheet: confined space entryactiveCheck sheet · SOP/ES/023-F5 · 7 sections, 32 fieldsConfined S",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Duplicate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Check sheet: excavation and civil workactiveCheck sheet · SOP/ES/023-F6 · 3 sections, 20 fieldsExcav",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Duplicate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Check sheet: work in hazardous areaactiveCheck sheet · SOP/ES/023-F7 · 4 sections, 23 fieldsHazardou",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Duplicate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Check sheet: machine / equipment shiftingactiveCheck sheet · SOP/ES/023-F8 · 4 sections, 20 fieldsMa",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Duplicate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Check sheet: EOT crane workactiveCheck sheet · SOP/ES/023-F9 · 2 sections, 14 fieldsLifting Operatio",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Duplicate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/templates",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/workflows",
+      "headings": [
+        "Approval workflows"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nTemplates\nApproval workflows\n\nOne current workflow at a time. Activate a row to use its approver for permit submission.\n\nAdd approval workflow\nActive\n1\nDeleted\nName\tCode\tApprover\tStatus\t\nActions\n\nPlatform default\tPLATFORM_DEFAULT\thod\tActive\t\nEdit",
+      "links": [
+        {
+          "text": "Back to Templates",
+          "href": "/organisation/templates"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add approval workflow",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Active1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deleted",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/workflows",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/organisation/notifications",
+      "headings": [
+        "Notification preferences"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nWorkflows\nNotification preferences\n\nConfigure organisation notification channels and events.\n\nAdd notification preference\n\nNo notification preferences yet\n\nAdd the first notification preference so it can be picked on permits.",
+      "links": [
+        {
+          "text": "Back to Workflows",
+          "href": "/organisation/workflows"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add notification preference",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/organisation/notifications",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/workforce",
+      "headings": [
+        "Workforce",
+        "People",
+        "Access and capability"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nWorkforce\n\nPeople, contractors and what they are qualified to do.\n\nPeople\n\nEveryone who can be named on a permit.\n\nDirectory\nEveryone in one searchable list\nEmployees\nYour own staff\nContractors\nExternal workers\nAgencies\nCompanies supplying contractors\nAccess and capability\n\nWhat each person may sign in to and is qualified for.\n\nUsers and roles\nLogins and organisation roles\nCompetencies\nSkills on record\nCertifications\nCertificates and expiry",
+      "links": [
+        {
+          "text": "DirectoryEveryone in one searchable list",
+          "href": "/workforce/directory"
+        },
+        {
+          "text": "EmployeesYour own staff",
+          "href": "/workforce/employees"
+        },
+        {
+          "text": "ContractorsExternal workers",
+          "href": "/workforce/contractors"
+        },
+        {
+          "text": "AgenciesCompanies supplying contractors",
+          "href": "/workforce/agencies"
+        },
+        {
+          "text": "Users and rolesLogins and organisation roles",
+          "href": "/workforce/roles"
+        },
+        {
+          "text": "CompetenciesSkills on record",
+          "href": "/workforce/competencies"
+        },
+        {
+          "text": "CertificationsCertificates and expiry",
+          "href": "/workforce/certifications"
+        }
+      ],
+      "controls": [],
+      "overflow": false,
+      "route": "/workforce",
+      "http": 200,
+      "mobile": {
+        "overflow": false,
+        "sticky": [
+          {
+            "text": "WorkforcePeople, contractors and what they are qualified to do.",
+            "height": 94
+          }
+        ]
+      }
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/workforce/directory",
+      "headings": [
+        "Workforce directory"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nWorkforce\nWorkforce directory\n\nEveryone on the workforce. Edit or delete a person on their Employees or Contractors list.\n\nName\tEmail\tPhone\tRole\tStatus\t\nManage\n\nMaintenance Supervisor\tmaintenance.supervisor@ptw.local\t—\temployee\tActive\t\nManage\n\nLead Electrician\tlead.electrician@ptw.local\t—\temployee\tActive\t\nManage\n\nHead of Department\thod@ptw.local\t—\temployee\tActive\t\nManage\n\nJob Issuer\tissuer@ptw.local\t—\temployee\tActive\t\nManage\n\nField Operator\toperator@ptw.local\t—\temployee\tActive\t\nManage\n\nSafety Officer\tsafety@ptw.local\t—\temployee\tActive\t\nManage\n\nTester mum83bgi\ttester.mum83bgi@ptw.local\t+91 9876543210\temployee\tActive\t\nManage\n\nTester mum8crvf\ttester.mum8crvf@ptw.local\t+91 9876543210\temployee\tActive\t\nManage\n\nTester mum8g72m\ttester.mum8g72m@ptw.local\t+91 9876543210\temployee\tActive\t\nManage\n\nTester mum8idio\ttester.mum8idio@ptw.local\t+91 9876543210\temployee\tActive\t\nManage\n\nTester mum9rjpn\ttester.mum9rjpn@ptw.local\t+91 9876543210\temployee\tActive\t\nManage\n\nTester mumidzfb\ttester.mumidzfb@ptw.local\t+91 9876543210\temployee\tActive\t\nManage\n\nTester mumiga6m\ttester.mumiga6m@ptw.local\t+91 9876543210\temployee\tActive\t\nManage\n\nRavi Sharma\travi.sharma@contractor.local\t—\tcontractor\tActive\t\nManage\n\nMeera Patel\tmeera.patel@contractor.local\t—\tcontractor\tActive\t\nManage\n\nArjun Singh\tarjun.singh@contractor.local\t—\tcontractor\tActive\t\nManage\n\nPriya Nair\tpriya.nair@contractor.local\t—\tcontractor\tActive\t\nManage\n\nKaran Desai\tkaran.desai@contractor.local\t—\tcontractor\tActive\t\nManage\n\nSneha Iyer\tsneha.iyer@contractor.local\t—\tcontractor\tActive\t\nManage",
+      "links": [
+        {
+          "text": "Back to Workforce",
+          "href": "/workforce"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Manage",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/workforce/directory",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/workforce/employees",
+      "headings": [
+        "Employee management"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nDirectory\nEmployee management\n\nRegister and manage employees.\n\nAdd employee\nSearch employee management\nName\tEmail\tPhone\tDepartment\tStatus\t\nActions\n\nMaintenance Supervisor\tmaintenance.supervisor@ptw.local\tNot set\tMaintenance (MAINT)\tActive\t\nEdit\nDeactivate\nDelete\n\nLead Electrician\tlead.electrician@ptw.local\tNot set\tElectrical (ELEC)\tActive\t\nEdit\nDeactivate\nDelete\n\nHead of Department\thod@ptw.local\tNot set\tOperations (OPS)\tActive\t\nEdit\nDeactivate\nDelete\n\nJob Issuer\tissuer@ptw.local\tNot set\tOperations (OPS)\tActive\t\nEdit\nDeactivate\nDelete\n\nField Operator\toperator@ptw.local\tNot set\tOperations (OPS)\tActive\t\nEdit\nDeactivate\nDelete\n\nSafety Officer\tsafety@ptw.local\tNot set\tOperations (OPS)\tActive\t\nEdit\nDeactivate\nDelete\n\nTester mum83bgi\ttester.mum83bgi@ptw.local\t+91 9876543210\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nTester mum8crvf\ttester.mum8crvf@ptw.local\t+91 9876543210\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nTester mum8g72m\ttester.mum8g72m@ptw.local\t+91 9876543210\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nTester mum8idio\ttester.mum8idio@ptw.local\t+91 9876543210\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nTester mum9rjpn\ttester.mum9rjpn@ptw.local\t+91 9876543210\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nTester mumidzfb\ttester.mumidzfb@ptw.local\t+91 9876543210\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nTester mumiga6m\ttester.mumiga6m@ptw.local\t+91 9876543210\tNot set\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Directory",
+          "href": "/workforce/directory"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add employee",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search employee management",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/workforce/employees",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/workforce/contractors",
+      "headings": [
+        "Contractor management"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nEmployees\nContractor management\n\nRegister contractors and link agencies.\n\nAdd contractor\nSearch contractor management\nName\tEmail\tAgency\tDepartment\tStatus\t\nActions\n\nRavi Sharma\travi.sharma@contractor.local\tAlpha Industrial Services (AGY-ALPHA)\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nMeera Patel\tmeera.patel@contractor.local\tBeta Contracting Ltd (AGY-BETA)\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nArjun Singh\tarjun.singh@contractor.local\tGamma Scaffold Co (AGY-GAMMA)\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nPriya Nair\tpriya.nair@contractor.local\tDelta Electrical (AGY-DELTA)\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nKaran Desai\tkaran.desai@contractor.local\tEpsilon Insulation (AGY-EPSILON)\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nSneha Iyer\tsneha.iyer@contractor.local\tZeta Lifting Services (AGY-ZETA)\tNot set\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Employees",
+          "href": "/workforce/employees"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add contractor",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search contractor management",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/workforce/contractors",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/workforce/agencies",
+      "headings": [
+        "Agency management"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nContractors\nAgency management\n\nRegister contractor agencies.\n\nAdd agency\nSearch agency management\nName\tContact email\tContact phone\tGSTIN\tAddress\tStatus\t\nActions\n\nAlpha Industrial Services\tNot set\tNot set\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nBeta Contracting Ltd\tNot set\tNot set\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nGamma Scaffold Co\tNot set\tNot set\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nDelta Electrical\tNot set\tNot set\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nEpsilon Insulation\tNot set\tNot set\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nZeta Lifting Services\tNot set\tNot set\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Contractors",
+          "href": "/workforce/contractors"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add agency",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search agency management",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/workforce/agencies",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/workforce/roles",
+      "headings": [
+        "Users and roles"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nAgencies\nUsers and roles\n\nAdd people with a name, email and login role. Share the temporary password once; they change it on first sign-in.\n\nAdd user\nName\tRole\tHOD department\tStatus\t\nActions\n\n\nTester mum83bgi\ntester.mum83bgi@ptw.local\n\tOperator\t—\tActive\t\nEdit\nDeactivate\nDelete\n\n\nTester mum8crvf\ntester.mum8crvf@ptw.local\n\tOperator\t—\tActive\t\nEdit\nDeactivate\nDelete\n\n\nTester mum8g72m\ntester.mum8g72m@ptw.local\n\tOperator\t—\tActive\t\nEdit\nDeactivate\nDelete\n\n\nTester mum8idio\ntester.mum8idio@ptw.local\n\tOperator\t—\tActive\t\nEdit\nDeactivate\nDelete\n\n\nRole Check\nrole.1790659971612@ptw.local\n\tOperator\t—\tActive\t\nEdit\nDeactivate\nDelete\n\n\nRole Check\nrole.1790660174865@ptw.local\n\tOperator\t—\tActive\t\nEdit\nDeactivate\nDelete\n\n\nTester mum9rjpn\ntester.mum9rjpn@ptw.local\n\tOperator\t—\tActive\t\nEdit\nDeactivate\nDelete\n\n\nFirst Login\nfirst.1790676093819@ptw.local\n\tViewer\t—\tActive\t\nEdit\nDeactivate\nDelete\n\n\nTester mumidzfb\ntester.mumidzfb@ptw.local\n\tOperator\t—\tActive\t\nEdit\nDeactivate\nDelete\n\n\nTester mumiga6m\ntester.mumiga6m@ptw.local\n\tOperator\t—\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Agencies",
+          "href": "/workforce/agencies"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add user",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/workforce/roles",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/workforce/certifications",
+      "headings": [
+        "Certifications"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nUsers and roles\nCertifications\n\nTrack workforce certifications and expiry dates.\n\nAdd certification\nSearch certifications\nName\tWorkforce member\tValid from\tExpiry date\tStatus\t\nActions\n\nGas tester cert mum83bgi\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\t1 Jan 2026\t1 Jan 2027\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mum83bgi\tNot set\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nGas tester cert mum8crvf\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\t1 Jan 2026\t1 Jan 2027\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mum8crvf\tNot set\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nGas tester cert mum8g72m\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\t1 Jan 2026\t1 Jan 2027\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mum8g72m\tNot set\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nGas tester cert mum8idio\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\t1 Jan 2026\t1 Jan 2027\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mum8idio\tNot set\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nGas tester cert mum9rjpn\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\t1 Jan 2026\t1 Jan 2027\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mum9rjpn\tNot set\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nGas tester cert mumidzfb\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\t1 Jan 2026\t1 Jan 2027\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mumidzfb\tNot set\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nGas tester cert mumiga6m\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\t1 Jan 2026\t1 Jan 2027\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mumiga6m\tNot set\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Users and roles",
+          "href": "/workforce/roles"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add certification",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search certifications",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/workforce/certifications",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/workforce/competencies",
+      "headings": [
+        "Competencies"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nBack to\nCertifications\nCompetencies\n\nMaintain workforce competency records.\n\nAdd competency\nSearch competencies\nName\tWorkforce member\tCertificate\tStatus\t\nActions\n\nGas tester cert mum83bgi\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mum83bgi\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nGas tester cert mum8crvf\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mum8crvf\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nGas tester cert mum8g72m\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mum8g72m\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nGas tester cert mum8idio\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mum8idio\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nGas tester cert mum9rjpn\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mum9rjpn\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nGas tester cert mumidzfb\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mumidzfb\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nGas tester cert mumiga6m\tMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\tNot set\tActive\t\nEdit\nDeactivate\nDelete\n\nConfined space entry mumiga6m\tNot set\tNot set\tActive\t\nEdit\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Certifications",
+          "href": "/workforce/certifications"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Add competency",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search competencies",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/workforce/competencies",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/settings",
+      "headings": [
+        "Settings",
+        "Appearance",
+        "Profile Settings",
+        "Organisation",
+        "Organisation profile",
+        "Notification preferences",
+        "Users and roles",
+        "Billing & subscription",
+        "Account"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n23\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n12\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nBilling\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJohn Doe\nTenant Owner\nSettings\n\nAppearance, organisation configuration and account controls.\n\nAppearance\n\nTheme, density, visual style and light/dark mode. Preferences are saved in this browser.\n\nTheme\nHazard\nControl Room\nSetu\nLedger Slate\nDensity\nnormal\ncompact\nVisual style\nstandard\nstrict\nColor mode\nlight\ndark\nProfile Settings\n\nSet your display name and profile picture. These appear in the header for now.\n\nJ\n\nJohn Doe\n\norgadmin\n\nDisplay name\nSave display name\nProfile picture\n\nJPEG, PNG, or WebP. Max 2 MB.\n\nOrganisation\nOrganisation profile\n\nTenant details and registration\n\nNotification preferences\n\nChannel and event notification settings\n\nUsers and roles\n\nAdd organisation logins and assign roles\n\nBilling & subscription\n\nPlans, usage and invoice history\n\nAccount\n\nEnd the current Keycloak session on this device.\n\nSign out",
+      "links": [
+        {
+          "text": "Organisation profileTenant details and registration",
+          "href": "/organisation/profile"
+        },
+        {
+          "text": "Notification preferencesChannel and event notification settings",
+          "href": "/organisation/notifications"
+        },
+        {
+          "text": "Users and rolesAdd organisation logins and assign roles",
+          "href": "/workforce/roles"
+        },
+        {
+          "text": "Billing & subscriptionPlans, usage and invoice history",
+          "href": "/billing"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "ThemeHazardControl RoomSetuLedger Slate",
+          "disabled": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Densitynormalcompact",
+          "disabled": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Visual stylestandardstrict",
+          "disabled": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Color modelightdark",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Display name",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "submit",
+          "label": "Save display name",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "file",
+          "label": "Profile picture",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Sign out",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/settings",
+      "http": 200
+    }
+  ],
+  "errors": []
+}

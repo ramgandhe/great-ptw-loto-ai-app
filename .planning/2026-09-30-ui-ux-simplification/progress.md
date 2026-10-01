@@ -1,0 +1,88 @@
+# Progress: UI/UX Simplification
+
+## 2026-09-30
+- Read root/frontend instructions, UI/UX Pro Max, and planning-with-files.
+- Checked tracked/untracked state; created feature branch with approved Git write access.
+- Initialized and resolved this named plan, preserving previous plans.
+- Read workspace scripts and historical UX audit; discovered extensive prior UX work.
+- Application files changed: none.
+- Initial state: tests/browser checks not yet run; completed baseline evidence below.
+
+## Errors
+- Initial Git branch creation failed because sandbox Git metadata was read-only; approved retry succeeded.
+- Broad doc query was truncated; narrowing subsequent reads.
+
+### Docker startup requested
+- User clarified that application should run in Docker; host dev-server attempt was interrupted before completion.
+- Docker inspection confirmed existing application containers are stopped. Started existing Compose containers with `docker compose start`; local override excludes optional Metabase by profile.
+- Docker socket needs approved access; permission obtained. No rebuild, reset, migration, or seed run.
+
+- Docker startup completed; API readiness passed for database, Redis, MinIO, BullMQ, and Keycloak; web returned HTTP 200. Existing containers reused.
+- Beginning authenticated browser audit through the normal login flow, using documented local demo personas. No lifecycle mutations planned.
+
+### Baseline checks
+- Web TypeScript check: `npm run lint -w web` passed.
+- Mobile TypeScript check: `npm run lint -w mobile` failed with four TS2339 errors at `mobile/src/components/permit/permit-wizard.tsx:143,144,145,163`; role-filtered payload union lacks issuer fields on executor branch. Existing failure; no app code changed.
+- Browser: completed 26 administrator and 14 issuer route visits; normal login succeeded. Screenshot review completed for setup, permit creation, and mobile list.
+
+- Four targeted existing Jest suites passed (16 tests); no new tests added during planning.
+- Completed HOD overview routes and issuer record-detail routes without submitting lifecycle actions.
+- Documented PRD/current-code conflicts before proposing any workflow changes.
+
+### Review package completed
+- Previous goal turn classified as progress: plan, route dispositions and browser evidence were produced. Current worktree revalidated on continuation; branch and application files unchanged.
+- Finished viewer/platform checks. Total: 93 recorded visits across 70 web route patterns; 19 selected narrow-viewport checks. No captured page errors or measured horizontal overflow. These are page-loading observations, not lifecycle acceptance.
+- Inspected mobile-width approval and closure screenshots; confirmed repeated closure headings and excessive record-header space.
+- Completed browser-review.md with explicit source-only routes, native/runtime gaps, image/source parity caveat and baseline failures.
+- Refreshed every route disposition and browser-evidence label. All 84 web routes and 47 native screens are mapped.
+- Completed concrete implementation plan and author critique; user review is pending. Full scope remains S0–S7, with S0–S3 first.
+- Docker running state reconfirmed. Existing AGENTS.md remains unchanged.
+- Review request presented with the concrete plan linked; user response pending. This is the first goal turn ending at this gate.
+- Final planning verification: 131 route rows, 70 browser labels, no missing inventory source files or linked review artifacts, no unassessed markers, no whitespace errors. Git diff confirms application files and AGENTS.md unchanged.
+
+### Review gate revalidation — second consecutive goal turn
+- Previous turn classified as progress: completed browser evidence, route coverage, final review documents and the user review request.
+- Current branch and application worktree remain unchanged. No user approval or revision response has arrived; approval record remains pending.
+- Independent validation preparation: adb exists at /usr/bin/adb; emulator/xcrun are absent from PATH, Android SDK environment variables are unset, and the standard ~/Android/Sdk and ~/.android/avd locations are absent. Connected devices and nonstandard SDK locations have not been inspected. Native runtime remains a validation prerequisite, not a proven impossibility.
+- No application implementation performed. Same explicit review gate remains; blocked threshold has not yet been met.
+
+### Review gate revalidation — third consecutive goal turn
+- Previous turn classified as progress only for newly established native-environment evidence; implementation remained blocked by the same required plan review.
+- Rechecked current Git state and approval record. No application changes and no user approval/revisions. Automatic goal continuation supplies no review decision.
+- The plan, route disposition, evidence, author critique and review request are complete. Remaining implementation depends on the user's explicit pre-implementation review requirement. No additional necessary independent planning work remains.
+- Same gate has persisted for three consecutive goal turns. Mark goal blocked awaiting approval or revisions; preserve the full S0–S7 objective.
+
+### User review received — revision work
+- Decision: revise before approving; no implementation approval. Full objective retained.
+- Address all eight review points and stale code-style rule. First milestone becomes safeguards then permit editor, extracting shared patterns only when consumed.
+- Verified PATCH /permits/:id accepts partial top-level values. Supplied arrays replace whole collections. No version precondition is present; current status/assignment checks occur before the update transaction. A concurrency prerequisite must be concrete, not merely a test promise.
+- Reviewed concrete fields: current entry already uses many pickers/defaults. Savings must target duplicate title entry, site selection and navigation; do not invent zero-entry identity creation.
+- Corrected guessed PersonSelect/schedule file paths: both are local symbols in permit-wizard.tsx. Narrow AI integration search found no matching runtime integration in app/src or frontend/src. Broad first search included irrelevant storage/provider matches and was discarded.
+- UI-only baseline replay reached issuer handoff: 2 typed fields, 13 normalized clicks, 3 main views. All two business writes were simulated in memory. Setup selector timed out because its accessible label contains spacing before status; corrected to match the name boundary. No application write reached the API.
+- Second replay stopped at the hierarchy's wrapped parent select accessible label. Retained successful permit baseline and first hierarchy steps; changed locator to the sole select in the current entity form. No data mutation escaped interception.
+- Completed UI-only replay: P1 2 typed / 13 normalized clicks / 3 views; H1 4 / 18 / 5; E1 2 / 6 / 3. Ten business writes intercepted in browser memory, zero final-run errors. Counts are normalized actions, not timed users or successful backend writes.
+- Added field-assistance.md, journey-baselines.md, concurrency-review.md and interactive before/after sketches.
+- Decision: deterministic assistance in scope; generative AI recommendations excluded explicitly. Retain scoped All yes with explicit declaration and transactional actor-attributed audit.
+- Corrected stale AI directory assertion in .claude/rules/code-style.md. No application code changed.
+- Native config guessed path was absent; resolving actual config and API environment source before documenting phone setup.
+- Sketch validation: title derivation, location→plant feedback, flow switching, setup drill-in/back and phone preview work; no captured JavaScript errors or horizontal overflow in the three narrow sketches. Screenshots visually inspected.
+- Corrected the proposed type control to retain one-click type buttons so the P1 sketch matches the ten-click target. Required-form summary now shows the missing count.
+- Preserved a reproducible baseline script with credentials supplied through environment variables; no credentials added to repository artifacts.
+- The actual local Keycloak configuration is infrastructure/keycloak/realm-export.json; earlier docker/keycloak directory probes and mobile config globs were absent, then corrected using file discovery.
+
+### Revision 2 complete — 2026-10-01
+- All eight review points addressed in the main plan and linked supporting artifacts. User review is recorded as revisions requested, not erased or described as never received. Revised-scope approval remains pending.
+- Final validation: baseline replay completed with 3 journeys and 10 isolated simulated writes; prototype interactions passed with no page errors/phone overflow; replay script syntax passed; review links and whitespace checks passed. No application tests rerun for documentation-only edits.
+- App source and AGENTS.md remain unchanged. Only planning artifacts and the stale .claude/rules/code-style.md assertion were edited.
+- Full goal remains unfulfilled pending reviewed implementation and its runtime/regression acceptance. No completion claim.
+
+### S0a implementation — 2026-10-01
+- User approved revision 3 ("approved, lets get started"). No installed native build named, so the default rollout applies.
+- Backend: `permits.draft_revision` (migration 0051); `expectedRevision` required on `PATCH /permits/:id` and `POST /permits/:id/submit` (400 with an update/reload message if missing); both lock the tenant-scoped row (`SELECT ... FOR UPDATE`), check status and RBAC/assignment before the revision, and return 409 `PERMIT_REVISION_CONFLICT` with `details.currentRevision`. Every save and submit bumps the revision once. Submit validation, reference and approval initialisation now run inside the locked transaction. Form answer changes write one `permit.form_answer_changed` audit row each in the same transaction (actor/time from server). Draft delete re-checks status inside the DELETE.
+- Web: create is followed by a full save at the returned revision (fixes: location/schedule/executor were not stored on first save); submit always saves current edits first and submits at that revision (fixes: edits to an existing draft were not saved before submit); on 409 values stay, the latest revision is adopted and the person saves again explicitly; Submit is disabled until then.
+- Native: fixed the four baseline TS2339 errors; dates convert to local time (was UTC slice); web step index mapped to native steps and back; saves/submits send the revision, queued saves/submits carry it; sync marks a 409 as failed and stops the queue.
+- Tests: new `permit-draft-revision.spec.ts` (8 DB-backed cases: bump, stale save, save race without mixed rows, RBAC before revision, duplicate submit initialises approvals once, save-vs-submit and old tab after reject, audit row + rollback on audit failure, non-draft delete), `diffFormAnswers` unit tests, `mobile-permit-form.spec.ts`. 23 permit/approval/closure/execution suites (121 tests) pass; web and mobile type checks pass.
+- Found for S0b (not fixed): queued permit mutations put `localDraftId`/`title`/`action` into the request body, which the API rejects (forbidNonWhitelisted), and nothing maps local draft ids to server ids on replay. Offline permit create/submit therefore does not sync today.
+- Kept duplicated: `toDateInputValue` in web and native form helpers (web never imports @ptw/shared; moving it needs build checks).
+- Runtime (rebuilt api + frontend images, local stack, demo issuer): `s0a-runtime-check.cjs` passed 10/10 in three consecutive runs — first save stores location/schedule/executor (08:00 IST stored as 02:30Z) at revision 1; stale second tab gets the conflict banner, keeps typed values, Submit unavailable, database keeps the other tab's save, explicit re-save wins; PATCH without a revision gets 400 with the update message; no page errors. One earlier failed run was the check reading the database before the follow-up save returned; the check now waits for the PATCH response. Test drafts deleted after each run.
+- Not browser-verified: save-before-submit (needs a fully prepared permit; covered by service tests of submit at a revision and by code path), native app (no device yet).

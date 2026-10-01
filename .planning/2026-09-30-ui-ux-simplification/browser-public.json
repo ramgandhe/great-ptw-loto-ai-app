@@ -1,0 +1,512 @@
+{
+  "role": "public",
+  "results": [
+    {
+      "title": "PermitWiseAI: permit-to-work and lockout/tagout software",
+      "url": "/",
+      "headings": [
+        "From permit request to the last lock off, one record for every hazardous job.",
+        "One flow, from request to restoration",
+        "Raise the permit",
+        "Clear conflicts",
+        "Approve",
+        "Isolate",
+        "Do the work",
+        "Restore and close",
+        "Everything the permit touches, in the same system",
+        "Plan the work",
+        "Control hazardous energy",
+        "Respond and learn",
+        "Run the organisation",
+        "What changes when the permit book goes digital",
+        "Access and evidence you can defend in an audit",
+        "Single sign-on",
+        "Enforced authority",
+        "Tenant isolation",
+        "Audit trail",
+        "Bring your first site online",
+        "Product",
+        "Get started",
+        "Legal"
+      ],
+      "text": "Skip to content\nPermitWiseAI\nHow it works\nFeatures\nWhy switch\nSecurity\nSign in\nRequest access\nFrom permit request to the last lock off, one record for every hazardous job.\n\nPermitWiseAI replaces the permit book, the isolation register and the incident file with one workflow. Work cannot start until approvals, gas tests and lockout are verified, and every step is signed by a named person.\n\nRequest access\nSee how it works\n\nOnboarding is by invitation. We set up your organisation and first site with you.\n\nPTW-HW-0142, Hot work\n\nReplace flange gasket on steam header\n\nActive\nLocation\nBoiler house, Bay 3\nWindow\n08:00 to 16:00\nCrew\n4 + 1 contractor\nSIMOPS: no overlapping work in Bay 3\nGas test: O₂ 20.9%, LEL 0%\nHOD approval, S. Kulkarni\nSafety officer approval, A. Rao\n\nEnergy isolation\n\nSteam isolation valve SV-12\nLocked, tried out\nMCC panel 3B, feeder 7\nLocked, tried out\nCondensate pump P-4\nLocked, tried out\nDANGER\n\nDO NOT OPERATE\nLocked by A. Rao\n\n10:40\nOld gasket removed, flange faces cleaned\nDraft\nChecks\nApproved\nIsolated\nWork\nClosed\nOne flow, from request to restoration\n\nEach stage has an owner and a gate. The permit only moves forward when the gate is satisfied, and the status your whole site sees changes with it.\n\n1\nRaise the permit\nDraft\n\nJob issuer and executor\n\nChoose the permit type, location, time window, crew and machinery. The HOD is notified as soon as a draft exists, not when it lands on their desk.\n\n2\nClear conflicts\nPending approval\n\nAutomatic\n\nSIMOPS compares location, schedule and hazards against every live and pending permit. A clash goes back to the HOD instead of out to the site.\n\n3\nApprove\nPending approval\n\nHOD, then safety officer\n\nThe HOD reviews risk and priority, the safety officer reviews site conditions and gas readings. Either can send it back or reject it, and the reason is kept.\n\n4\nIsolate\nApproved\n\nExecutor, verified by safety\n\nA machine-specific LOTOTO plan walks through each energy source in order: lock, tag, try out, photograph. Work stays blocked until every point is verified.\n\n5\nDo the work\nActive\n\nExecutor and crew\n\nTime-stamped progress with photos. Pause, near-miss and accident reports sit on the same screen, and an accident stops the permit automatically. Multi-day jobs are revalidated every morning.\n\n6\nRestore and close\nClosed\n\nExecutor, issuer, HOD\n\nIsolations come off in sequence with evidence, the area is declared clear, and the issuer and HOD sign the permit off. The whole history stays attached.\n\nEverything the permit touches, in the same system\n\nPeople, machines, isolations, readings and incidents stay linked to the permit they belong to, so nothing has to be reconciled after the fact.\n\nPlan the work\nPermit types\nHot work, confined space, work at height and your own types, each with its own fields and colour.\nSIMOPS\nAutomatic detection of overlapping work by location, schedule and hazard.\nGas testing\nReadings recorded against the permit before approval and on revalidation.\nMulti-day permits\nDaily progress, daily safety revalidation, extensions and validity checks.\nControl hazardous energy\nLOTOTO plans\nIsolation procedures per workstation and machine, covering every energy source.\nSequential lockout\nLock, tag and try-out steps enforced in order, each signed by a named person.\nEvidence capture\nPhotos and logs stored with the step they prove.\nRestoration\nDe-isolation verified step by step before equipment returns to service.\nRespond and learn\nIncidents and near misses\nReported from the job, linked to the permit, people and machine involved.\nInvestigations\nRoot cause, corrective actions and reminders when actions go overdue.\nNotifications\nIn-app and email alerts for approvals, rejections, conflicts and expiring permits.\nDashboards and reports\nViews for HODs, safety and management, with PDF, Excel and CSV exports.\nRun the organisation\nMaster data\nDepartments, locations, workstations and machinery in one catalogue.\nWorkforce\nEmployees, contractors and agencies, with the roles they are allowed to hold.\nRole authority\nIssuer, executor, supervisor, safety officer, HOD and administrator, enforced on every action.\nSubscriptions\nModules and usage managed per organisation.\nWhat changes when the permit book goes digital\n\nSafety comes first by design. The system will not let work begin until the mandatory steps are done, and it remembers who did each one.\n\nPaper-based permits compared with PermitWiseAI\n\tPaper and spreadsheets\tWith PermitWiseAI\nApprovals\tChasing signatures around the plant\tRouted to the right HOD and safety officer, with reasons on record\nOverlapping work\tDiscovered on the shop floor\tFlagged by SIMOPS before anyone approves\nIsolation proof\tA tick in a register\tEach lock, try-out and restoration signed and photographed\nMulti-day jobs\tYesterday's permit reused without re-checks\tRevalidated every day before work resumes\nAudits\tDays of digging through files\tComplete history per permit, person and machine\nVisibility\tPhone calls to find out what is live\tLive dashboards for every level of the site\nAccess and evidence you can defend in an audit\n\nA permit is only worth the signatures on it. These are the controls behind every one.\n\nSingle sign-on\n\nOpenID Connect sign-in, with a forced password change the first time an invited user logs in.\n\nEnforced authority\n\nRoles are checked on the server for every action, so a screen can never approve what its user may not.\n\nTenant isolation\n\nEvery record is scoped to its organisation. One customer's permits are never visible to another.\n\nAudit trail\n\nWho created, approved, rejected, locked or closed what, and when, kept with the permit.\n\nBring your first site online\n\nTell us about your plant. We will configure your organisation and invite your first administrator.\n\nRequest access\nPermitWiseAI\n\nPermit-to-work, lockout/tagout and incident control for industrial sites, in one auditable record.\n\nProduct\nHow it works\nFeatures\nWhy switch\nSecurity\nGet started\nRequest access\nSign in\nContact us\nLegal\nPrivacy policy\nCookie policy\nTerms and conditions\n\n© 2026 ViXR India Private Limited. All rights reserved.",
+      "links": [
+        {
+          "text": "Request access",
+          "href": "/register"
+        },
+        {
+          "text": "See how it works",
+          "href": "#flow"
+        },
+        {
+          "text": "Request access",
+          "href": "/register"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Play permit walkthrough",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Draft",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Checks",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Approved",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Isolated",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Work",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Closed",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/",
+      "http": 200
+    },
+    {
+      "title": "Request access | PermitWiseAI",
+      "url": "/register",
+      "headings": [
+        "Request access",
+        "What happens next",
+        "Product",
+        "Get started",
+        "Legal"
+      ],
+      "text": "Skip to content\nPermitWiseAI\nHow it works\nFeatures\nWhy switch\nSecurity\nSign in\nRequest access\nRequest access\n\nPermitWiseAI accounts are set up per organisation. Tell us about your site and we will get your first administrator signed in.\n\nWhat happens next\n1\nWe reply to plan your setup and confirm which modules you need.\n2\nWe create your organisation and invite your administrator by email.\n3\nYour administrator signs in, sets a password and adds departments, sites and people.\nFull name\nWork email\nCompany\nJob title (optional)\nPhone (optional)\nNumber of sites (optional)\nSelect\n1 site\n2-5 sites\n6-20 sites\n20+ sites\nWhat work do you want to control? (optional)\nI agree that my details may be used to respond to this request, as described in the privacy policy.\nSend request\n\nAlready invited? Sign in\n\nPermitWiseAI\n\nPermit-to-work, lockout/tagout and incident control for industrial sites, in one auditable record.\n\nProduct\nHow it works\nFeatures\nWhy switch\nSecurity\nGet started\nRequest access\nSign in\nContact us\nLegal\nPrivacy policy\nCookie policy\nTerms and conditions\n\n© 2026 ViXR India Private Limited. All rights reserved.",
+      "links": [
+        {
+          "text": "privacy policy",
+          "href": "/privacy"
+        },
+        {
+          "text": "Sign in",
+          "href": "/login"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Full name",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "email",
+          "label": "Work email",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Company",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Job title (optional)",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "tel",
+          "label": "Phone (optional)",
+          "disabled": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Number of sites (optional)Select1 site2-5 sites6-20 sites20+ sites",
+          "disabled": false
+        },
+        {
+          "tag": "TEXTAREA",
+          "type": "textarea",
+          "label": "What work do you want to control? (optional)",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "label": "I agree that my details may be used to respond to this request, as described in the privacy policy.",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "submit",
+          "label": "Send request",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/register",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/login",
+      "headings": [
+        "Sign in"
+      ],
+      "text": "PermitWiseAI\n\nSafe work, signed off by the people who own it.\n\nPermits from request to closure, approved by the right people.\nIsolations locked, tagged and verified before work starts.\nClashing work and incidents surfaced before they hurt anyone.\n\nPermit to work · LOTOTO · SIMOPS · Incidents\n\nBack to\nHome\nSign in\n\nUse the work email your organisation registered.\n\nWork email\nPassword\nForgot password?\nSign in\n\nNew to the platform? Request access",
+      "links": [],
+      "controls": [],
+      "overflow": false,
+      "route": "/login",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/forgot-password",
+      "headings": [
+        "Forgot your password?"
+      ],
+      "text": "PermitWiseAI\n\nSafe work, signed off by the people who own it.\n\nPermits from request to closure, approved by the right people.\nIsolations locked, tagged and verified before work starts.\nClashing work and incidents surfaced before they hurt anyone.\n\nPermit to work · LOTOTO · SIMOPS · Incidents\n\nBack to\nSign in\nForgot your password?\n\nEnter your work email and we will send you a link to choose a new one.\n\nWork email\nSend reset link\n\nRemembered it? Sign in",
+      "links": [],
+      "controls": [],
+      "overflow": false,
+      "route": "/forgot-password",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/reset-password",
+      "headings": [
+        "This link is incomplete"
+      ],
+      "text": "PermitWiseAI\n\nSafe work, signed off by the people who own it.\n\nPermits from request to closure, approved by the right people.\nIsolations locked, tagged and verified before work starts.\nClashing work and incidents surfaced before they hurt anyone.\n\nPermit to work · LOTOTO · SIMOPS · Incidents\n\nBack to\nSign in\nThis link is incomplete\n\nOpen the link from your email again, or ask for a new one.\n\nSend me a new link",
+      "links": [],
+      "controls": [],
+      "overflow": false,
+      "route": "/reset-password",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/join",
+      "headings": [
+        "Invite not valid"
+      ],
+      "text": "PermitWiseAI\n\nSafe work, signed off by the people who own it.\n\nPermits from request to closure, approved by the right people.\nIsolations locked, tagged and verified before work starts.\nClashing work and incidents surfaced before they hurt anyone.\n\nPermit to work · LOTOTO · SIMOPS · Incidents\n\nInvite not valid\n\nThis join link is missing an invite token.\n\nSign in",
+      "links": [],
+      "controls": [],
+      "overflow": false,
+      "route": "/join",
+      "http": 200
+    },
+    {
+      "title": "Privacy policy | PermitWiseAI",
+      "url": "/privacy",
+      "headings": [
+        "Privacy policy",
+        "1. Who is responsible for your data",
+        "2. Personal data we collect",
+        "3. Why we use it",
+        "4. Who we share it with",
+        "5. Where your data is stored",
+        "6. How long we keep it",
+        "7. How we protect it",
+        "8. Your rights",
+        "9. Children",
+        "10. Contact and grievances",
+        "11. Changes to this policy",
+        "Product",
+        "Get started",
+        "Legal"
+      ],
+      "text": "Skip to content\nPermitWiseAI\nHow it works\nFeatures\nWhy switch\nSecurity\nSign in\nRequest access\nPrivacy policy\nCookie policy\nTerms and conditions\n\nOn this page\n\nWho is responsible for your data\nPersonal data we collect\nWhy we use it\nWho we share it with\nWhere your data is stored\nHow long we keep it\nHow we protect it\nYour rights\nChildren\nContact and grievances\nChanges to this policy\nPrivacy policy\n\nLast updated 27 September 2026\n\nThis policy explains what personal data PermitWiseAI handles, why, and the choices you have. It is written for the Digital Personal Data Protection Act, 2023 and the rules made under it.\n\n1. Who is responsible for your data\n\nViXR India Private Limited, CIN [CIN], with its registered office at 7 & 8, 2nd Floor, 27th Main, HSR Sector 1, Bengaluru, Karnataka 560 102 (\"we\", \"us\"), operates PermitWiseAI. Under the Digital Personal Data Protection Act, 2023 (\"DPDP Act\") we act in two different capacities:\n\nAs Data Fiduciaryfor personal data we collect for our own purposes: visitors to this website, people who request access, and the contact details of the people who manage our customers' accounts.\nAs Data Processor for everything our customers put into PermitWiseAI: permits, workforce records, isolation evidence, incident reports and the like (\"Customer Data\"). The customer organisation, usually your employer or the site owner, is the Data Fiduciary for that data and decides why and how it is processed. We process it only on their documented instructions.\n\nIf you use PermitWiseAI through your employer or a site you work at, please send requests about your Customer Data to that organisation first. We will help them respond.\n\n2. Personal data we collect\nAccess requests: your name, work email, company, and, if you give them, your phone number, job title, number of sites and message.\nAccount data: name, email address, role, department, profile photo and sign-in history for each user an organisation invites.\nOperational records within Customer Data: names and roles recorded on permits, approvals and rejections with their reasons, time-stamped progress entries, gas-test readings, photographs taken as isolation or work evidence, and incident and near-miss reports, which may include descriptions of injuries.\nTechnical data: IP address, browser and device information, and security and audit logs of actions taken in the service.\n3. Why we use it\nTo respond to your access request and set up your organisation, based on your consent.\nTo provide, secure and support the service for the customer that invited you.\nTo keep the audit trail that makes a permit record trustworthy.\nTo send service messages such as invitations, approval requests and expiry reminders.\nTo comply with law, court orders and directions from authorities, which are legitimate uses under section 7 of the DPDP Act.\n\nWe do not sell personal data, and we do not use Customer Data to advertise to anyone.\n\n4. Who we share it with\nAuthorised users of the same organisation, according to the roles the organisation assigns.\nService providers who host the service, store files and deliver email for us, bound by contract to process data only on our instructions and to protect it. [List of sub-processors, or a link to it.]\nAuthorities, where the law requires it, for example an accident report a customer is obliged to file.\n5. Where your data is stored\n\nData is stored in India. If data is transferred outside India, it will only go to countries not restricted by the Central Government under section 16 of the DPDP Act, and under safeguards no weaker than those described here.\n\n6. How long we keep it\nAccess requests that do not become customers are deleted [12 months] after our last contact.\nCustomer Data is kept for the subscription term and deleted within [90 days] after it ends, unless the customer asks us to export it first. Customers remain responsible for any statutory period they must keep safety records for.\nSecurity logs are kept for at least 180 days, as required by the CERT-In directions of 28 April 2022.\nWhere you withdraw consent, or the purpose is no longer served, we erase the data unless the law requires us to keep it.\n7. How we protect it\n\nWe apply reasonable security safeguards as required by section 8(5) of the DPDP Act, including encryption in transit, single sign-on, role-based access checked on the server for every action, separation of each organisation's data, and audit logging.\n\nIf a personal data breach occurs, we will notify the Data Protection Board of India and the affected people as the DPDP Act and its rules require, notify CERT-In within six hours of noticing a reportable cyber incident, and support our customers with their own notifications.\n\n8. Your rights\n\nUnder the DPDP Act you can:\n\nask for a summary of the personal data we process about you and who we shared it with;\nask us to correct, complete, update or erase it;\nwithdraw your consent at any time, as easily as you gave it;\nnominate another person to exercise your rights if you die or become incapacitated;\nhave your grievances addressed by our Grievance Officer.\n\nWithdrawing consent does not affect processing that already took place. For data held as Customer Data, we will pass your request to the organisation responsible for it.\n\n9. Children\n\nPermitWiseAI is a workplace tool and is not meant for anyone under 18. We do not knowingly collect personal data from children. If you believe we have, contact us and we will delete it.\n\n10. Contact and grievances\n\nPrivacy questions: info@permitwiseai.cloud\n\nGrievance Officer: [Name of Grievance Officer], info@permitwiseai.cloud, 7 & 8, 2nd Floor, 27th Main, HSR Sector 1, Bengaluru, Karnataka 560 102. We respond within the period prescribed under the DPDP Rules. If you are not satisfied with our response, you may complain to the Data Protection Board of India.\n\n11. Changes to this policy\n\nWe will post any change on this page and update the date at the top. If a change affects how we use data you consented to, we will ask for your consent again. See also our cookie policy and terms and conditions.\n\nPermitWiseAI\n\nPermit-to-work, lockout/tagout and incident control for industrial sites, in one auditable record.\n\nProduct\nHow it works\nFeatures\nWhy switch\nSecurity\nGet started\nRequest access\nSign in\nContact us\nLegal\nPrivacy policy\nCookie policy\nTerms and conditions\n\n© 2026 ViXR India Private Limited. All rights reserved.",
+      "links": [
+        {
+          "text": "Privacy policy",
+          "href": "/privacy"
+        },
+        {
+          "text": "Cookie policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Terms and conditions",
+          "href": "/terms"
+        },
+        {
+          "text": "Who is responsible for your data",
+          "href": "#roles"
+        },
+        {
+          "text": "Personal data we collect",
+          "href": "#collect"
+        },
+        {
+          "text": "Why we use it",
+          "href": "#use"
+        },
+        {
+          "text": "Who we share it with",
+          "href": "#sharing"
+        },
+        {
+          "text": "Where your data is stored",
+          "href": "#location"
+        },
+        {
+          "text": "How long we keep it",
+          "href": "#retention"
+        },
+        {
+          "text": "How we protect it",
+          "href": "#security"
+        },
+        {
+          "text": "Your rights",
+          "href": "#rights"
+        },
+        {
+          "text": "Children",
+          "href": "#children"
+        },
+        {
+          "text": "Contact and grievances",
+          "href": "#grievance"
+        },
+        {
+          "text": "Changes to this policy",
+          "href": "#changes"
+        },
+        {
+          "text": "info@permitwiseai.cloud",
+          "href": "mailto:info@permitwiseai.cloud"
+        },
+        {
+          "text": "info@permitwiseai.cloud",
+          "href": "mailto:info@permitwiseai.cloud"
+        },
+        {
+          "text": "cookie policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "terms and conditions",
+          "href": "/terms"
+        }
+      ],
+      "controls": [],
+      "overflow": false,
+      "route": "/privacy",
+      "http": 200
+    },
+    {
+      "title": "Terms and conditions | PermitWiseAI",
+      "url": "/terms",
+      "headings": [
+        "Terms and conditions",
+        "1. The agreement",
+        "2. Accounts and access",
+        "3. Safety responsibilities",
+        "4. Customer data",
+        "5. Acceptable use",
+        "6. Fees and payment",
+        "7. Availability and support",
+        "8. Intellectual property",
+        "9. Confidentiality",
+        "10. Warranties and disclaimer",
+        "11. Limitation of liability",
+        "12. Indemnities",
+        "13. Term and termination",
+        "14. Governing law and disputes",
+        "15. General",
+        "Product",
+        "Get started",
+        "Legal"
+      ],
+      "text": "Skip to content\nPermitWiseAI\nHow it works\nFeatures\nWhy switch\nSecurity\nSign in\nRequest access\nPrivacy policy\nCookie policy\nTerms and conditions\n\nOn this page\n\nThe agreement\nAccounts and access\nSafety responsibilities\nCustomer data\nAcceptable use\nFees and payment\nAvailability and support\nIntellectual property\nConfidentiality\nWarranties and disclaimer\nLimitation of liability\nIndemnities\nTerm and termination\nGoverning law and disputes\nGeneral\nTerms and conditions\n\nLast updated 27 September 2026\n\nPlease read these terms before using PermitWiseAI. They explain what we provide, what the Customer is responsible for, and how disputes are resolved.\n\n1. The agreement\n\nThese terms form an agreement between ViXR India Private Limited(\"we\", \"us\") and the organisation that subscribes to PermitWiseAI(\"Customer\"). An order form or subscription agreement signed with us takes precedence over these terms where the two conflict.\n\nIf you accept these terms for an organisation, you confirm you have authority to bind it. Individual users use the service under their organisation's subscription.\n\n2. Accounts and access\nOrganisation accounts are created by invitation after an access request is accepted.\nThe Customer's administrators decide who has access and which role each person holds, and must remove access promptly when someone leaves.\nEach user must keep their credentials private. Actions taken with a user's account are treated as taken by that user, which is what makes the audit trail meaningful.\n3. Safety responsibilities\n\nPermitWiseAIis a tool for managing and recording safe systems of work. It does not replace competent persons, site risk assessments, or the Customer's legal duties.\n\nThe Customer remains responsible for complying with the laws that apply to its sites, including the Factories Act, 1948, the Occupational Safety, Health and Working Conditions Code, 2020, state rules, and any industry standards it has adopted.\nThe Customer configures permit types, approval routes, isolation plans and checklists, and is responsible for their adequacy for the hazards at its sites.\nThe Customer must keep a fallback procedure for issuing and closing permits and isolations if the service is unavailable, and must never delay an emergency response to use the service.\n4. Customer data\n\nThe Customer owns the data it and its users put into the service (\"Customer Data\"). It grants us permission to host and process Customer Data only to provide, secure and support the service, and as described in our privacy policy. For personal data, the Customer is the Data Fiduciary and we are its Data Processor under the Digital Personal Data Protection Act, 2023.\n\nThe Customer is responsible for having a lawful basis to record its workforce's personal data, and for giving them any notices the law requires.\n\n5. Acceptable use\n\nThe Customer and its users must not:\n\nuse the service in breach of law or to record information they have no right to record;\ntry to access another organisation's data or bypass role or tenant restrictions;\nprobe, overload or disrupt the service, or introduce malicious code;\nresell, sublicense or copy the service, or reverse engineer it except as the law allows.\n6. Fees and payment\n\nFees, modules and billing periods are set out in the order form. Fees exclude GST and other applicable taxes, which are charged in addition. Invoices are payable within [30] days. If an undisputed invoice is more than [30] days overdue, we may suspend the service after giving [15] days' written notice.\n\n7. Availability and support\n\nWe aim to keep the service available [99.5]% of each month, excluding scheduled maintenance announced in advance. Support is available by email at info@permitwiseai.cloud during 10:00–18:00 IST, Monday to Friday. Any service credits are set out in the order form.\n\n8. Intellectual property\n\nWe own the service, its software and its documentation. The Customer receives a non-exclusive, non-transferable right to use the service during the subscription. Feedback the Customer gives may be used to improve the service without obligation.\n\n9. Confidentiality\n\nEach party will protect the other's confidential information with at least reasonable care and use it only for this agreement. This does not apply to information that is public, already known, independently developed, or that must be disclosed by law.\n\n10. Warranties and disclaimer\n\nWe will provide the service with reasonable skill and care and in line with its documentation. Apart from that, the service is provided \"as is\", and to the extent the law allows we disclaim all other warranties, including fitness for a particular purpose and uninterrupted or error-free operation.\n\n11. Limitation of liability\nNeither party is liable for indirect or consequential loss, or for loss of profit, revenue or goodwill.\nEach party's total liability under this agreement is limited to the fees paid or payable by the Customer in the 12 months before the claim arose.\nThese limits do not apply to fraud, a breach of confidentiality, the Customer's payment obligations, or liability that cannot be limited by law.\n12. Indemnities\n\nWe will defend the Customer against third-party claims that the service infringes their intellectual property. The Customer will defend us against third-party claims arising from Customer Data or from its use of the service in breach of these terms, including claims arising from work carried out at its sites.\n\n13. Term and termination\nThe agreement runs for the subscription term in the order form and renews as stated there.\nEither party may terminate if the other materially breaches it and does not fix the breach within 30 days of written notice.\nAfter termination the Customer may export its data for [90] days, after which we delete it as described in the privacy policy.\n14. Governing law and disputes\n\nThis agreement is governed by the laws of India. The parties will first try to settle any dispute through discussion between senior representatives. Failing that within 30 days, the dispute will be referred to a sole arbitrator under the Arbitration and Conciliation Act, 1996, seated in Bengaluru, in English. Subject to that, the courts at Bengaluru have exclusive jurisdiction.\n\n15. General\nNeither party is liable for delay caused by events beyond its reasonable control.\nNeither party may assign the agreement without consent, except to a successor of its business.\nIf a clause is found unenforceable, the rest of the agreement continues to apply.\nWe may update these terms by posting a new version here. Changes that reduce the Customer's rights take effect at the next renewal, unless required by law sooner.\nNotices to us: 7 & 8, 2nd Floor, 27th Main, HSR Sector 1, Bengaluru, Karnataka 560 102, with a copy to info@permitwiseai.cloud.\nPermitWiseAI\n\nPermit-to-work, lockout/tagout and incident control for industrial sites, in one auditable record.\n\nProduct\nHow it works\nFeatures\nWhy switch\nSecurity\nGet started\nRequest access\nSign in\nContact us\nLegal\nPrivacy policy\nCookie policy\nTerms and conditions\n\n© 2026 ViXR India Private Limited. All rights reserved.",
+      "links": [
+        {
+          "text": "Privacy policy",
+          "href": "/privacy"
+        },
+        {
+          "text": "Cookie policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Terms and conditions",
+          "href": "/terms"
+        },
+        {
+          "text": "The agreement",
+          "href": "#agreement"
+        },
+        {
+          "text": "Accounts and access",
+          "href": "#accounts"
+        },
+        {
+          "text": "Safety responsibilities",
+          "href": "#safety"
+        },
+        {
+          "text": "Customer data",
+          "href": "#data"
+        },
+        {
+          "text": "Acceptable use",
+          "href": "#use"
+        },
+        {
+          "text": "Fees and payment",
+          "href": "#fees"
+        },
+        {
+          "text": "Availability and support",
+          "href": "#availability"
+        },
+        {
+          "text": "Intellectual property",
+          "href": "#ip"
+        },
+        {
+          "text": "Confidentiality",
+          "href": "#confidentiality"
+        },
+        {
+          "text": "Warranties and disclaimer",
+          "href": "#warranties"
+        },
+        {
+          "text": "Limitation of liability",
+          "href": "#liability"
+        },
+        {
+          "text": "Indemnities",
+          "href": "#indemnity"
+        },
+        {
+          "text": "Term and termination",
+          "href": "#term"
+        },
+        {
+          "text": "Governing law and disputes",
+          "href": "#law"
+        },
+        {
+          "text": "General",
+          "href": "#general"
+        },
+        {
+          "text": "privacy policy",
+          "href": "/privacy"
+        },
+        {
+          "text": "info@permitwiseai.cloud",
+          "href": "mailto:info@permitwiseai.cloud"
+        },
+        {
+          "text": "privacy policy",
+          "href": "/privacy"
+        },
+        {
+          "text": "info@permitwiseai.cloud",
+          "href": "mailto:info@permitwiseai.cloud"
+        }
+      ],
+      "controls": [],
+      "overflow": false,
+      "route": "/terms",
+      "http": 200
+    },
+    {
+      "title": "Cookie policy | PermitWiseAI",
+      "url": "/cookies",
+      "headings": [
+        "Cookie policy",
+        "1. What cookies and browser storage are",
+        "2. What we use",
+        "3. Consent",
+        "4. Managing cookies",
+        "5. Contact",
+        "Product",
+        "Get started",
+        "Legal"
+      ],
+      "text": "Skip to content\nPermitWiseAI\nHow it works\nFeatures\nWhy switch\nSecurity\nSign in\nRequest access\nPrivacy policy\nCookie policy\nTerms and conditions\n\nOn this page\n\nWhat cookies and browser storage are\nWhat we use\nConsent\nManaging cookies\nContact\nCookie policy\n\nLast updated 27 September 2026\n\nThis policy lists every cookie and piece of browser storage PermitWiseAI uses.\n\n1. What cookies and browser storage are\n\nCookies are small files a website saves in your browser. Local and session storage do a similar job inside the browser without being sent to the server on every request. We use both only where the service cannot work without them.\n\n2. What we use\n\nWe use strictly necessary storage only. There are no advertising, analytics or third-party tracking cookies on this website or in the app.\n\nName\tType\tPurpose\tLasts\nptw_access_token\tLocal storage\tKeeps you signed in to the app\tUntil you sign out or it expires\nptw_refresh_token\tLocal storage\tRenews your session without asking you to sign in again\tUntil you sign out or it expires\nptw-theme-preferences-v2\tLocal storage\tRemembers your theme, density and light or dark mode\tUntil you clear it\nptw_nav_trail\tSession storage\tLets Back links return to the page you came from\tEnd of browser session\n3. Consent\n\nStrictly necessary storage is needed to provide the service you asked for, so we do not ask for separate consent for it. If we ever add analytics or other optional cookies, we will ask for your consent first and update this page.\n\n4. Managing cookies\n\nYou can clear or block cookies and site data in your browser settings. If you do, you will be signed out and will need to sign in again. Blocking them entirely will stop sign-in from working.\n\n5. Contact\n\nQuestions about this policy: info@permitwiseai.cloud. How we handle personal data is described in our privacy policy.\n\nPermitWiseAI\n\nPermit-to-work, lockout/tagout and incident control for industrial sites, in one auditable record.\n\nProduct\nHow it works\nFeatures\nWhy switch\nSecurity\nGet started\nRequest access\nSign in\nContact us\nLegal\nPrivacy policy\nCookie policy\nTerms and conditions\n\n© 2026 ViXR India Private Limited. All rights reserved.",
+      "links": [
+        {
+          "text": "Privacy policy",
+          "href": "/privacy"
+        },
+        {
+          "text": "Cookie policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Terms and conditions",
+          "href": "/terms"
+        },
+        {
+          "text": "What cookies and browser storage are",
+          "href": "#what"
+        },
+        {
+          "text": "What we use",
+          "href": "#use"
+        },
+        {
+          "text": "Consent",
+          "href": "#consent"
+        },
+        {
+          "text": "Managing cookies",
+          "href": "#manage"
+        },
+        {
+          "text": "Contact",
+          "href": "#contact"
+        },
+        {
+          "text": "info@permitwiseai.cloud",
+          "href": "mailto:info@permitwiseai.cloud"
+        },
+        {
+          "text": "privacy policy",
+          "href": "/privacy"
+        }
+      ],
+      "controls": [],
+      "overflow": false,
+      "route": "/cookies",
+      "http": 200
+    }
+  ],
+  "errors": []
+}

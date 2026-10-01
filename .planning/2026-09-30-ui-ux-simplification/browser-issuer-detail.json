@@ -1,0 +1,697 @@
+{
+  "role": "issuer",
+  "results": [
+    {
+      "title": "PermitWiseAI",
+      "url": "/permits/00000000-0000-4000-8000-000000000201",
+      "headings": [
+        "Draft — tank inspection (incomplete)",
+        "Work",
+        "Where",
+        "When",
+        "Hazards",
+        "PPE",
+        "LOTOTO",
+        "Gas testing",
+        "People"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nBack to\nHome\nDraft — tank inspection (incomplete)\nDraft\n\nPTW-DEMO-001\nUpdated 3 days ago\n\nYour next step: continue\n\nBeing prepared. It goes to approval once the issuer submits it.\n\nContinue\n\nNot provided yet: Hazards, PPE, Executor.\n\nWork\n\nPermit type\n\nCold Work\n\nDemo scenario: Draft — tank inspection (incomplete)\n\nWhere\n\nDemo Plant\nOperations\nCompressor Bay\nMain compressor\n\nWhen\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nHazards\nNone recorded\nPPE\nNone recorded\nLOTOTO\nNot required for this work\nGas testing\nNot required for this work\nPeople\n\nExecutors\n\nNot assigned\nJourney and current state\nPrint this permit",
+      "links": [
+        {
+          "text": "Back to Home",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Continue",
+          "href": "/permits/00000000-0000-4000-8000-000000000201/edit"
+        },
+        {
+          "text": "Journey and current state",
+          "href": "/permits/00000000-0000-4000-8000-000000000201/journey"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Print this permit",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/permits/00000000-0000-4000-8000-000000000201",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/permits/00000000-0000-4000-8000-000000000201/edit",
+      "headings": [
+        "Edit draft permit",
+        "Safety officers (optional)",
+        "Hazards",
+        "PPE"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nBack to\nPermit\nEdit draft permit\n\nComplete on-site operational details. Executors do not approve permits.\n\nDraft permit\n\nChanges are saved as a draft until you submit for approval.\n\nThe job executor fills this step: workstation, machinery, LOTOTO, gas testing, hazards and PPE. Save the draft; the executor completes it from their Permits list, then you review and submit.\n\n1. Basic information\n2. Location & schedule\n3. On-site details\n4. Crew assignment\n5. Forms & check sheets\n6. Review & submit\nWorkstation\nSelect workstation\nCompressor Bay (WS-BAY-01)\nTank Farm Manifold (WS-TANK-01)\nPump Skid (WS-PUMP-01)\nElectrical MCC (WS-MCC-01)\nScaffold Platform (WS-SCAF-01)\nValve Station (WS-VALVE-01)\nMachinery\nSelect machinery\nMain compressor (MC-COMP-01)\nCooling water pump (MC-PUMP-01)\nSafety officers (optional)\nAdd safety officer\nLOTOTO required\nGas testing required\nHazards\nAdd hazard\nHazard category\nSelect hazard\nChemical exposure (CHEMICAL)\nFall from height (FALL)\nConfined space (CONFINED-SPACE)\nMechanical energy (MECHANICAL)\nFire / ignition (FIRE)\nElectrical energy (ELECTRICAL)\nDescription\nPPE\nAdd PPE\nPPE item\nSelect PPE\nSafety glasses (PPE-GLASSES)\nSafety boots (PPE-BOOTS)\nChemical-resistant gloves (PPE-GLOVES)\nSafety helmet (PPE-HELMET)\nEar defenders (PPE-EAR)\nHalf-face respirator (PPE-RESP)\nQuantity\nBack\nSave draft\nNext",
+      "links": [],
+      "controls": [],
+      "overflow": false,
+      "route": "/permits/00000000-0000-4000-8000-000000000201/edit",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/permits/00000000-0000-4000-8000-000000000201/preview",
+      "headings": [
+        "Permit preview",
+        "Draft — tank inspection (incomplete)",
+        "Work",
+        "Where",
+        "When",
+        "Hazards",
+        "PPE",
+        "LOTOTO",
+        "Gas testing",
+        "People",
+        "Attachments"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nPermit preview\nDraft\n\nDraft — tank inspection (incomplete)\n\nEdit draft\nFull details\nDraft — tank inspection (incomplete)\n\nPTW-DEMO-001\n\nDraft\n\nNot provided yet: Hazards, PPE, Executor.\n\nWork\n\nPermit type\n\nCold Work\n\nDemo scenario: Draft — tank inspection (incomplete)\n\nWhere\n\nDemo Plant\nOperations\nCompressor Bay\nMain compressor\n\nWhen\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nHazards\nNone recorded\nPPE\nNone recorded\nLOTOTO\nNot required for this work\nGas testing\nNot required for this work\nPeople\n\nExecutors\n\nNot assigned\nAttachments\n\nNo attachments uploaded.",
+      "links": [
+        {
+          "text": "Edit draft",
+          "href": "/permits/00000000-0000-4000-8000-000000000201/edit"
+        },
+        {
+          "text": "Full details",
+          "href": "/permits/00000000-0000-4000-8000-000000000201"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Edit draft",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Full details",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/permits/00000000-0000-4000-8000-000000000201/preview",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/permits/00000000-0000-4000-8000-000000000201/journey",
+      "headings": [
+        "Draft — tank inspection (incomplete)",
+        "Draft3 d 8 h here",
+        "5 things to sort out",
+        "Where it has been",
+        "Decisions and actions, oldest first",
+        "What the decision rests on"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nBack to\nPermit\nDraft — tank inspection (incomplete)\nDraft\n\nPTW-DEMO-001\nJourney and current state\n\nNow at\n\nDraft\n3 d 8 h here\n\nBeing prepared. It goes to approval once the issuer submits it.\n\nWaiting on Job issuer and executor: Job Issuer\n\nFinish the permit and submit it for approval\n\nYour next step: Continue\n5 things to sort out\nAssign a primary executor before handing off on-site details · Issuer\nAt least one hazard is required · Executor\nAt least one PPE item is required · Executor\nAt least one executor is required · Executor\nSafe work permit: answer 16 required questions · Issuer or executor\nBasic information\nWhere it has been\n\n0 moves · Full process\n\nPrepare\nApprove\nExecute\nClose\nJob issuer\n\nRaises, revises, verifies\n\nJob executor\n\nSite details, does the work\n\nApprovers\n\nEach workflow stage\n\nHOD\n\nRevalidates, signs off\n\nSafety officer\n\nSuspends, can veto\n\nSystem\n\nValidity, incidents\n\nSubmit\nResubmit\nResubmit\nNext stage\nFinal approval\nDefer\nReject\nStart work\nSuspend\nSuspend\nResume\nRevalidate\nDeclare complete\nSend back\nVerify\nSend back\nClose\nStop work\nWindow ends\nSerious incident\nDraft\nNow · 3 d 8 h\nDeferred\nRejected\nPending approval\nApproved\nWork in progress\nSuspended\nWork finished\nFinal sign-off\nClosed\nSafety veto\nExpired\nCancelled\nMoves forward\nSends back\nStops or holds\nAutomatic or any time\nDecision point\nCurrent stage (pulsing)\nFaded: not reached. Clear arrows from the current stage: what can happen next\nDecisions and actions, oldest first\n\nCreated\n\nJob Issuer\nSun 27 Sept, 10:59\n\nWhat the decision rests on\nPermit type\nCold Work\nLocation\nDemo Plant · Compressor Bay · Compressor Bay\nEquipment\nMain compressor\nPlanned window\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\nIssuer\nJob Issuer\nExecutors\nNone assigned\nSafety officers\nNone\nHazards and PPE\n0 hazards, 0 PPE items\nIsolation (LOTOTO)\nNot required\nGas testing\nNot required\nForms and check sheets\nNone filled in\nAttachments\n0\n\nFull permit, forms and answers\n\nDebugging information\nRecord is consistent",
+      "links": [
+        {
+          "text": "Back to Permit",
+          "href": "/permits/00000000-0000-4000-8000-000000000201/preview"
+        },
+        {
+          "text": "Your next step: Continue",
+          "href": "/permits/00000000-0000-4000-8000-000000000201/edit"
+        },
+        {
+          "text": "Full process",
+          "href": "/permits/process"
+        },
+        {
+          "text": "Full permit, forms and answers",
+          "href": "/permits/00000000-0000-4000-8000-000000000201"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Copy debug data for support",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/permits/00000000-0000-4000-8000-000000000201/journey",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/execution/00000000-0000-4000-8000-000000000206",
+      "headings": [
+        "Approved — compressor maintenance",
+        "Work",
+        "Where",
+        "When",
+        "Hazards",
+        "PPE",
+        "LOTOTO",
+        "Gas testing",
+        "People"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nBack to\nPermit\nApproved — compressor maintenance\nApproved\n\nPTW-DEMO-006\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nPermit\nProgress timeline\nEvidence photos\nStart work\nPermit details\n\nNot provided yet: Hazards, PPE.\n\nWork\n\nPermit type\n\nCold Work\n\nDemo scenario: Approved — compressor maintenance\n\nWhere\n\nDemo Plant\nOperations\nCompressor Bay\nMain compressor\n\nWhen\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nHazards\nNone recorded\nPPE\nNone recorded\nLOTOTO\nNot required for this work\nGas testing\nNot required for this work\nPeople\n\nExecutors\n\nField OperatorPrimary",
+      "links": [
+        {
+          "text": "Back to Permit",
+          "href": "/permits/00000000-0000-4000-8000-000000000201/journey"
+        },
+        {
+          "text": "Permit",
+          "href": "/permits/00000000-0000-4000-8000-000000000206"
+        },
+        {
+          "text": "Progress timeline",
+          "href": "/execution/00000000-0000-4000-8000-000000000206/progress"
+        },
+        {
+          "text": "Evidence photos",
+          "href": "/execution/00000000-0000-4000-8000-000000000206/evidence"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Start work",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/execution/00000000-0000-4000-8000-000000000206",
+      "http": 200,
+      "mobile": {
+        "overflow": false,
+        "sticky": []
+      }
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/execution/00000000-0000-4000-8000-000000000206/progress",
+      "headings": [
+        "Approved — compressor maintenance"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nApproved — compressor maintenance\nApproved\n\nChronological work progress updates\n\nBack to execution\n\nNo progress updates recorded.",
+      "links": [
+        {
+          "text": "Back to execution",
+          "href": "/execution/00000000-0000-4000-8000-000000000206"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Back to execution",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/execution/00000000-0000-4000-8000-000000000206/progress",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/execution/00000000-0000-4000-8000-000000000206/evidence",
+      "headings": [
+        "Approved — compressor maintenance"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nApproved — compressor maintenance\nApproved\n\nPhotographs and documents captured during execution\n\nBack to execution\n\nNo evidence uploaded yet.",
+      "links": [
+        {
+          "text": "Back to execution",
+          "href": "/execution/00000000-0000-4000-8000-000000000206"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Back to execution",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/execution/00000000-0000-4000-8000-000000000206/evidence",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/permits/00000000-0000-4000-8000-000000000206/multi-day",
+      "headings": [
+        "Multi-day operations",
+        "Daily progress history",
+        "Shift handovers",
+        "Daily activity timeline",
+        "Revalidation history"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nMulti-day operations\nApproved\n\nApproved — compressor maintenance\n\nPermit details\nExecution\n\nDaily progress and revalidation are available for active or suspended permits only.\n\nDaily progress history\n\nNo daily progress entries yet.\n\nShift handovers\n\nNo handovers recorded yet.\n\nDaily activity timeline\n\nNo daily activity recorded yet.\n\nRevalidation history\n\nNo revalidation history yet.",
+      "links": [
+        {
+          "text": "Permit details",
+          "href": "/permits/00000000-0000-4000-8000-000000000206"
+        },
+        {
+          "text": "Execution",
+          "href": "/execution/00000000-0000-4000-8000-000000000206"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Permit details",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Execution",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/permits/00000000-0000-4000-8000-000000000206/multi-day",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/closure/00000000-0000-4000-8000-000000000209",
+      "headings": [
+        "Verify & close",
+        "Pending closure — valve replacement complete",
+        "Pending closure — valve replacement complete",
+        "Work",
+        "Where",
+        "When",
+        "Hazards",
+        "PPE",
+        "LOTOTO",
+        "Gas testing",
+        "People",
+        "Execution progress",
+        "Evidence (0)",
+        "Lifecycle history",
+        "Audit log"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nVerify & close\n\nPending closure — valve replacement complete\n\nBack to queue\nPending closure — valve replacement complete\nFinal sign-off\nPending closure — valve replacement complete\n\nPTW-DEMO-009\n\nFinal sign-off\n\nNot provided yet: Hazards, PPE.\n\nWork\n\nPermit type\n\nGeneral Work\n\nDemo scenario: Pending closure — valve replacement complete\n\nWhere\n\nDemo Plant\nOperations\nCompressor Bay\nMain compressor\n\nWhen\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nHazards\nNone recorded\nPPE\nNone recorded\nLOTOTO\nNot required for this work\nGas testing\nNot required for this work\nPeople\n\nExecutors\n\nField OperatorPrimary\nExecution progress\n\nNo progress updates recorded.\n\nEvidence (0)\n\nNo evidence uploaded.\n\nLifecycle history\n\nNo lifecycle history recorded.\n\nAudit log\n\nNo audit records found.",
+      "links": [
+        {
+          "text": "Back to queue",
+          "href": "/closure"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Back to queue",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/closure/00000000-0000-4000-8000-000000000209",
+      "http": 200,
+      "mobile": {
+        "overflow": false,
+        "sticky": []
+      }
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/closure/archive/00000000-0000-4000-8000-000000000210",
+      "headings": [
+        "Historical permit",
+        "Closed — heat exchanger cleaning",
+        "Closed — heat exchanger cleaning",
+        "Work",
+        "Where",
+        "When",
+        "Hazards",
+        "PPE",
+        "LOTOTO",
+        "Gas testing",
+        "People",
+        "Verification",
+        "Closure",
+        "Execution progress",
+        "Attachments (0)",
+        "Evidence (0)",
+        "Lifecycle history",
+        "Audit log"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nHistorical permit\n\nRead-only archived record\n\nExport history\nBack to archive\nClosed — heat exchanger cleaning\nClosed\nClosed — heat exchanger cleaning\n\nPTW-DEMO-010\n\nClosed\n\nNot provided yet: Hazards, PPE, Executor.\n\nWork\n\nPermit type\n\nHot Work\n\nDemo scenario: Closed — heat exchanger cleaning\n\nWhere\n\nDemo Plant\nOperations\nCompressor Bay\nMain compressor\n\nWhen\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nHazards\nNone recorded\nPPE\nNone recorded\nLOTOTO\nNot required for this work\nGas testing\nNot required for this work\nPeople\n\nExecutors\n\nNot assigned\nVerification\n\nVerified Wed 1 Jul, 13:30\n\nArea secured and housekeeping complete\n\nClosure\n\nClosed Wed 1 Jul, 13:30\n\nWork completed satisfactorily\n\nExecution progress\n\nNo progress updates recorded.\n\nAttachments (0)\n\nNo attachments uploaded.\n\nEvidence (0)\n\nNo evidence attached.\n\nLifecycle history\n\nNo lifecycle history recorded.\n\nAudit log\n\nNo audit records found.",
+      "links": [
+        {
+          "text": "Back to archive",
+          "href": "/closure/archive"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Export history",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Back to archive",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/closure/archive/00000000-0000-4000-8000-000000000210",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/incidents?new=1",
+      "headings": [
+        "Incidents",
+        "Report an incident"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nIncidents\n\nIncidents, near misses and unsafe conditions. The most serious open ones come first.\n\nNeeds follow-up\n12\nClosed\n1\nCritical\n0\nHigh\n1\nMedium\n11\nLow\n0\nIncident\n0\nNear miss\n11\nUnsafe condition\n1\nOpen\n1\nPending HOD decision\n4\nInvestigating\n7\n12\nOpen\n1\nCritical or high, open\n4\nAwaiting HOD decision\n1\nClosed\nReport an incident\nWhat happened\nIncident\nNear miss\nUnsafe condition\nTitle\nDescription\nWhere (optional)\nWhen\nLinked permit (optional)\nNone\nNI verify 1790699005292\nNI wizard check 1790696994305\nNI wizard check 1790696948691\nNI wizard check 1790696904371\nPTW-2026-000005 API bug check 1790660173182\nPTW-2026-000004 API bug check 1790659970038\nPTW-2026-000003 API bug check 1790659957854\nPTW-2026-000002 API bug check 1790659941455\nPTW-2026-000001 API bug check 1790659741903\nPTW-DEMO-007 Active — pump seal replacement\nPTW-DEMO-002 Pending HOD initial review — welding repair\nPTW-DEMO-003 Pending HOD review — confined space entry\nPTW-DEMO-009 Pending closure — valve replacement complete\nPTW-DEMO-006 Approved — compressor maintenance\nPTW-DEMO-005 Rejected — inadequate controls\nPTW-DEMO-014 SIMOPS B — overlapping excavation\nPTW-DEMO-011 Cancelled — work no longer required\nPTW-DEMO-010 Closed — heat exchanger cleaning\nPTW-DEMO-004 Deferred — missing hazard assessment\nPTW-DEMO-001 Draft — tank inspection (incomplete)\nPTW-DEMO-012 Expired — permit validity lapsed\nPTW-DEMO-008 Suspended — weather hold\nPTW-DEMO-013 SIMOPS A — shared tank farm work\nSubmit report\nSave as draft\nCancel\nIncident\nWhere and when\nStatus\nNext step\nNear-miss — dropped tool from scaffold\n\nINC-DEMO-002\nNear miss\nHigh priority\n\nTank farm scaffold\n10 Aug 2026\nPending HOD decision\nNear miss mumiga6m\n\nINC-2026-9A244249\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mumidzfb\n\nINC-2026-C35816B0\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mum9rjpn\n\nINC-2026-C7B34838\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mum8idio\n\nINC-2026-83D5B160\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mum8g72m\n\nINC-2026-26B56A9D\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mum8crvf\n\nINC-2026-0D9925D2\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mum83bgi\n\nINC-2026-629EAD91\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nUI check: loose grating\n\nINC-2026-A1340D97\nNear miss\nMedium priority\n\n2 days ago\nPending HOD decision\nUI check: loose grating\n\nINC-2026-73B1ECFE\nNear miss\nMedium priority\n\n2 days ago\nPending HOD decision\nUI check: loose grating\n\nINC-2026-8135E660\nNear miss\nMedium priority\n\n2 days ago\nPending HOD decision\nOpen — oil leak near work area\n\nINC-DEMO-001\nUnsafe condition\nMedium priority\n\nCompressor bay\n15 Aug 2026\nOpen",
+      "links": [
+        {
+          "text": "12Open",
+          "href": "/incidents"
+        },
+        {
+          "text": "1Critical or high, open",
+          "href": "/incidents?priority=critical,high"
+        },
+        {
+          "text": "4Awaiting HOD decision",
+          "href": "/incidents?status=pending_hod_decision"
+        },
+        {
+          "text": "1Closed",
+          "href": "/incidents?view=closed"
+        },
+        {
+          "text": "Near-miss — dropped tool from scaffold",
+          "href": "/incidents/00000000-0000-4000-8000-000000000502"
+        },
+        {
+          "text": "Near miss mumiga6m",
+          "href": "/incidents/0c225aaf-7e56-46bf-9be5-f04b0318c6b0"
+        },
+        {
+          "text": "Near miss mumidzfb",
+          "href": "/incidents/f57da014-6c11-4335-a199-84f1f497c589"
+        },
+        {
+          "text": "Near miss mum9rjpn",
+          "href": "/incidents/041540d6-0851-4902-a229-db6bf56e62ed"
+        },
+        {
+          "text": "Near miss mum8idio",
+          "href": "/incidents/2e7f400a-dc82-4a9b-af94-edca258f2dda"
+        },
+        {
+          "text": "Near miss mum8g72m",
+          "href": "/incidents/b84d9463-8e92-489d-9c30-f63759bf3ca1"
+        },
+        {
+          "text": "Near miss mum8crvf",
+          "href": "/incidents/d1955ee5-3696-4b97-b3dd-fce0997e652c"
+        },
+        {
+          "text": "Near miss mum83bgi",
+          "href": "/incidents/18df9138-610e-4c15-a172-ecb3623e0ddd"
+        },
+        {
+          "text": "UI check: loose grating",
+          "href": "/incidents/ff6e4874-8a15-4ad9-bff1-d4e6ba0e04ac"
+        },
+        {
+          "text": "UI check: loose grating",
+          "href": "/incidents/0ff2b7eb-2d78-4d12-8d4e-d9cb27152f69"
+        },
+        {
+          "text": "UI check: loose grating",
+          "href": "/incidents/3a8b2415-7612-402d-a6c0-a903f85fce81"
+        },
+        {
+          "text": "Open — oil leak near work area",
+          "href": "/incidents/00000000-0000-4000-8000-000000000501"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Needs follow-up12",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Closed1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Critical0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "High1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Medium11",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Low0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Incident0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Near miss11",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Unsafe condition1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Open1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Pending HOD decision4",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Investigating7",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Incident",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Near miss",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Unsafe condition",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Title",
+          "disabled": false
+        },
+        {
+          "tag": "TEXTAREA",
+          "type": "textarea",
+          "label": "Description",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Where (optional)",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "datetime-local",
+          "label": "When",
+          "disabled": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Linked permit (optional)NoneNI verify 1790699005292NI wizard check 1790696994305NI wizard check 1790696948691NI wizard check 1790696904371PTW-2026-000005  API bug check 1790660173182PTW-2026-000004  API bug check 1790659970038PTW-2026-000003  API bug check 1790659957854PTW-2026-000002  API bug check 1790659941455PTW-2026-000001  API bug check 1790659741903PTW-DEMO-007  Active — pump seal replacementPTW-DEMO-002  Pending HOD initial review — welding repairPTW-DEMO-003  Pending HOD review — confined space entryPTW-DEMO-009  Pending closure — valve replacement completePTW-DEMO-006  Approved — compressor maintenancePTW-DEMO-005  Rejected — inadequate controlsPTW-DEMO-014  SIMOPS B — overlapping excavationPTW-DEMO-011  Cancelled — work no longer requiredPTW-DEMO-010  Closed — heat exchanger cleaningPTW-DEMO-004  Deferred — missing hazard assessmentPTW-DEMO-001  Draft — tank inspection (incomplete)PTW-DEMO-012  Expired — permit validity lapsedPTW-DEMO-008  Suspended — weather holdPTW-DEMO-013  SIMOPS A — shared tank farm work",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "submit",
+          "label": "Submit report",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "submit",
+          "label": "Save as draft",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Cancel",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/incidents?new=1",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/incidents/00000000-0000-4000-8000-000000000502",
+      "headings": [
+        "Near-miss — dropped tool from scaffold",
+        "Evidence"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nBack to\nIncidents\nNear-miss — dropped tool from scaffold\n\nINC-DEMO-002\nPending HOD decision\nNear miss\nHigh priority\n\nTool fell from height; no injury but area not barricaded\n\nOccurred Mon 10 Aug, 14:30 · Tank farm scaffold\n\nEvidence\n\nPhotos and documents. Select a file to open it.\n\nNo evidence yet.\n\nAdd evidence\n\nDrag and drop a file here\n\nImages or PDF up to 10 MB\n\nChoose file\nUpload evidence",
+      "links": [
+        {
+          "text": "Back to Incidents",
+          "href": "/incidents?new=1"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "INPUT",
+          "type": "file",
+          "label": "",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Choose file",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Upload evidence",
+          "disabled": true
+        }
+      ],
+      "overflow": false,
+      "route": "/incidents/00000000-0000-4000-8000-000000000502",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/simops/conflicts/8a6aaabc-fd02-4800-b080-51fb8d821439",
+      "headings": [
+        "Conflict details",
+        "Permit timeline",
+        "1. Risk assessment",
+        "Reject conflict",
+        "Activity",
+        "Alerts"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nBack to\nIncident\nConflict details\n\nAssess, plan mitigation, and resolve SIMOPS conflicts.\n\nOverlapping permits share equipment during the same schedule window.\n\nType: equipment · Status: open\n\nHigh severity\nPermit timeline\nApproved — compressor maintenance\n\nPTW-DEMO-006 · approved\n\nMon 10 Aug, 14:30 → Tue 25 Aug, 21:30\n\nSIMOPS B — overlapping excavation\n\nPTW-DEMO-014 · approved\n\nMon 10 Aug, 14:30 → Tue 25 Aug, 21:30\n\n1. Risk assessment\nSeverity\nlow\nmedium\nhigh\nRisk summary\nSave assessment\nReject conflict\nRejection reason\nReject and suspend permits\nActivity\ndetected · Sun 27 Sept, 18:50\nAlerts\n\nOverlapping permits share equipment during the same schedule window.\n\nhod · pending\n\nHigh severity\n\nOverlapping permits share equipment during the same schedule window.\n\ntenant-owner · pending\n\nHigh severity\n\nOverlapping permits share equipment during the same schedule window.\n\ntenant-admin · pending\n\nHigh severity",
+      "links": [
+        {
+          "text": "Back to Incident",
+          "href": "/incidents/00000000-0000-4000-8000-000000000502"
+        },
+        {
+          "text": "Approved — compressor maintenance",
+          "href": "/permits/00000000-0000-4000-8000-000000000206"
+        },
+        {
+          "text": "SIMOPS B — overlapping excavation",
+          "href": "/permits/00000000-0000-4000-8000-000000000214"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Severitylowmediumhigh",
+          "disabled": false
+        },
+        {
+          "tag": "TEXTAREA",
+          "type": "textarea",
+          "label": "Risk summary",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Save assessment",
+          "disabled": true
+        },
+        {
+          "tag": "TEXTAREA",
+          "type": "textarea",
+          "label": "Rejection reason",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Reject and suspend permits",
+          "disabled": true
+        }
+      ],
+      "overflow": false,
+      "route": "/simops/conflicts/8a6aaabc-fd02-4800-b080-51fb8d821439",
+      "http": 200
+    }
+  ],
+  "errors": []
+}
