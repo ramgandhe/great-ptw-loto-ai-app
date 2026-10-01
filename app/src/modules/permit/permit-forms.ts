@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import type { TemplateConfig, TemplateField } from '../organisation/permit-template-library';
+import type { TemplateConfig, TemplateField, TemplateRequiredStage } from '../organisation/permit-template-library';
 
 export type SignatureAnswer = { name: string; date?: string; time?: string };
 export type FormAnswer = string | number | string[] | SignatureAnswer;
@@ -119,15 +119,19 @@ export function diffFormAnswers(before: PermitFormResponse[], after: PermitFormR
   return changes;
 }
 
-/** Required fields left empty, per template that applies to the permit. */
-export function missingFormAnswers(applicable: TemplateForForms[], responses: PermitFormResponse[]): string[] {
+/** Required fields for this stage left empty, per template that applies to the permit. */
+export function missingFormAnswers(
+  applicable: TemplateForForms[],
+  responses: PermitFormResponse[],
+  stage: TemplateRequiredStage = 'submit',
+): string[] {
   const errors: string[] = [];
   for (const template of applicable) {
     const config = template.config as TemplateConfig | null;
     const answers = responses.find((response) => response.templateId === template.id)?.answers ?? {};
     const missing = (config?.sections ?? [])
       .flatMap((section) => section.fields)
-      .filter((field) => field.required && answers[field.id] === undefined)
+      .filter((field) => field.required && (field.requiredAt ?? 'submit') === stage && answers[field.id] === undefined)
       .map((field) => field.label);
     if (missing.length) {
       errors.push(

@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCheck, PenLine } from "lucide-react";
-import type { TemplateConfig, TemplateField } from "@/lib/organisation/templates";
+import { laterStageNote, requiredForSubmit, type TemplateConfig, type TemplateField } from "@/lib/organisation/templates";
 import { isAnswered } from "@/lib/permit/form";
 import type { FormAnswer, FormAnswers, SignatureAnswer } from "@/lib/permit/types";
 import { Button } from "@/components/ui/button";
@@ -201,7 +201,7 @@ export function TemplateFormFill({
 }) {
   const fields = config.sections.flatMap((section) => section.fields);
   const answered = fields.filter((field) => isAnswered(answers[field.id])).length;
-  const requiredLeft = fields.filter((field) => field.required && !isAnswered(answers[field.id])).length;
+  const requiredLeft = fields.filter((field) => requiredForSubmit(field) && !isAnswered(answers[field.id])).length;
 
   const setAnswer = (fieldId: string, value: FormAnswer | undefined) => {
     const next = { ...answers };
@@ -251,7 +251,8 @@ export function TemplateFormFill({
                   >
                     <label id={`ff-${field.id}-label`} htmlFor={`ff-${field.id}`} className="text-sm">
                       {field.label}
-                      {field.required ? <span className="text-destructive"> *</span> : null}
+                      {requiredForSubmit(field) ? <span className="text-destructive"> *</span> : null}
+                      {laterStageNote(field) ? <span className="block text-xs text-muted-foreground">{laterStageNote(field)}</span> : null}
                       {field.help ? <span className="block text-xs text-muted-foreground">{field.help}</span> : null}
                     </label>
                     <FieldInput

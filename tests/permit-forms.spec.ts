@@ -94,3 +94,47 @@ describe('diffFormAnswers', () => {
     ]);
   });
 });
+
+describe('required-at stage', () => {
+  const staged: TemplateConfig = {
+    kind: 'permit',
+    sections: [
+      {
+        id: 'a',
+        title: 'Authorisation',
+        fields: [
+          { id: 'issuer', label: 'Job issued by', type: 'signature', required: true },
+          { id: 'hod', label: 'HOD of job issuer', type: 'signature', required: true, requiredAt: 'approval' },
+          { id: 'done', label: 'Job completion accepted by', type: 'signature', required: true, requiredAt: 'closure' },
+        ],
+      },
+    ],
+  };
+  const template = [{ id: 't', name: 'Safe work permit', config: staged }];
+
+  it('submit checks only submit-stage fields (absent stage means submit)', () => {
+    expect(missingFormAnswers(template, [])).toEqual(['Safe work permit: 1 required answer missing (Job issued by)']);
+    const signed = [{ templateId: 't', name: 'Safe work permit', config: staged, answers: { issuer: { name: 'A' } } }];
+    expect(missingFormAnswers(template, signed)).toEqual([]);
+  });
+
+  it('a later stage checks only its own fields', () => {
+    expect(missingFormAnswers(template, [], 'approval')).toEqual(['Safe work permit: 1 required answer missing (HOD of job issuer)']);
+    expect(missingFormAnswers(template, [], 'closure')).toEqual(['Safe work permit: 1 required answer missing (Job completion accepted by)']);
+  });
+
+  it('the reference Safe work permit leaves only the issuer signature blocking submission', () => {
+    const safe = REFERENCE_TEMPLATES.find((t) => t.name === 'Safe work permit')!;
+    const stageOf = (label: string) =>
+      safe.config.sections.flatMap((s) => s.fields).find((f) => f.label === label)?.requiredAt ?? 'submit';
+    expect(['Job issued by', 'HOD of job issuer', 'Job authorised by', 'Job completion accepted by'].map(stageOf)).toEqual([
+      'submit',
+      'approval',
+      'approval',
+      'closure',
+    ]);
+    const hotWork = REFERENCE_TEMPLATES.find((t) => t.code === 'SOP-ES-023-F4')!;
+    const fireWatch = hotWork.config.sections.flatMap((s) => s.fields).find((f) => f.label === 'Fire watch: three hours after completion');
+    expect(fireWatch?.requiredAt).toBe('closure');
+  });
+});

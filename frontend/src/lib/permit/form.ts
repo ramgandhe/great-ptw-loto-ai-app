@@ -1,4 +1,4 @@
-import type { PermitTemplate } from "@/lib/organisation/templates";
+import { requiredForSubmit, type PermitTemplate } from "@/lib/organisation/templates";
 import type { FormAnswer, PermitDetail, PermitFormState, DraftFields } from "./types";
 
 /** "shared": either the issuer or the assigned executor fills it in. */
@@ -205,7 +205,7 @@ export function missingRequired(template: PermitTemplate, form: PermitFormState)
   const answers = form.formResponses[template.id] ?? {};
   return (template.config?.sections ?? [])
     .flatMap((section) => section.fields)
-    .filter((field) => field.required && !isAnswered(answers[field.id]))
+    .filter((field) => requiredForSubmit(field) && !isAnswered(answers[field.id]))
     .map((field) => field.label);
 }
 

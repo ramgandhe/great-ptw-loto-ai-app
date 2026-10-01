@@ -11,7 +11,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import { TEMPLATE_FIELD_TYPES, TEMPLATE_KINDS, TEMPLATE_PREFILL_SOURCES } from '../permit-template-library';
+import { TEMPLATE_FIELD_TYPES, TEMPLATE_KINDS, TEMPLATE_PREFILL_SOURCES, TEMPLATE_REQUIRED_STAGES } from '../permit-template-library';
 
 export const PERMIT_TEMPLATE_STATUSES = ['draft', 'published'] as const;
 
@@ -53,6 +53,10 @@ export class TemplateFieldDto {
   @IsOptional()
   @IsIn([...TEMPLATE_PREFILL_SOURCES])
   prefill?: string;
+
+  @IsOptional()
+  @IsIn([...TEMPLATE_REQUIRED_STAGES])
+  requiredAt?: string;
 }
 
 export class TemplateSectionDto {

@@ -27,6 +27,14 @@ export const TEMPLATE_PREFILL_SOURCES = [
 ] as const;
 export type TemplatePrefillSource = (typeof TEMPLATE_PREFILL_SOURCES)[number]["value"];
 
+/** When a required field must be answered (mirrors TEMPLATE_REQUIRED_STAGES in the API). Absent means submission. */
+export const TEMPLATE_REQUIRED_STAGES = [
+  { value: "submit", label: "Before submission" },
+  { value: "approval", label: "At approval" },
+  { value: "closure", label: "At closure" },
+] as const;
+export type TemplateRequiredStage = (typeof TEMPLATE_REQUIRED_STAGES)[number]["value"];
+
 export type TemplateField = {
   id: string;
   label: string;
@@ -36,7 +44,19 @@ export type TemplateField = {
   unit?: string;
   options?: string[];
   prefill?: TemplatePrefillSource;
+  requiredAt?: TemplateRequiredStage;
 };
+
+/** Required before the permit can be submitted; fields required at approval or closure are not. */
+export function requiredForSubmit(field: TemplateField): boolean {
+  return Boolean(field.required) && (field.requiredAt ?? "submit") === "submit";
+}
+
+/** "Required at approval" / "Required at closure" for later-stage fields, otherwise null. */
+export function laterStageNote(field: TemplateField): string | null {
+  if (!field.required || (field.requiredAt ?? "submit") === "submit") return null;
+  return field.requiredAt === "approval" ? "Required at approval" : "Required at closure";
+}
 export type TemplateSection = { id: string; title: string; fields: TemplateField[] };
 export type TemplateKind = "permit" | "check-sheet";
 export type TemplateConfig = { kind: TemplateKind; reference?: string; declaration?: string; sections: TemplateSection[] };

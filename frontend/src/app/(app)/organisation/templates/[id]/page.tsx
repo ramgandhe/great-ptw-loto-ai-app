@@ -11,6 +11,7 @@ import {
   KIND_LABEL,
   TEMPLATE_FIELD_TYPES,
   TEMPLATE_PREFILL_SOURCES,
+  TEMPLATE_REQUIRED_STAGES,
   fieldCount,
   newId,
   permitTemplatesApi,
@@ -19,6 +20,7 @@ import {
   type TemplateField,
   type TemplateFieldType,
   type TemplatePrefillSource,
+  type TemplateRequiredStage,
   type TemplateSection,
 } from "@/lib/organisation/templates";
 import { FIELD_CLASS } from "@/components/layout/admin-page-header";
@@ -141,8 +143,10 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
         sections: draft.config.sections.map((section) => ({
           ...section,
           title: section.title.trim(),
-          fields: section.fields.map(({ options, unit, help, prefill, ...field }) => ({
+          fields: section.fields.map(({ options, unit, help, prefill, requiredAt, ...field }) => ({
             ...field,
+            // Submission is the default stage, so only a later stage on a required field is stored.
+            ...(field.required && requiredAt && requiredAt !== "submit" ? { requiredAt } : {}),
             ...(prefill && field.type !== "check" && field.type !== "signature" ? { prefill } : {}),
             label: field.label.trim(),
             ...(help?.trim() ? { help: help.trim() } : {}),
@@ -424,6 +428,20 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
                           <input type="checkbox" checked={Boolean(field.required)} onChange={(e) => setField(si, fi, { required: e.target.checked })} />
                           Required
                         </label>
+                        {field.required ? (
+                          <select
+                            aria-label={`When "${field.label || "this field"}" is required`}
+                            value={field.requiredAt ?? "submit"}
+                            onChange={(e) => setField(si, fi, { requiredAt: e.target.value as TemplateRequiredStage })}
+                            className={`${FIELD_CLASS} h-9 text-sm`}
+                          >
+                            {TEMPLATE_REQUIRED_STAGES.map((stage) => (
+                              <option key={stage.value} value={stage.value}>
+                                {stage.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
                         <div className="ml-auto flex">
                           <Button
                             variant="ghost"
