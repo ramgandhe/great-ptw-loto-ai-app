@@ -4,7 +4,7 @@
 Simplify web and mobile data entry, onboarding, page flow, and feedback using existing components and approved themes; preserve validated safety workflows, RBAC, tenant isolation, and auditability. Review the complete plan before implementation.
 
 ## Next Step
-Record the P2 baseline replay (executor preparation) before S2 starts. S0a is implemented and verified; not committed yet.
+Decide how later-stage required form signatures behave at submit (P2 finding), then start S2 (permit editor).
 
 ## Current Phase
 Phase 4 — S0a implementation
@@ -43,7 +43,7 @@ Phase 4 — S0a implementation
   - [x] S0a web: full first save, save-before-submit at the saved revision, conflict message with explicit re-save, submit blocked during conflict.
   - [x] S0a native: type errors fixed, local-time dates, web/native step mapping, revision on saves/submits including queued ones, 409 stops the sync queue as a failed item.
   - [x] S0a runtime check in the rebuilt Docker stack (browser): s0a-runtime-check.cjs, 3 runs × 10/10.
-  - [ ] P2 baseline replay before S2.
+  - [x] P2 baseline replay before S2: 1 typed, 31 clicks, 5 views; target ≤21 clicks, 2 views.
   - [ ] S2 permit editor.
 - [ ] Reuse existing shared components, tokens, APIs, and business rules.
 - **Status:** in_progress

@@ -20,7 +20,7 @@ The [replay script](replay-baselines.cjs) takes `PTW_UX_ISSUER_EMAIL`, `PTW_UX_I
 | Journey | Typed fields now → target | Clicks now → target | Screens now → target | Milestone |
 |---|---:|---:|---:|---|
 | P1: issuer creates and assigns a fresh routine permit | 2 → **1** | 13 → **≤10** | 3 → **2** | 1: S0a→S2 |
-| P2: executor prepares site, crew and required forms | not yet measured → **no new typed fields** | not yet measured → **≥30% fewer** | 3 → **1** | 1: S0a→S2 |
+| P2: executor prepares site, crew and required forms | 1 → **1** | 31 → **≤21** | 5 → **2** | 1: S0a→S2 |
 | H1: add plant, department, location and workstation through setup | 4 → **4** | 18 → **≤9** | 5 → **2** | 2: S3 |
 | E1: add a genuinely new employee and department from Directory | 2 → **2** | 6 → **≤4** | 3 → **1** | 2: S3 |
 
@@ -45,15 +45,39 @@ Target: New permit 1 + type 1 + location path 2 + department 2 + executor 2 + sc
 
 Custom title adds one typed field; custom dates and search add interactions and must be reported when exercised. A previous-permit copy is a separate scenario, not the fresh-permit baseline.
 
-## P2 — executor preparation (baseline pending)
+## P2 — executor preparation
 
-P1 needs only two typed fields today, so it does not measure the reported data-entry burden. That burden sits in the executor-owned steps (`PERMIT_WIZARD_STEPS` 2–4: On-site details, Crew assignment, Forms & check sheets). P2 measures them.
+P1 needs only two typed fields, so it does not measure the reported data-entry burden. That sits in the executor-owned steps (`PERMIT_WIZARD_STEPS` 2–4: On-site details, Crew assignment, Forms & check sheets). P2 measures them.
 
-**Scenario:** sign in as the assigned executor; start from the P1 handoff draft via Needs you. On-site details: choose workstation and machinery; add two hazards and three PPE items from the catalogue (quantity default 1, no optional descriptions); LOTOTO/gas only if the chosen type requires them, recorded either way. Crew assignment: add two existing crew members. Forms & check sheets: answer the applicable template's required checks — one section answered individually, the other with section **All yes** (recording both activation counts). Finish with Save preparation. Signatures, readings and issuer submit are outside P2.
+**Scenario (as replayed):** `operator@ptw.local` (David) opens the P1 handoff draft from **Needs you → Add your on-site details**. The seed is real local data created through the API as the issuer: General Work, Demo Plant / Maintenance / Compressor Bay, tomorrow 08:00–16:00, David as primary executor, saved at step 2. On-site details: workstation, machinery, two hazards, three PPE items (quantity default 1, no descriptions); LOTOTO and gas testing not required for General Work and left off. Crew: add two existing crew members. Forms: the only applicable template is **Safe work permit**; the executor types the contractor firm, signs as contractor supervisor with **Me, now**, picks one type of work and answers the two precaution checks with **All yes**. Save draft. Executor writes are intercepted; the seed draft is deleted after the run.
 
-**Baseline:** not yet measured. Before S2 starts, extend `replay-baselines.cjs` with P2 under the same counting contract and interception. It needs a seeded draft already assigned to the executor account in disposable local data; do not create it on a shared or deployed server. Record typed fields, normalized clicks and views, split by step.
+**Baseline (recorded 2026-10-01, two identical runs, [trace](p2-baseline-replay.json), [script](replay-p2-baseline.cjs)): 1 typed field, 31 normalized clicks, 5 views.**
 
-**Target:** views 3 → 1 (one editor); no new typed fields; at least 30% fewer normalized clicks than the recorded baseline, with the exact number written here once the baseline exists. The All yes path is counted with its confirmation (2 activations per section), not as 1.
+| Step | Clicks |
+|---|---:|
+| Open draft from Needs you | 1 |
+| Lands on the issuer's read-only Location & schedule step; click **3. On-site details** | 1 |
+| Workstation, machinery | 4 |
+| Two hazards (select, Add, select) | 5 |
+| Three PPE (select, then Add + select twice) | 8 |
+| Next (saves) | 1 |
+| Two crew members (Add + select, twice) | 6 |
+| Next (saves) | 1 |
+| Contractor firm (typed), supervisor **Me, now**, type of work, **All yes** | 3 |
+| Save draft | 1 |
+| **Total** | **31** |
+
+Views: Dashboard, Location & schedule (read-only for the executor), On-site details, Crew assignment, Forms & check sheets.
+
+Form prefill already works: 7 of the 13 required Safe work permit fields arrive filled (department, persons covered, number of persons, valid from/to, location, job description), including the crew added on the previous step. Individually answering the two checks would cost 2 clicks instead of 1.
+
+**Target (S2): 1 typed field, ≤ 21 normalized clicks (≥ 30% fewer), 2 views** (Dashboard + one editor that opens on the executor's own section). The All yes path is counted with its confirmation (2 activations), so the target absorbs one extra click. Expected sources of the saving: opening on the executor's section (−1), no Next between sections (−2), and choosing catalogue items and crew without a separate Add per row (about −8 for five catalogue items and two crew members). Measured, not assumed, after S2.
+
+**Findings from the replay (for S2, not fixed in S0a):**
+- The Safe work permit template marks four later-stage signatures as required: *Job issued by*, *HOD of job issuer*, *Job authorised by*, *Job completion accepted by*. Submit checks every required field, so as configured someone must enter a completion acceptance before the permit is even approved. Decision 2026-10-01: optional *required at stage* on template fields (submit, approval, closure; absent = submit). Implemented: submit checks only submit-stage fields; the reference Safe work permit marks HOD and authoriser at approval and completion at closure (the issuer still signs before submit). Existing company copies updated by migration 0052 (also the hot work sheet's fire watch three hours after completion, which had blocked every hot work submit). Enforcement at approval and closure is scheduled in S4.
+- Location prefill reads "Compressor Bay, Compressor Bay" when the location and workstation share a name.
+- The executor lands on the issuer's read-only step because the stored step is the issuer's last one.
+- Suspected, not proven: `update()` invalidates the permit list cache inside the transaction, before commit, so a list read in that window can re-cache stale data until the TTL. The replay first missed its draft on the dashboard when the executor signed in between the seed's create and assignment; signing in after the seed fixed it.
 
 ## H1 — four-record site hierarchy
 

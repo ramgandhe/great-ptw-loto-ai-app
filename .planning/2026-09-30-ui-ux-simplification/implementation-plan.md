@@ -70,7 +70,7 @@ Copy factual job context from a previous permit; show prior hazard/PPE choices a
 
 P1 issuer preparation: **2→1 typed fields, 13→≤10 normalized clicks, 3→2 views**. This ends at assigned draft handoff, not approval or permission to work.
 
-P2 executor preparation (where most entry happens): baseline to be replayed before S2 starts; target **views 3→1** and **at least 30% fewer normalized clicks**, with no new typed fields, and the numeric target fixed once the baseline is recorded. See [journey-baselines.md](journey-baselines.md). Milestone 1 is not complete on P1 alone.
+P2 executor preparation (where most entry happens): **1→1 typed field, 31→≤21 normalized clicks, 5→2 views** (baseline recorded 2026-10-01). Open the editor on the viewer's own section. Template fields now carry an optional *required at stage* (submit / approval / closure); submit enforces only submit-stage fields. Existing companies' Safe work permit and hot work check sheet copies were updated by migration 0052. Approval- and closure-stage fields are enforced in **S4** (decided 2026-10-01). See [journey-baselines.md](journey-baselines.md). Milestone 1 is not complete on P1 alone.
 
 Preserve issuer review/submit with role/transition tests. Include custom-title, boilerplate-scope title, custom-schedule, applicable form, validation failure, save failure, stale revision (conflict screen keeps values and re-saves), and duplicate-submit cases. Full native redesign remains S6; native contract compatibility belongs in S0a; offline reconciliation in S0b.
 
@@ -93,6 +93,8 @@ Exit: H1 **4→4 typed names, 18→≤9 clicks, 5→2 views**; E1 **2→2 typed 
 ### S4 — one permit context and task queue
 
 Use `/permits/[id]` as a stable workspace with **Overview / Preparation / Review / Work / History**. First compose existing content under one compact header: reference/status, work title, place/window, current owner and blockers. On desktop place the current decision beside its relevant evidence; on phone put a concise task summary above the evidence and reserve space for the action footer. Remove repeated record headings in closure/archive.
+
+**Stage form answers (decided 2026-10-01):** the Review section lets the person taking the decision record the template fields required at their stage (approval: HOD, authoriser; closure: completion acceptance, hot work fire watch) beside the decision, through a stage-answer endpoint that checks role, permit status and revision, and writes the same transactional answer audit as draft saves. Approval and closure are refused while their stage's required fields are empty. Until S4, those signatures are not enforced anywhere; the approval workflow still records who approved and when.
 
 Work contains current activity entry, evidence and daily operations in one context, with separate explicit completion/revalidation/extension actions. Review shows the relevant approval or closure decision, preserving issuer verification and HOD sign-off as distinct attestations. History groups journey, approval history and audit content; print preview remains separate and archives stay read-only. A failed evidence/history read has Retry, never an empty-success presentation.
 
