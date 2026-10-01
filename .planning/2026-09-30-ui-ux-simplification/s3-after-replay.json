@@ -1,0 +1,171 @@
+{
+  "method": "Same counting contract as journey-baselines.md.",
+  "journeys": [
+    {
+      "name": "H1 Four-record site hierarchy (S3)",
+      "start": "/organisation/setup",
+      "steps": [
+        {
+          "action": "Sites and equipment area",
+          "clicks": 1
+        },
+        {
+          "action": "Open plant",
+          "clicks": 1
+        },
+        {
+          "action": "Type plant name",
+          "clicks": 0
+        },
+        {
+          "action": "Save plant",
+          "clicks": 1
+        },
+        {
+          "action": "Open department",
+          "clicks": 1
+        },
+        {
+          "action": "Type department name",
+          "clicks": 0
+        },
+        {
+          "action": "Save department",
+          "clicks": 1
+        },
+        {
+          "action": "Open location",
+          "clicks": 1
+        },
+        {
+          "action": "Type location name",
+          "clicks": 0
+        },
+        {
+          "action": "Save location",
+          "clicks": 1
+        },
+        {
+          "action": "Open workstation",
+          "clicks": 1
+        },
+        {
+          "action": "Type workstation name",
+          "clicks": 0
+        },
+        {
+          "action": "Save workstation",
+          "clicks": 1
+        }
+      ],
+      "screens": [
+        "Setup overview",
+        "Sites and equipment"
+      ],
+      "typedFields": [
+        "plant name",
+        "department name",
+        "location name",
+        "workstation name"
+      ],
+      "clicks": 9
+    },
+    {
+      "name": "E1 New employee with department (S3)",
+      "start": "/workforce/directory",
+      "steps": [
+        {
+          "action": "Add employee",
+          "clicks": 1
+        },
+        {
+          "action": "Type Full name",
+          "clicks": 0
+        },
+        {
+          "action": "Type Email",
+          "clicks": 0
+        },
+        {
+          "action": "Select Department",
+          "clicks": 2
+        },
+        {
+          "action": "Save employee",
+          "clicks": 1
+        }
+      ],
+      "screens": [
+        "People"
+      ],
+      "typedFields": [
+        "Full name",
+        "Email"
+      ],
+      "clicks": 4
+    }
+  ],
+  "checks": [
+    {
+      "name": "H1 plant saved",
+      "ok": true,
+      "detail": 201
+    },
+    {
+      "name": "H1 department saved",
+      "ok": true,
+      "detail": 201
+    },
+    {
+      "name": "H1 location saved",
+      "ok": true,
+      "detail": 201
+    },
+    {
+      "name": "H1 workstation saved",
+      "ok": true,
+      "detail": 201
+    },
+    {
+      "name": "H1 department stored under the new plant",
+      "ok": true,
+      "detail": {
+        "plantId": "24cbffd4-bc95-47b2-9de9-228616782ffa",
+        "deptPlant": "24cbffd4-bc95-47b2-9de9-228616782ffa"
+      }
+    },
+    {
+      "name": "H1 location stored under the new department",
+      "ok": true,
+      "detail": {
+        "deptId": "38bfca04-ab92-49ab-a3c9-a6b62cd2bcc5",
+        "locDept": "38bfca04-ab92-49ab-a3c9-a6b62cd2bcc5"
+      }
+    },
+    {
+      "name": "H1 workstation stored at the new location",
+      "ok": true,
+      "detail": {
+        "locId": "5272da54-85ae-4ff1-8f08-02fb9d6d126f",
+        "wsLoc": "5272da54-85ae-4ff1-8f08-02fb9d6d126f"
+      }
+    },
+    {
+      "name": "E1 one employee write with name, email and department",
+      "ok": "00000000-0000-4000-8000-000000000104",
+      "detail": [
+        {
+          "name": "Review Benchmark Person",
+          "email": "ux-benchmark@example.invalid",
+          "departmentId": "00000000-0000-4000-8000-000000000104"
+        }
+      ]
+    },
+    {
+      "name": "E1 stayed on the People page",
+      "ok": true,
+      "detail": "http://localhost:3000/workforce/directory"
+    }
+  ],
+  "errors": []
+}

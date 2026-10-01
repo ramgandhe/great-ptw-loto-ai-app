@@ -26,6 +26,8 @@ The [replay script](replay-baselines.cjs) takes `PTW_UX_ISSUER_EMAIL`, `PTW_UX_I
 | H1: add plant, department, location and workstation through setup | 4 → **4** | 18 → **≤9** | 5 → **2** | 2: S3 |
 | E1: add a genuinely new employee and department from Directory | 2 → **2** | 6 → **≤4** | 3 → **1** | 2: S3 |
 
+**Measured after S3 (2026-10-01, two identical runs, [script](replay-s3-after.cjs), [trace](s3-after-replay.json)):** H1 **4 typed, 9 clicks, 2 views** with the department, location and workstation stored under the plant, department and location just added; E1 **2 typed, 4 clicks, 1 view**. Both meet their targets. Correction: the hierarchy is plant → department → location → workstation (FC-ORG-004, FR-ORG-005), not departments and locations as siblings; the location form asked for a plant the API never stored, and now asks for the department.
+
 Names and a new person's identity cannot be derived reliably. The unchanged typing targets for H1/E1 are intentional. Success there means zero repeated parent choices and fewer intervening pages, not inventing data. A user starting directly on the existing Employees page already has a four-click path; the E1 improvement removes the Directory detour, not its necessary form controls.
 
 ## P1 — issuer preparation
