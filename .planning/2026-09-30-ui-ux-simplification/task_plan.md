@@ -4,7 +4,7 @@
 Simplify web and mobile data entry, onboarding, page flow, and feedback using existing components and approved themes; preserve validated safety workflows, RBAC, tenant isolation, and auditability. Review the complete plan before implementation.
 
 ## Next Step
-Review S6 and S7 with the user and commit. Remaining: physical-phone acceptance with a development build (S6/S7), and the Metro expo-router/entry-classic resolution issue blocking a local Android export.
+Review S6 and S7 with the user and commit. Remaining: physical-phone acceptance with a development build (S6/S7). The local Android export works since the Metro workspace-root fix.
 
 ## Current Phase
 Phase 4 — S0a implementation
