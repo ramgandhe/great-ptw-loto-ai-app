@@ -1,4 +1,4 @@
-import { applyStageAnswers, buildFormResponses, diffFormAnswers, missingFormAnswers, sanitizeAnswers } from '../app/src/modules/permit/permit-forms';
+import { applyStageAnswers, buildFormResponses, clearStageAnswers, formsToCheck, keepLaterStageAnswers, stagesReopenedBy, diffFormAnswers, missingFormAnswers, sanitizeAnswers } from '../app/src/modules/permit/permit-forms';
 import { REFERENCE_TEMPLATES, type TemplateConfig } from '../app/src/modules/organisation/permit-template-library';
 
 const config: TemplateConfig = {
@@ -138,25 +138,81 @@ describe('required-at stage', () => {
     expect(fireWatch?.requiredAt).toBe('closure');
   });
 
-  it('a stage sets only its own fields and keeps every other answer', () => {
+  it('a stage sets only its own fields, keeps every other answer, and signs as the person deciding', () => {
     const stored = [{ templateId: 't', name: 'Safe work permit', config: staged, answers: { issuer: { name: 'A' } } }];
     const next = applyStageAnswers(
       stored,
-      [{ templateId: 't', answers: { issuer: { name: 'Changed' }, hod: { name: 'H', date: '2026-10-01' }, done: { name: 'Too early' } } }],
+      [{ templateId: 't', answers: { issuer: { name: 'Changed' }, hod: { name: 'Someone else', date: '2026-10-01' }, done: { name: 'Too early' } } }],
       template,
       'approval',
+      'Hema Rao',
     );
-    expect(next[0].answers).toEqual({ issuer: { name: 'A' }, hod: { name: 'H', date: '2026-10-01', time: undefined } });
+    expect(next[0].answers).toEqual({ issuer: { name: 'A' }, hod: { name: 'Hema Rao', date: '2026-10-01', time: undefined } });
     expect(missingFormAnswers(template, next, 'approval')).toEqual([]);
     // Clearing a stage answer is allowed; the stored permit is never mutated.
-    expect(applyStageAnswers(next, [{ templateId: 't', answers: {} }], template, 'approval')[0].answers).toEqual({ issuer: { name: 'A' } });
+    expect(applyStageAnswers(next, [{ templateId: 't', answers: {} }], template, 'approval', 'Hema Rao')[0].answers).toEqual({ issuer: { name: 'A' } });
     expect(stored[0].answers).toEqual({ issuer: { name: 'A' } });
   });
 
   it('adds a response for an applicable form the permit has none for, and refuses unknown templates', () => {
-    expect(applyStageAnswers([], [{ templateId: 't', answers: { done: { name: 'C' } } }], template, 'closure')).toEqual([
-      { templateId: 't', name: 'Safe work permit', config: staged, answers: { done: { name: 'C', date: undefined, time: undefined } } },
+    expect(applyStageAnswers([], [{ templateId: 't', answers: { done: { name: 'C' } } }], template, 'closure', 'Closer')).toEqual([
+      { templateId: 't', name: 'Safe work permit', config: staged, answers: { done: { name: 'Closer', date: undefined, time: undefined } } },
     ]);
-    expect(() => applyStageAnswers([], [{ templateId: 'gone', answers: {} }], template, 'closure')).toThrow('no longer exists');
+    expect(() => applyStageAnswers([], [{ templateId: 'gone', answers: {} }], template, 'closure', 'Closer')).toThrow('no longer exists');
+  });
+
+  it('a second approver signing another field leaves the first approver\'s signature exactly as it was', () => {
+    const two: TemplateConfig = {
+      kind: 'permit',
+      sections: [
+        {
+          id: 'a',
+          title: 'Authorisation',
+          fields: [
+            { id: 'hod', label: 'HOD of job issuer', type: 'signature', required: true, requiredAt: 'approval' },
+            { id: 'auth', label: 'Job authorised by', type: 'signature', required: true, requiredAt: 'approval' },
+          ],
+        },
+      ],
+    };
+    const forms = [{ id: 't', name: 'Safe work permit', config: two }];
+    const first = applyStageAnswers([], [{ templateId: 't', answers: { hod: { name: 'Typed', date: '2026-10-01', time: '09:00' } } }], forms, 'approval', 'Hema Rao');
+    // The screen sends the HOD's stored signature back together with the authoriser's new one.
+    const second = applyStageAnswers(
+      first,
+      [{ templateId: 't', answers: { hod: { name: 'Hema Rao', date: '2026-10-01', time: '09:00' }, auth: { name: 'Typed', date: '2026-10-01', time: '10:30' } } }],
+      forms,
+      'approval',
+      'Arun Mehta',
+    );
+    expect(second[0].answers).toEqual({
+      hod: { name: 'Hema Rao', date: '2026-10-01', time: '09:00' },
+      auth: { name: 'Arun Mehta', date: '2026-10-01', time: '10:30' },
+    });
+    // Re-signing (a changed time) is a new attestation by whoever does it.
+    const resigned = applyStageAnswers(second, [{ templateId: 't', answers: { ...second[0].answers, hod: { name: 'Hema Rao', date: '2026-10-01', time: '11:00' } } }], forms, 'approval', 'Arun Mehta');
+    expect(resigned[0].answers.hod).toEqual({ name: 'Arun Mehta', date: '2026-10-01', time: '11:00' });
+  });
+
+  it('a draft save never writes approval or closure fields; it keeps what is stored', () => {
+    const incoming = [{ templateId: 't', name: 'Safe work permit', config: staged, answers: { issuer: { name: 'I' }, hod: { name: 'Prefilled' }, done: { name: 'Prefilled' } } }];
+    expect(keepLaterStageAnswers([], incoming)[0].answers).toEqual({ issuer: { name: 'I' } });
+    const stored = [{ ...incoming[0], answers: { hod: { name: 'Signed at approval' } } }];
+    expect(keepLaterStageAnswers(stored, incoming)[0].answers).toEqual({ issuer: { name: 'I' }, hod: { name: 'Signed at approval' } });
+  });
+
+  it('a new approval round clears approval and closure signatures; a new closure round only closure ones', () => {
+    const responses = [{ templateId: 't', name: 'Safe work permit', config: staged, answers: { issuer: { name: 'I' }, hod: { name: 'H' }, done: { name: 'C' } } }];
+    expect(clearStageAnswers(responses, stagesReopenedBy('pending_approval'))[0].answers).toEqual({ issuer: { name: 'I' } });
+    expect(clearStageAnswers(responses, stagesReopenedBy('execution_completed'))[0].answers).toEqual({ issuer: { name: 'I' }, hod: { name: 'H' } });
+    expect(stagesReopenedBy('active')).toEqual([]);
+  });
+
+  it('captured forms stay required after their template is archived or no longer applies', () => {
+    const captured = [{ templateId: 't', name: 'Safe work permit', config: staged, answers: { issuer: { name: 'I' } } }];
+    // The live catalogue no longer lists the template.
+    expect(missingFormAnswers(formsToCheck(captured, []), captured, 'approval')).toEqual(['Safe work permit: 1 required answer missing (HOD of job issuer)']);
+    // A template that applies now but has no answers yet is still checked.
+    expect(formsToCheck([], template).map((t) => t.id)).toEqual(['t']);
   });
 });

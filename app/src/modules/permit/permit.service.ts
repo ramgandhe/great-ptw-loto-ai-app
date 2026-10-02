@@ -42,6 +42,8 @@ import {
   applyStageAnswers,
   buildFormResponses,
   diffFormAnswers,
+  formsToCheck,
+  keepLaterStageAnswers,
   missingFormAnswers,
   type PermitFormResponse,
 } from './permit-forms';
@@ -63,6 +65,7 @@ import {
 import { PermitCacheService } from './permit-cache.service';
 import { PermitLogService } from './permit-log.service';
 import { PermitValidationService } from './permit-validation.service';
+import { resetStageAnswers } from './stage-reset';
 
 export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
@@ -127,7 +130,8 @@ export class PermitService {
   async create(dto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
     assertPermitCreateAllowed(user);
     const tenantId = this.requireTenant(user);
-    const formResponses = dto.formResponses ? await this.resolveFormResponses(tenantId, dto.formResponses) : [];
+    // A new permit has no approval or closure signatures; only those decisions record them.
+    const formResponses = dto.formResponses ? keepLaterStageAnswers([], await this.resolveFormResponses(tenantId, dto.formResponses)) : [];
 
     const created = await this.db.transaction(async (tx) => {
       const [permit] = await tx
@@ -328,8 +332,10 @@ export class PermitService {
         draftRevision: revision,
       };
       if (formResponses !== undefined) {
-        permitUpdates.formResponses = formResponses;
-        await this.recordAnswerChanges(tx, existing, formResponses, revision, user.id, tenantId);
+        // Approval and closure fields are only written by those decisions, never by a draft save.
+        const kept = keepLaterStageAnswers(existing.permit.formResponses as PermitFormResponse[], formResponses);
+        permitUpdates.formResponses = kept;
+        await this.recordAnswerChanges(tx, existing, kept, revision, user.id, tenantId);
       }
 
       if (dto.permitTypeId !== undefined) permitUpdates.permitTypeId = dto.permitTypeId;
@@ -499,6 +505,8 @@ export class PermitService {
           draftRevision: detail.permit.draftRevision + 1,
         })
         .where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
+      // Signatures from an earlier approval or closure round do not carry into this one.
+      await resetStageAnswers(tx, { permitId: id, tenantId, toStatus: 'pending_approval', actorId: user.id });
 
       await this.approvalHistoryService.record(
         {
@@ -717,13 +725,14 @@ export class PermitService {
     params: {
       permitId: string;
       tenantId: string;
-      userId: string;
+      user: AuthenticatedUser;
       stage: 'approval' | 'closure';
       status: string;
       input?: StageAnswersDto;
     },
   ): Promise<string[]> {
-    const { permitId, tenantId, userId, stage, status, input } = params;
+    const { permitId, tenantId, user, stage, status, input } = params;
+    const userId = user.id;
     const detail = await this.loadLockedDetail(tx, permitId, tenantId);
     if (detail.permit.status !== status) {
       throw new ConflictException('This permit moved on since you opened it. Reload to see where it is now.');
@@ -733,19 +742,16 @@ export class PermitService {
     if (input?.formResponses.length) {
       assertExpectedRevision(detail, input.expectedRevision);
       const revision = detail.permit.draftRevision + 1;
-      responses = applyStageAnswers(responses, input.formResponses, applicable, stage);
+      const signer = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username;
+      responses = applyStageAnswers(responses, input.formResponses, applicable, stage, signer);
       await this.recordAnswerChanges(tx, detail, responses, revision, userId, tenantId);
       await tx
         .update(permits)
         .set({ formResponses: responses, draftRevision: revision, updatedBy: userId, updatedAt: new Date() })
         .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
     }
-    // The form copied onto the permit decides which fields belong to this stage.
-    const forms = applicable.map((template) => ({
-      ...template,
-      config: responses.find((response) => response.templateId === template.id)?.config ?? template.config,
-    }));
-    return missingFormAnswers(forms, responses, stage);
+    // Captured forms count as captured, whatever has since happened to their templates.
+    return missingFormAnswers(formsToCheck(responses, applicable), responses, stage);
   }
 
   private applicableTemplates(db: Pick<Database, 'select'>, tenantId: string, permitTypeId: string) {

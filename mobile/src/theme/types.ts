@@ -25,6 +25,12 @@ export interface ThemeColors {
   mutedForeground: string;
   border: string;
   card: string;
+  /** Status colours: answers Yes / No, signed, things left to do. */
+  success: string;
+  successBg: string;
+  danger: string;
+  dangerBg: string;
+  warning: string;
 }
 
 export interface ThemeTokens {

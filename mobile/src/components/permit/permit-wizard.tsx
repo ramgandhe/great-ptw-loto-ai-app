@@ -43,6 +43,7 @@ import {
   formatWorkforceOptionLabel,
   loadPermitFormOptions,
 } from "@/lib/permit/form-options";
+import { mergeAfterConflict, resolveConflict, type FieldConflict } from "@/lib/permit/conflict";
 
 type PermitWizardProps = {
   mode: "create" | "edit";
@@ -75,6 +76,10 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   const [queuedOffline, setQueuedOffline] = useState(false);
   // The revision this form was loaded or last saved at; the server refuses saves made against an older one.
   const [revision, setRevision] = useState(initialDetail?.permit.draftRevision ?? 0);
+  // The form as last loaded or saved: the common ancestor when someone else's save has to be merged in.
+  const [base, setBase] = useState<PermitFormState>(() => (initialDetail ? permitDetailToForm(initialDetail) : initialForm ?? createEmptyPermitForm()));
+  // Values both people changed differently; each needs a choice before saving again.
+  const [conflicts, setConflicts] = useState<FieldConflict[]>([]);
   const [attachments, setAttachments] = useState(initialDetail?.attachments ?? []);
   const [formOptions, setFormOptions] = useState<Awaited<ReturnType<typeof loadPermitFormOptions>> | null>(
     null,
@@ -200,17 +205,30 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
         setRevision(baseRevision);
       }
 
+      if (conflicts.length) {
+        // Not the server's conflict code: this must not fetch and merge again.
+        throw new ApiError("Choose which value to keep for each one listed above, then save again.", "CONFLICT_UNRESOLVED");
+      }
       const saved = await savePermitDraft(id, { ...payload, expectedRevision: baseRevision });
+      setBase(permitDetailToForm(saved));
       setRevision(saved.permit.draftRevision);
       setQueuedOffline(false);
       return { id, revision: saved.permit.draftRevision, queued: false };
     } catch (error) {
       if (isRevisionConflict(error) && id) {
-        // Keep the typed values; the next save is the person's explicit choice to replace the newer copy.
+        // Merge in the other person's save: their unrelated changes are kept, this person's are kept,
+        // and values both changed are listed for a choice. Saving again stays an explicit step.
         const latest = await getPermit(id);
+        const savedForm = permitDetailToForm(latest);
+        const result = mergeAfterConflict(base, form, savedForm);
+        setForm({ ...result.merged, currentStep: form.currentStep });
+        setBase(savedForm);
+        setConflicts(result.conflicts);
         setRevision(latest.permit.draftRevision);
         throw new ApiError(
-          "This permit changed since you opened it. Your changes are still here. Save again to replace the saved version with yours.",
+          result.conflicts.length
+            ? "Someone else saved this permit. Their other changes are now in the form and yours are kept. Choose which value to keep where you both changed it, then save again."
+            : "Someone else saved this permit. Their changes are now in the form and yours are kept. Save again to save both.",
           "PERMIT_REVISION_CONFLICT",
           409,
         );
@@ -237,7 +255,22 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
       // A queued save bumps the revision once when it replays; a create leaves it at 0.
       return { id: localId, revision: id ? baseRevision + 1 : 0, queued: true };
     }
-  }, [currentPermitId, form, prefilled, formOptions?.userRoles, revision]);
+  }, [currentPermitId, form, prefilled, formOptions?.userRoles, revision, base, conflicts.length]);
+
+  const conflictLabel = (key: string) => {
+    const [kind, a, b] = key.split(":");
+    if (kind === "field") return a.replace(/Id$/, "").replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+    const template = formOptions?.templates.find((t) => t.id === a);
+    return `${template?.name ?? "Form"}: ${template?.config?.sections.flatMap((s) => s.fields).find((f) => f.id === b)?.label ?? b}`;
+  };
+  const describeValue = (value: unknown): string => {
+    if (value === undefined || value === null || value === "") return "empty";
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (Array.isArray(value)) return value.length === 0 ? "none" : `${value.length} item${value.length === 1 ? "" : "s"}`;
+    if (typeof value === "object") return (value as { name?: string }).name ?? "set";
+    const lists = [formOptions?.permitTypes, formOptions?.plants, formOptions?.departments, formOptions?.locations, formOptions?.workstations, formOptions?.machinery];
+    return lists.flatMap((list) => list ?? []).find((row) => row.id === value)?.name ?? String(value);
+  };
 
   const handleSaveDraft = async () => {
     setIsBusy(true);
@@ -360,6 +393,28 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
       ) : null}
 
       {message ? <Text style={styles.message}>{message}</Text> : null}
+      {conflicts.map((item) => (
+        <View key={item.key} style={styles.card}>
+          <Text style={styles.label}>{conflictLabel(item.key)}</Text>
+          <Text style={styles.summaryLine}>{`Saved: ${describeValue(item.saved)}`}</Text>
+          <Text style={styles.summaryLine}>{`Yours: ${describeValue(item.yours)}`}</Text>
+          <View style={styles.actions}>
+            {(["yours", "saved"] as const).map((keep) => (
+              <Pressable
+                key={keep}
+                accessibilityRole="button"
+                style={styles.secondaryButton}
+                onPress={() => {
+                  setForm((current) => resolveConflict(current, item, keep));
+                  setConflicts((current) => current.filter((c) => c.key !== item.key));
+                }}
+              >
+                <Text style={styles.secondaryButtonText}>{keep === "yours" ? "Keep mine" : "Use saved"}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ))}
 
       {step === 0 ? (
         <View style={styles.section}>

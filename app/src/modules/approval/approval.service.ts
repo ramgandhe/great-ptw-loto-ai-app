@@ -139,7 +139,7 @@ export class ApprovalService {
       const missing = await this.permitService.saveStageAnswers(tx, {
         permitId,
         tenantId: permit.tenantId,
-        userId: user.id,
+        user,
         stage: 'approval',
         status: PENDING_APPROVAL_STATUS,
         input: dto.stageAnswers,

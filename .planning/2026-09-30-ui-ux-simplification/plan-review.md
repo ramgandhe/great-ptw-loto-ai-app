@@ -1,5 +1,7 @@
 # Plan Review — Revision 2
 
+> Superseded: revision 3 was approved on 2026-10-01 ("approved, lets get started") and implemented. This file keeps the revision 2 review record unchanged below.
+
 ## Recorded decision
 
 **User review received: revise before approval.** The earlier “review pending” entry is superseded by the detailed feedback received in this conversation. Revision 2 addresses that feedback; approval of the revised implementation scope has not been received. No independent reviewer approval is claimed.

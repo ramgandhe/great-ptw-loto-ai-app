@@ -234,6 +234,20 @@ export function missingRequired(template: PermitTemplate, form: PermitFormState)
  * `templates`: the templates that apply to this permit (see applicableTemplates).
  * `machinery`: active machines; machinery is required when the chosen workstation has any.
  */
+/** The control each editor error belongs to, so its link and its message go to the field itself. */
+export const ERROR_FIELDS: Record<string, string> = {
+  "Title is required": "title",
+  "Department is required": "departmentId",
+  "Location is required": "locationId",
+  "Planned start date and time are required": "plannedStartAt",
+  "Planned end date and time are required": "plannedEndAt",
+  "Planned end must be after planned start": "plannedEndAt",
+  "Assign a primary executor before handing off on-site details": "primary-executor",
+  "Workstation is required": "workstationId",
+  "Machinery is required": "machineryId",
+  "Machinery is required when LOTOTO is required": "machineryId",
+};
+
 export function validateStep(
   form: PermitFormState,
   step: number,

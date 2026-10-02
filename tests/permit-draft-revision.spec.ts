@@ -14,6 +14,7 @@ import { PermitLogService } from '../app/src/modules/permit/permit-log.service';
 import { PermitValidationService } from '../app/src/modules/permit/permit-validation.service';
 import { assertStageAnswered, PermitService, REVISION_CONFLICT_CODE } from '../app/src/modules/permit/permit.service';
 import { AttachmentService } from '../app/src/modules/permit/attachment.service';
+import { StatusTransitionService } from '../app/src/modules/execution/status-transition.service';
 import type { StorageService } from '../app/src/infrastructure/storage/storage.service';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 
@@ -262,7 +263,7 @@ describe('Permit draft revision contract (S0a)', () => {
     await service.update(permitId, { expectedRevision: 0, formResponses: [{ templateId: template.id, answers: { issuer: { name: 'I' } } }] }, issuer);
     await db.update(schema.permits).set({ status: 'pending_approval' }).where(eq(schema.permits.id, permitId));
     const save = (input?: { expectedRevision: number; formResponses: { templateId: string; answers: Record<string, unknown> }[] }, status = 'pending_approval') =>
-      db.transaction((tx) => service.saveStageAnswers(tx, { permitId, tenantId, userId: hod.id, stage: 'approval', status, input }));
+      db.transaction((tx) => service.saveStageAnswers(tx, { permitId, tenantId, user: hod, stage: 'approval', status, input }));
 
     // Nothing sent: no revision needed, nothing written, the missing HOD signature is reported.
     const missing = await save();
@@ -276,12 +277,134 @@ describe('Permit draft revision contract (S0a)', () => {
 
     const [row] = await db.select().from(schema.permits).where(eq(schema.permits.id, permitId));
     expect(row.draftRevision).toBe(2);
-    expect((row.formResponses as { answers: Record<string, { name: string }> }[])[0].answers).toMatchObject({ issuer: { name: 'I' }, hod: { name: 'H' } });
+    expect((row.formResponses as { answers: Record<string, { name: string }> }[])[0].answers).toMatchObject({ issuer: { name: 'I' }, hod: { name: 'hod' } });
     const audits = await db
       .select()
       .from(schema.auditLogs)
       .where(and(eq(schema.auditLogs.entityId, permitId), eq(schema.auditLogs.action, 'permit.form_answer_changed')));
     expect(audits.find((a) => (a.metadata as { fieldId: string }).fieldId === 'hod')).toMatchObject({ userId: hod.id, metadata: { revision: 2 } });
+  });
+
+  dbTest('attestations: drafts cannot pre-sign, archiving cannot drop a requirement, a new round signs again', async () => {
+    const { tenantId, issuer, permitId } = await context();
+    const hod: AuthenticatedUser = { id: randomUUID(), username: 'hod', firstName: 'Hema', lastName: 'Rao', tenantId, roles: ['hod'], email: 'hod@example.com' };
+    const [template] = await db
+      .insert(schema.permitTemplates)
+      .values({
+        tenantId,
+        name: 'Safe work permit',
+        status: 'published',
+        appliesToAllTypes: true,
+        config: {
+          sections: [
+            {
+              id: 'a',
+              title: 'Authorisation',
+              fields: [
+                { id: 'issuer', label: 'Job issued by', type: 'signature', required: true },
+                { id: 'hod', label: 'HOD of job issuer', type: 'signature', required: true, requiredAt: 'approval' },
+                { id: 'done', label: 'Job completion accepted by', type: 'signature', required: true, requiredAt: 'closure' },
+              ],
+            },
+          ],
+        },
+        createdBy: issuer.id,
+      } as typeof schema.permitTemplates.$inferInsert)
+      .returning();
+    const answersOf = async () =>
+      ((await db.select().from(schema.permits).where(eq(schema.permits.id, permitId)))[0].formResponses as { answers: Record<string, { name: string }> }[])[0]
+        .answers;
+
+    // The issuer tries to fill the HOD's and the closer's signatures while drafting: not stored.
+    await service.update(
+      permitId,
+      { expectedRevision: 0, formResponses: [{ templateId: template.id, answers: { issuer: { name: 'I' }, hod: { name: 'Hema Rao' }, done: { name: 'C' } } }] },
+      issuer,
+    );
+    expect(await answersOf()).toEqual({ issuer: { name: 'I' } });
+
+    // Archive the template after it was captured: the approval signature is still required.
+    await db.update(schema.permitTemplates).set({ status: 'archived' }).where(eq(schema.permitTemplates.id, template.id));
+    await db.update(schema.permits).set({ status: 'pending_approval' }).where(eq(schema.permits.id, permitId));
+    const missing = await db.transaction((tx) => service.saveStageAnswers(tx, { permitId, tenantId, user: hod, stage: 'approval', status: 'pending_approval' }));
+    expect(missing).toEqual(['Safe work permit: 1 required answer missing (HOD of job issuer)']);
+
+    // The HOD signs; a name typed for someone else is replaced by the HOD's own.
+    await db.transaction((tx) =>
+      service.saveStageAnswers(tx, {
+        permitId,
+        tenantId,
+        user: hod,
+        stage: 'approval',
+        status: 'pending_approval',
+        input: { expectedRevision: 1, formResponses: [{ templateId: template.id, answers: { hod: { name: 'Someone else' } } }] },
+      }),
+    );
+    expect((await answersOf()).hod.name).toBe('Hema Rao');
+
+    // Sent back and resubmitted: the earlier round's approval signature does not carry over.
+    await db.update(schema.permits).set({ status: 'deferred' }).where(eq(schema.permits.id, permitId));
+    const [deferred] = await db.select().from(schema.permits).where(eq(schema.permits.id, permitId));
+    await service.submit(permitId, { expectedRevision: deferred.draftRevision }, issuer);
+    expect(await answersOf()).toEqual({ issuer: { name: 'I' } });
+    const cleared = await db
+      .select()
+      .from(schema.auditLogs)
+      .where(and(eq(schema.auditLogs.entityId, permitId), eq(schema.auditLogs.action, 'permit.form_answer_changed')));
+    expect(cleared.some((a) => (a.metadata as { fieldId: string; reason?: string }).fieldId === 'hod' && /approval round/.test((a.metadata as { reason?: string }).reason ?? ''))).toBe(true);
+  });
+
+  dbTest('issuer signs at verification, HOD signs at closure: the issuer\'s signature stays the issuer\'s', async () => {
+    const { tenantId, permitId } = await context();
+    const issuer: AuthenticatedUser = { id: randomUUID(), username: 'issuer', firstName: 'Ishaan', lastName: 'Iyer', tenantId, roles: ['job-issuer'], email: 'i@example.com' };
+    const hod: AuthenticatedUser = { id: randomUUID(), username: 'hod', firstName: 'Hema', lastName: 'Rao', tenantId, roles: ['hod'], email: 'h@example.com' };
+    const templateId = randomUUID();
+    const config = {
+      kind: 'permit',
+      sections: [
+        {
+          id: 'c',
+          title: 'Completion',
+          fields: [
+            { id: 'done', label: 'Job completion accepted by', type: 'signature', required: true, requiredAt: 'closure' },
+            { id: 'watch', label: 'Fire watch: three hours after completion', type: 'signature', required: true, requiredAt: 'closure' },
+          ],
+        },
+      ],
+    };
+    await db
+      .update(schema.permits)
+      .set({ status: 'execution_completed', formResponses: [{ templateId, name: 'Hot work', config, answers: {} }] })
+      .where(eq(schema.permits.id, permitId));
+    const sign = (user: AuthenticatedUser, status: string, expectedRevision: number, answers: Record<string, unknown>) =>
+      db.transaction((tx) =>
+        service.saveStageAnswers(tx, { permitId, tenantId, user, stage: 'closure', status, input: { expectedRevision, formResponses: [{ templateId, answers }] } }),
+      );
+    const answersOf = async () =>
+      ((await db.select().from(schema.permits).where(eq(schema.permits.id, permitId)))[0].formResponses as { answers: Record<string, unknown> }[])[0].answers;
+
+    expect(await sign(issuer, 'execution_completed', 0, { done: { name: 'x', date: '2026-10-02', time: '15:00' } })).toEqual([
+      'Hot work: 1 required answer missing (Fire watch: three hours after completion)',
+    ]);
+    const issuerSignature = (await answersOf()).done;
+    expect(issuerSignature).toEqual({ name: 'Ishaan Iyer', date: '2026-10-02', time: '15:00' });
+
+    await db.update(schema.permits).set({ status: 'pending_closure' }).where(eq(schema.permits.id, permitId));
+    // The HOD's screen sends the issuer's signature back unchanged with the fire watch it signs.
+    expect(await sign(hod, 'pending_closure', 1, { done: issuerSignature, watch: { name: 'x', date: '2026-10-02', time: '18:00' } })).toEqual([]);
+    expect(await answersOf()).toEqual({ done: issuerSignature, watch: { name: 'Hema Rao', date: '2026-10-02', time: '18:00' } });
+  });
+
+  dbTest('a new closure round (work completed again) clears closure signatures from the earlier round', async () => {
+    const { tenantId, issuer, permitId } = await context();
+    const config = { sections: [{ id: 'c', title: 'Completion', fields: [{ id: 'done', label: 'Job completion accepted by', type: 'signature', required: true, requiredAt: 'closure' }] }] };
+    await db
+      .update(schema.permits)
+      .set({ status: 'active', formResponses: [{ templateId: randomUUID(), name: 'Safe work permit', config, answers: { done: { name: 'Earlier closer' } } }] })
+      .where(eq(schema.permits.id, permitId));
+    await new StatusTransitionService(db).transition({ permitId, tenantId, action: 'execution_completed', fromStatus: 'active', toStatus: 'execution_completed', actorId: issuer.id });
+    const [row] = await db.select().from(schema.permits).where(eq(schema.permits.id, permitId));
+    expect((row.formResponses as { answers: Record<string, unknown> }[])[0].answers).toEqual({});
   });
 
   dbTest('attachments: stored file removed when the permit stopped being editable, and after metadata removal', async () => {

@@ -1,4 +1,17 @@
-/** Errors after a refused submit; each links to the section where it is fixed. */
+"use client";
+
+/** Moves to what an error is about: the field itself, or the first control of its section. */
+function focusTarget(href: string) {
+  const target = document.getElementById(href.slice(1));
+  if (!target) return;
+  const control = target.matches("input, select, textarea, button, [tabindex]")
+    ? target
+    : target.querySelector<HTMLElement>('[aria-invalid="true"], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])');
+  target.scrollIntoView({ block: "center" });
+  (control ?? target).focus({ preventScroll: true });
+}
+
+/** Errors after a refused submit; each link moves to the field (or section) where it is fixed. */
 export function ValidationSummary({ errors }: { errors: { message: string; href?: string }[] }) {
   if (errors.length === 0) {
     return null;
@@ -16,7 +29,14 @@ export function ValidationSummary({ errors }: { errors: { message: string; href?
         {errors.map((error) => (
           <li key={error.message}>
             {error.href ? (
-              <a href={error.href} className="underline underline-offset-2">
+              <a
+                href={error.href}
+                onClick={(event) => {
+                  event.preventDefault();
+                  focusTarget(error.href!);
+                }}
+                className="underline underline-offset-2"
+              >
                 {error.message}
               </a>
             ) : (

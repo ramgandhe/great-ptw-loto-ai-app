@@ -25,6 +25,7 @@ import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader } from "@/components/layout/admin-page-header";
 import { formatDateTime } from "@/lib/format";
 import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
+import { useLeaveGuard } from "@/lib/leave-guard";
 
 /** Lists whose archived records the API can return (see listArchived). */
 const ARCHIVE_VIEW: readonly string[] = ["plants", "departments", "locations", "workflows"];
@@ -102,6 +103,11 @@ export function EntityCrudPage({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  // An open form whose values changed since it opened asks before the page is left.
+  const [openedWith, setOpenedWith] = useState("");
+  if (formOpen && !openedWith) setOpenedWith(JSON.stringify(form));
+  if (!formOpen && openedWith) setOpenedWith("");
+  useLeaveGuard(formOpen && Boolean(openedWith) && JSON.stringify(form) !== openedWith);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"active" | "archived">("active");
   const [archivedItems, setArchivedItems] = useState<OrgRecord[] | null>(null);
@@ -399,15 +405,15 @@ export function EntityCrudPage({
             </label>
           ))}
           <div className="flex flex-wrap gap-2 sm:col-span-2">
-            <Button type="submit" disabled={submitting} onClick={() => (addAnother.current = false)}>
+            <Button type="submit" className="min-h-11" disabled={submitting} onClick={() => (addAnother.current = false)}>
               {submitting ? "Saving…" : editingId ? "Save changes" : `Add ${singular}`}
             </Button>
             {!editingId ? (
-              <Button type="submit" variant="outline" disabled={submitting} onClick={() => (addAnother.current = true)}>
+              <Button type="submit" variant="outline" className="min-h-11" disabled={submitting} onClick={() => (addAnother.current = true)}>
                 Add and add another
               </Button>
             ) : null}
-            <Button type="button" variant="ghost" onClick={resetForm}>
+            <Button type="button" variant="ghost" className="min-h-11" onClick={resetForm}>
               Cancel
             </Button>
           </div>

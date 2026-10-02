@@ -4,10 +4,10 @@
 Simplify web and mobile data entry, onboarding, page flow, and feedback using existing components and approved themes; preserve validated safety workflows, RBAC, tenant isolation, and auditability. Review the complete plan before implementation.
 
 ## Next Step
-Review S6 and S7 with the user and commit. Remaining: physical-phone acceptance with a development build (S6/S7). The local Android export works since the Metro workspace-root fix.
+Closure review (closure-review.md, 2026-10-01) keeps the objective open. P1 safety findings and conflict recovery are fixed (see its response section); remaining: the P2 scope items listed there, physical-phone acceptance with a development build, 200% zoom/keyboard checks and the 32-combination appearance matrix — or explicit descoping by the user.
 
 ## Current Phase
-Phase 4 — S0a implementation
+Phase 4/5 — implementation of S0a–S7 done; closure-review follow-up in progress
 
 ## Phases
 
@@ -46,11 +46,18 @@ Phase 4 — S0a implementation
   - [x] P2 baseline replay before S2: 1 typed, 31 clicks, 5 views; target ≤21 clicks, 2 views.
   - [x] S2 permit editor: one page, P1 1/10/2 and P2 1/19/2 measured; open items listed in progress.md.
   - [x] S3 setup, sites and people: five areas, parent context, People directory; H1 4/9/2 and E1 2/4/1 measured.
+  - [x] S4 permit workspace, queue views, approval/closure stage answers (s4-stage-check).
+  - [x] S5 supporting screens (s5-runtime-check).
+  - [x] S0b offline replay and attachment discipline.
+  - [~] S6 native: Home, forms step, stage signatures, closure fixes; sectioned native editor and LOTOTO/SIMOPS/execution/multi-day/reference screens not reworked.
+  - [x] S7 web route sweep (84 routes × 3 roles × 2 widths); journeys rerun.
+  - [x] Closure review P1 fixes: captured stage requirements, stage ownership and new-round reset, three-way conflict merge (web and native); DB test runs fail without a database.
+  - [ ] Closure review P2 items still open (see closure-review.md response).
 - [ ] Reuse existing shared components, tokens, APIs, and business rules.
 - **Status:** in_progress
 
 ### Phase 5: Validation and delivery
-- [ ] Run relevant type checks and business regression tests.
+- [x] Run relevant type checks and business regression tests (API/web/mobile tsc, full Jest, runtime checks, Android export).
 - [ ] Verify main persona journeys, recovery, keyboard/mobile use, and appearance variants.
 - [ ] Report changes, test evidence, and remaining limits.
 - **Status:** pending

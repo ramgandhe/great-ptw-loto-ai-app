@@ -68,7 +68,7 @@ export class VerificationService {
       await this.permitService.saveStageAnswers(tx, {
         permitId,
         tenantId,
-        userId: user.id,
+        user,
         stage: 'closure',
         status: EXECUTION_COMPLETED_STATUS,
         input: dto.stageAnswers,

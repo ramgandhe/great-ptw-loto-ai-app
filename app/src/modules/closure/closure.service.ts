@@ -83,7 +83,7 @@ export class ClosureService {
       const missing = await this.permitService.saveStageAnswers(tx, {
         permitId,
         tenantId,
-        userId: user.id,
+        user,
         stage: 'closure',
         status: PENDING_CLOSURE_STATUS,
         input: dto.stageAnswers,

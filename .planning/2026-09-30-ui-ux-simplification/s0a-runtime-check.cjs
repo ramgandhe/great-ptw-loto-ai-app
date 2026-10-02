@@ -60,6 +60,12 @@ const check = (name, ok, detail) => results.push({ name, ok, detail });
     check('stale save shows the conflict message', /changed since you opened it/.test(alertText), alertText);
     check('typed value kept after conflict', (await page.locator('#title').inputValue()) === TITLE + ' (first tab)');
     check('database still has the other tab\'s save', psql(`select title from permits where id='${id}'`) === TITLE + ' (other tab)');
+    // Both tabs changed the title: the saved and the local value are shown, and saving waits for a choice.
+    const both = page.getByRole('list', { name: 'Values you both changed' });
+    const conflictText = await both.innerText();
+    check('conflict shows the saved and the local value of the field both changed', conflictText.includes('(other tab)') && conflictText.includes('(first tab)'), conflictText);
+    check('saving waits for a choice', await page.getByRole('button', { name: 'Save draft', exact: true }).isDisabled());
+    await both.getByRole('button', { name: 'Keep mine' }).click();
     await page.getByRole('button', { name: 'Save draft', exact: true }).click();
     await page.waitForLoadState('networkidle');
     await alert.waitFor({ state: 'detached' });

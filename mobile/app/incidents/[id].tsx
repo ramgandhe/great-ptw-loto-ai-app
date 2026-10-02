@@ -13,6 +13,8 @@ import {
 } from "@/lib/incidents/api";
 import { queueOfflineIncidentSubmit } from "@/lib/incidents/offline";
 import type { IncidentDetail } from "@/lib/incidents/types";
+import { listTenantUserNames } from "@/lib/workforce/api";
+import { SelectField } from "@/components/ui/select-field";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
 
@@ -27,6 +29,19 @@ export default function IncidentDetailScreen() {
   const [rootCause, setRootCause] = useState("");
   const [correctiveTitle, setCorrectiveTitle] = useState("");
   const [ownerId, setOwnerId] = useState("");
+  // People by name: the investigator and owners are sign-in accounts, so the work reaches their queue.
+  const [people, setPeople] = useState<{ value: string; label: string }[]>([]);
+  useEffect(() => {
+    listTenantUserNames()
+      .then((users) =>
+        setPeople(
+          users
+            .map((u) => ({ value: u.id, label: u.name || [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email || u.username }))
+            .sort((a, b) => a.label.localeCompare(b.label)),
+        ),
+      )
+      .catch(() => setPeople([]));
+  }, []);
 
   const load = useCallback(() => {
     if (!id) return Promise.resolve();
@@ -100,7 +115,7 @@ export default function IncidentDetailScreen() {
       {incident.status !== "draft" && incident.status !== "closed" ? (
         <View style={[styles.card, { borderColor: tokens.colors.border }]}>
           <Text style={{ fontWeight: "600", color: tokens.colors.foreground }}>Investigation</Text>
-          <TextInput style={inputStyle} value={investigatorId} onChangeText={setInvestigatorId} placeholder="Investigator ID" placeholderTextColor={tokens.colors.mutedForeground} />
+          <SelectField label="Lead investigator" value={investigatorId} options={people} placeholder="Choose a person" onChange={setInvestigatorId} />
           <Pressable
             style={[styles.secondaryButton, { borderColor: tokens.colors.border }]}
             onPress={() => runAction(() => assignInvestigation(incident.id, { investigatorId: investigatorId.trim() }))}
@@ -115,7 +130,7 @@ export default function IncidentDetailScreen() {
             <Text style={{ color: tokens.colors.foreground }}>Record root cause</Text>
           </Pressable>
           <TextInput style={inputStyle} value={correctiveTitle} onChangeText={setCorrectiveTitle} placeholder="Corrective action title" placeholderTextColor={tokens.colors.mutedForeground} />
-          <TextInput style={inputStyle} value={ownerId} onChangeText={setOwnerId} placeholder="Owner ID" placeholderTextColor={tokens.colors.mutedForeground} />
+          <SelectField label="Action owner" value={ownerId} options={people} placeholder="Choose a person" onChange={setOwnerId} />
           <Pressable
             style={[styles.secondaryButton, { borderColor: tokens.colors.border }]}
             onPress={() =>

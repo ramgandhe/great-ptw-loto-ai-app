@@ -38,13 +38,15 @@ async function login(browser, email, password, errors) {
       const created = await api('POST', '/permits', { permitTypeId: '00000000-0000-4000-8000-000000000126', title, workScope: 'Stage answer check.', currentStep: 0 });
       await api('PATCH', '/permits/' + created.data.permit.id, {
         expectedRevision: created.data.permit.draftRevision,
-        formResponses: [{ templateId, answers: { 'authorisation-1': { name: 'Issuer' } } }],
+        // The issuer also tries to pre-sign the HOD's and the authoriser's approval signatures.
+        formResponses: [{ templateId, answers: { 'authorisation-1': { name: 'Issuer' }, 'authorisation-2': { name: 'Pre-signed' }, 'authorisation-3': { name: 'Pre-signed' } } }],
       });
       return created.data.permit.id;
     }, [TITLE, safeWork]);
     // Skip the submit form-filling (covered by s0a-runtime-check): put the draft straight into review.
     psql(`update permits set status='pending_approval', submitted_by=created_by, submitted_at=now() where id='${id}'`);
     flushPermitCache();
+    check('a draft save cannot pre-sign approval signatures', !JSON.stringify(JSON.parse(psql(`select form_responses from permits where id='${id}'`).split('|')[0])).includes('Pre-signed'));
 
     const hod = await login(browser, process.env.PTW_HOD_EMAIL, process.env.PTW_HOD_PASSWORD, pageErrors);
     // Approval through the workspace's Review tab; closure below through its own route, so both paths are covered.
@@ -62,7 +64,7 @@ async function login(browser, email, password, errors) {
     check('refused approval changed nothing', psql(`select status from permits where id='${id}'`) === 'pending_approval');
 
     for (const label of ['HOD of job issuer', 'Job authorised by']) {
-      await hod.locator('div.grid').filter({ has: hod.locator('label', { hasText: label }) }).getByRole('button', { name: 'Me, now' }).last().click();
+      await hod.locator('div.grid').filter({ has: hod.locator('label', { hasText: label }) }).getByRole('button', { name: /^Sign as / }).last().click();
     }
     check('signing clears the count', (await hod.getByText(/left to sign/).count()) === 0);
     const approved = hod.waitForResponse((r) => r.url().endsWith(`/approvals/${id}/approve`));
@@ -91,7 +93,7 @@ async function login(browser, email, password, errors) {
     await hod.goto(`http://localhost:3000/closure/${id}`, { waitUntil: 'networkidle' });
     for (const box of await hod.getByRole('checkbox').all()) await box.check();
     check('close is held until the completion is signed', (await hod.getByText('1 left to sign before closing').isVisible()) && (await hod.getByRole('button', { name: 'Close permit' }).isDisabled()));
-    await hod.locator('div.grid').filter({ has: hod.locator('label', { hasText: 'Job completion accepted by' }) }).getByRole('button', { name: 'Me, now' }).last().click();
+    await hod.locator('div.grid').filter({ has: hod.locator('label', { hasText: 'Job completion accepted by' }) }).getByRole('button', { name: /^Sign as / }).last().click();
     await hod.getByRole('button', { name: 'Close permit' }).click();
     await hod.locator('#closure-comment').fill('Closed after completion was accepted.');
     await hod.getByRole('dialog').getByRole('button', { name: 'Close permit' }).click();

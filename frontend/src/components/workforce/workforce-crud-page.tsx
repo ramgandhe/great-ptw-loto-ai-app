@@ -14,6 +14,7 @@ import { AdminPage, AdminPageHeader } from "@/components/layout/admin-page-heade
 import { NAME_HINT, NAME_PATTERN, PHONE_COUNTRIES, splitPhone } from "@/lib/validation";
 import { copyText } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
+import { useLeaveGuard } from "@/lib/leave-guard";
 
 const workforceApis = {
   employees: employeesApi,
@@ -86,6 +87,11 @@ export function WorkforceCrudPage({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formOpen, setFormOpen] = useState(useContext(WorkforceOpenAddContext) === resource);
+  // An open form whose values changed since it opened asks before the page is left.
+  const [openedWith, setOpenedWith] = useState("");
+  if (formOpen && !openedWith) setOpenedWith(JSON.stringify(form));
+  if (!formOpen && openedWith) setOpenedWith("");
+  useLeaveGuard(formOpen && Boolean(openedWith) && JSON.stringify(form) !== openedWith);
   const [query, setQuery] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const singular = title.replace(/ management$/i, "").replace(/ies$/, "y").replace(/s$/, "").toLowerCase();
@@ -313,12 +319,13 @@ export function WorkforceCrudPage({
           </label>
         ))}
         <div className="flex flex-wrap gap-2 sm:col-span-2">
-          <Button type="submit" disabled={submitting}>
+          <Button type="submit" className="min-h-11" disabled={submitting}>
             {submitting ? "Saving…" : editingId ? "Save changes" : `Add ${singular}`}
           </Button>
           <Button
             type="button"
             variant="ghost"
+            className="min-h-11"
             onClick={() => {
               setFormOpen(false);
               setEditingId(null);

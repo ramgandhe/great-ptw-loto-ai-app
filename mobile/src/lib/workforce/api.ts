@@ -17,6 +17,11 @@ export function listWorkforceDirectory() {
   return fetchApi<WorkforceRecord[]>("/workforce");
 }
 
+/** Sign-in accounts by name, for choosing a person (investigator, action owner). */
+export function listTenantUserNames() {
+  return fetchApi<TenantUser[]>("/tenant-users/names");
+}
+
 export function listPermitExecutors() {
   return fetchApi<TenantUser[]>("/tenant-users/executors");
 }

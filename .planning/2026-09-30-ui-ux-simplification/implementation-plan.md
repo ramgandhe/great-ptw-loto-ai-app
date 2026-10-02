@@ -1,6 +1,6 @@
 # UI/UX Simplification Plan — Revision 3
 
-Status: **Revised after second review; application implementation has not started.**
+Status: **Approved 2026-10-01 (revision 3, see plan-review.md and the approval record in task_plan.md). Implemented S0a–S7 on this branch; the closure review of 2026-10-01 ([closure-review.md](closure-review.md)) keeps it open — see its response section for what is fixed and what remains.**
 
 Branch: `feat/ui-ux-simplification`, from `dev_ram` at `ed8c3cc`. Full scope remains web and native; the first milestone is deliberately smaller.
 

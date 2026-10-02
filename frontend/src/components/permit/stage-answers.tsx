@@ -68,6 +68,7 @@ export function StageAnswers({
                   value={answers[field.id]}
                   disabled={disabled}
                   signerName={signerName}
+                  signOnly
                   onChange={(value) => {
                     const next = { ...answers };
                     if (value === undefined) delete next[field.id];

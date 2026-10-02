@@ -43,15 +43,52 @@ export function FieldInput({
   value,
   disabled,
   signerName,
+  signOnly,
   onChange,
 }: {
   field: TemplateField;
   value: FormAnswer | undefined;
   disabled?: boolean;
   signerName: string;
+  /** Approval/closure signatures: the person can only sign as themselves (the server records them as signer). */
+  signOnly?: boolean;
   onChange: (value: FormAnswer | undefined) => void;
 }) {
   const id = `ff-${field.id}`;
+  if (field.type === "signature" && signOnly) {
+    const sig = value as SignatureAnswer | undefined;
+    const now = new Date();
+    return sig?.name ? (
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <span>
+          Signed by {sig.name}
+          {sig.date ? <span className="text-muted-foreground">, {sig.date} {sig.time ?? ""}</span> : null}
+        </span>
+        <Button type="button" variant="ghost" className="min-h-11" disabled={disabled} onClick={() => onChange(undefined)}>
+          Remove
+        </Button>
+      </div>
+    ) : (
+      // No id here: the field's label would become the button's name; its own text says what it does.
+      <Button
+        type="button"
+        variant="outline"
+        aria-describedby={`${id}-label`}
+        className="min-h-11 justify-self-start"
+        disabled={disabled}
+        onClick={() =>
+          onChange({
+            name: signerName,
+            date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+            time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+          })
+        }
+      >
+        <PenLine aria-hidden />
+        Sign as {signerName || "me"}, now
+      </Button>
+    );
+  }
   switch (field.type) {
     case "check":
       return (
@@ -233,7 +270,7 @@ export function TemplateFormFill({
       </header>
       <div className="grid gap-6 px-5 py-4">
         {config.sections.map((section) => {
-          const openChecks = section.fields.filter((field) => field.type === "check" && !isAnswered(answers[field.id]));
+          const openChecks = section.fields.filter((field) => field.type === "check" && !laterStageNote(field) && !isAnswered(answers[field.id]));
           return (
             <section key={section.id} aria-labelledby={`sec-${section.id}`}>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-1">
@@ -253,13 +290,20 @@ export function TemplateFormFill({
                       {laterStageNote(field) ? <span className="block text-xs text-muted-foreground">{laterStageNote(field)}</span> : null}
                       {field.help ? <span className="block text-xs text-muted-foreground">{field.help}</span> : null}
                     </label>
-                    <FieldInput
-                      field={field}
-                      value={answers[field.id]}
-                      disabled={disabled}
-                      signerName={signerName}
-                      onChange={(value) => setAnswer(field.id, value)}
-                    />
+                    {/* Approval and closure fields are signed by that decision's maker, at that decision. */}
+                    {laterStageNote(field) ? (
+                      <p id={`ff-${field.id}`} className="text-sm text-muted-foreground">
+                        {!isAnswered(answers[field.id]) ? "Not filled in yet" : field.type === "signature" ? `Signed by ${(answers[field.id] as SignatureAnswer).name}` : "Answered"}
+                      </p>
+                    ) : (
+                      <FieldInput
+                        field={field}
+                        value={answers[field.id]}
+                        disabled={disabled}
+                        signerName={signerName}
+                        onChange={(value) => setAnswer(field.id, value)}
+                      />
+                    )}
                   </li>
                 ))}
               </ol>

@@ -35,6 +35,7 @@ import {
   canRoleSubmitPermit,
   createEmptyPermitForm,
   formToSavePayload,
+  ERROR_FIELDS,
   PERMIT_EDITOR_SECTIONS,
   type PermitEditorSectionId,
   permitDetailToForm,
@@ -69,6 +70,8 @@ import { formatWorkforceOptionLabel } from "@/components/lototo/select-field";
 import { PlannedDateTimeField } from "./planned-datetime-field";
 import { TemplateFormFill } from "./template-form-fill";
 import { ValidationSummary } from "./validation-summary";
+import { mergeAfterConflict, resolveConflict, type FieldConflict } from "@/lib/permit/conflict";
+import { useLeaveGuard } from "@/lib/leave-guard";
 
 function executorRoleLabel(kind?: "internal" | "contractor" | "agency") {
   if (kind === "agency") {
@@ -195,6 +198,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [revision, setRevision] = useState(initialDetail?.permit.draftRevision ?? 0);
   // Set when someone else saved first: local values stay, and saving again is an explicit choice.
   const [conflict, setConflict] = useState(false);
+  // The form as last loaded or saved: the common ancestor when someone else's save has to be merged in.
+  const [base, setBase] = useState<PermitFormState>(() => (initialDetail ? permitDetailToForm(initialDetail) : createEmptyPermitForm()));
+  // Values both people changed differently; each needs the person's choice before saving again.
+  const [conflicts, setConflicts] = useState<FieldConflict[]>([]);
   const [errors, setErrors] = useState<{ message: string; href?: string }[]>([]);
   // The title follows the scope's first sentence until someone types their own.
   const [titleEdited, setTitleEdited] = useState(
@@ -403,6 +410,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       setStatus(initialDetail.permit.status);
       setPermitId(initialDetail.permit.id);
       setRevision(initialDetail.permit.draftRevision);
+      setBase(permitDetailToForm(initialDetail));
+      setConflicts([]);
       setConflict(false);
     }
   }, [initialDetail]);
@@ -485,17 +494,71 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     try {
       const saved = await savePermitDraft(id, { ...payload, expectedRevision: baseRevision });
       setRevision(saved.permit.draftRevision);
+      // What the server now holds, exactly: the ancestor for any later merge.
+      setBase(permitDetailToForm(saved));
       setConflict(false);
       return { id, revision: saved.permit.draftRevision };
     } catch (error) {
       if (isRevisionConflict(error)) {
-        // Keep the typed values; the next save is the person's explicit choice to replace the newer copy.
+        // Merge in the other person's save: their unrelated changes are kept, this person's are kept,
+        // and values both changed are listed for a choice. Saving again stays an explicit step.
         const latest = await getPermit(id);
+        const savedForm = permitDetailToForm(latest);
+        const result = mergeAfterConflict(base, form, savedForm);
+        setForm(result.merged);
+        setBase(savedForm);
+        setConflicts(result.conflicts);
         setRevision(latest.permit.draftRevision);
         setConflict(true);
       }
       throw error;
     }
+  };
+
+  /** The submit error for one field, shown under it. */
+  const fieldError = (id: string) => errors.find((e) => e.href === `#${id}`)?.message;
+
+  /** The person's choice for one value both people changed. */
+  const chooseConflict = (item: FieldConflict, keep: "saved" | "yours") => {
+    edit((current) => resolveConflict(current, item, keep));
+    setConflicts((current) => current.filter((c) => c.key !== item.key));
+  };
+  const FIELD_LABELS: Record<string, string> = {
+    permitTypeId: "Permit type",
+    title: "Title",
+    workScope: "Work scope",
+    plantId: "Plant",
+    departmentId: "Department",
+    locationId: "Location",
+    workstationId: "Workstation",
+    machineryId: "Equipment",
+    plannedStartAt: "Planned start",
+    plannedEndAt: "Planned end",
+    hazards: "Hazards",
+    ppe: "PPE",
+    lototoRequired: "LOTOTO required",
+    lototo: "LOTOTO plans",
+    gasTestingRequired: "Gas testing required",
+    gasTesting: "Gas tests",
+    executors: "Executors and crew",
+    viewers: "Viewers",
+    safetyOfficers: "Safety officers",
+  };
+  const conflictLabel = (key: string) => {
+    const [kind, a, b] = key.split(":");
+    if (kind === "field") return FIELD_LABELS[a] ?? a;
+    const template = templates.find((t) => t.id === a);
+    const field = template?.config?.sections.flatMap((section) => section.fields).find((f) => f.id === b);
+    return `${template?.name ?? "Form"}: ${field?.label ?? b}`;
+  };
+  const describeValue = (value: unknown): string => {
+    if (value === undefined || value === null || value === "") return "empty";
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (Array.isArray(value)) return value.length === 0 ? "none" : typeof value[0] === "string" ? value.join(", ") : `${value.length} item${value.length === 1 ? "" : "s"}`;
+    if (typeof value === "object") return (value as { name?: string }).name ?? JSON.stringify(value);
+    const text = String(value);
+    const named = [...permitTypes, ...plants, ...departments, ...locations, ...workstations, ...machinery].find((row) => row.id === text);
+    return named?.name ?? (text === "yes" ? "Yes" : text === "no" ? "No" : text === "na" ? "N/A" : text);
   };
 
   const forms = applicableTemplates(templates, form.permitTypeId);
@@ -539,13 +602,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     review: [],
   };
 
-  // Leaving with unsaved changes asks first.
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  // Leaving with unsaved changes asks first: tab close and in-app links alike.
+  useLeaveGuard(dirty);
 
   // The executor's part starts at Site and crew; open the editor there.
   useEffect(() => {
@@ -572,7 +630,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
   const handleSubmit = async () => {
     const allErrors = PERMIT_EDITOR_SECTIONS.flatMap((section) =>
-      missing[section.id].map((message) => ({ message, href: `#section-${section.id}` })),
+      missing[section.id].map((message) => ({ message, href: `#${ERROR_FIELDS[message] ?? `section-${section.id}`}` })),
     );
     setErrors(allErrors);
     if (allErrors.length > 0) {
@@ -716,13 +774,40 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {apiError}
           {conflict ? (
-            <p className="mt-2 text-foreground">
-              Another person saved this permit after you opened it.{" "}
-              <a href={`/permits/${permitId}`} target="_blank" rel="noreferrer" className="underline">
-                Open the saved version
-              </a>{" "}
-              to compare. {saveLabel} again to replace it with what you see here. Submit stays unavailable until then.
-            </p>
+            <div className="mt-2 grid gap-3 text-foreground">
+              <p>
+                Another person saved this permit after you opened it. Their changes to other fields are now in the form below, and yours are kept.
+                {conflicts.length
+                  ? ` You both changed ${conflicts.length === 1 ? "one value" : `${conflicts.length} values`}: choose which to keep, then ${saveLabel.toLowerCase()} again.`
+                  : ` ${saveLabel} again to save the combined permit.`}{" "}
+                Submit stays unavailable until then.
+              </p>
+              {conflicts.length ? (
+                <ul className="grid gap-2" aria-label="Values you both changed">
+                  {conflicts.map((item) => (
+                    <li key={item.key} className="grid gap-2 rounded-lg border border-border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                      <div className="grid gap-0.5">
+                        <p className="font-medium">{conflictLabel(item.key)}</p>
+                        <p className="text-muted-foreground">
+                          Saved: <span className="text-foreground">{describeValue(item.saved)}</span>
+                        </p>
+                        <p className="text-muted-foreground">
+                          Yours: <span className="text-foreground">{describeValue(item.yours)}</span>
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" className="min-h-11" onClick={() => chooseConflict(item, "yours")}>
+                          Keep mine
+                        </Button>
+                        <Button type="button" variant="outline" className="min-h-11" onClick={() => chooseConflict(item, "saved")}>
+                          Use saved
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -773,7 +858,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             }}
           />
         </FormField>
-        <FormField label="Title" htmlFor="title" hint={titleEdited ? undefined : "Suggested from the scope. Change it if it does not read well."}>
+        <FormField label="Title" htmlFor="title" error={fieldError("title")} hint={titleEdited ? undefined : "Suggested from the scope. Change it if it does not read well."}>
           <input
             id="title"
             className={fieldClassName}
@@ -789,7 +874,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
       <EditorSection id="place" title="Place and schedule" owner="Job issuer" editable={placeEditable} left={missing.place.length}>
         <div className="grid gap-4 md:grid-cols-2">
-          <FormField label="Location" htmlFor="locationId">
+          <FormField label="Location" htmlFor="locationId" error={fieldError("locationId")}>
             <MasterDataSelect
               id="locationId"
               value={form.locationId}
@@ -823,7 +908,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               />
             </FormField>
           )}
-          <FormField label="Department" htmlFor="departmentId" hint={form.plantId ? `Departments of ${plantName(form.plantId)}` : undefined}>
+          <FormField label="Department" htmlFor="departmentId" error={fieldError("departmentId")} hint={form.plantId ? `Departments of ${plantName(form.plantId)}` : undefined}>
             <MasterDataSelect
               id="departmentId"
               value={form.departmentId}
@@ -835,7 +920,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           </FormField>
           <FormField
             label="Primary executor"
-            htmlFor="primary-executor"
+            htmlFor="primary-executor" error={fieldError("primary-executor")}
             hint="They add the site details, crew and form answers; you then review and submit."
           >
             <PersonSelect
@@ -878,7 +963,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             </div>
           ) : null}
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField label="Planned start" htmlFor="plannedStartAt">
+            <FormField label="Planned start" htmlFor="plannedStartAt" error={fieldError("plannedStartAt")}>
               <PlannedDateTimeField
                 id="plannedStartAt"
                 value={form.plannedStartAt}
@@ -892,7 +977,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 }
               />
             </FormField>
-            <FormField label="Planned end" htmlFor="plannedEndAt" hint={form.plannedStartAt ? "Must be after planned start" : undefined}>
+            <FormField label="Planned end" htmlFor="plannedEndAt" error={fieldError("plannedEndAt")} hint={form.plannedStartAt ? "Must be after planned start" : undefined}>
               <PlannedDateTimeField
                 id="plannedEndAt"
                 value={form.plannedEndAt}
@@ -954,7 +1039,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         note="The job executor adds these after you save: workstation, machinery, isolation, gas tests, hazards, PPE and crew."
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <FormField label="Workstation" htmlFor="workstationId">
+          <FormField label="Workstation" htmlFor="workstationId" error={fieldError("workstationId")}>
             <MasterDataSelect
               id="workstationId"
               value={form.workstationId}
@@ -975,7 +1060,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               }
             />
           </FormField>
-          <FormField label="Machinery" htmlFor="machineryId">
+          <FormField label="Machinery" htmlFor="machineryId" error={fieldError("machineryId")}>
             <MasterDataSelect
               id="machineryId"
               value={form.machineryId}
@@ -1401,7 +1486,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                   : ""}
         </p>
         {status === "draft" ? (
-          <Button type="button" size="lg" className="min-h-11 px-4" variant={canSubmit ? "secondary" : "default"} onClick={() => void handleSaveDraft()} disabled={isSaving || isSubmitting}>
+          <Button type="button" size="lg" className="min-h-11 px-4" variant={canSubmit ? "secondary" : "default"} onClick={() => void handleSaveDraft()} disabled={isSaving || isSubmitting || conflicts.length > 0}>
             {isSaving ? "Saving…" : saveLabel}
           </Button>
         ) : null}

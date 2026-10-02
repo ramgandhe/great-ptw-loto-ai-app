@@ -112,7 +112,7 @@ export default function HomeScreen() {
 
         <Text style={[styles.section, text]}>Needs you</Text>
         {failed.length > 0 ? (
-          <Pressable accessibilityRole="button" onPress={() => void load()} style={[styles.card, { borderColor: "#d97706" }]}>
+          <Pressable accessibilityRole="button" onPress={() => void load()} style={[styles.card, { borderColor: tokens.colors.warning }]}>
             <Text style={text}>{`Could not check ${failed.join(", ")}${isOnline ? "" : " while offline"}. What needs you may be missing.`}</Text>
             <Text style={{ color: tokens.colors.primary, fontWeight: "600" }}>Retry</Text>
           </Pressable>
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   section: { fontSize: 16, fontWeight: "600", marginTop: 8 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   card: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 8 },
-  item: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 12 },
-  primary: { minHeight: 44, justifyContent: "center", paddingHorizontal: 16, borderRadius: 8 },
-  secondary: { minHeight: 44, justifyContent: "center", paddingHorizontal: 16, borderRadius: 8, borderWidth: 1 },
+  item: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 12 },
+  primary: { minHeight: 48, justifyContent: "center", paddingHorizontal: 16, borderRadius: 8 },
+  secondary: { minHeight: 48, justifyContent: "center", paddingHorizontal: 16, borderRadius: 8, borderWidth: 1 },
 });

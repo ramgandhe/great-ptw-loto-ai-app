@@ -8,6 +8,11 @@ const baseLight = {
   border: "#e5e5e5",
   card: "#ffffff",
   primaryForeground: "#ffffff",
+  success: "#166534",
+  successBg: "#dcfce7",
+  danger: "#b91c1c",
+  dangerBg: "#fee2e2",
+  warning: "#92400e",
 };
 
 const baseDark = {
@@ -18,6 +23,11 @@ const baseDark = {
   border: "#404040",
   card: "#171717",
   primaryForeground: "#0a0a0a",
+  success: "#86efac",
+  successBg: "#14532d",
+  danger: "#fca5a5",
+  dangerBg: "#7f1d1d",
+  warning: "#fcd34d",
 };
 
 const primaryByTheme: Record<ThemeName, string> = {
