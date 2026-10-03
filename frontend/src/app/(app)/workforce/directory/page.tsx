@@ -10,7 +10,7 @@ import { listWorkforceDirectory } from "@/lib/workforce/api";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { AdminEmbedContext, AdminPage, AdminPageHeader } from "@/components/layout/admin-page-header";
-import { WorkforceOpenAddContext } from "@/components/workforce/workforce-crud-page";
+import { WorkforceOpenAddContext, WorkforceOpenEditContext } from "@/components/workforce/workforce-crud-page";
 import EmployeesPage from "../employees/page";
 import ContractorsPage from "../contractors/page";
 
@@ -23,6 +23,8 @@ export default function WorkforceDirectoryPage() {
   const [view, setView] = useState<View>("everyone");
   // Which list opens with its add form, when the person chose Add from the Everyone view.
   const [openAdd, setOpenAdd] = useState<"employees" | "contractors" | null>(null);
+  // The person chosen with Manage: their list opens on them.
+  const [openEdit, setOpenEdit] = useState<string | null>(null);
 
   useEffect(() => {
     if (view !== "everyone") return;
@@ -31,8 +33,9 @@ export default function WorkforceDirectoryPage() {
       .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load directory"));
   }, [view]);
 
-  const show = (next: View, add: "employees" | "contractors" | null = null) => {
+  const show = (next: View, add: "employees" | "contractors" | null = null, edit: string | null = null) => {
     setOpenAdd(add);
+    setOpenEdit(edit);
     setView(next);
   };
 
@@ -92,7 +95,7 @@ export default function WorkforceDirectoryPage() {
                     <td className="px-4 py-3">{item.role ?? "—"}</td>
                     <td className="px-4 py-3"><OrgStatusBadge status={item.status} /></td>
                     <td className="px-4 py-3">
-                      <RowActions actions={[{ label: "Manage", onClick: () => show(item.role === "contractor" ? "contractors" : "employees") }]} />
+                      <RowActions actions={[{ label: "Manage", onClick: () => show(item.role === "contractor" ? "contractors" : "employees", null, item.id) }]} />
                     </td>
                   </tr>
                 ))}
@@ -103,7 +106,9 @@ export default function WorkforceDirectoryPage() {
       ) : (
         <AdminEmbedContext.Provider value={true}>
           <WorkforceOpenAddContext.Provider value={openAdd}>
-            {view === "employees" ? <EmployeesPage /> : <ContractorsPage />}
+            <WorkforceOpenEditContext.Provider value={openEdit}>
+              {view === "employees" ? <EmployeesPage /> : <ContractorsPage />}
+            </WorkforceOpenEditContext.Provider>
           </WorkforceOpenAddContext.Provider>
         </AdminEmbedContext.Provider>
       )}

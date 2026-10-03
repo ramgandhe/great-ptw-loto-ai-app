@@ -14,8 +14,11 @@ import { ApiError } from "@/lib/api";
 import { createLototoPlan } from "@/lib/lototo/api";
 import { filterMachineryByWorkstation, loadLototoFormOptions } from "@/lib/lototo/form-options";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function NewLototoPlanScreen() {
+  const styles = useThemedStyles(createStyles);
   const { machineryId: initialMachineryId } = useLocalSearchParams<{ machineryId?: string }>();
   const { tokens } = useTheme();
   const [options, setOptions] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>> | null>(
@@ -140,13 +143,14 @@ export default function NewLototoPlanScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600", marginBottom: 8 },
-  label: { fontSize: 13, fontWeight: "500" },
+  title: { fontSize: 22, fontWeight: "600", marginBottom: 8, color: c.foreground },
+  label: { fontSize: 13, fontWeight: "500", color: c.foreground },
   input: { borderWidth: 1, borderRadius: 8, padding: 10 },
   primaryButton: { marginTop: 8, borderRadius: 8, padding: 12, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "600" },
-  error: { color: "#b91c1c" },
+  primaryButtonText: { color: c.primaryForeground, fontWeight: "600" },
+  error: { color: c.danger },
 });

@@ -6,7 +6,8 @@ function focusTarget(href: string) {
   if (!target) return;
   const control = target.matches("input, select, textarea, button, [tabindex]")
     ? target
-    : target.querySelector<HTMLElement>('[aria-invalid="true"], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])');
+    : (target.querySelector<HTMLElement>('[aria-invalid="true"], [data-missing] :is(input, select, textarea, button):not([disabled])') ??
+      target.querySelector<HTMLElement>("input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])"));
   target.scrollIntoView({ block: "center" });
   (control ?? target).focus({ preventScroll: true });
 }

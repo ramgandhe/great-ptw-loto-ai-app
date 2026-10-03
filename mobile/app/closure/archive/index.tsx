@@ -12,8 +12,11 @@ import { router } from "expo-router";
 import { ApiError } from "@/lib/api";
 import { listArchivedPermits } from "@/lib/closure/api";
 import type { ArchivedPermitSummary } from "@/lib/closure/types";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function ClosureArchiveScreen() {
+  const styles = useThemedStyles(createStyles);
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<ArchivedPermitSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,30 +82,31 @@ export default function ClosureArchiveScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { flex: 1, padding: 16, gap: 8 },
   input: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: c.border,
     borderRadius: 8,
     padding: 10,
   },
   button: {
-    backgroundColor: "#1f2937",
+    backgroundColor: c.primary,
     borderRadius: 8,
     padding: 12,
     alignItems: "center",
   },
-  buttonText: { color: "#fff", fontWeight: "500" },
+  buttonText: { color: c.primaryForeground, fontWeight: "500" },
   card: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: c.border,
     borderRadius: 10,
     padding: 12,
     marginBottom: 8,
   },
-  cardTitle: { fontSize: 16, fontWeight: "600" },
-  cardMeta: { fontSize: 12, color: "#666", marginTop: 4 },
-  empty: { color: "#666", marginTop: 16 },
-  error: { color: "#b91c1c" },
+  cardTitle: { fontSize: 16, fontWeight: "600", color: c.foreground },
+  cardMeta: { fontSize: 12, color: c.mutedForeground, marginTop: 4 },
+  empty: { color: c.mutedForeground, marginTop: 16 },
+  error: { color: c.danger },
 });

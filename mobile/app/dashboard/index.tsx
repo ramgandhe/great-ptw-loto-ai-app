@@ -7,6 +7,8 @@ import { kpiCount, kpiLabel } from "@/lib/dashboards/labels";
 import type { DashboardKind, DashboardPayload } from "@/lib/dashboards/types";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 const KINDS: { value: DashboardKind; label: string }[] = [
   { value: "personal", label: "Personal" },
@@ -16,6 +18,7 @@ const KINDS: { value: DashboardKind; label: string }[] = [
 ];
 
 export default function DashboardScreen() {
+  const styles = useThemedStyles(createStyles);
   const { tokens } = useTheme();
   const { isOnline } = useOffline();
   const [kind, setKind] = useState<DashboardKind>("personal");
@@ -63,7 +66,7 @@ export default function DashboardScreen() {
           >
             <Text
               style={{
-                color: kind === option.value ? "#fff" : tokens.colors.foreground,
+                color: kind === option.value ? tokens.colors.primaryForeground : tokens.colors.foreground,
                 fontSize: 11,
                 fontWeight: "500",
               }}
@@ -110,14 +113,15 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600" },
+  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
   filterRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
   filterButton: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
   card: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 8 },
-  meta: { color: "#64748b", fontSize: 12, marginTop: 4 },
+  meta: { color: c.mutedForeground, fontSize: 12, marginTop: 4 },
   linkButton: { borderWidth: 1, borderRadius: 8, padding: 12, alignItems: "center", marginTop: 12 },
-  error: { color: "#b91c1c", marginTop: 8 },
+  error: { color: c.danger, marginTop: 8 },
 });

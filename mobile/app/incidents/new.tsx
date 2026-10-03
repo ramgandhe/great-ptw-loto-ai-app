@@ -7,8 +7,11 @@ import { queueOfflineIncidentReport } from "@/lib/incidents/offline";
 import type { IncidentType } from "@/lib/incidents/types";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function NewIncidentScreen() {
+  const styles = useThemedStyles(createStyles);
   const { tokens } = useTheme();
   const { isOnline } = useOffline();
   const [incidentType, setIncidentType] = useState<IncidentType>("incident");
@@ -29,7 +32,7 @@ export default function NewIncidentScreen() {
     try {
       if (!isOnline) {
         await queueOfflineIncidentReport(payload);
-        setMessage("Report queued for sync");
+        setMessage("Report saved on this phone. It is not reported until the server confirms it.");
         return;
       }
       const incident = await createIncident(payload);
@@ -70,13 +73,14 @@ export default function NewIncidentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600" },
+  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
   input: { borderWidth: 1, borderRadius: 8, padding: 10, minHeight: 44, textAlignVertical: "top" },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   primaryButton: { borderRadius: 8, padding: 12, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "600" },
+  primaryButtonText: { color: c.primaryForeground, fontWeight: "600" },
   secondaryButton: { borderWidth: 1, borderRadius: 8, padding: 12, alignItems: "center" },
-  error: { color: "#b91c1c" },
+  error: { color: c.danger },
 });

@@ -5,10 +5,13 @@ import { ApiError } from "@/lib/api";
 import { listLototoPlans } from "@/lib/lototo/api";
 import type { LototoPlan } from "@/lib/lototo/types";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 const ACTIVE_STATUSES = new Set<LototoPlan["status"]>(["ready", "in_execution"]);
 
 export default function ActiveLototoScreen() {
+  const styles = useThemedStyles(createStyles);
   const { tokens } = useTheme();
   const [plans, setPlans] = useState<LototoPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,10 +65,11 @@ export default function ActiveLototoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600" },
+  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
   card: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 8 },
-  error: { color: "#b91c1c" },
+  error: { color: c.danger },
 });

@@ -84,3 +84,18 @@ The plan/review headers and task-plan phase/checklists also contain stale status
 | DB suites can still pass silently after a migration failure | **Open** | The Jest global setup now fails when the database is unreachable, but suites still catch their own `migrate()` failure and skip their tests (`canConnect = false`). Fix: let migration errors fail the suite, or migrate once in global setup. |
 
 Full closure stays open: the P2 items above and in the first response, and the unverified acceptance (phone, zoom/keyboard, appearance matrix).
+
+### P2 follow-up — 2026-10-02
+
+| Finding | Status | What changed |
+|---|---|---|
+| Custom field components do not forward the ARIA error attributes | **Fixed** | `PersonSelect`, `PlannedDateTimeField` and `MasterDataSelect` pass `aria-invalid`/`aria-describedby` to their own control (location, department, workstation, machinery, planned start/end, primary executor). |
+| DB suites skip silently after their own migration failure | **Fixed** | In all 46 database suites the connection check no longer swallows `migrate()`: a migration error fails the suite. Combined with the global setup, a missing database or a failed migration can no longer produce a green run (`SKIP_DB_TESTS=1` still opts out deliberately). |
+| Spec 5 — browser Back not intercepted | **Fixed** | `useLeaveGuard` adds a same-page history entry while there are unsaved changes; Back asks first and staying keeps everything. |
+| Spec 5 — form-answer errors link to the section | **Fixed** | Each form's error links to that form; its unanswered required questions are marked "Required before submitting" and the link focuses the first of them. |
+| Spec 6 — selected person not kept; no existing-account reuse | **Fixed** | Manage in People's Everyone view opens that person's edit form in their list. Adding an employee or contractor offers the organisation's existing sign-in accounts (only to people who may list them); choosing one fills name and email, and an email that already signs in says no new login or password is created (the API already reused the account). |
+| Spec 4 — native editor and workflows | **Mostly fixed** | The native permit editor is one page with sections (Work, Place and schedule, Site safety, Crew, Forms and check sheets, Review) and Save/Submit; no Next/Back. LOTOTO isolation and restoration work point by point in sequence with confirmed steps (shared progress helpers with the web); SIMOPS shows the overlap and the permits and opens rejection on request; offline saves everywhere say they are not done until the server confirms them; reference and record lists never show a failed read as empty and no longer show raw ids; closure and archive distinguish "could not load" from none. Still open: execution and daily-operations screens keep their structure (no further rework). |
+| Standards 3 — older native screens hardcode colours | **Fixed** | 35 native screens and components now build their styles from the theme (`useThemedStyles`), with warning/danger/success tokens for light and dark; text without a colour takes the theme foreground; every stack screen and header uses the theme background. |
+| Still unverified | Open | Physical-phone development-build acceptance (and with it the native changes above on a device; they type-check and bundle for Android); 200% zoom and keyboard focus; the 32-combination appearance matrix. |
+
+Evidence: p2-runtime-check.cjs 14/14 (Back and link guards, field and form error focus and ARIA, People Manage and account reuse); s0a 15/15, s4 17/17, s5 15/15; P1 1/10/2, P2 1/19/2, H1 4/9/2, E1 2/4/1 unchanged; Android export bundles 1,080 modules; API, web and mobile tsc pass.

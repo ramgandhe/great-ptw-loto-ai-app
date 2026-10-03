@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { sharedWindow } from "@/lib/simops/overlap";
 import {
   ActivityIndicator,
   Pressable,
@@ -44,6 +45,8 @@ export default function SimopsConflictDetailScreen() {
   const [actionDescription, setActionDescription] = useState("");
   const [comments, setComments] = useState("");
   const [rejectReason, setRejectReason] = useState("");
+  // Rejecting suspends every permit in the clash, so its form opens only on request.
+  const [rejecting, setRejecting] = useState(false);
   const [queuedMessage, setQueuedMessage] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -92,28 +95,39 @@ export default function SimopsConflictDetailScreen() {
         <Text style={{ color: tokens.colors.primary, marginBottom: 8 }}>Back</Text>
       </Pressable>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={{ color: tokens.colors.danger }}>{error}</Text> : null}
       {queuedMessage ? (
         <Text style={{ color: tokens.colors.mutedForeground, marginBottom: 8 }}>{queuedMessage}</Text>
       ) : null}
 
       {detail ? (
         <>
-          <Text style={[styles.title, { color: tokens.colors.foreground }]}>Conflict review</Text>
-          <View style={[styles.card, { borderColor: tokens.colors.border }]}>
-            <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>{detail.conflict.summary}</Text>
-            <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12, marginTop: 4 }}>
-              {detail.conflict.status.replace(/_/g, " ")} · {detail.conflict.severity} severity
-            </Text>
-          </View>
+          <Text style={[styles.title, { color: tokens.colors.foreground }]}>{detail.conflict.summary}</Text>
+          <Text style={{ color: tokens.colors.mutedForeground }}>
+            {`${detail.conflict.severity} severity · ${detail.conflict.conflictType.replace(/_/g, " ")} clash · now ${detail.conflict.status.replace(/_/g, " ")}`}
+          </Text>
 
+          <Text style={{ color: tokens.colors.foreground, fontWeight: "600", marginTop: 8 }}>
+            {(() => {
+              const overlap = sharedWindow(detail.participants);
+              return overlap ? `Overlap: ${formatDate(overlap.start)} → ${formatDate(overlap.end)}` : "The planned windows do not overlap, or one is not scheduled.";
+            })()}
+          </Text>
           {detail.participants.map((participant) => (
-            <View key={participant.id} style={[styles.card, { borderColor: tokens.colors.border }]}>
-              <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>{participant.permit.title}</Text>
-              <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12, marginTop: 4 }}>
+            <Pressable
+              key={participant.id}
+              accessibilityRole="button"
+              onPress={() => router.push(`/permits/${participant.permit.id}`)}
+              style={[styles.card, { borderColor: tokens.colors.border }]}
+            >
+              <Text style={{ color: tokens.colors.primary, fontWeight: "600" }}>{participant.permit.title}</Text>
+              <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12 }}>
+                {`${participant.permit.reference ?? ""} ${participant.permit.status.replace(/_/g, " ")}`.trim()}
+              </Text>
+              <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12 }}>
                 {formatDate(participant.permit.plannedStartAt)} → {formatDate(participant.permit.plannedEndAt)}
               </Text>
-            </View>
+            </Pressable>
           ))}
 
           {!isResolved && !detail.assessment ? (
@@ -136,13 +150,13 @@ export default function SimopsConflictDetailScreen() {
                   };
                   if (!isOnline) {
                     await queueOfflineAssess(detail.conflict.id, payload);
-                    setQueuedMessage("Assessment queued for sync");
+                    setQueuedMessage("Assessment saved on this phone; not recorded until the server confirms it.");
                     return;
                   }
                   await runAction(() => assessSimopsConflict(detail.conflict.id, payload));
                 }}
               >
-                <Text style={styles.primaryButtonText}>Save assessment</Text>
+                <Text style={[styles.primaryButtonText, { color: tokens.colors.primaryForeground }]}>Save assessment</Text>
               </Pressable>
             </View>
           ) : null}
@@ -175,13 +189,13 @@ export default function SimopsConflictDetailScreen() {
                   };
                   if (!isOnline) {
                     await queueOfflineMitigation(detail.conflict.id, payload);
-                    setQueuedMessage("Mitigation queued for sync");
+                    setQueuedMessage("Mitigation plan saved on this phone; not recorded until the server confirms it.");
                     return;
                   }
                   await runAction(() => createMitigationPlan(detail.conflict.id, payload));
                 }}
               >
-                <Text style={styles.primaryButtonText}>Save mitigation</Text>
+                <Text style={[styles.primaryButtonText, { color: tokens.colors.primaryForeground }]}>Save mitigation</Text>
               </Pressable>
             </View>
           ) : null}
@@ -202,20 +216,24 @@ export default function SimopsConflictDetailScreen() {
                 onPress={async () => {
                   if (!isOnline) {
                     await queueOfflineApprove(detail.conflict.id, comments.trim());
-                    setQueuedMessage("Approval queued for sync");
+                    setQueuedMessage("Approval saved on this phone; nothing is approved until the server confirms it.");
                     return;
                   }
                   await runAction(() => approveSimopsConflict(detail.conflict.id, comments.trim()));
                 }}
               >
-                <Text style={styles.primaryButtonText}>Approve conflict</Text>
+                <Text style={[styles.primaryButtonText, { color: tokens.colors.primaryForeground }]}>Approve conflict</Text>
               </Pressable>
             </View>
           ) : null}
 
-          {!isResolved ? (
-            <View style={[styles.card, { borderColor: tokens.colors.border }]}>
-              <Text style={{ color: "#b91c1c", fontWeight: "600" }}>Reject</Text>
+          {!isResolved && !rejecting ? (
+            <Pressable accessibilityRole="button" style={[styles.outlineButton, { borderColor: tokens.colors.border }]} onPress={() => setRejecting(true)}>
+              <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>Reject and suspend permits…</Text>
+            </Pressable>
+          ) : !isResolved ? (
+            <View style={[styles.card, { borderColor: tokens.colors.danger }]}>
+              <Text style={{ color: tokens.colors.danger, fontWeight: "600" }}>Reject: every permit in this clash is suspended</Text>
               <TextInput
                 style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
                 multiline
@@ -225,17 +243,21 @@ export default function SimopsConflictDetailScreen() {
                 placeholderTextColor={tokens.colors.mutedForeground}
               />
               <Pressable
-                style={[styles.primaryButton, { backgroundColor: "#b91c1c" }]}
+                style={[styles.primaryButton, { backgroundColor: tokens.colors.danger, opacity: rejectReason.trim() ? 1 : 0.6 }]}
+                disabled={!rejectReason.trim()}
                 onPress={async () => {
                   if (!isOnline) {
                     await queueOfflineReject(detail.conflict.id, rejectReason.trim());
-                    setQueuedMessage("Rejection queued for sync");
+                    setQueuedMessage("Rejection saved on this phone. Nothing is suspended until the server confirms it.");
                     return;
                   }
                   await runAction(() => rejectSimopsConflict(detail.conflict.id, rejectReason.trim()));
                 }}
               >
-                <Text style={styles.primaryButtonText}>Reject conflict</Text>
+                <Text style={[styles.primaryButtonText, { color: tokens.colors.background }]}>Reject and suspend permits</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={[styles.outlineButton, { borderColor: tokens.colors.border }]} onPress={() => setRejecting(false)}>
+                <Text style={{ color: tokens.colors.foreground }}>Cancel</Text>
               </Pressable>
             </View>
           ) : (
@@ -255,7 +277,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: "600" },
   card: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 8, gap: 8 },
   input: { borderWidth: 1, borderRadius: 8, padding: 10, minHeight: 72, textAlignVertical: "top" },
-  primaryButton: { borderRadius: 8, padding: 12, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "600" },
-  error: { color: "#b91c1c" },
+  primaryButton: { minHeight: 48, borderRadius: 8, padding: 12, alignItems: "center", justifyContent: "center" },
+  outlineButton: { minHeight: 48, borderRadius: 8, padding: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, marginTop: 8 },
+  primaryButtonText: { fontWeight: "600" },
+
 });

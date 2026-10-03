@@ -27,6 +27,7 @@ import {
   queueOfflineVerification,
 } from "@/lib/isolation-execution/offline";
 import type { IsolationExecutionDetail } from "@/lib/isolation-execution/types";
+import { isolationProgress } from "@/lib/isolation-execution/progress";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
 
@@ -57,9 +58,8 @@ export default function IsolationExecutionScreen() {
     try {
       const data = await getIsolationExecutionForPlan(planId);
       setDetail(data);
-      if (!selectedPointId && data.sequence[0]) {
-        setSelectedPointId(data.sequence[0].isolationPointId);
-      }
+      // After each action, move on to the first point still to finish.
+      setSelectedPointId(isolationProgress(data.sequence, data.locks, data.tags, data.verifications).current?.step.isolationPointId ?? "");
     } catch (err) {
       if (err instanceof ApiError && err.message.includes("not found")) {
         setDetail(null);
@@ -81,8 +81,8 @@ export default function IsolationExecutionScreen() {
     setMessage(null);
     try {
       await action();
-      setMessage(successMessage);
       await load();
+      setMessage(successMessage);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Action failed");
     } finally {
@@ -113,7 +113,7 @@ export default function IsolationExecutionScreen() {
 
     if (offline || !isOnline) {
       await queueOfflineLock(detail.execution.id, payload);
-      setMessage("Lock queued for sync");
+      setMessage("Lock saved on this phone. It is not applied until the server confirms it.");
       setLockTag("");
       return;
     }
@@ -138,7 +138,7 @@ export default function IsolationExecutionScreen() {
 
     if (offline || !isOnline) {
       await queueOfflineTag(detail.execution.id, payload);
-      setMessage("Tag queued for sync");
+      setMessage("Tag saved on this phone. It is not applied until the server confirms it.");
       setTagNumber("");
       return;
     }
@@ -170,7 +170,7 @@ export default function IsolationExecutionScreen() {
 
             if (!isOnline) {
               void queueOfflineVerification(detail.execution.id, payload).then(() => {
-                setMessage("Verification queued for sync");
+                setMessage("Verification saved on this phone. It is not recorded until the server confirms it.");
               });
               return;
             }
@@ -218,13 +218,13 @@ export default function IsolationExecutionScreen() {
         <Text style={{ color: tokens.colors.mutedForeground }}>
           No execution started for this plan.
         </Text>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={{ color: tokens.colors.danger }}>{error}</Text> : null}
         <Pressable
           style={[styles.button, { backgroundColor: tokens.colors.primary, opacity: submitting ? 0.6 : 1 }]}
           onPress={() => void handleStart()}
           disabled={submitting}
         >
-          <Text style={styles.buttonText}>Start isolation</Text>
+          <Text style={[styles.buttonText, { color: tokens.colors.primaryForeground }]}>Start isolation</Text>
         </Pressable>
       </ScrollView>
     );
@@ -232,152 +232,149 @@ export default function IsolationExecutionScreen() {
 
   const execution = detail.execution;
   const canApply = execution.status === "in_progress";
+  const { points, current, left } = isolationProgress(detail.sequence, detail.locks, detail.tags, detail.verifications);
+  const selected = points.find((p) => p.step.isolationPointId === selectedPointId) ?? current;
+  const finished = points.filter((p) => p.done && p !== selected);
+  const c = tokens.colors;
+  const text = { color: c.foreground };
+  const muted = { color: c.mutedForeground };
+  const outline = [styles.secondaryButton, { borderColor: c.border, backgroundColor: c.card }];
+  const primary = (off: boolean) => [styles.button, { backgroundColor: c.primary, opacity: off ? 0.6 : 1 }];
+  const confirmThen = (title: string, body: string, run: () => void) =>
+    Alert.alert(title, body, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Confirm", onPress: run },
+    ]);
 
   return (
-    <ScrollView style={{ backgroundColor: tokens.colors.background }} contentContainerStyle={styles.container}>
-      <Text style={[styles.title, { color: tokens.colors.foreground }]}>
-        {detail.plan?.title ?? "Isolation execution"}
-      </Text>
-      <Text style={{ color: tokens.colors.mutedForeground }}>
-        Status: {execution.status.replace(/_/g, " ")} · Network: {isOnline ? "online" : "offline"}
+    <ScrollView style={{ backgroundColor: c.background }} contentContainerStyle={styles.container}>
+      <Text style={[styles.title, text]}>{detail.plan?.title ?? "Isolation execution"}</Text>
+      <Text style={muted}>
+        {points.length === 0 ? "No isolation sequence configured for this plan." : left === 0 ? `All ${points.length} points done` : `${left} of ${points.length} points to do`}
+        {isOnline ? "" : " · offline"}
       </Text>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {message ? <Text style={styles.success}>{message}</Text> : null}
+      {error ? <Text style={{ color: c.danger }}>{error}</Text> : null}
+      {message ? <Text style={{ color: c.success }}>{message}</Text> : null}
 
-      <Text style={styles.section}>Checklist ({detail.sequence.length} steps)</Text>
-      {detail.sequence.map((step) => {
-        const locked = detail.locks.some(
-          (lock) => lock.isolationPointId === step.isolationPointId && lock.status === "applied",
-        );
-        const tagged = detail.tags.some(
-          (tag) => tag.isolationPointId === step.isolationPointId && tag.status === "applied",
-        );
-        return (
+      {/* Points in the approved order; a point opens once every earlier point is locked. */}
+      <View style={styles.chips}>
+        {points.map((p) => (
           <Pressable
-            key={step.isolationPointId}
-            onPress={() => setSelectedPointId(step.isolationPointId)}
-            style={[
-              styles.step,
-              {
-                borderColor: selectedPointId === step.isolationPointId ? tokens.colors.primary : tokens.colors.border,
-              },
-            ]}
+            key={p.step.isolationPointId}
+            accessibilityRole="button"
+            accessibilityState={{ selected: p === selected, disabled: !p.open && !p.done }}
+            disabled={!p.open && !p.done}
+            onPress={() => setSelectedPointId(p.step.isolationPointId)}
+            style={[styles.chip, { borderColor: p === selected ? c.primary : c.border, opacity: !p.open && !p.done ? 0.5 : 1 }]}
           >
-            <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>
-              {step.sequenceOrder}. {step.isolationNumber}
-            </Text>
-            <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12 }}>
-              {locked ? "Locked" : "Lock pending"} · {tagged ? "Tagged" : "Tag pending"}
+            <Text style={[text, p === selected && { fontWeight: "700" }]}>
+              {`${p.done ? "✓ " : ""}${p.step.sequenceOrder}. ${p.step.isolationNumber}`}
             </Text>
           </Pressable>
-        );
-      })}
+        ))}
+      </View>
 
-      <Text style={styles.section}>Apply lock</Text>
-      <TextInput
-        value={lockTag}
-        onChangeText={setLockTag}
-        placeholder="Lock tag number"
-        style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
-      />
-      <TextInput
-        value={lockMethod}
-        onChangeText={setLockMethod}
-        placeholder="Lock method"
-        style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
-      />
-      <Pressable
-        style={[styles.button, { backgroundColor: tokens.colors.primary, opacity: !canApply || submitting ? 0.6 : 1 }]}
-        onPress={() => void handleApplyLock(false)}
-        disabled={!canApply || submitting}
-      >
-        <Text style={styles.buttonText}>Apply lock</Text>
-      </Pressable>
-      <Pressable
-        style={[styles.secondaryButton, { opacity: !canApply || submitting ? 0.6 : 1 }]}
-        onPress={() => void handleApplyLock(true)}
-        disabled={!canApply || submitting}
-      >
-        <Text style={styles.secondaryButtonText}>Queue lock offline</Text>
-      </Pressable>
+      {selected ? (
+        <View style={[styles.card, { borderColor: c.border, backgroundColor: c.card }]}>
+          <Text style={[styles.section, text]}>{`Point ${selected.step.sequenceOrder}: ${selected.step.isolationNumber}`}</Text>
+          {selected.step.description ? <Text style={muted}>{selected.step.description}</Text> : null}
 
-      <Text style={styles.section}>Apply tag</Text>
-      <TextInput
-        value={tagNumber}
-        onChangeText={setTagNumber}
-        placeholder="Tag number"
-        style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
-      />
-      <Pressable
-        style={[styles.button, { backgroundColor: tokens.colors.primary, opacity: !canApply || submitting ? 0.6 : 1 }]}
-        onPress={() => void handleApplyTag(false)}
-        disabled={!canApply || submitting}
-      >
-        <Text style={styles.buttonText}>Apply tag</Text>
-      </Pressable>
-      <Pressable
-        style={[styles.secondaryButton, { opacity: !canApply || submitting ? 0.6 : 1 }]}
-        onPress={() => void handleApplyTag(true)}
-        disabled={!canApply || submitting}
-      >
-        <Text style={styles.secondaryButtonText}>Queue tag offline</Text>
-      </Pressable>
+          <Text style={[styles.label, text]}>Lock</Text>
+          {selected.lock ? (
+            <Text style={{ color: c.success }}>{`Locked: ${selected.lock.lockTag} · ${selected.lock.lockMethod}`}</Text>
+          ) : (
+            <>
+              <TextInput value={lockTag} onChangeText={setLockTag} placeholder="Lock tag number" placeholderTextColor={c.mutedForeground} style={[styles.input, { borderColor: c.border, color: c.foreground }]} />
+              <TextInput value={lockMethod} onChangeText={setLockMethod} placeholder="Lock method" placeholderTextColor={c.mutedForeground} style={[styles.input, { borderColor: c.border, color: c.foreground }]} />
+              <Pressable accessibilityRole="button" style={primary(!canApply || !selected.open || submitting)} onPress={() => void handleApplyLock(false)} disabled={!canApply || !selected.open || submitting}>
+                <Text style={[styles.buttonText, { color: c.primaryForeground }]}>Apply lock</Text>
+              </Pressable>
+              {!isOnline ? (
+                <Pressable accessibilityRole="button" style={outline} onPress={() => void handleApplyLock(true)} disabled={!canApply || submitting}>
+                  <Text style={[styles.secondaryButtonText, text]}>Save lock on this phone</Text>
+                </Pressable>
+              ) : null}
+            </>
+          )}
 
-      <Text style={styles.section}>Verification</Text>
-      <Pressable style={styles.secondaryButton} onPress={() => void handleVerify()}>
-        <Text style={styles.secondaryButtonText}>Record pass verification</Text>
-      </Pressable>
+          <Text style={[styles.label, text]}>Tag</Text>
+          {selected.tag ? (
+            <Text style={{ color: c.success }}>{`Tagged: ${selected.tag.tagNumber} · ${selected.tag.tagType}`}</Text>
+          ) : (
+            <>
+              <TextInput value={tagNumber} onChangeText={setTagNumber} placeholder="Tag number" placeholderTextColor={c.mutedForeground} style={[styles.input, { borderColor: c.border, color: c.foreground }]} />
+              <Pressable accessibilityRole="button" style={primary(!canApply || submitting)} onPress={() => void handleApplyTag(false)} disabled={!canApply || submitting}>
+                <Text style={[styles.buttonText, { color: c.primaryForeground }]}>Apply tag</Text>
+              </Pressable>
+            </>
+          )}
 
+          {selected.step.requiresVerification ? (
+            <>
+              <Text style={[styles.label, text]}>Verify isolation</Text>
+              {selected.verification ? (
+                <Text style={{ color: c.success }}>Verified</Text>
+              ) : (
+                <Pressable accessibilityRole="button" style={outline} onPress={() => void handleVerify()} disabled={!selected.lock || submitting}>
+                  <Text style={[styles.secondaryButtonText, text, !selected.lock && muted]}>
+                    {selected.lock ? "Record pass verification" : "Lock this point before verifying it"}
+                  </Text>
+                </Pressable>
+              )}
+            </>
+          ) : null}
+
+          <Pressable accessibilityRole="button" style={outline} onPress={() => void handleCameraCapture()}>
+            <Text style={[styles.secondaryButtonText, text]}>Capture evidence photo</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {/* Isolation as a whole: two separate confirmed steps. */}
       {execution.status === "in_progress" ? (
         <Pressable
-          style={[styles.button, { backgroundColor: tokens.colors.primary, opacity: submitting ? 0.6 : 1 }]}
-          onPress={() =>
-            void runAction(async () => {
-              await markIsolationComplete(execution.id);
-            }, "Isolation complete")
-          }
-          disabled={submitting}
+          accessibilityRole="button"
+          style={primary(submitting || points.some((p) => !p.lock))}
+          disabled={submitting || points.some((p) => !p.lock)}
+          onPress={() => confirmThen("Mark isolation complete", "Every point is locked and isolation is complete?", () => void runAction(() => markIsolationComplete(execution.id).then(() => undefined), "Isolation complete"))}
         >
-          <Text style={styles.buttonText}>Mark isolation complete</Text>
+          <Text style={[styles.buttonText, { color: c.primaryForeground }]}>Mark isolation complete</Text>
         </Pressable>
       ) : null}
-
       {execution.status === "isolated" ? (
         <Pressable
-          style={[styles.button, { backgroundColor: tokens.colors.primary, opacity: submitting ? 0.6 : 1 }]}
-          onPress={() =>
-            void runAction(async () => {
-              await markIsolationVerified(execution.id);
-            }, "Isolation verified")
-          }
+          accessibilityRole="button"
+          style={primary(submitting)}
           disabled={submitting}
+          onPress={() => confirmThen("Complete verification", "All required verifications passed and work may start?", () => void runAction(() => markIsolationVerified(execution.id).then(() => undefined), "Isolation verified"))}
         >
-          <Text style={styles.buttonText}>Complete verification</Text>
+          <Text style={[styles.buttonText, { color: c.primaryForeground }]}>Complete verification</Text>
         </Pressable>
       ) : null}
 
-      <Text style={styles.section}>Evidence</Text>
-      <Pressable style={styles.secondaryButton} onPress={() => void handleCameraCapture()}>
-        <Text style={styles.secondaryButtonText}>Capture photo</Text>
-      </Pressable>
-
-      {execution.status === "verified" && detail.plan ? (
-        <Pressable
-          style={[styles.button, { backgroundColor: tokens.colors.primary }]}
-          onPress={() => router.push(`/lototo/restoration/${execution.id}`)}
-        >
-          <Text style={styles.buttonText}>Start restoration</Text>
-        </Pressable>
+      {finished.length > 0 ? (
+        <>
+          <Text style={[styles.section, text]}>{`Finished points (${finished.length})`}</Text>
+          {finished.map((p) => (
+            <Text key={p.step.isolationPointId} style={muted}>
+              {`${p.step.sequenceOrder}. ${p.step.isolationNumber} · lock ${p.lock?.lockTag ?? "—"} · tag ${p.tag?.tagNumber ?? "—"}${p.step.requiresVerification ? " · verified" : ""}`}
+            </Text>
+          ))}
+        </>
       ) : null}
 
-      {execution.status === "verified" && detail.plan?.permitId ? (
-        <Pressable
-          style={[styles.button, { backgroundColor: tokens.colors.primary }]}
-          onPress={() => router.push(`/execution/${detail.plan!.permitId}`)}
-        >
-          <Text style={styles.buttonText}>Open permit execution</Text>
-        </Pressable>
+      {execution.status === "verified" ? (
+        <>
+          <Pressable accessibilityRole="button" style={primary(false)} onPress={() => router.push(`/lototo/restoration/${execution.id}`)}>
+            <Text style={[styles.buttonText, { color: c.primaryForeground }]}>Start restoration</Text>
+          </Pressable>
+          {detail.plan?.permitId ? (
+            <Pressable accessibilityRole="button" style={outline} onPress={() => router.push(`/execution/${detail.plan!.permitId}`)}>
+              <Text style={[styles.secondaryButtonText, text]}>Open permit execution</Text>
+            </Pressable>
+          ) : null}
+        </>
       ) : null}
     </ScrollView>
   );
@@ -387,20 +384,15 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   container: { padding: 16, gap: 10 },
   title: { fontSize: 22, fontWeight: "600" },
-  section: { marginTop: 12, fontSize: 16, fontWeight: "600" },
+  section: { marginTop: 4, fontSize: 16, fontWeight: "600" },
+  label: { marginTop: 8, fontSize: 14, fontWeight: "600" },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { minHeight: 48, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderRadius: 24 },
+  card: { gap: 8, borderWidth: 1, borderRadius: 10, padding: 12 },
   step: { borderWidth: 1, borderRadius: 8, padding: 10 },
-  input: { borderWidth: 1, borderRadius: 8, padding: 10 },
-  button: { borderRadius: 8, padding: 12, alignItems: "center" },
-  buttonText: { color: "#fff", fontWeight: "600" },
-  secondaryButton: {
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    backgroundColor: "#f9fafb",
-  },
-  secondaryButtonText: { color: "#111827", fontWeight: "600" },
-  error: { color: "#b91c1c" },
-  success: { color: "#047857" },
+  input: { minHeight: 48, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12 },
+  button: { minHeight: 48, borderRadius: 8, padding: 12, alignItems: "center", justifyContent: "center" },
+  buttonText: { fontWeight: "600" },
+  secondaryButton: { minHeight: 48, borderRadius: 8, padding: 12, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  secondaryButtonText: { fontWeight: "600" },
 });

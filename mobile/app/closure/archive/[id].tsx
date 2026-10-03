@@ -7,13 +7,17 @@ import type { ArchivedPermitDetail } from "@/lib/closure/types";
 import { openPresignedDownload } from "@/lib/download";
 import { getEvidenceDownloadUrl, listEvidence, listProgress } from "@/lib/execution/api";
 import type { EvidenceRecord } from "@/lib/execution/types";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function HistoricalPermitScreen() {
+  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const permitId = id ?? "";
   const [detail, setDetail] = useState<ArchivedPermitDetail | null>(null);
-  const [progressCount, setProgressCount] = useState(0);
-  const [evidence, setEvidence] = useState<EvidenceRecord[]>([]);
+  // null: could not be loaded (shown as such, never as none).
+  const [progressCount, setProgressCount] = useState<number | null>(0);
+  const [evidence, setEvidence] = useState<EvidenceRecord[] | null>([]);
   const [error, setError] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -24,12 +28,12 @@ export default function HistoricalPermitScreen() {
     }
     Promise.all([
       getArchivedPermit(permitId),
-      listProgress(permitId).catch(() => []),
-      listEvidence(permitId).catch(() => []),
+      listProgress(permitId).catch(() => null),
+      listEvidence(permitId).catch(() => null),
     ])
       .then(([archived, progress, evidenceItems]) => {
         setDetail(archived);
-        setProgressCount(progress.length);
+        setProgressCount(progress ? progress.length : null);
         setEvidence(evidenceItems);
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load record"))
@@ -74,8 +78,8 @@ export default function HistoricalPermitScreen() {
       <Text style={styles.meta}>Status: {detail.permit.status.replace(/_/g, " ")}</Text>
       <Text style={styles.meta}>{detail.permit.workScope ?? "No work scope recorded"}</Text>
       <Text style={styles.section}>Execution summary</Text>
-      <Text style={styles.meta}>{progressCount} progress update(s)</Text>
-      <Text style={styles.meta}>{evidence.length} evidence file(s)</Text>
+      <Text style={styles.meta}>{progressCount === null ? "Progress updates could not be loaded" : `${progressCount} progress update(s)`}</Text>
+      <Text style={styles.meta}>{evidence === null ? "Evidence could not be loaded" : `${evidence.length} evidence file(s)`}</Text>
       {downloadError ? <Text style={styles.error}>{downloadError}</Text> : null}
       {detail.attachments.length > 0 ? (
         <>
@@ -95,7 +99,7 @@ export default function HistoricalPermitScreen() {
           ))}
         </>
       ) : null}
-      {evidence.length > 0 ? (
+      {evidence && evidence.length > 0 ? (
         <>
           <Text style={styles.section}>Evidence</Text>
           {evidence.map((item) => (
@@ -126,11 +130,12 @@ export default function HistoricalPermitScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { padding: 16, gap: 8 },
-  title: { fontSize: 20, fontWeight: "600" },
-  meta: { fontSize: 14, color: "#666" },
-  section: { fontSize: 14, fontWeight: "600", marginTop: 12 },
+  title: { fontSize: 20, fontWeight: "600", color: c.foreground },
+  meta: { fontSize: 14, color: c.mutedForeground },
+  section: { fontSize: 14, fontWeight: "600", marginTop: 12, color: c.foreground },
   downloadRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -138,7 +143,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 6,
   },
-  link: { fontSize: 14, color: "#2563eb", fontWeight: "500" },
-  note: { fontSize: 12, color: "#888", marginTop: 16 },
-  error: { color: "#b91c1c", padding: 16 },
+  link: { fontSize: 14, color: c.primary, fontWeight: "500" },
+  note: { fontSize: 12, color: c.mutedForeground, marginTop: 16 },
+  error: { color: c.danger, padding: 16 },
 });

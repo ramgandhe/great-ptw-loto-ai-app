@@ -17,8 +17,11 @@ import { listTenantUserNames } from "@/lib/workforce/api";
 import { SelectField } from "@/components/ui/select-field";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function IncidentDetailScreen() {
+  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { tokens } = useTheme();
   const { isOnline } = useOffline();
@@ -170,14 +173,15 @@ export default function IncidentDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   container: { padding: 16, gap: 8 },
-  title: { fontSize: 22, fontWeight: "600" },
+  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
   card: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 12, gap: 8 },
   input: { borderWidth: 1, borderRadius: 8, padding: 10, minHeight: 44, textAlignVertical: "top" },
   primaryButton: { borderRadius: 8, padding: 12, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "600" },
+  primaryButtonText: { color: c.primaryForeground, fontWeight: "600" },
   secondaryButton: { borderWidth: 1, borderRadius: 8, padding: 12, alignItems: "center" },
-  error: { color: "#b91c1c" },
+  error: { color: c.danger },
 });

@@ -29,8 +29,11 @@ import {
   formatWorkforceOptionLabel,
 } from "@/lib/permit/form-options";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function LototoPlanDetailScreen() {
+  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { tokens } = useTheme();
   const [plan, setPlan] = useState<LototoPlan | null>(null);
@@ -272,23 +275,24 @@ export default function LototoPlanDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 16 },
   container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600" },
-  section: { marginTop: 12, fontSize: 16, fontWeight: "600" },
+  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
+  section: { marginTop: 12, fontSize: 16, fontWeight: "600", color: c.foreground },
   input: { borderWidth: 1, borderRadius: 8, padding: 10 },
   button: { borderRadius: 8, padding: 12, alignItems: "center" },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  buttonText: { color: c.primaryForeground, fontWeight: "600" },
   secondaryButton: {
     borderRadius: 8,
     padding: 12,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    backgroundColor: "#f9fafb",
+    borderColor: c.border,
+    backgroundColor: c.muted,
   },
-  secondaryButtonText: { color: "#111827", fontWeight: "600" },
-  error: { color: "#b91c1c" },
-  success: { color: "#047857" },
+  secondaryButtonText: { color: c.foreground, fontWeight: "600" },
+  error: { color: c.danger },
+  success: { color: c.success },
 });

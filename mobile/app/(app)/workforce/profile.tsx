@@ -3,8 +3,12 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text } from "react-native";
 import { loadMyProfile } from "@/lib/workforce/offline";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function WorkforceProfileScreen() {
+  const styles = useThemedStyles(createStyles);
+  const themeColors = useTheme().tokens.colors;
   const { tokens } = useTheme();
   const [profile, setProfile] = useState<WorkforceRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +27,7 @@ export default function WorkforceProfileScreen() {
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { padding: tokens.spacing.lg }]}>
-      {error ? <Text style={{ color: "#b91c1c" }}>{error}</Text> : null}
+      {error ? <Text style={{ color: themeColors.danger }}>{error}</Text> : null}
       {!profile ? (
         <Text style={{ color: tokens.colors.mutedForeground }}>No profile cached.</Text>
       ) : (
@@ -38,7 +42,8 @@ export default function WorkforceProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { gap: 8 },
-  title: { fontSize: 20, fontWeight: "600" },
+  title: { fontSize: 20, fontWeight: "600", color: c.foreground },
 });

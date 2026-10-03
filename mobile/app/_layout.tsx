@@ -6,12 +6,20 @@ import { OfflineProvider } from "@/providers/offline-provider";
 import { ThemeProvider, useTheme } from "@/providers/theme-provider";
 
 function RootNavigation() {
-  const { preferences } = useTheme();
+  const { preferences, tokens } = useTheme();
 
   return (
     <>
       <StatusBar style={preferences.mode === "dark" ? "light" : "dark"} />
-      <Stack screenOptions={{ headerShown: false }}>
+      {/* Every screen and header on the theme's colours, so dark mode is dark everywhere. */}
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: tokens.colors.background },
+          headerStyle: { backgroundColor: tokens.colors.card },
+          headerTintColor: tokens.colors.foreground,
+        }}
+      >
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(app)" />

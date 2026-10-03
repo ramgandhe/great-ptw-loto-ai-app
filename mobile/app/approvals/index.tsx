@@ -4,8 +4,11 @@ import { router } from "expo-router";
 import { ApiError } from "@/lib/api";
 import { listPendingApprovals } from "@/lib/approval/api";
 import type { PendingApprovalItem } from "@/lib/approval/types";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function PendingApprovalsScreen() {
+  const styles = useThemedStyles(createStyles);
   const [items, setItems] = useState<PendingApprovalItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +35,7 @@ export default function PendingApprovalsScreen() {
         <FlatList
           data={items}
           keyExtractor={(item) => item.assignment.id}
-          ListEmptyComponent={<Text style={styles.empty}>No pending approvals.</Text>}
+          ListEmptyComponent={error ? null : <Text style={styles.empty}>No pending approvals.</Text>}
           renderItem={({ item }) => (
             <Pressable
               style={styles.card}
@@ -40,7 +43,7 @@ export default function PendingApprovalsScreen() {
             >
               <Text style={styles.cardTitle}>{item.permit.title}</Text>
               <Text style={styles.cardMeta}>
-                {item.permit.reference ?? item.permit.id.slice(0, 8)} · {item.step.name}
+                {item.permit.reference ?? "No reference yet"} · {item.step.name}
               </Text>
               <Text style={styles.cardMeta}>
                 {item.permit.status.replace(/_/g, " ")}
@@ -53,18 +56,19 @@ export default function PendingApprovalsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { flex: 1, padding: 16, gap: 8 },
-  subtitle: { fontSize: 14, color: "#666" },
+  subtitle: { fontSize: 14, color: c.mutedForeground },
   card: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: c.border,
     borderRadius: 10,
     padding: 12,
     marginBottom: 8,
   },
-  cardTitle: { fontSize: 16, fontWeight: "600" },
-  cardMeta: { fontSize: 12, color: "#666", marginTop: 4 },
-  empty: { color: "#666", marginTop: 16 },
-  error: { color: "#b91c1c" },
+  cardTitle: { fontSize: 16, fontWeight: "600", color: c.foreground },
+  cardMeta: { fontSize: 12, color: c.mutedForeground, marginTop: 4 },
+  empty: { color: c.mutedForeground, marginTop: 16 },
+  error: { color: c.danger },
 });

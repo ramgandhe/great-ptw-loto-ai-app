@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
 import { fieldClassName } from "./form-field";
 
 type PlannedDateTimeFieldProps = {
+  /** Error wiring from FormField, passed to the date button that carries the field's id. */
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
   id: string;
   value: string;
   disabled?: boolean;
@@ -43,6 +46,7 @@ export function PlannedDateTimeField({
   disabled,
   minValue,
   onChange,
+  ...aria
 }: PlannedDateTimeFieldProps) {
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -99,6 +103,7 @@ export function PlannedDateTimeField({
       <div className="relative">
         <button
           id={id}
+          {...aria}
           type="button"
           disabled={disabled}
           aria-haspopup="dialog"

@@ -13,6 +13,7 @@ const baseLight = {
   danger: "#b91c1c",
   dangerBg: "#fee2e2",
   warning: "#92400e",
+  warningBg: "#fef3c7",
 };
 
 const baseDark = {
@@ -28,6 +29,7 @@ const baseDark = {
   danger: "#fca5a5",
   dangerBg: "#7f1d1d",
   warning: "#fcd34d",
+  warningBg: "#78350f",
 };
 
 const primaryByTheme: Record<ThemeName, string> = {

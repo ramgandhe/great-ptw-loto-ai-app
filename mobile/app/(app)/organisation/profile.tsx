@@ -3,8 +3,12 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-nat
 import { loadOrganisationProfile } from "@/lib/organisation/offline";
 import type { Organisation } from "@/lib/organisation/types";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function OrganisationProfileScreen() {
+  const styles = useThemedStyles(createStyles);
+  const themeColors = useTheme().tokens.colors;
   const { tokens } = useTheme();
   const [org, setOrg] = useState<Organisation | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +27,7 @@ export default function OrganisationProfileScreen() {
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { padding: tokens.spacing.lg }]}>
-      {error ? <Text style={{ color: "#b91c1c" }}>{error}</Text> : null}
+      {error ? <Text style={{ color: themeColors.danger }}>{error}</Text> : null}
       {!org ? (
         <Text style={{ color: tokens.colors.mutedForeground }}>No organisation profile cached.</Text>
       ) : (
@@ -40,7 +44,8 @@ export default function OrganisationProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { gap: 8 },
-  title: { fontSize: 20, fontWeight: "600" },
+  title: { fontSize: 20, fontWeight: "600", color: c.foreground },
 });

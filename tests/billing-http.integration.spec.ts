@@ -75,11 +75,12 @@ describe('Billing HTTP API (PUS-211)', () => {
     try {
       await pool.query('SELECT 1');
       canConnect = true;
-      await migrate(db, { migrationsFolder });
     } catch {
       canConnect = false;
       return;
     }
+    // A failed migration fails the suite; it must never look like "no database".
+    await migrate(db, { migrationsFolder });
 
     app = await createTestApp(adminUser);
   });

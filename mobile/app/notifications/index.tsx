@@ -8,8 +8,11 @@ import type { Notification } from "@/lib/notifications/types";
 import { getNotificationEntityRoute } from "@/lib/notifications/routes";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function NotificationsScreen() {
+  const styles = useThemedStyles(createStyles);
   const { tokens } = useTheme();
   const { isOnline } = useOffline();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -93,7 +96,7 @@ export default function NotificationsScreen() {
           >
             <Text
               style={{
-                color: filter === value ? "#fff" : tokens.colors.foreground,
+                color: filter === value ? tokens.colors.primaryForeground : tokens.colors.foreground,
                 fontWeight: "500",
                 fontSize: 12,
               }}
@@ -171,10 +174,11 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600" },
+  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
   filterRow: { flexDirection: "row", gap: 8, marginTop: 8 },
   filterButton: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
   card: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 8 },
@@ -187,5 +191,5 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginTop: 8,
   },
-  error: { color: "#b91c1c", marginTop: 8 },
+  error: { color: c.danger, marginTop: 8 },
 });

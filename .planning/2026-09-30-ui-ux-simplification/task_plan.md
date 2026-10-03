@@ -4,7 +4,7 @@
 Simplify web and mobile data entry, onboarding, page flow, and feedback using existing components and approved themes; preserve validated safety workflows, RBAC, tenant isolation, and auditability. Review the complete plan before implementation.
 
 ## Next Step
-Closure review (closure-review.md, 2026-10-01) keeps the objective open. P1 safety findings and conflict recovery are fixed (see its response section); remaining: the P2 scope items listed there, physical-phone acceptance with a development build, 200% zoom/keyboard checks and the 32-combination appearance matrix — or explicit descoping by the user.
+Closure review (closure-review.md) keeps the objective open. P1 and P2 findings are fixed (see its response sections) apart from the native execution/daily-operations rework; remaining acceptance: physical-phone development-build pass, 200% zoom/keyboard checks and the 32-combination appearance matrix — or explicit descoping by the user.
 
 ## Current Phase
 Phase 4/5 — implementation of S0a–S7 done; closure-review follow-up in progress
@@ -52,7 +52,7 @@ Phase 4/5 — implementation of S0a–S7 done; closure-review follow-up in progr
   - [~] S6 native: Home, forms step, stage signatures, closure fixes; sectioned native editor and LOTOTO/SIMOPS/execution/multi-day/reference screens not reworked.
   - [x] S7 web route sweep (84 routes × 3 roles × 2 widths); journeys rerun.
   - [x] Closure review P1 fixes: captured stage requirements, stage ownership and new-round reset, three-way conflict merge (web and native); DB test runs fail without a database.
-  - [ ] Closure review P2 items still open (see closure-review.md response).
+  - [x] Closure review P2 items (see closure-review.md "P2 follow-up"); open: native execution/daily-operations rework.
 - [ ] Reuse existing shared components, tokens, APIs, and business rules.
 - **Status:** in_progress
 

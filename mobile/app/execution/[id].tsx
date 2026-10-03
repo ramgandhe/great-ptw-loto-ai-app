@@ -22,8 +22,11 @@ import {
 import { initExecutionOfflineStorage, queueOfflineEvidence, queueOfflineProgress } from "@/lib/execution/offline";
 import { getPermit } from "@/lib/permit/api";
 import type { PermitDetail } from "@/lib/permit/types";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function ExecutePermitScreen() {
+  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const permitId = id ?? "";
   const [detail, setDetail] = useState<PermitDetail | null>(null);
@@ -107,7 +110,7 @@ export default function ExecutePermitScreen() {
       if (!offline && err instanceof ApiError) {
         try {
           await queueOfflineProgress(permitId, summary.trim());
-          setMessage("Network error — progress queued offline");
+          setMessage("No connection. Progress saved on this phone; it is not recorded until the server confirms it.");
           setSummary("");
         } catch {
           setError(err.message);
@@ -154,7 +157,7 @@ export default function ExecutePermitScreen() {
         fileName: file.name,
         contentType: file.type,
       });
-      setMessage("Upload failed — evidence queued for sync");
+      setMessage("Upload failed. Evidence saved on this phone; it is not attached until the server confirms it.");
     } finally {
       setSubmitting(false);
     }
@@ -263,14 +266,15 @@ export default function ExecutePermitScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { padding: 16, gap: 10 },
-  title: { fontSize: 20, fontWeight: "600" },
-  meta: { fontSize: 13, color: "#666", textTransform: "capitalize" },
-  sectionTitle: { fontSize: 14, fontWeight: "600", marginTop: 8 },
+  title: { fontSize: 20, fontWeight: "600", color: c.foreground },
+  meta: { fontSize: 13, color: c.mutedForeground, textTransform: "capitalize" },
+  sectionTitle: { fontSize: 14, fontWeight: "600", marginTop: 8, color: c.foreground },
   input: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: c.border,
     borderRadius: 8,
     padding: 10,
     minHeight: 80,
@@ -278,28 +282,28 @@ const styles = StyleSheet.create({
   },
   actions: { gap: 8 },
   primaryButton: {
-    backgroundColor: "#1f2937",
+    backgroundColor: c.primary,
     borderRadius: 8,
     padding: 12,
     alignItems: "center",
   },
-  primaryButtonText: { color: "#fff", fontWeight: "500" },
+  primaryButtonText: { color: c.primaryForeground, fontWeight: "500" },
   secondaryButton: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: c.border,
     borderRadius: 8,
     padding: 12,
     alignItems: "center",
   },
-  secondaryButtonText: { color: "#111827", fontWeight: "500" },
+  secondaryButtonText: { color: c.foreground, fontWeight: "500" },
   dangerButton: {
-    backgroundColor: "#b91c1c",
+    backgroundColor: c.danger,
     borderRadius: 8,
     padding: 12,
     alignItems: "center",
   },
   links: { marginTop: 16, gap: 8 },
-  link: { color: "#2563eb", fontSize: 14 },
-  error: { color: "#b91c1c" },
-  message: { color: "#059669" },
+  link: { color: c.primary, fontSize: 14 },
+  error: { color: c.danger },
+  message: { color: c.success },
 });

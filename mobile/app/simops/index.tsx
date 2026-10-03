@@ -5,12 +5,15 @@ import { ApiError } from "@/lib/api";
 import { listSimopsConflicts } from "@/lib/simops/api";
 import type { SimopsConflict } from "@/lib/simops/types";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 function severityLabel(severity: SimopsConflict["severity"]) {
   return `${severity[0].toUpperCase()}${severity.slice(1)} severity`;
 }
 
 export default function SimopsConflictsScreen() {
+  const styles = useThemedStyles(createStyles);
   const { tokens } = useTheme();
   const [conflicts, setConflicts] = useState<SimopsConflict[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,10 +71,11 @@ export default function SimopsConflictsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600" },
+  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
   card: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 8 },
-  error: { color: "#b91c1c", marginTop: 8 },
+  error: { color: c.danger, marginTop: 8 },
 });

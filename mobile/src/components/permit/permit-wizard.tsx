@@ -13,7 +13,6 @@ import { ApiError } from "@/lib/api";
 import { createPermit, getPermit, isRevisionConflict, savePermitDraft, submitPermit, uploadPermitAttachment } from "@/lib/permit/api";
 import {
   createEmptyPermitForm,
-  FORMS_STEP,
   formToSavePayload,
   PERMIT_WIZARD_STEPS,
   permitDetailToForm,
@@ -44,6 +43,9 @@ import {
   loadPermitFormOptions,
 } from "@/lib/permit/form-options";
 import { mergeAfterConflict, resolveConflict, type FieldConflict } from "@/lib/permit/conflict";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
+import { useTheme } from "@/providers/theme-provider";
 
 type PermitWizardProps = {
   mode: "create" | "edit";
@@ -56,9 +58,8 @@ function createLocalId() {
   return `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-const inputStyle = {
+const inputBase = {
   borderWidth: 1,
-  borderColor: "#d1d5db",
   borderRadius: 8,
   paddingHorizontal: 12,
   paddingVertical: 10,
@@ -66,6 +67,8 @@ const inputStyle = {
 } as const;
 
 export function PermitWizard({ mode, permitId, initialDetail, initialForm }: PermitWizardProps) {
+  const inputStyle = { ...inputBase, borderColor: useTheme().tokens.colors.border, color: useTheme().tokens.colors.foreground };
+  const styles = useThemedStyles(createStyles);
   const [form, setForm] = useState<PermitFormState>(
     initialForm ?? (initialDetail ? permitDetailToForm(initialDetail) : createEmptyPermitForm()),
   );
@@ -277,7 +280,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     setMessage(null);
     try {
       const saved = await persistDraft();
-      setMessage(saved.queued ? "Draft saved offline and queued for sync" : "Draft saved");
+      setMessage(saved.queued ? "Draft saved on this phone. Pending server confirmation." : "Draft saved");
     } catch (error) {
       setMessage(error instanceof ApiError ? error.message : "Failed to save draft");
     } finally {
@@ -285,27 +288,6 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     }
   };
 
-  const handleNext = async () => {
-    const stepErrors = form.currentStep === FORMS_STEP ? missingFormAnswers(forms, prefilled.formResponses) : validateStep(form, form.currentStep);
-    setErrors(stepErrors);
-    if (stepErrors.length > 0) {
-      return;
-    }
-
-    setIsBusy(true);
-    setMessage(null);
-    try {
-      await persistDraft();
-      setForm((current) => ({
-        ...current,
-        currentStep: Math.min(current.currentStep + 1, PERMIT_WIZARD_STEPS.length - 1),
-      }));
-    } catch (error) {
-      setMessage(error instanceof ApiError ? error.message : "Failed to save progress");
-    } finally {
-      setIsBusy(false);
-    }
-  };
 
   const handlePickAttachment = async () => {
     if (!currentPermitId) {
@@ -371,12 +353,10 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     }
   };
 
-  const step = form.currentStep;
-
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>{mode === "create" ? "Create permit" : "Edit draft"}</Text>
-      <Text style={styles.subtitle}>{PERMIT_WIZARD_STEPS[step]}</Text>
+      <Text style={styles.subtitle}>All sections on one page. Save at any point; submit when everything is filled in.</Text>
 
       {queuedOffline ? (
         <Text style={styles.banner}>Offline mode — changes will sync when connected.</Text>
@@ -416,8 +396,9 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
         </View>
       ))}
 
-      {step === 0 ? (
-        <View style={styles.section}>
+      {/* Work */}
+      <View style={styles.section}>
+        <Text style={styles.sectionHeader} accessibilityRole="header">Work</Text>
           <SelectField
             label="Permit type"
             value={form.permitTypeId}
@@ -444,10 +425,10 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
             onChangeText={(value) => setForm({ ...form, workScope: value })}
           />
         </View>
-      ) : null}
 
-      {step === 1 ? (
-        <View style={styles.section}>
+      {/* Place and schedule */}
+      <View style={styles.section}>
+        <Text style={styles.sectionHeader} accessibilityRole="header">Place and schedule</Text>
           <SelectField
             label="Plant"
             value={form.plantId}
@@ -532,10 +513,10 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
             placeholder="2026-07-28T17:00"
           />
         </View>
-      ) : null}
 
-      {step === 2 ? (
-        <View style={styles.section}>
+      {/* Site safety */}
+      <View style={styles.section}>
+        <Text style={styles.sectionHeader} accessibilityRole="header">Site safety</Text>
           <Text style={styles.sectionTitle}>Hazards</Text>
           {form.hazards.map((hazard, index) => (
             <View key={`hazard-${index}`} style={styles.card}>
@@ -711,10 +692,10 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
             </>
           ) : null}
         </View>
-      ) : null}
 
-      {step === 3 ? (
-        <View style={styles.section}>
+      {/* Crew */}
+      <View style={styles.section}>
+        <Text style={styles.sectionHeader} accessibilityRole="header">Crew</Text>
           {form.executors.map((executor, index) => (
             <View key={`executor-${index}`} style={styles.card}>
               <SelectField
@@ -746,10 +727,10 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
             <Text style={styles.secondaryButtonText}>Add executor</Text>
           </Pressable>
         </View>
-      ) : null}
 
-      {step === FORMS_STEP ? (
-        <View style={styles.section}>
+      {/* Forms and check sheets */}
+      <View style={styles.section}>
+        <Text style={styles.sectionHeader} accessibilityRole="header">Forms and check sheets</Text>
           {forms.length === 0 ? (
             <Text style={styles.hint}>No forms or check sheets apply to this permit type.</Text>
           ) : (
@@ -766,10 +747,10 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
             ))
           )}
         </View>
-      ) : null}
 
-      {step === FORMS_STEP + 1 ? (
-        <View style={styles.section}>
+      {/* Review */}
+      <View style={styles.section}>
+        <Text style={styles.sectionHeader} accessibilityRole="header">Review</Text>
           <Text style={styles.summaryTitle}>{form.title}</Text>
           <Text style={styles.summaryLine}>Type: {formOptions?.permitTypes.find((t) => t.id === form.permitTypeId)?.name ?? "—"}</Text>
           <Text style={styles.summaryLine}>Location: {formOptions?.locations.find((l) => l.id === form.locationId)?.name ?? "—"}</Text>
@@ -799,71 +780,57 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
             </Pressable>
           ) : null}
         </View>
-      ) : null}
 
       <View style={styles.actions}>
-        {step > 0 ? (
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() => setForm({ ...form, currentStep: step - 1 })}
-            disabled={isBusy}
-          >
-            <Text style={styles.secondaryButtonText}>Back</Text>
-          </Pressable>
-        ) : null}
         <Pressable style={styles.secondaryButton} onPress={() => void handleSaveDraft()} disabled={isBusy}>
           {isBusy ? <ActivityIndicator /> : <Text style={styles.secondaryButtonText}>Save draft</Text>}
         </Pressable>
-        {step < PERMIT_WIZARD_STEPS.length - 1 ? (
-          <Pressable style={styles.primaryButton} onPress={() => void handleNext()} disabled={isBusy}>
-            <Text style={styles.primaryButtonText}>Next</Text>
-          </Pressable>
-        ) : (
-          <Pressable style={styles.primaryButton} onPress={() => void handleSubmit()} disabled={isBusy}>
-            <Text style={styles.primaryButtonText}>Submit</Text>
-          </Pressable>
-        )}
+        <Pressable style={styles.primaryButton} onPress={() => void handleSubmit()} disabled={isBusy}>
+          <Text style={styles.primaryButtonText}>Submit</Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { padding: 16, gap: 12 },
-  title: { fontSize: 22, fontWeight: "600" },
-  subtitle: { fontSize: 14, color: "#666" },
+  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
+  subtitle: { fontSize: 14, color: c.mutedForeground },
+  sectionHeader: { fontSize: 18, fontWeight: "700", marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border, color: c.foreground },
   banner: {
-    backgroundColor: "#fef3c7",
-    color: "#92400e",
+    backgroundColor: c.warningBg,
+    color: c.warning,
     padding: 10,
     borderRadius: 8,
     fontSize: 13,
   },
   section: { gap: 10 },
-  sectionTitle: { fontSize: 16, fontWeight: "600", marginTop: 8 },
-  label: { fontSize: 13, fontWeight: "500" },
-  card: { gap: 8, padding: 10, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 8 },
+  sectionTitle: { fontSize: 16, fontWeight: "600", marginTop: 8, color: c.foreground },
+  label: { fontSize: 13, fontWeight: "500", color: c.foreground },
+  card: { gap: 8, padding: 10, borderWidth: 1, borderColor: c.border, borderRadius: 8 },
   textArea: { minHeight: 80, textAlignVertical: "top" },
-  errorBox: { backgroundColor: "#fee2e2", padding: 10, borderRadius: 8, gap: 4 },
-  errorText: { color: "#b91c1c", fontSize: 13 },
-  message: { color: "#2563eb", fontSize: 13 },
-  summaryTitle: { fontSize: 18, fontWeight: "600" },
-  summaryLine: { fontSize: 14, color: "#444" },
-  hint: { fontSize: 12, color: "#666" },
+  errorBox: { backgroundColor: c.dangerBg, padding: 10, borderRadius: 8, gap: 4 },
+  errorText: { color: c.danger, fontSize: 13 },
+  message: { color: c.primary, fontSize: 13 },
+  summaryTitle: { fontSize: 18, fontWeight: "600", color: c.foreground },
+  summaryLine: { fontSize: 14, color: c.mutedForeground },
+  hint: { fontSize: 12, color: c.mutedForeground },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
   primaryButton: {
-    backgroundColor: "#1f2937",
+    backgroundColor: c.primary,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
   },
-  primaryButtonText: { color: "#fff", fontWeight: "600" },
+  primaryButtonText: { color: c.primaryForeground, fontWeight: "600" },
   secondaryButton: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: c.border,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
   },
-  secondaryButtonText: { color: "#111827", fontWeight: "500" },
+  secondaryButtonText: { color: c.foreground, fontWeight: "500" },
 });

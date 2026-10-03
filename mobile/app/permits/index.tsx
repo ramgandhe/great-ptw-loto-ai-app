@@ -11,6 +11,8 @@ import {
 } from "@/lib/permit/offline";
 import { isEditablePermitStatus } from "@/lib/permit/status";
 import type { PermitRecord } from "@/lib/permit/types";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 type Tab = "drafts" | "submitted";
 
@@ -22,6 +24,7 @@ const SUBMITTED_STATUSES = [
 ] as const;
 
 export default function PermitsScreen() {
+  const styles = useThemedStyles(createStyles);
   const [tab, setTab] = useState<Tab>("drafts");
   const [permits, setPermits] = useState<PermitRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +102,7 @@ export default function PermitsScreen() {
         <FlatList
           data={permits}
           keyExtractor={(item) => item.id}
-          ListEmptyComponent={<Text style={styles.empty}>No permits found.</Text>}
+          ListEmptyComponent={error ? null : <Text style={styles.empty}>No permits found.</Text>}
           renderItem={({ item }) => (
             <Pressable
               style={styles.card}
@@ -116,7 +119,7 @@ export default function PermitsScreen() {
                 {/* A permit made offline is not on the server yet; say so instead of a status it does not have. */}
                 {isLocalPermitId(item.id)
                   ? "Pending server confirmation"
-                  : `${item.reference ?? item.id.slice(0, 8)} · ${item.status.replace(/_/g, " ")}`}
+                  : `${item.reference ?? "No reference yet"} · ${item.status.replace(/_/g, " ")}`}
               </Text>
             </Pressable>
           )}
@@ -126,36 +129,37 @@ export default function PermitsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { flex: 1, padding: 16, gap: 12 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  title: { fontSize: 22, fontWeight: "600" },
+  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
   tabs: { flexDirection: "row", gap: 8 },
   tab: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: c.muted,
   },
-  tabActive: { backgroundColor: "#1f2937" },
-  tabText: { fontSize: 13, color: "#374151" },
-  tabTextActive: { color: "#fff" },
+  tabActive: { backgroundColor: c.primary },
+  tabText: { fontSize: 13, color: c.mutedForeground },
+  tabTextActive: { color: c.primaryForeground },
   primaryButton: {
-    backgroundColor: "#1f2937",
+    backgroundColor: c.primary,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
   },
-  primaryButtonText: { color: "#fff", fontWeight: "600" },
+  primaryButtonText: { color: c.primaryForeground, fontWeight: "600" },
   card: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: c.border,
     borderRadius: 10,
     padding: 12,
     marginBottom: 8,
   },
-  cardTitle: { fontSize: 16, fontWeight: "600" },
-  cardMeta: { fontSize: 12, color: "#666", marginTop: 4 },
-  empty: { color: "#666", marginTop: 16 },
-  error: { color: "#b91c1c" },
+  cardTitle: { fontSize: 16, fontWeight: "600", color: c.foreground },
+  cardMeta: { fontSize: 12, color: c.mutedForeground, marginTop: 4 },
+  empty: { color: c.mutedForeground, marginTop: 16 },
+  error: { color: c.danger },
 });

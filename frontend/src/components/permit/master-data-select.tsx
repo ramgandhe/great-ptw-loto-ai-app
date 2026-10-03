@@ -2,6 +2,9 @@ import { fieldClassName } from "./form-field";
 import type { MasterDataRecord } from "@/lib/master-data/api";
 
 type MasterDataSelectProps = {
+  /** Error wiring from FormField, passed to the select itself. */
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
   id: string;
   value: string;
   options: MasterDataRecord[];
@@ -17,10 +20,12 @@ export function MasterDataSelect({
   disabled,
   placeholder = "Select…",
   onChange,
+  ...aria
 }: MasterDataSelectProps) {
   return (
     <select
       id={id}
+      {...aria}
       className={fieldClassName}
       value={value}
       disabled={disabled}

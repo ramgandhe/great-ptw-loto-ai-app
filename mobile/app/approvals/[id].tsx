@@ -22,10 +22,13 @@ import { permitDetailToForm } from "@/lib/permit/form";
 import { stageAnswersLeft, stageAnswersPayload, type StageAnswerEdits } from "@/lib/permit/forms";
 import { StageAnswers, useSignerName } from "@/components/permit/stage-answers";
 import { useOrgNames } from "@/lib/permit/names";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 type ActionMode = "approve" | "reject" | "defer" | null;
 
 export default function PermitApprovalReviewScreen() {
+  const styles = useThemedStyles(createStyles);
   const names = useOrgNames();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [review, setReview] = useState<ApprovalReview | null>(null);
@@ -129,7 +132,7 @@ export default function PermitApprovalReviewScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>{review.permit.title}</Text>
       <Text style={styles.meta}>
-        {review.permit.reference ?? review.permit.id.slice(0, 8)} ·{" "}
+        {review.permit.reference ?? "No reference yet"} ·{" "}
         {review.permit.status.replace(/_/g, " ")}
       </Text>
 
@@ -249,55 +252,56 @@ export default function PermitApprovalReviewScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { padding: 16, gap: 12, paddingBottom: 32 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 16 },
-  title: { fontSize: 22, fontWeight: "600" },
-  meta: { fontSize: 13, color: "#666" },
+  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
+  meta: { fontSize: 13, color: c.mutedForeground },
   section: { gap: 6, marginTop: 8 },
-  sectionTitle: { fontSize: 15, fontWeight: "600" },
+  sectionTitle: { fontSize: 15, fontWeight: "600", color: c.foreground },
   workflowRow: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: c.border,
     borderRadius: 8,
     padding: 10,
     marginTop: 4,
   },
-  workflowTitle: { fontSize: 14, fontWeight: "500" },
+  workflowTitle: { fontSize: 14, fontWeight: "500", color: c.foreground },
   linkButton: { marginTop: 8 },
-  linkButtonText: { color: "#2563eb", fontWeight: "500" },
+  linkButtonText: { color: c.primary, fontWeight: "500" },
   actions: { marginTop: 16, gap: 8 },
   primaryButton: {
-    backgroundColor: "#1f2937",
+    backgroundColor: c.primary,
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
   },
-  primaryButtonText: { color: "#fff", fontWeight: "600" },
+  primaryButtonText: { color: c.primaryForeground, fontWeight: "600" },
   destructiveButton: {
-    backgroundColor: "#fee2e2",
+    backgroundColor: c.dangerBg,
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
   },
-  destructiveButtonText: { color: "#b91c1c", fontWeight: "600" },
+  destructiveButtonText: { color: c.danger, fontWeight: "600" },
   secondaryButton: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: c.border,
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
   },
-  secondaryButtonText: { color: "#111827", fontWeight: "600" },
+  secondaryButtonText: { color: c.foreground, fontWeight: "600" },
   commentBox: { gap: 8 },
   textInput: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: c.border,
     borderRadius: 8,
     minHeight: 96,
     padding: 10,
     textAlignVertical: "top",
   },
   actionRow: { flexDirection: "row", gap: 8 },
-  error: { color: "#b91c1c" },
+  error: { color: c.danger },
 });

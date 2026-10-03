@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -22,6 +22,7 @@ import {
   restoreEquipment,
 } from "@/lib/restoration/api";
 import type { RestorationDetail } from "@/lib/restoration/types";
+import { restorationProgress } from "@/lib/restoration/progress";
 import {
   queueOfflineEquipmentRestore,
   queueOfflineLockRemoval,
@@ -46,15 +47,6 @@ export default function RestorationScreen() {
   const [selectedPointId, setSelectedPointId] = useState("");
   const [restoreMethod, setRestoreMethod] = useState("re-energise");
 
-  const removedLockIds = useMemo(
-    () => new Set(restoration?.lockRemovals.map((item) => item.appliedLockId) ?? []),
-    [restoration?.lockRemovals],
-  );
-  const removedTagIds = useMemo(
-    () => new Set(restoration?.tagRemovals.map((item) => item.appliedTagId) ?? []),
-    [restoration?.tagRemovals],
-  );
-
   async function load() {
     if (!executionId) {
       return;
@@ -67,9 +59,8 @@ export default function RestorationScreen() {
     setExecutionDetail(iso);
     setRestoration(rest);
     setHistoryCount(hist.length);
-    if (!selectedPointId && iso.sequence[0]) {
-      setSelectedPointId(iso.sequence[0].isolationPointId);
-    }
+    // Work on the first point with something still on it.
+    setSelectedPointId(restorationProgress(iso.sequence, iso.locks, iso.tags, rest).current?.step.isolationPointId ?? "");
   }
 
   useEffect(() => {
@@ -86,8 +77,8 @@ export default function RestorationScreen() {
     setMessage(null);
     try {
       await action();
-      setMessage(successMessage);
       await load();
+      setMessage((current) => current ?? successMessage);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Action failed");
     } finally {
@@ -106,161 +97,146 @@ export default function RestorationScreen() {
   if (!executionDetail || !restoration) {
     return (
       <View style={[styles.centered, { backgroundColor: tokens.colors.background }]}>
-        <Text style={styles.error}>{error ?? "Restoration not found"}</Text>
+        <Text style={{ color: tokens.colors.danger }}>{error ?? "Restoration not found"}</Text>
       </View>
     );
   }
 
   const canRestore = restoration.execution.status === "verified";
-  const activeLocks = executionDetail.locks.filter(
-    (lock) => lock.status === "applied" && !removedLockIds.has(lock.id),
-  );
-  const activeTags = executionDetail.tags.filter(
-    (tag) => tag.status === "applied" && !removedTagIds.has(tag.id),
-  );
+  const { points, current, outstanding } = restorationProgress(executionDetail.sequence, executionDetail.locks, executionDetail.tags, restoration);
+  const selected = points.find((p) => p.step.isolationPointId === selectedPointId) ?? current;
+  const c = tokens.colors;
+  const text = { color: c.foreground };
+  const muted = { color: c.mutedForeground };
+  const outline = [styles.secondaryButton, { borderColor: c.border, backgroundColor: c.card }];
+  // Each removal and restoration is its own confirmed step. Offline, it is saved on the phone and
+  // reported as not done until the server confirms it.
+  const confirmed = (title: string, body: string, online: () => Promise<unknown>, offline: () => Promise<unknown>, done: string) =>
+    Alert.alert(title, body, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Confirm",
+        onPress: () =>
+          void runAction(async () => {
+            if (isOnline) await online();
+            else {
+              await offline();
+              setMessage(`${done}: saved on this phone, not done until the server confirms it.`);
+            }
+          }, done),
+      },
+    ]);
 
   return (
-    <ScrollView style={{ backgroundColor: tokens.colors.background }} contentContainerStyle={styles.container}>
-      <Text style={[styles.title, { color: tokens.colors.foreground }]}>
-        {executionDetail.plan?.title ?? "Restoration"}
+    <ScrollView style={{ backgroundColor: c.background }} contentContainerStyle={styles.container}>
+      <Text style={[styles.title, text]}>{executionDetail.plan?.title ?? "Restoration"}</Text>
+      <Text style={muted}>
+        {`Still on: ${outstanding.locks} lock${outstanding.locks === 1 ? "" : "s"}, ${outstanding.tags} tag${outstanding.tags === 1 ? "" : "s"}; ${outstanding.points} of ${points.length} points to restore${isOnline ? "" : " · offline"}`}
       </Text>
-      <Text style={{ color: tokens.colors.mutedForeground }}>
-        Status: {restoration.execution.status} · Network: {isOnline ? "online" : "offline"}
-      </Text>
+      {!canRestore && restoration.execution.status !== "restored" ? <Text style={{ color: c.warning }}>Restoration starts once the isolation is verified.</Text> : null}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {message ? <Text style={styles.success}>{message}</Text> : null}
+      {error ? <Text style={{ color: c.danger }}>{error}</Text> : null}
+      {message ? <Text style={{ color: c.success }}>{message}</Text> : null}
 
-      <Text style={styles.section}>Remove locks ({activeLocks.length})</Text>
-      {activeLocks.map((lock) => (
-        <View key={lock.id} style={styles.row}>
-          <Text style={{ color: tokens.colors.foreground, flex: 1 }}>{lock.lockTag}</Text>
+      <View style={styles.chips}>
+        {points.map((p) => (
           <Pressable
-            style={styles.secondaryButton}
-            disabled={!canRestore || submitting}
-            onPress={() => {
-              const action = async () => {
-                if (!isOnline) {
-                  await queueOfflineLockRemoval(executionId!, { appliedLockId: lock.id });
-                  setMessage("Lock removal queued");
-                  return;
-                }
-                await removeLock(executionId!, lock.id);
-              };
-              void runAction(action, "Lock removed");
-            }}
+            key={p.step.isolationPointId}
+            accessibilityRole="button"
+            accessibilityState={{ selected: p === selected }}
+            onPress={() => setSelectedPointId(p.step.isolationPointId)}
+            style={[styles.chip, { borderColor: p === selected ? c.primary : c.border }]}
           >
-            <Text style={styles.secondaryButtonText}>Remove</Text>
+            <Text style={[text, p === selected && { fontWeight: "700" }]}>{`${p.done ? "✓ " : ""}${p.step.sequenceOrder}. ${p.step.isolationNumber}`}</Text>
           </Pressable>
-        </View>
-      ))}
+        ))}
+      </View>
 
-      <Text style={styles.section}>Remove tags ({activeTags.length})</Text>
-      {activeTags.map((tag) => (
-        <View key={tag.id} style={styles.row}>
-          <Text style={{ color: tokens.colors.foreground, flex: 1 }}>{tag.tagNumber}</Text>
-          <Pressable
-            style={styles.secondaryButton}
-            disabled={!canRestore || submitting}
-            onPress={() => {
-              const action = async () => {
-                if (!isOnline) {
-                  await queueOfflineTagRemoval(executionId!, { appliedTagId: tag.id });
-                  setMessage("Tag removal queued");
-                  return;
-                }
-                await removeTag(executionId!, tag.id);
-              };
-              void runAction(action, "Tag removed");
-            }}
-          >
-            <Text style={styles.secondaryButtonText}>Remove</Text>
-          </Pressable>
-        </View>
-      ))}
+      {selected ? (
+        <View style={[styles.card, { borderColor: c.border, backgroundColor: c.card }]}>
+          <Text style={[styles.section, text]}>{`Point ${selected.step.sequenceOrder}: ${selected.step.isolationNumber}`}</Text>
+          <Text style={[styles.label, text]}>1. Remove locks and tags</Text>
+          {selected.locks.length + selected.tags.length === 0 ? <Text style={muted}>Nothing left on this point.</Text> : null}
+          {selected.locks.map((lock) => (
+            <Pressable
+              key={lock.id}
+              accessibilityRole="button"
+              style={outline}
+              disabled={!canRestore || submitting}
+              onPress={() =>
+                confirmed("Remove lock", `Remove lock ${lock.lockTag}?`, () => removeLock(executionId!, lock.id), () => queueOfflineLockRemoval(executionId!, { appliedLockId: lock.id }), "Lock removed")
+              }
+            >
+              <Text style={[styles.secondaryButtonText, text]}>{`Remove lock ${lock.lockTag}`}</Text>
+            </Pressable>
+          ))}
+          {selected.tags.map((tag) => (
+            <Pressable
+              key={tag.id}
+              accessibilityRole="button"
+              style={outline}
+              disabled={!canRestore || submitting}
+              onPress={() =>
+                confirmed("Remove tag", `Remove tag ${tag.tagNumber}?`, () => removeTag(executionId!, tag.id), () => queueOfflineTagRemoval(executionId!, { appliedTagId: tag.id }), "Tag removed")
+              }
+            >
+              <Text style={[styles.secondaryButtonText, text]}>{`Remove tag ${tag.tagNumber}`}</Text>
+            </Pressable>
+          ))}
 
-      <Text style={styles.section}>Restore equipment</Text>
-      {executionDetail.sequence.map((step) => (
-        <Pressable
-          key={step.isolationPointId}
-          onPress={() => setSelectedPointId(step.isolationPointId)}
-          style={[
-            styles.step,
-            {
-              borderColor:
-                selectedPointId === step.isolationPointId
-                  ? tokens.colors.primary
-                  : tokens.colors.border,
-            },
-          ]}
-        >
-          <Text style={{ color: tokens.colors.foreground }}>
-            {step.sequenceOrder}. {step.isolationNumber}
-          </Text>
-        </Pressable>
-      ))}
-      <TextInput
-        value={restoreMethod}
-        onChangeText={setRestoreMethod}
-        placeholder="Restoration method"
-        style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
-      />
-      <Pressable
-        style={[styles.button, { backgroundColor: tokens.colors.primary, opacity: !canRestore || submitting ? 0.6 : 1 }]}
-        disabled={!canRestore || submitting || !selectedPointId}
-        onPress={() => {
-          const action = async () => {
-            const payload = {
-              isolationPointId: selectedPointId,
-              method: restoreMethod.trim() || undefined,
-            };
-            if (!isOnline) {
-              await queueOfflineEquipmentRestore(executionId!, payload);
-              setMessage("Restore queued for sync");
-              return;
-            }
-            await restoreEquipment(executionId!, payload);
-          };
-          void runAction(action, "Equipment restored");
-        }}
-      >
-        <Text style={styles.buttonText}>Restore point</Text>
-      </Pressable>
+          <Text style={[styles.label, text]}>2. Restore</Text>
+          {selected.restored ? (
+            <Text style={{ color: c.success }}>{`Restored${selected.restored.method ? ` · ${selected.restored.method}` : ""}`}</Text>
+          ) : (
+            <>
+              <TextInput value={restoreMethod} onChangeText={setRestoreMethod} placeholder="Restoration method" placeholderTextColor={c.mutedForeground} style={[styles.input, { borderColor: c.border, color: c.foreground }]} />
+              <Pressable
+                accessibilityRole="button"
+                style={[styles.button, { backgroundColor: c.primary, opacity: !canRestore || submitting ? 0.6 : 1 }]}
+                disabled={!canRestore || submitting}
+                onPress={() => {
+                  const payload = { isolationPointId: selected.step.isolationPointId, method: restoreMethod.trim() || undefined };
+                  confirmed(
+                    "Restore point",
+                    `Restore ${selected.step.isolationNumber}?${selected.locks.length + selected.tags.length ? " Locks or tags are still on this point." : ""}`,
+                    () => restoreEquipment(executionId!, payload),
+                    () => queueOfflineEquipmentRestore(executionId!, payload),
+                    "Equipment restored",
+                  );
+                }}
+              >
+                <Text style={[styles.buttonText, { color: c.primaryForeground }]}>Restore point</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      ) : null}
 
       {canRestore ? (
         <Pressable
-          style={[styles.button, { backgroundColor: tokens.colors.primary, opacity: submitting ? 0.6 : 1 }]}
-          disabled={submitting}
-          onPress={() => {
-            Alert.alert("Complete restoration", "Confirm all points are restored?", [
+          accessibilityRole="button"
+          style={[styles.button, { backgroundColor: c.primary, opacity: submitting || outstanding.points > 0 ? 0.6 : 1 }]}
+          disabled={submitting || outstanding.points > 0}
+          onPress={() =>
+            Alert.alert("Complete restoration", "Every point is restored?", [
               { text: "Cancel", style: "cancel" },
-              {
-                text: "Confirm",
-                onPress: () => {
-                  void runAction(async () => {
-                    await completeRestoration(executionId!);
-                  }, "Restoration complete");
-                },
-              },
-            ]);
-          }}
+              { text: "Confirm", onPress: () => void runAction(async () => void (await completeRestoration(executionId!)), "Restoration complete") },
+            ])
+          }
         >
-          <Text style={styles.buttonText}>Complete restoration</Text>
+          <Text style={[styles.buttonText, { color: c.primaryForeground }]}>
+            {outstanding.points > 0 ? `Complete restoration (${outstanding.points} to restore first)` : "Complete restoration"}
+          </Text>
         </Pressable>
       ) : null}
 
       {restoration.execution.status === "restored" ? (
-        <Text style={styles.success}>
-          Restored · {restoration.restorations.length} points · {historyCount} history events
-        </Text>
+        <Text style={{ color: c.success }}>{`Restored · ${restoration.restorations.length} points · ${historyCount} history events`}</Text>
       ) : null}
 
       {executionDetail.plan ? (
-        <Pressable
-          style={styles.secondaryButton}
-          onPress={() => router.push(`/lototo/history/${executionDetail.plan!.id}`)}
-        >
-          <Text style={styles.secondaryButtonText}>View LOTOTO history</Text>
+        <Pressable accessibilityRole="button" style={outline} onPress={() => router.push(`/lototo/history/${executionDetail.plan!.id}`)}>
+          <Text style={[styles.secondaryButtonText, text]}>View LOTOTO history</Text>
         </Pressable>
       ) : null}
     </ScrollView>
@@ -271,21 +247,14 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 16 },
   container: { padding: 16, gap: 10 },
   title: { fontSize: 22, fontWeight: "600" },
-  section: { marginTop: 12, fontSize: 16, fontWeight: "600" },
-  row: { flexDirection: "row", alignItems: "center", gap: 8 },
-  step: { borderWidth: 1, borderRadius: 8, padding: 10 },
-  input: { borderWidth: 1, borderRadius: 8, padding: 10 },
-  button: { borderRadius: 8, padding: 12, alignItems: "center" },
-  buttonText: { color: "#fff", fontWeight: "600" },
-  secondaryButton: {
-    borderRadius: 8,
-    padding: 10,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    backgroundColor: "#f9fafb",
-  },
-  secondaryButtonText: { color: "#111827", fontWeight: "600", fontSize: 13 },
-  error: { color: "#b91c1c" },
-  success: { color: "#047857" },
+  section: { marginTop: 4, fontSize: 16, fontWeight: "600" },
+  label: { marginTop: 8, fontSize: 14, fontWeight: "600" },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { minHeight: 48, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderRadius: 24 },
+  card: { gap: 8, borderWidth: 1, borderRadius: 10, padding: 12 },
+  input: { minHeight: 48, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12 },
+  button: { minHeight: 48, borderRadius: 8, padding: 12, alignItems: "center", justifyContent: "center" },
+  buttonText: { fontWeight: "600" },
+  secondaryButton: { minHeight: 48, borderRadius: 8, padding: 12, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  secondaryButtonText: { fontWeight: "600" },
 });

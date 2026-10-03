@@ -4,8 +4,11 @@ import { useLocalSearchParams } from "expo-router";
 import { ApiError } from "@/lib/api";
 import { listEvidence } from "@/lib/execution/api";
 import type { EvidenceRecord } from "@/lib/execution/types";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function EvidenceGalleryScreen() {
+  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const permitId = id ?? "";
   const [items, setItems] = useState<EvidenceRecord[]>([]);
@@ -32,7 +35,7 @@ export default function EvidenceGalleryScreen() {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        ListEmptyComponent={<Text style={styles.empty}>No evidence uploaded.</Text>}
+        ListEmptyComponent={error ? null : <Text style={styles.empty}>No evidence uploaded.</Text>}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.fileName}>{item.fileName}</Text>
@@ -48,18 +51,19 @@ export default function EvidenceGalleryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { flex: 1, padding: 16 },
   card: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: c.border,
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
   },
-  fileName: { fontSize: 14, fontWeight: "600" },
-  meta: { fontSize: 12, color: "#666", marginTop: 4 },
-  comment: { fontSize: 13, color: "#444", marginTop: 6 },
-  empty: { color: "#666" },
-  error: { color: "#b91c1c", marginBottom: 8 },
+  fileName: { fontSize: 14, fontWeight: "600", color: c.foreground },
+  meta: { fontSize: 12, color: c.mutedForeground, marginTop: 4 },
+  comment: { fontSize: 13, color: c.mutedForeground, marginTop: 6 },
+  empty: { color: c.mutedForeground },
+  error: { color: c.danger, marginBottom: 8 },
 });

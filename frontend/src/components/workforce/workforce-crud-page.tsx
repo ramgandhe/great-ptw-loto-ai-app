@@ -3,8 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { ApiError } from "@/lib/api";
-import { agenciesApi, competenciesApi, contractorsApi, employeesApi } from "@/lib/workforce/api";
-import type { CompetencyRecord, EntityField, WorkforceRecord } from "@/lib/workforce/types";
+import { agenciesApi, competenciesApi, contractorsApi, employeesApi, listTenantUserNames } from "@/lib/workforce/api";
+import type { CompetencyRecord, EntityField, TenantUser, WorkforceRecord } from "@/lib/workforce/types";
 import { loadEntitySelectOptions, type EntitySelectResource } from "@/lib/form-options";
 import { OrgStatusBadge, stateOf } from "@/components/organisation/org-status-badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,8 @@ export type WorkforceEntityResource = keyof typeof workforceApis;
 
 /** Set by a page that embeds this list (People): open the add form for this resource straight away. */
 export const WorkforceOpenAddContext = createContext<WorkforceEntityResource | null>(null);
+/** The person chosen in People's Everyone view: their list opens with them in the edit form. */
+export const WorkforceOpenEditContext = createContext<string | null>(null);
 
 type WorkforceItem = WorkforceRecord | CompetencyRecord;
 
@@ -94,6 +96,10 @@ export function WorkforceCrudPage({
   useLeaveGuard(formOpen && Boolean(openedWith) && JSON.stringify(form) !== openedWith);
   const [query, setQuery] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
+  const openEditId = useContext(WorkforceOpenEditContext);
+  const openedEditFor = useRef<string | null>(null);
+  // Sign-in accounts of this organisation, so an existing account is reused instead of retyped.
+  const [accounts, setAccounts] = useState<TenantUser[]>([]);
   const singular = title.replace(/ management$/i, "").replace(/ies$/, "y").replace(/s$/, "").toLowerCase();
   const parentField = fields.find((field) => field.select);
   const [createdLogin, setCreatedLogin] = useState<{
@@ -120,6 +126,12 @@ export function WorkforceCrudPage({
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (resource !== "employees" && resource !== "contractors") return;
+    // Only people allowed to list the organisation's accounts get the choice; others just type.
+    listTenantUserNames().then(setAccounts, () => setAccounts([]));
+  }, [resource]);
 
   useEffect(() => {
     if (selectResources.length === 0) {
@@ -202,6 +214,23 @@ export function WorkforceCrudPage({
     ? items.find((item) => item.id !== editingId && "email" in item && item.email?.toLowerCase() === typedEmail)
     : undefined;
 
+  // Opened from People's Everyone view with a person chosen: open that person, once.
+  useEffect(() => {
+    if (!openEditId || openedEditFor.current === openEditId) return;
+    const item = items.find((candidate) => candidate.id === openEditId);
+    if (!item) return;
+    openedEditFor.current = openEditId;
+    startEdit(item);
+    // startEdit only sets state from the item.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openEditId, items]);
+
+  const onList = new Set(items.map((item) => ("email" in item ? item.email?.toLowerCase() : undefined)).filter(Boolean));
+  const accountName = (account: TenantUser) =>
+    account.name || [account.firstName, account.lastName].filter(Boolean).join(" ") || account.email || account.username;
+  const reusable = accounts.filter((account) => account.email && !onList.has(account.email.toLowerCase()));
+  const existingAccount = typedEmail ? accounts.find((account) => account.email?.toLowerCase() === typedEmail) : undefined;
+
   function startEdit(item: WorkforceItem) {
     setEditingId(item.id);
     setCreatedLogin(null);
@@ -281,6 +310,33 @@ export function WorkforceCrudPage({
         {duplicate ? (
           <p role="status" className="rounded-lg bg-(--status-warning-bg) px-3 py-2 text-sm sm:col-span-2">
             {duplicate.name} already has this email on this list. Edit that record instead of adding the same person twice.
+          </p>
+        ) : null}
+        {!editingId && reusable.length > 0 ? (
+          <label className="grid gap-1.5 text-sm sm:col-span-2">
+            <span className="font-medium">
+              Existing sign-in account <span className="font-normal text-muted-foreground">(optional)</span>
+            </span>
+            <select
+              value={existingAccount?.id ?? ""}
+              onChange={(e) => {
+                const account = reusable.find((a) => a.id === e.target.value);
+                if (account) setForm((p) => ({ ...p, name: p.name || accountName(account), email: account.email ?? "" }));
+              }}
+              className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
+            >
+              <option value="">Someone new: type their name and email below</option>
+              {reusable.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {accountName(account)} ({account.email})
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        {!editingId && existingAccount && !duplicate ? (
+          <p role="status" className="rounded-lg bg-muted px-3 py-2 text-sm sm:col-span-2">
+            {accountName(existingAccount)} already signs in with this email. They keep that sign-in; no new login or password is created.
           </p>
         ) : null}
         {fields.map((field) => (

@@ -35,12 +35,16 @@ import { listWorkforceDirectory } from "@/lib/workforce/api";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
 export default function MultiDayPermitScreen() {
+  const styles = useThemedStyles(createStyles);
+  const themeColors = useTheme().tokens.colors;
   const { permitId } = useLocalSearchParams<{ permitId: string }>();
   const { tokens } = useTheme();
   const { isOnline } = useOffline();
@@ -111,7 +115,7 @@ export default function MultiDayPermitScreen() {
   if (!detail || !permitId) {
     return (
       <View style={[styles.centered, { backgroundColor: tokens.colors.background }]}>
-        <Text style={{ color: "#b91c1c" }}>{error ?? "Permit not found"}</Text>
+        <Text style={{ color: themeColors.danger }}>{error ?? "Permit not found"}</Text>
       </View>
     );
   }
@@ -158,7 +162,7 @@ export default function MultiDayPermitScreen() {
                 };
                 if (!isOnline) {
                   await queueOfflineDailyProgress(permitId, payload);
-                  setMessage("Daily progress queued for sync");
+                  setMessage("Daily progress saved on this phone; not recorded until the server confirms it.");
                   return;
                 }
                 await runAction(() => recordDailyProgress(permitId, payload).then(() => undefined), "Daily progress saved");
@@ -195,7 +199,7 @@ export default function MultiDayPermitScreen() {
                 }
                 if (!isOnline) {
                   await queueOfflineHandover(permitId, payload);
-                  setMessage("Handover queued for sync");
+                  setMessage("Handover saved on this phone; not recorded until the server confirms it.");
                   return;
                 }
                 await runAction(() => createHandover(permitId, payload).then(() => undefined), "Handover saved");
@@ -223,7 +227,7 @@ export default function MultiDayPermitScreen() {
                 const payload = { operationalDate, outcome: revalidationOutcome, findings: findings.trim() };
                 if (!isOnline) {
                   await queueOfflineRevalidation(permitId, payload);
-                  setMessage("Revalidation queued for sync");
+                  setMessage("Revalidation saved on this phone; not recorded until the server confirms it.");
                   return;
                 }
                 await runAction(() => revalidatePermit(permitId, payload).then(() => undefined), "Revalidation saved");
@@ -260,7 +264,7 @@ export default function MultiDayPermitScreen() {
                 };
                 if (!isOnline) {
                   await queueOfflineExtensionRequest(permitId, payload);
-                  setMessage("Extension request queued for sync");
+                  setMessage("Extension request saved on this phone; not sent until the server confirms it.");
                   return;
                 }
                 await runAction(() => requestExtension(permitId, payload).then(() => undefined), "Extension requested");
@@ -275,15 +279,16 @@ export default function MultiDayPermitScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600" },
+  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
   card: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 8, gap: 8 },
   input: { borderWidth: 1, borderRadius: 8, padding: 10, minHeight: 44, textAlignVertical: "top" },
   primaryButton: { borderRadius: 8, padding: 12, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "600" },
+  primaryButtonText: { color: c.primaryForeground, fontWeight: "600" },
   secondaryButton: { borderWidth: 1, borderRadius: 8, padding: 12, alignItems: "center" },
   row: { flexDirection: "row", gap: 16 },
-  error: { color: "#b91c1c" },
+  error: { color: c.danger },
 });

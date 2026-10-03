@@ -21,6 +21,7 @@ export type ConflictParticipant = {
     id: string;
     reference: string | null;
     title: string;
+    status: string;
     plannedStartAt: string | null;
     plannedEndAt: string | null;
   };

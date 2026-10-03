@@ -23,6 +23,8 @@ import { isOfflineError } from "@/lib/permit/offline";
 import { stageAnswersLeft, stageAnswersPayload, type StageAnswerEdits } from "@/lib/permit/forms";
 import { StageAnswers, useSignerName } from "@/components/permit/stage-answers";
 import type { PermitDetail } from "@/lib/permit/types";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 const checklistLabels: Record<keyof VerificationChecklist, string> = {
   workCompleted: "Work completed as described",
@@ -36,11 +38,13 @@ function isChecklistComplete(checklist: VerificationChecklist): boolean {
 }
 
 export default function PermitVerificationScreen() {
+  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const permitId = id ?? "";
   const [detail, setDetail] = useState<PermitDetail | null>(null);
-  const [progressCount, setProgressCount] = useState(0);
-  const [evidenceCount, setEvidenceCount] = useState(0);
+  // null: could not be loaded (shown as such, never as zero).
+  const [progressCount, setProgressCount] = useState<number | null>(0);
+  const [evidenceCount, setEvidenceCount] = useState<number | null>(0);
   const [checklist, setChecklist] = useState(defaultVerificationChecklist);
   const [comment, setComment] = useState("");
   const [verified, setVerified] = useState(false);
@@ -61,14 +65,14 @@ export default function PermitVerificationScreen() {
       initClosureOfflineStorage(),
       getPermit(permitId),
       getPermitVerification(permitId).catch(() => null),
-      listProgress(permitId).catch(() => []),
-      listEvidence(permitId).catch(() => []),
+      listProgress(permitId).catch(() => null),
+      listEvidence(permitId).catch(() => null),
     ])
       .then(([, permitDetail, verificationRecord, progress, evidence]) => {
         setDetail(permitDetail);
         setVerified(Boolean(verificationRecord));
-        setProgressCount(progress.length);
-        setEvidenceCount(evidence.length);
+        setProgressCount(progress ? progress.length : null);
+        setEvidenceCount(evidence ? evidence.length : null);
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load permit"))
       .finally(() => setLoading(false));
@@ -155,7 +159,7 @@ export default function PermitVerificationScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>{detail.permit.title}</Text>
       <Text style={styles.meta}>
-        {progressCount} progress update(s) · {evidenceCount} evidence file(s)
+        {`${progressCount ?? "Could not load"} progress update(s) · ${evidenceCount ?? "could not load"} evidence file(s)`}
       </Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -236,11 +240,12 @@ export default function PermitVerificationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { padding: 16, gap: 10 },
-  title: { fontSize: 20, fontWeight: "600" },
-  meta: { fontSize: 13, color: "#666" },
-  sectionTitle: { fontSize: 14, fontWeight: "600", marginTop: 8 },
+  title: { fontSize: 20, fontWeight: "600", color: c.foreground },
+  meta: { fontSize: 13, color: c.mutedForeground },
+  sectionTitle: { fontSize: 14, fontWeight: "600", marginTop: 8, color: c.foreground },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -248,30 +253,30 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 6,
   },
-  rowLabel: { flex: 1, fontSize: 14 },
+  rowLabel: { flex: 1, fontSize: 14, color: c.foreground },
   input: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: c.border,
     borderRadius: 8,
     padding: 10,
     minHeight: 80,
     textAlignVertical: "top",
   },
   primaryButton: {
-    backgroundColor: "#1f2937",
+    backgroundColor: c.primary,
     borderRadius: 8,
     padding: 12,
     alignItems: "center",
   },
-  primaryButtonText: { color: "#fff", fontWeight: "500" },
+  primaryButtonText: { color: c.primaryForeground, fontWeight: "500" },
   secondaryButton: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: c.border,
     borderRadius: 8,
     padding: 12,
     alignItems: "center",
   },
-  secondaryButtonText: { color: "#111827", fontWeight: "500" },
-  error: { color: "#b91c1c" },
-  message: { color: "#059669" },
+  secondaryButtonText: { color: c.foreground, fontWeight: "500" },
+  error: { color: c.danger },
+  message: { color: c.success },
 });

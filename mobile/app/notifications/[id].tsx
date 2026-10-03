@@ -8,8 +8,11 @@ import { getNotificationEntityRoute } from "@/lib/notifications/routes";
 import type { Notification } from "@/lib/notifications/types";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function NotificationDetailScreen() {
+  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { tokens } = useTheme();
   const { isOnline } = useOffline();
@@ -114,13 +117,14 @@ export default function NotificationDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   container: { padding: 16 },
   card: { borderWidth: 1, borderRadius: 8, padding: 16 },
-  title: { fontSize: 20, fontWeight: "600" },
+  title: { fontSize: 20, fontWeight: "600", color: c.foreground },
   button: { borderRadius: 8, padding: 12, alignItems: "center", marginTop: 16 },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  buttonText: { color: c.primaryForeground, fontWeight: "600" },
   secondaryButton: {
     borderWidth: 1,
     borderRadius: 8,
@@ -128,5 +132,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
   },
-  error: { color: "#b91c1c", marginBottom: 8 },
+  error: { color: c.danger, marginBottom: 8 },
 });

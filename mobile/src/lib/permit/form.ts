@@ -10,8 +10,6 @@ export const PERMIT_WIZARD_STEPS = [
   "Review",
 ] as const;
 
-export const FORMS_STEP = 4;
-
 export function fromStoredStep(stored: number): number {
   return Math.min(Math.max(stored, 0), PERMIT_WIZARD_STEPS.length - 1);
 }

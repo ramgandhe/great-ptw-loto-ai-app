@@ -7,8 +7,10 @@ import { getLocalPermitDraft, resolvePermitId } from "@/lib/permit/offline";
 import { createEmptyPermitForm } from "@/lib/permit/form";
 import type { DraftFields, PermitDetail, PermitFormState } from "@/lib/permit/types";
 import { PermitWizard } from "@/components/permit/permit-wizard";
+import { useTheme } from "@/providers/theme-provider";
 
 export default function EditPermitScreen() {
+  const themeColors = useTheme().tokens.colors;
   const { id } = useLocalSearchParams<{ id: string }>();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
   const [localForm, setLocalForm] = useState<PermitFormState | null>(null);
@@ -43,7 +45,7 @@ export default function EditPermitScreen() {
   if (error) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 16 }}>
-        <Text style={{ color: "#b91c1c" }}>{error}</Text>
+        <Text style={{ color: themeColors.danger }}>{error}</Text>
       </View>
     );
   }

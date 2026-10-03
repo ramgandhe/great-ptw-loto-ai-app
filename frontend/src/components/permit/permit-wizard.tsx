@@ -101,7 +101,11 @@ function PersonSelect({
   placeholder,
   internalGroupLabel,
   externalGroupLabel = "External — contractors and agencies",
+  ...aria
 }: {
+  /** Error wiring from FormField, passed to the select itself. */
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
   id: string;
   value: string;
   disabled: boolean;
@@ -122,6 +126,7 @@ function PersonSelect({
   return (
     <select
       id={id}
+      {...aria}
       className={fieldClassName}
       value={value}
       disabled={disabled}
@@ -630,7 +635,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
   const handleSubmit = async () => {
     const allErrors = PERMIT_EDITOR_SECTIONS.flatMap((section) =>
-      missing[section.id].map((message) => ({ message, href: `#${ERROR_FIELDS[message] ?? `section-${section.id}`}` })),
+      missing[section.id].map((message) => {
+        // A form's error goes to that form, where the unanswered questions are marked.
+        const template = section.id === "forms" ? forms.find((t) => message.startsWith(`${t.name}:`)) : undefined;
+        return { message, href: `#${template ? `form-${template.id}` : (ERROR_FIELDS[message] ?? `section-${section.id}`)}` };
+      }),
     );
     setErrors(allErrors);
     if (allErrors.length > 0) {
@@ -1401,6 +1410,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 answers={prefilled.formResponses[template.id] ?? {}}
                 disabled={!formsEditable}
                 signerName={signerName}
+                anchorId={`form-${template.id}`}
+                showMissing={errors.length > 0}
                 onChange={(answers) => edit((current) => ({ ...current, formResponses: { ...current.formResponses, [template.id]: answers } }))}
               />
             ))}

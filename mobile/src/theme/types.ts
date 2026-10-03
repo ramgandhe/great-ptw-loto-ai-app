@@ -31,6 +31,7 @@ export interface ThemeColors {
   danger: string;
   dangerBg: string;
   warning: string;
+  warningBg: string;
 }
 
 export interface ThemeTokens {

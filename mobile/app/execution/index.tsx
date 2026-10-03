@@ -6,10 +6,13 @@ import { countPendingExecutionItems, initExecutionOfflineStorage } from "@/lib/e
 import { syncExecutionQueue } from "@/lib/execution/api";
 import { listPermits } from "@/lib/permit/api";
 import type { PermitRecord } from "@/lib/permit/types";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 const EXECUTION_STATUSES = ["approved", "active", "suspended"] as const;
 
 export default function ActivePermitsScreen() {
+  const styles = useThemedStyles(createStyles);
   const [permits, setPermits] = useState<PermitRecord[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -73,7 +76,7 @@ export default function ActivePermitsScreen() {
         <FlatList
           data={permits}
           keyExtractor={(item) => item.id}
-          ListEmptyComponent={<Text style={styles.empty}>No permits in execution phase.</Text>}
+          ListEmptyComponent={error ? null : <Text style={styles.empty}>No permits in execution phase.</Text>}
           renderItem={({ item }) => (
             <Pressable
               style={styles.card}
@@ -81,7 +84,7 @@ export default function ActivePermitsScreen() {
             >
               <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.cardMeta}>
-                {item.reference ?? item.id.slice(0, 8)} · {item.status.replace(/_/g, " ")}
+                {item.reference ?? "No reference yet"} · {item.status.replace(/_/g, " ")}
               </Text>
             </Pressable>
           )}
@@ -91,25 +94,26 @@ export default function ActivePermitsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { flex: 1, padding: 16, gap: 8 },
-  subtitle: { fontSize: 14, color: "#666" },
+  subtitle: { fontSize: 14, color: c.mutedForeground },
   syncBanner: {
-    backgroundColor: "#fef3c7",
+    backgroundColor: c.warningBg,
     borderRadius: 8,
     padding: 10,
   },
-  syncText: { fontSize: 13, color: "#92400e" },
-  syncMessage: { fontSize: 12, color: "#059669" },
+  syncText: { fontSize: 13, color: c.warning },
+  syncMessage: { fontSize: 12, color: c.success },
   card: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: c.border,
     borderRadius: 10,
     padding: 12,
     marginBottom: 8,
   },
-  cardTitle: { fontSize: 16, fontWeight: "600" },
-  cardMeta: { fontSize: 12, color: "#666", marginTop: 4 },
-  empty: { color: "#666", marginTop: 16 },
-  error: { color: "#b91c1c" },
+  cardTitle: { fontSize: 16, fontWeight: "600", color: c.foreground },
+  cardMeta: { fontSize: 12, color: c.mutedForeground, marginTop: 4 },
+  empty: { color: c.mutedForeground, marginTop: 16 },
+  error: { color: c.danger },
 });

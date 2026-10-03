@@ -5,8 +5,11 @@ import { ApiError } from "@/lib/api";
 import { listLototoPlans } from "@/lib/lototo/api";
 import type { LototoPlan } from "@/lib/lototo/types";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function LototoPlansScreen() {
+  const styles = useThemedStyles(createStyles);
   const { tokens } = useTheme();
   const [plans, setPlans] = useState<LototoPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,14 +85,15 @@ export default function LototoPlansScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   container: { padding: 16, gap: 12 },
-  title: { fontSize: 24, fontWeight: "600" },
-  subtitle: { fontSize: 14 },
+  title: { fontSize: 24, fontWeight: "600", color: c.foreground },
+  subtitle: { fontSize: 14, color: c.foreground },
   primaryButton: { borderRadius: 8, padding: 12, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "600" },
+  primaryButtonText: { color: c.primaryForeground, fontWeight: "600" },
   card: { borderWidth: 1, borderRadius: 8, padding: 12, gap: 4 },
-  cardTitle: { fontSize: 16, fontWeight: "500" },
-  error: { color: "#b91c1c" },
+  cardTitle: { fontSize: 16, fontWeight: "500", color: c.foreground },
+  error: { color: c.danger },
 });

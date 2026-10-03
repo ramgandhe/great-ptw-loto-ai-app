@@ -10,6 +10,8 @@ import { permitDetailToForm } from "@/lib/permit/form";
 import { isEditablePermitStatus } from "@/lib/permit/status";
 import type { PermitDetail } from "@/lib/permit/types";
 import { useOrgNames } from "@/lib/permit/names";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 const APPROVAL_STATUSES = new Set([
   "pending_approval",
@@ -19,6 +21,7 @@ const APPROVAL_STATUSES = new Set([
 ]);
 
 export default function PermitDetailScreen() {
+  const styles = useThemedStyles(createStyles);
   const names = useOrgNames();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
@@ -151,29 +154,30 @@ export default function PermitDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   container: { padding: 16, gap: 8 },
-  title: { fontSize: 22, fontWeight: "600" },
-  meta: { color: "#666", marginBottom: 8 },
-  line: { fontSize: 14, color: "#374151" },
-  sectionTitle: { fontSize: 14, fontWeight: "600", marginBottom: 4 },
+  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
+  meta: { color: c.mutedForeground, marginBottom: 8 },
+  line: { fontSize: 14, color: c.mutedForeground },
+  sectionTitle: { fontSize: 14, fontWeight: "600", marginBottom: 4, color: c.foreground },
   approvalBox: {
     marginTop: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: c.border,
     borderRadius: 8,
     gap: 4,
   },
-  link: { color: "#2563eb", fontSize: 14, marginTop: 4 },
+  link: { color: c.primary, fontSize: 14, marginTop: 4 },
   button: {
     marginTop: 16,
-    backgroundColor: "#1f2937",
+    backgroundColor: c.primary,
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
   },
-  buttonText: { color: "#fff", fontWeight: "600" },
-  error: { color: "#b91c1c" },
+  buttonText: { color: c.primaryForeground, fontWeight: "600" },
+  error: { color: c.danger },
 });

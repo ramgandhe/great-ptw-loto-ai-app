@@ -6,8 +6,11 @@ import { countPendingClosureItems, initClosureOfflineStorage } from "@/lib/closu
 import { syncClosureQueue } from "@/lib/closure/api";
 import { listPermits } from "@/lib/permit/api";
 import type { PermitRecord } from "@/lib/permit/types";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function ClosureQueueScreen() {
+  const styles = useThemedStyles(createStyles);
   const [permits, setPermits] = useState<PermitRecord[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -61,7 +64,7 @@ export default function ClosureQueueScreen() {
         <FlatList
           data={permits}
           keyExtractor={(item) => item.id}
-          ListEmptyComponent={<Text style={styles.empty}>No active permits awaiting closure.</Text>}
+          ListEmptyComponent={error ? null : <Text style={styles.empty}>No active permits awaiting closure.</Text>}
           ListHeaderComponent={
             <Pressable style={styles.linkRow} onPress={() => router.push("/closure/archive")}>
               <Text style={styles.link}>View archive</Text>
@@ -71,7 +74,7 @@ export default function ClosureQueueScreen() {
             <Pressable style={styles.card} onPress={() => router.push(`/closure/${item.id}`)}>
               <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.cardMeta}>
-                {item.reference ?? item.id.slice(0, 8)} · {item.status.replace(/_/g, " ")}
+                {item.reference ?? "No reference yet"} · {item.status.replace(/_/g, " ")}
               </Text>
             </Pressable>
           )}
@@ -81,22 +84,23 @@ export default function ClosureQueueScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   container: { flex: 1, padding: 16, gap: 8 },
-  subtitle: { fontSize: 14, color: "#666" },
-  banner: { backgroundColor: "#fef3c7", borderRadius: 8, padding: 10 },
-  bannerText: { fontSize: 13, color: "#92400e" },
+  subtitle: { fontSize: 14, color: c.mutedForeground },
+  banner: { backgroundColor: c.warningBg, borderRadius: 8, padding: 10 },
+  bannerText: { fontSize: 13, color: c.warning },
   linkRow: { marginBottom: 8 },
-  link: { color: "#2563eb", fontSize: 14 },
+  link: { color: c.primary, fontSize: 14 },
   card: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: c.border,
     borderRadius: 10,
     padding: 12,
     marginBottom: 8,
   },
-  cardTitle: { fontSize: 16, fontWeight: "600" },
-  cardMeta: { fontSize: 12, color: "#666", marginTop: 4 },
-  empty: { color: "#666", marginTop: 16 },
-  error: { color: "#b91c1c" },
+  cardTitle: { fontSize: 16, fontWeight: "600", color: c.foreground },
+  cardMeta: { fontSize: 12, color: c.mutedForeground, marginTop: 4 },
+  empty: { color: c.mutedForeground, marginTop: 16 },
+  error: { color: c.danger },
 });

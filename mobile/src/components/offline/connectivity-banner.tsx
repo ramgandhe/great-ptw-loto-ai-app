@@ -1,8 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export function ConnectivityBanner() {
+  const styles = useThemedStyles(createStyles);
   const { isOnline, pendingCount, isSyncing } = useOffline();
   const { tokens } = useTheme();
 
@@ -22,7 +25,7 @@ export function ConnectivityBanner() {
       style={[
         styles.banner,
         {
-          backgroundColor: !isOnline ? "#fef2f2" : tokens.colors.muted,
+          backgroundColor: !isOnline ? tokens.colors.dangerBg : tokens.colors.muted,
           borderBottomColor: tokens.colors.border,
         },
       ]}
@@ -40,7 +43,8 @@ export function ConnectivityBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   banner: {
     paddingHorizontal: 16,
     paddingVertical: 8,

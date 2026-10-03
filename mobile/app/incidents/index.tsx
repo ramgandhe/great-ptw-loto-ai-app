@@ -5,8 +5,11 @@ import { ApiError } from "@/lib/api";
 import { listIncidents } from "@/lib/incidents/api";
 import type { Incident } from "@/lib/incidents/types";
 import { useTheme } from "@/providers/theme-provider";
+import { useThemedStyles } from "@/theme/use-themed-styles";
+import type { ThemeColors } from "@/theme/types";
 
 export default function IncidentsScreen() {
+  const styles = useThemedStyles(createStyles);
   const { tokens } = useTheme();
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,12 +62,13 @@ export default function IncidentsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600" },
+  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
   card: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 8 },
   primaryButton: { borderRadius: 8, padding: 12, alignItems: "center", marginTop: 8 },
-  primaryButtonText: { color: "#fff", fontWeight: "600" },
-  error: { color: "#b91c1c", marginTop: 8 },
+  primaryButtonText: { color: c.primaryForeground, fontWeight: "600" },
+  error: { color: c.danger, marginTop: 8 },
 });
