@@ -7,89 +7,47 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import * as AuthSession from "expo-auth-session";
-import * as WebBrowser from "expo-web-browser";
-import { authConfig, getAuthDiscovery } from "@/lib/auth/config";
-import { clearTokens, getAccessToken, saveTokens } from "@/lib/auth/token-storage";
+import { apiClient, onSessionEnded } from "@/lib/api/client";
+import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from "@/lib/auth/token-storage";
 
-WebBrowser.maybeCompleteAuthSession();
+type Session = { accessToken: string; refreshToken: string };
 
 interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
-  signIn: () => Promise<void>;
+  /** Throws ApiError with code PASSWORD_CHANGE_REQUIRED when a temporary password must be replaced (pass newPassword). */
+  signIn: (email: string, password: string, newPassword?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const discovery = getAuthDiscovery();
-const redirectUri = AuthSession.makeRedirectUri({ scheme: "ptw", path: "callback" });
-
+/** Sign-in on the app's own screen: the API relays to Keycloak, as on the web. */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: authConfig.clientId,
-      redirectUri,
-      scopes: ["openid", "profile", "email"],
-      responseType: AuthSession.ResponseType.Code,
-      usePKCE: true,
-    },
-    discovery,
-  );
-
   useEffect(() => {
+    onSessionEnded(() => setIsAuthenticated(false));
     getAccessToken()
       .then((token) => setIsAuthenticated(Boolean(token)))
       .finally(() => setIsLoading(false));
   }, []);
 
-  useEffect(() => {
-    if (response?.type !== "success" || !request) {
-      return;
-    }
-
-    const code = response.params.code;
-    if (!code) {
-      return;
-    }
-
-    AuthSession.exchangeCodeAsync(
-      {
-        clientId: authConfig.clientId,
-        code,
-        redirectUri,
-        extraParams: {
-          code_verifier: request.codeVerifier ?? "",
-        },
-      },
-      discovery,
-    )
-      .then(async (tokenResult) => {
-        if (!tokenResult.accessToken) {
-          throw new Error("Missing access token");
-        }
-        await saveTokens({
-          accessToken: tokenResult.accessToken,
-          refreshToken: tokenResult.refreshToken,
-        });
-        setIsAuthenticated(true);
-      })
-      .catch((error) => {
-        console.error("Keycloak token exchange failed", error);
-      });
-  }, [request, response]);
-
-  const signIn = useCallback(async () => {
-    await promptAsync();
-  }, [promptAsync]);
+  const signIn = useCallback(async (email: string, password: string, newPassword?: string) => {
+    const session = newPassword
+      ? await apiClient.post<Session>("/auth/sign-in/new-password", { email, password, newPassword }, { auth: false })
+      : await apiClient.post<Session>("/auth/sign-in", { email, password }, { auth: false });
+    await saveTokens(session);
+    setIsAuthenticated(true);
+  }, []);
 
   const signOut = useCallback(async () => {
+    const refreshToken = await getRefreshToken();
     await clearTokens();
     setIsAuthenticated(false);
+    // Ends the server session too; the app does not wait for it.
+    if (refreshToken) void apiClient.post("/auth/sign-out", { refreshToken }, { auth: false }).catch(() => undefined);
   }, []);
 
   const value = useMemo(
