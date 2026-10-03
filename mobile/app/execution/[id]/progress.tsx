@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { Card, EmptyState, PageHeader, Screen, ScreenState, TimelineItem } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { listProgress } from "@/lib/execution/api";
 import type { ProgressRecord } from "@/lib/execution/types";
-import { useThemedStyles } from "@/theme/use-themed-styles";
-import type { ThemeColors } from "@/theme/types";
+import { formatDateTime } from "@/lib/format";
 
 export default function ProgressUpdatesScreen() {
-  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const permitId = id ?? "";
   const [items, setItems] = useState<ProgressRecord[]>([]);
@@ -21,44 +19,27 @@ export default function ProgressUpdatesScreen() {
     }
     listProgress(permitId)
       .then((records) => setItems(records.slice().reverse()))
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load progress"))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "The progress updates could not be loaded."))
       .finally(() => setLoading(false));
   }, [permitId]);
 
-  if (loading) {
-    return <ActivityIndicator style={{ marginTop: 32 }} />;
+  const back = { label: "Permit work", href: `/execution/${permitId}` };
+  if (loading || error) {
+    return <ScreenState error={error} back={back} />;
   }
 
   return (
-    <View style={styles.container}>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={error ? null : <Text style={styles.empty}>No progress updates.</Text>}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.summary}>{item.summary}</Text>
-            <Text style={styles.meta}>{new Date(item.recordedAt).toLocaleString()}</Text>
-          </View>
-        )}
-      />
-    </View>
+    <Screen>
+      <PageHeader title="Progress timeline" description="Newest first." back={back} />
+      {items.length === 0 ? (
+        <EmptyState title="No progress recorded yet" body="Each update saved while the work is in progress appears here." />
+      ) : (
+        <Card>
+          {items.map((item, index) => (
+            <TimelineItem key={item.id} title={item.summary} time={formatDateTime(item.recordedAt)} last={index === items.length - 1} />
+          ))}
+        </Card>
+      )}
+    </Screen>
   );
 }
-
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  card: {
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
-  summary: { fontSize: 14, color: c.foreground },
-  meta: { fontSize: 12, color: c.mutedForeground, marginTop: 4 },
-  empty: { color: c.mutedForeground },
-  error: { color: c.danger, marginBottom: 8 },
-});

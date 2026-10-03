@@ -1,15 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { ActionBar, AppText, Banner, Button, Card, CheckRow, ChipRow, PageHeader, PermitStatusChip, RefChip, Screen, ScreenState, SectionTitle, TextField } from "@/components/ui";
+import { CloudOff, Lock, ShieldCheck } from "@/components/ui/icons";
 import { ApiError } from "@/lib/api";
 import { closePermit, getPermitVerification, verifyPermit } from "@/lib/closure/api";
 import { initClosureOfflineStorage, queueOfflineVerification } from "@/lib/closure/offline";
@@ -23,8 +16,7 @@ import { isOfflineError } from "@/lib/permit/offline";
 import { stageAnswersLeft, stageAnswersPayload, type StageAnswerEdits } from "@/lib/permit/forms";
 import { StageAnswers, useSignerName } from "@/components/permit/stage-answers";
 import type { PermitDetail } from "@/lib/permit/types";
-import { useThemedStyles } from "@/theme/use-themed-styles";
-import type { ThemeColors } from "@/theme/types";
+import { useTheme } from "@/providers/theme-provider";
 
 const checklistLabels: Record<keyof VerificationChecklist, string> = {
   workCompleted: "Work completed as described",
@@ -38,7 +30,7 @@ function isChecklistComplete(checklist: VerificationChecklist): boolean {
 }
 
 export default function PermitVerificationScreen() {
-  const styles = useThemedStyles(createStyles);
+  const { tokens } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const permitId = id ?? "";
   const [detail, setDetail] = useState<PermitDetail | null>(null);
@@ -74,7 +66,7 @@ export default function PermitVerificationScreen() {
         setProgressCount(progress ? progress.length : null);
         setEvidenceCount(evidence ? evidence.length : null);
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load permit"))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "The permit could not be loaded."))
       .finally(() => setLoading(false));
   }, [permitId]);
 
@@ -84,7 +76,7 @@ export default function PermitVerificationScreen() {
 
   async function handleVerify(offline: boolean) {
     if (!isChecklistComplete(checklist) || !comment.trim()) {
-      setError("Complete all checklist items and add a comment");
+      setError("Tick every check and add a comment.");
       return;
     }
 
@@ -126,7 +118,7 @@ export default function PermitVerificationScreen() {
 
   async function handleClose() {
     if (!isChecklistComplete(closeChecklist) || !closeComment.trim()) {
-      setError("Complete the closure checklist and add a closure comment");
+      setError("Tick every check and add a closure comment.");
       return;
     }
     setSubmitting(true);
@@ -145,138 +137,78 @@ export default function PermitVerificationScreen() {
     }
   }
 
-  if (loading) {
-    return <ActivityIndicator style={{ marginTop: 32 }} />;
-  }
-
-  if (!detail) {
-    return <Text style={styles.error}>{error ?? "Permit not found"}</Text>;
+  const back = { label: "Closure", href: "/closure" };
+  if (loading || !detail) {
+    return <ScreenState error={loading ? null : (error ?? "This permit was not found.")} back={back} />;
   }
 
   const closureLeft = stageAnswersLeft(detail.permit.formResponses ?? [], "closure", stageEdits);
+  const keys = Object.keys(checklistLabels) as Array<keyof VerificationChecklist>;
+  const list = verified ? closeChecklist : checklist;
+  const setItem = (key: keyof VerificationChecklist, value: boolean) =>
+    verified ? setCloseChecklist((c) => ({ ...c, [key]: value })) : toggleChecklist(key, value);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{detail.permit.title}</Text>
-      <Text style={styles.meta}>
-        {`${progressCount ?? "Could not load"} progress update(s) · ${evidenceCount ?? "could not load"} evidence file(s)`}
-      </Text>
+    <Screen
+      footer={
+        <ActionBar>
+          {verified ? (
+            <Button
+              label="Close permit"
+              icon={Lock}
+              loading={submitting}
+              disabled={closureLeft > 0 || !isChecklistComplete(closeChecklist) || !closeComment.trim()}
+              onPress={() => void handleClose()}
+            />
+          ) : (
+            <>
+              <Button label="Save offline" variant="secondary" icon={CloudOff} disabled={submitting || !isChecklistComplete(checklist)} onPress={() => void handleVerify(true)} />
+              <Button label="Submit verification" icon={ShieldCheck} loading={submitting} disabled={!isChecklistComplete(checklist) || !comment.trim()} onPress={() => void handleVerify(false)} />
+            </>
+          )}
+        </ActionBar>
+      }
+    >
+      <PageHeader
+        title={detail.permit.title}
+        description={`${progressCount ?? "Could not load"} progress update${progressCount === 1 ? "" : "s"} · ${evidenceCount ?? "could not load"} evidence file${evidenceCount === 1 ? "" : "s"}`}
+        back={back}
+      >
+        <ChipRow>
+          <PermitStatusChip status={detail.permit.status} />
+          <RefChip reference={detail.permit.reference} />
+        </ChipRow>
+      </PageHeader>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {message ? <Text style={styles.message}>{message}</Text> : null}
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      {message ? <Banner tone="success">{message}</Banner> : null}
+      {verified ? <Banner tone="info" title="Verified">The head of department signs off and closes the permit.</Banner> : null}
 
-      {!verified ? (
-        <>
-          <Text style={styles.sectionTitle}>Final inspection</Text>
-          {(Object.keys(checklistLabels) as Array<keyof VerificationChecklist>).map((key) => (
-            <View key={key} style={styles.row}>
-              <Text style={styles.rowLabel}>{checklistLabels[key]}</Text>
-              <Switch
-                value={checklist[key]}
-                onValueChange={(value) => toggleChecklist(key, value)}
-              />
-            </View>
+      <View style={{ gap: tokens.space[3] }}>
+        <SectionTitle title={verified ? "Final sign-off" : "Final inspection"} description={verified ? "Confirm each check before closing." : "Confirm on site, then submit."} />
+        <Card style={{ gap: tokens.space[1] }}>
+          {keys.map((key) => (
+            <CheckRow key={key} label={checklistLabels[key]} value={list[key]} onChange={(value) => setItem(key, value)} disabled={submitting} />
           ))}
-          <TextInput
-            style={styles.input}
-            value={comment}
-            onChangeText={setComment}
-            placeholder="Verification comment (required)"
-            multiline
-          />
-          <StageAnswers
-            responses={detail.permit.formResponses ?? []}
-            stage="closure"
-            edits={stageEdits}
-            onChange={setStageEdits}
-            signerName={signerName}
-            disabled={submitting}
-          />
-          <Pressable
-            style={styles.primaryButton}
-            onPress={() => handleVerify(false)}
-            disabled={submitting || !isChecklistComplete(checklist) || !comment.trim()}
-          >
-            <Text style={styles.primaryButtonText}>Submit verification</Text>
-          </Pressable>
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() => handleVerify(true)}
-            disabled={submitting || !isChecklistComplete(checklist)}
-          >
-            <Text style={styles.secondaryButtonText}>Save offline</Text>
-          </Pressable>
-        </>
-      ) : (
-        <>
-          <Text style={styles.message}>Verification complete. The HOD signs off and closes the permit.</Text>
-          <Text style={styles.sectionTitle}>Final sign-off</Text>
-          {(Object.keys(checklistLabels) as Array<keyof VerificationChecklist>).map((key) => (
-            <View key={key} style={styles.row}>
-              <Text style={styles.rowLabel}>{checklistLabels[key]}</Text>
-              <Switch value={closeChecklist[key]} onValueChange={(value) => setCloseChecklist((c) => ({ ...c, [key]: value }))} />
-            </View>
-          ))}
-          <StageAnswers
-            responses={detail.permit.formResponses ?? []}
-            stage="closure"
-            edits={stageEdits}
-            onChange={setStageEdits}
-            signerName={signerName}
-            disabled={submitting}
-          />
-          {closureLeft > 0 ? <Text style={styles.meta}>{`${closureLeft} left to sign before closing.`}</Text> : null}
-          <TextInput style={styles.input} value={closeComment} onChangeText={setCloseComment} placeholder="Closure comment (required)" multiline />
-          <Pressable
-            style={styles.primaryButton}
-            onPress={handleClose}
-            disabled={submitting || closureLeft > 0 || !isChecklistComplete(closeChecklist) || !closeComment.trim()}
-          >
-            <Text style={styles.primaryButtonText}>{submitting ? "Closing..." : "Close permit"}</Text>
-          </Pressable>
-        </>
-      )}
-    </ScrollView>
+        </Card>
+      </View>
+
+      <Card style={{ gap: tokens.space[4] }}>
+        <StageAnswers
+          responses={detail.permit.formResponses ?? []}
+          stage="closure"
+          edits={stageEdits}
+          onChange={setStageEdits}
+          signerName={signerName}
+          disabled={submitting}
+        />
+        {verified && closureLeft > 0 ? <AppText variant="caption" tone="warning" weight="semibold">{`${closureLeft} left to sign before closing.`}</AppText> : null}
+        {verified ? (
+          <TextField label="Closure comment" required multiline value={closeComment} onChangeText={setCloseComment} placeholder="What was checked before closing" />
+        ) : (
+          <TextField label="Verification comment" required multiline value={comment} onChangeText={setComment} placeholder="What you saw on site" />
+        )}
+      </Card>
+    </Screen>
   );
 }
-
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-  container: { padding: 16, gap: 10 },
-  title: { fontSize: 20, fontWeight: "600", color: c.foreground },
-  meta: { fontSize: 13, color: c.mutedForeground },
-  sectionTitle: { fontSize: 14, fontWeight: "600", marginTop: 8, color: c.foreground },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 6,
-  },
-  rowLabel: { flex: 1, fontSize: 14, color: c.foreground },
-  input: {
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 8,
-    padding: 10,
-    minHeight: 80,
-    textAlignVertical: "top",
-  },
-  primaryButton: {
-    backgroundColor: c.primary,
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-  },
-  primaryButtonText: { color: c.primaryForeground, fontWeight: "500" },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-  },
-  secondaryButtonText: { color: c.foreground, fontWeight: "500" },
-  error: { color: c.danger },
-  message: { color: c.success },
-});

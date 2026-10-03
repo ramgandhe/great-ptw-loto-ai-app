@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { loadAsync } from "expo-font";
+import { fontFiles } from "@/theme/fonts";
 import { createThemeTokens, defaultPreferences } from "@/theme/tokens";
 import type {
   ColorMode,
@@ -52,7 +54,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
   }, [preferences, ready]);
 
-  const tokens = useMemo(() => createThemeTokens(preferences), [preferences]);
+  // A theme takes effect once its fonts are loaded, so text never shows in a missing font.
+  const [applied, setApplied] = useState<ThemePreferences | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    let current = true;
+    loadAsync(fontFiles(createThemeTokens(preferences).fonts))
+      .catch(() => undefined)
+      .finally(() => current && setApplied(preferences));
+    return () => {
+      current = false;
+    };
+  }, [preferences, ready]);
+  const tokens = useMemo(() => createThemeTokens(applied ?? preferences), [applied, preferences]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({
@@ -66,7 +80,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [tokens, preferences],
   );
 
-  if (!ready) {
+  if (!applied) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator />

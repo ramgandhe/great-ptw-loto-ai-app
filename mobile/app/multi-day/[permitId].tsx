@@ -1,14 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+import { AppText, Banner, Button, Card, ChipRow, ChoiceGroup, DateTimeField, PageHeader, PermitStatusChip, RefChip, Screen, ScreenState, Tabs, TextField } from "@/components/ui";
+import { SelectField } from "@/components/ui/select-field";
+import { CalendarPlus, Pause, Play, Send, UserCheck } from "@/components/ui/icons";
 import { ApiError } from "@/lib/api";
 import {
   continuePermit,
@@ -35,16 +30,16 @@ import { listWorkforceDirectory } from "@/lib/workforce/api";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
-import { useThemedStyles } from "@/theme/use-themed-styles";
-import type { ThemeColors } from "@/theme/types";
 
 function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+type Job = "progress" | "handover" | "revalidate" | "extend";
+
 export default function MultiDayPermitScreen() {
-  const styles = useThemedStyles(createStyles);
-  const themeColors = useTheme().tokens.colors;
   const { permitId } = useLocalSearchParams<{ permitId: string }>();
   const { tokens } = useTheme();
   const { isOnline } = useOffline();
@@ -70,6 +65,8 @@ export default function MultiDayPermitScreen() {
   const [suspendReason, setSuspendReason] = useState("");
   const [requestedEndAt, setRequestedEndAt] = useState("");
   const [justification, setJustification] = useState("");
+  const [job, setJob] = useState<Job>("progress");
+  const [suspending, setSuspending] = useState(false);
 
   const load = useCallback(async () => {
     if (!permitId) return;
@@ -88,7 +85,7 @@ export default function MultiDayPermitScreen() {
   useEffect(() => {
     setLoading(true);
     Promise.all([load(), listWorkforceDirectory().then(setDirectory).catch(() => setDirectory([]))])
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load"))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "The permit could not be loaded."))
       .finally(() => setLoading(false));
   }, [load]);
 
@@ -100,195 +97,152 @@ export default function MultiDayPermitScreen() {
       setMessage(success);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Action failed");
+      setError(err instanceof ApiError ? err.message : "That did not work. Try again.");
     }
   }
 
-  if (loading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: tokens.colors.background }]}>
-        <ActivityIndicator color={tokens.colors.primary} />
-      </View>
-    );
-  }
-
-  if (!detail || !permitId) {
-    return (
-      <View style={[styles.centered, { backgroundColor: tokens.colors.background }]}>
-        <Text style={{ color: themeColors.danger }}>{error ?? "Permit not found"}</Text>
-      </View>
-    );
+  const back = { label: "Permit work", href: `/execution/${permitId}` };
+  if (loading || !detail || !permitId) {
+    return <ScreenState error={loading ? null : (error ?? "This permit was not found.")} back={back} />;
   }
 
   const canManage = ["active", "suspended"].includes(detail.permit.status);
-  const inputStyle = [
-    styles.input,
-    { borderColor: tokens.colors.border, color: tokens.colors.foreground },
-  ];
+  const c = tokens.colors;
+  const send = (label: string, icon: typeof Send, onPress: () => void, disabled = false) => (
+    <Button label={label} icon={icon} disabled={disabled} onPress={onPress} style={{ alignSelf: "flex-start" }} />
+  );
 
   return (
-    <ScrollView style={{ backgroundColor: tokens.colors.background }} contentContainerStyle={styles.container}>
-      <Pressable onPress={() => router.back()}>
-        <Text style={{ color: tokens.colors.primary, marginBottom: 8 }}>Back</Text>
-      </Pressable>
+    <Screen>
+      <PageHeader title="Multi-day work" description={detail.permit.title} back={back}>
+        <ChipRow>
+          <PermitStatusChip status={detail.permit.status} />
+          <RefChip reference={detail.permit.reference} />
+        </ChipRow>
+        {canManage ? (
+          <Tabs
+            options={[
+              { key: "progress", label: "Daily progress" },
+              { key: "handover", label: "Handover" },
+              { key: "revalidate", label: "Revalidate" },
+              { key: "extend", label: "Extend" },
+            ]}
+            value={job}
+            onChange={setJob}
+          />
+        ) : null}
+      </PageHeader>
 
-      <Text style={[styles.title, { color: tokens.colors.foreground }]}>Multi-day operations</Text>
-      <Text style={{ color: tokens.colors.mutedForeground }}>{detail.permit.title}</Text>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {message ? <Text style={{ color: tokens.colors.mutedForeground }}>{message}</Text> : null}
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      {message ? <Banner tone={message.includes("this phone") ? "warning" : "success"}>{message}</Banner> : null}
 
       {!canManage ? (
-        <Text style={{ color: tokens.colors.mutedForeground, marginTop: 12 }}>
-          Available for active or suspended permits only.
-        </Text>
-      ) : (
+        <Banner tone="info">Daily records, handovers and revalidation are for permits with work in progress or suspended.</Banner>
+      ) : job === "progress" ? (
+        <Card style={{ gap: tokens.space[3] }}>
+          <AppText variant="title">Daily progress</AppText>
+          <DateTimeField label="Day" dateOnly required value={operationalDate} onChange={setOperationalDate} />
+          <TextField label="Work completed" required multiline value={completedWork} onChangeText={setCompletedWork} />
+          <TextField label="Work still to do" multiline value={pendingWork} onChangeText={setPendingWork} />
+          <TextField label="Summary of the day" required multiline value={summary} onChangeText={setSummary} />
+          {send("Submit progress", Send, async () => {
+            const payload = { operationalDate, completedWork: completedWork.trim(), pendingWork: pendingWork.trim() || undefined, summary: summary.trim(), submit: true };
+            if (!isOnline) {
+              await queueOfflineDailyProgress(permitId, payload);
+              setMessage("Daily progress saved on this phone; not recorded until the server confirms it.");
+              return;
+            }
+            await runAction(() => recordDailyProgress(permitId, payload).then(() => undefined), "Daily progress saved");
+          }, !completedWork.trim() || !summary.trim())}
+        </Card>
+      ) : job === "handover" ? (
+        <Card style={{ gap: tokens.space[3] }}>
+          <AppText variant="title">Shift handover</AppText>
+          <SelectField
+            label="Handing over to"
+            required
+            value={incomingUserId}
+            options={directory.map((person) => ({ value: person.id, label: person.name }))}
+            placeholder="Choose the incoming person"
+            onChange={setIncomingUserId}
+          />
+          <TextField label="Completed activities" required multiline value={completedActivities} onChangeText={setCompletedActivities} />
+          <TextField label="Outstanding work" required multiline value={outstandingWork} onChangeText={setOutstandingWork} />
+          <TextField label="Safety observations" multiline value={safetyObservations} onChangeText={setSafetyObservations} />
+          {send("Complete handover", UserCheck, async () => {
+            const payload = { incomingUserId, completedActivities: completedActivities.trim(), outstandingWork: outstandingWork.trim(), safetyObservations: safetyObservations.trim() || undefined };
+            if (!isOnline) {
+              await queueOfflineHandover(permitId, payload);
+              setMessage("Handover saved on this phone; not recorded until the server confirms it.");
+              return;
+            }
+            await runAction(() => createHandover(permitId, payload).then(() => undefined), "Handover saved");
+          }, !incomingUserId)}
+        </Card>
+      ) : job === "revalidate" ? (
         <>
-          <View style={[styles.card, { borderColor: tokens.colors.border }]}>
-            <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>Daily progress</Text>
-            <TextInput style={inputStyle} value={operationalDate} onChangeText={setOperationalDate} placeholder="YYYY-MM-DD" placeholderTextColor={tokens.colors.mutedForeground} />
-            <TextInput style={inputStyle} multiline value={completedWork} onChangeText={setCompletedWork} placeholder="Work completed" placeholderTextColor={tokens.colors.mutedForeground} />
-            <TextInput style={inputStyle} multiline value={pendingWork} onChangeText={setPendingWork} placeholder="Outstanding work" placeholderTextColor={tokens.colors.mutedForeground} />
-            <TextInput style={inputStyle} multiline value={summary} onChangeText={setSummary} placeholder="Daily summary" placeholderTextColor={tokens.colors.mutedForeground} />
-            <Pressable
-              style={[styles.primaryButton, { backgroundColor: tokens.colors.primary }]}
-              onPress={async () => {
-                const payload = {
-                  operationalDate,
-                  completedWork: completedWork.trim(),
-                  pendingWork: pendingWork.trim() || undefined,
-                  summary: summary.trim(),
-                  submit: true,
-                };
-                if (!isOnline) {
-                  await queueOfflineDailyProgress(permitId, payload);
-                  setMessage("Daily progress saved on this phone; not recorded until the server confirms it.");
-                  return;
-                }
-                await runAction(() => recordDailyProgress(permitId, payload).then(() => undefined), "Daily progress saved");
-              }}
-            >
-              <Text style={styles.primaryButtonText}>Submit progress</Text>
-            </Pressable>
-          </View>
-
-          <View style={[styles.card, { borderColor: tokens.colors.border }]}>
-            <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>Shift handover</Text>
-            {directory.slice(0, 5).map((person) => (
-              <Pressable key={person.id} onPress={() => setIncomingUserId(person.id)}>
-                <Text style={{ color: incomingUserId === person.id ? tokens.colors.primary : tokens.colors.foreground }}>
-                  {person.name}
-                </Text>
-              </Pressable>
-            ))}
-            <TextInput style={inputStyle} multiline value={completedActivities} onChangeText={setCompletedActivities} placeholder="Completed activities" placeholderTextColor={tokens.colors.mutedForeground} />
-            <TextInput style={inputStyle} multiline value={outstandingWork} onChangeText={setOutstandingWork} placeholder="Outstanding work" placeholderTextColor={tokens.colors.mutedForeground} />
-            <TextInput style={inputStyle} multiline value={safetyObservations} onChangeText={setSafetyObservations} placeholder="Safety observations" placeholderTextColor={tokens.colors.mutedForeground} />
-            <Pressable
-              style={[styles.primaryButton, { backgroundColor: tokens.colors.primary }]}
-              onPress={async () => {
-                const payload = {
-                  incomingUserId,
-                  completedActivities: completedActivities.trim(),
-                  outstandingWork: outstandingWork.trim(),
-                  safetyObservations: safetyObservations.trim() || undefined,
-                };
-                if (!incomingUserId) {
-                  setError("Select incoming personnel");
-                  return;
-                }
-                if (!isOnline) {
-                  await queueOfflineHandover(permitId, payload);
-                  setMessage("Handover saved on this phone; not recorded until the server confirms it.");
-                  return;
-                }
-                await runAction(() => createHandover(permitId, payload).then(() => undefined), "Handover saved");
-              }}
-            >
-              <Text style={styles.primaryButtonText}>Complete handover</Text>
-            </Pressable>
-          </View>
-
-          <View style={[styles.card, { borderColor: tokens.colors.border }]}>
-            <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>Revalidation</Text>
-            <TextInput style={inputStyle} value={operationalDate} onChangeText={setOperationalDate} placeholder="Operational date" placeholderTextColor={tokens.colors.mutedForeground} />
-            <View style={styles.row}>
-              <Pressable onPress={() => setRevalidationOutcome("passed")}>
-                <Text style={{ color: revalidationOutcome === "passed" ? tokens.colors.primary : tokens.colors.foreground }}>Passed</Text>
-              </Pressable>
-              <Pressable onPress={() => setRevalidationOutcome("failed")}>
-                <Text style={{ color: revalidationOutcome === "failed" ? tokens.colors.primary : tokens.colors.foreground }}>Failed</Text>
-              </Pressable>
-            </View>
-            <TextInput style={inputStyle} multiline value={findings} onChangeText={setFindings} placeholder="Findings" placeholderTextColor={tokens.colors.mutedForeground} />
-            <Pressable
-              style={[styles.primaryButton, { backgroundColor: tokens.colors.primary }]}
-              onPress={async () => {
-                const payload = { operationalDate, outcome: revalidationOutcome, findings: findings.trim() };
-                if (!isOnline) {
-                  await queueOfflineRevalidation(permitId, payload);
-                  setMessage("Revalidation saved on this phone; not recorded until the server confirms it.");
-                  return;
-                }
-                await runAction(() => revalidatePermit(permitId, payload).then(() => undefined), "Revalidation saved");
-              }}
-            >
-              <Text style={styles.primaryButtonText}>Submit revalidation</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.secondaryButton, { borderColor: tokens.colors.border }]}
-              onPress={() => runAction(() => continuePermit(permitId).then(() => undefined), "Permit continued")}
-            >
-              <Text style={{ color: tokens.colors.foreground }}>Continue permit</Text>
-            </Pressable>
-            <TextInput style={inputStyle} multiline value={suspendReason} onChangeText={setSuspendReason} placeholder="Suspend reason" placeholderTextColor={tokens.colors.mutedForeground} />
-            <Pressable
-              style={[styles.secondaryButton, { borderColor: tokens.colors.border }]}
-              onPress={() =>
-                runAction(
-                  () => suspendPermitForRevalidation(permitId, suspendReason.trim()).then(() => undefined),
-                  "Permit suspended",
-                )
+          <Card style={{ gap: tokens.space[3] }}>
+            <AppText variant="title">Revalidation</AppText>
+            <DateTimeField label="Day" dateOnly required value={operationalDate} onChange={setOperationalDate} />
+            <ChoiceGroup
+              label="Outcome"
+              fill
+              options={[
+                { key: "passed" as const, label: "Passed", color: c.success },
+                { key: "failed" as const, label: "Failed", color: c.danger },
+              ]}
+              value={revalidationOutcome}
+              onChange={setRevalidationOutcome}
+            />
+            <TextField label="Findings" required multiline value={findings} onChangeText={setFindings} />
+            {send("Submit revalidation", Send, async () => {
+              const payload = { operationalDate, outcome: revalidationOutcome, findings: findings.trim() };
+              if (!isOnline) {
+                await queueOfflineRevalidation(permitId, payload);
+                setMessage("Revalidation saved on this phone; not recorded until the server confirms it.");
+                return;
               }
-            >
-              <Text style={{ color: tokens.colors.foreground }}>Suspend permit</Text>
-            </Pressable>
-            <TextInput style={inputStyle} value={requestedEndAt} onChangeText={setRequestedEndAt} placeholder="Extension end (ISO datetime)" placeholderTextColor={tokens.colors.mutedForeground} />
-            <TextInput style={inputStyle} multiline value={justification} onChangeText={setJustification} placeholder="Extension justification" placeholderTextColor={tokens.colors.mutedForeground} />
-            <Pressable
-              style={[styles.secondaryButton, { borderColor: tokens.colors.border }]}
-              onPress={async () => {
-                const payload = {
-                  requestedEndAt: requestedEndAt.trim(),
-                  justification: justification.trim(),
-                };
-                if (!isOnline) {
-                  await queueOfflineExtensionRequest(permitId, payload);
-                  setMessage("Extension request saved on this phone; not sent until the server confirms it.");
-                  return;
-                }
-                await runAction(() => requestExtension(permitId, payload).then(() => undefined), "Extension requested");
-              }}
-            >
-              <Text style={{ color: tokens.colors.foreground }}>Request extension</Text>
-            </Pressable>
-          </View>
+              await runAction(() => revalidatePermit(permitId, payload).then(() => undefined), "Revalidation saved");
+            }, !findings.trim())}
+          </Card>
+          <Card style={{ gap: tokens.space[3] }}>
+            <AppText variant="subheading">After revalidation</AppText>
+            <Button label="Continue permit" variant="outline" icon={Play} onPress={() => void runAction(() => continuePermit(permitId).then(() => undefined), "Permit continued")} style={{ alignSelf: "flex-start" }} />
+            {suspending ? (
+              <>
+                <TextField label="Why the permit is suspended" required multiline value={suspendReason} onChangeText={setSuspendReason} />
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space[2] }}>
+                  <Button
+                    label="Suspend permit"
+                    variant="danger"
+                    icon={Pause}
+                    disabled={!suspendReason.trim()}
+                    onPress={() => void runAction(() => suspendPermitForRevalidation(permitId, suspendReason.trim()).then(() => undefined), "Permit suspended").then(() => setSuspending(false))}
+                  />
+                  <Button label="Cancel" variant="ghost" onPress={() => setSuspending(false)} />
+                </View>
+              </>
+            ) : (
+              <Button label="Suspend permit…" variant="danger" icon={Pause} onPress={() => setSuspending(true)} style={{ alignSelf: "flex-start" }} />
+            )}
+          </Card>
         </>
+      ) : (
+        <Card style={{ gap: tokens.space[3] }}>
+          <AppText variant="title">Request an extension</AppText>
+          <DateTimeField label="New end" required value={requestedEndAt} onChange={setRequestedEndAt} />
+          <TextField label="Why more time is needed" required multiline value={justification} onChangeText={setJustification} />
+          {send("Request extension", CalendarPlus, async () => {
+            const payload = { requestedEndAt: new Date(requestedEndAt).toISOString(), justification: justification.trim() };
+            if (!isOnline) {
+              await queueOfflineExtensionRequest(permitId, payload);
+              setMessage("Extension request saved on this phone; not sent until the server confirms it.");
+              return;
+            }
+            await runAction(() => requestExtension(permitId, payload).then(() => undefined), "Extension requested");
+          }, !requestedEndAt || !justification.trim())}
+        </Card>
       )}
-    </ScrollView>
+    </Screen>
   );
 }
-
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
-  card: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 8, gap: 8 },
-  input: { borderWidth: 1, borderRadius: 8, padding: 10, minHeight: 44, textAlignVertical: "top" },
-  primaryButton: { borderRadius: 8, padding: 12, alignItems: "center" },
-  primaryButtonText: { color: c.primaryForeground, fontWeight: "600" },
-  secondaryButton: { borderWidth: 1, borderRadius: 8, padding: 12, alignItems: "center" },
-  row: { flexDirection: "row", gap: 16 },
-  error: { color: c.danger },
-});

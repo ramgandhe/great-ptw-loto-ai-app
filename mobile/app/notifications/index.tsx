@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
+import { AppText, Banner, Button, Card, EmptyState, PageHeader, Screen, Tabs } from "@/components/ui";
+import { ExternalLink } from "@/components/ui/icons";
+import { formatRelative } from "@/lib/format";
 import { router } from "expo-router";
 import { ApiError } from "@/lib/api";
 import { listNotifications, markNotificationRead } from "@/lib/notifications/api";
@@ -8,11 +11,8 @@ import type { Notification } from "@/lib/notifications/types";
 import { getNotificationEntityRoute } from "@/lib/notifications/routes";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
-import { useThemedStyles } from "@/theme/use-themed-styles";
-import type { ThemeColors } from "@/theme/types";
 
 export default function NotificationsScreen() {
-  const styles = useThemedStyles(createStyles);
   const { tokens } = useTheme();
   const { isOnline } = useOffline();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -27,7 +27,7 @@ export default function NotificationsScreen() {
 
     listNotifications(filter === "unread" ? { unreadOnly: true } : undefined)
       .then(setNotifications)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load notifications"))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Messages could not be loaded."))
       .finally(() => setLoading(false));
   }, [filter]);
 
@@ -60,136 +60,65 @@ export default function NotificationsScreen() {
         current.map((item) => (item.id === notification.id ? updated : item)),
       );
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to mark notification as read");
+      setError(err instanceof ApiError ? err.message : "The message could not be marked as read.");
     } finally {
       setMarkingId(null);
     }
   }
 
-  if (loading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: tokens.colors.background }]}>
-        <ActivityIndicator color={tokens.colors.primary} />
-      </View>
-    );
-  }
-
+  const c = tokens.colors;
   return (
-    <ScrollView style={{ backgroundColor: tokens.colors.background }} contentContainerStyle={styles.container}>
-      <Text style={[styles.title, { color: tokens.colors.foreground }]}>Notifications</Text>
-      <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12 }}>
-        {unreadCount} unread · {isOnline ? "online" : "offline"}
-      </Text>
+    <Screen>
+      <PageHeader title="Messages" description={`${unreadCount} unread${isOnline ? "" : " · offline"}`} back={{ label: "Home", href: "/" }}>
+        <Tabs
+          options={[
+            { key: "all", label: "All" },
+            { key: "unread", label: "Unread", count: filter === "unread" ? notifications.length : undefined },
+          ]}
+          value={filter}
+          onChange={setFilter}
+        />
+      </PageHeader>
 
-      <View style={styles.filterRow}>
-        {(["all", "unread"] as const).map((value) => (
-          <Pressable
-            key={value}
-            style={[
-              styles.filterButton,
-              {
-                borderColor: tokens.colors.border,
-                backgroundColor: filter === value ? tokens.colors.primary : "transparent",
-              },
-            ]}
-            onPress={() => setFilter(value)}
-          >
-            <Text
-              style={{
-                color: filter === value ? tokens.colors.primaryForeground : tokens.colors.foreground,
-                fontWeight: "500",
-                fontSize: 12,
-              }}
-            >
-              {value === "all" ? "All" : "Unread"}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      {notifications.length === 0 ? (
-        <Text style={{ color: tokens.colors.mutedForeground, marginTop: 12 }}>No notifications yet.</Text>
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      {loading ? (
+        <ActivityIndicator color={c.primary} style={{ marginTop: tokens.space[6] }} />
+      ) : notifications.length === 0 ? (
+        <EmptyState done title={filter === "unread" ? "Nothing unread" : "No messages yet"} body="Approvals, hand-offs and changes to your permits are announced here." />
       ) : (
-        notifications.map((notification) => (
-          <Pressable
-            key={notification.id}
-            style={[
-              styles.card,
-              {
-                borderColor: tokens.colors.border,
-                backgroundColor:
-                  notification.readAt === null ? `${tokens.colors.primary}12` : "transparent",
-              },
-            ]}
-            onPress={() => router.push(`/notifications/${notification.id}`)}
-          >
-            <View style={styles.cardHeader}>
-              <Text style={{ color: tokens.colors.foreground, fontWeight: "600", flex: 1 }}>
-                {notification.title}
-              </Text>
-              {notification.readAt === null ? (
-                <Text style={{ color: tokens.colors.primary, fontSize: 10, fontWeight: "700" }}>UNREAD</Text>
+        notifications.map((notification) => {
+          const unread = notification.readAt === null;
+          const route = getNotificationEntityRoute(notification);
+          return (
+            <Card key={notification.id} accent={unread ? c.primary : undefined} onPress={() => router.push(`/notifications/${notification.id}`)} accessibilityLabel={`${unread ? "Unread: " : ""}${notification.title}`}>
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: tokens.space[2] }}>
+                {unread ? <View style={{ width: 8, height: 8, borderRadius: 4, marginTop: 7, backgroundColor: c.primary }} /> : null}
+                <AppText variant="subheading" weight={unread ? "bold" : "medium"} style={{ flex: 1 }}>{notification.title}</AppText>
+              </View>
+              <AppText variant="body" tone="secondary" numberOfLines={2}>{notification.body}</AppText>
+              <AppText variant="caption" style={{ textTransform: "capitalize" }}>{`${notification.category.replace(/_/g, " ")} · ${formatRelative(notification.createdAt)}`}</AppText>
+              {route || unread ? (
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space[2], marginTop: tokens.space[1] }}>
+                  {/* Opening the record is the main move; it also marks the message read. */}
+                  {route ? (
+                    <Button
+                      label="Open record"
+                      size="sm"
+                      variant="tint"
+                      icon={ExternalLink}
+                      onPress={() => {
+                        if (unread) void handleMarkRead(notification);
+                        router.push(route as never);
+                      }}
+                    />
+                  ) : null}
+                  {unread ? <Button label={markingId === notification.id ? "Marking…" : "Mark read"} size="sm" variant="ghost" onPress={() => void handleMarkRead(notification)} /> : null}
+                </View>
               ) : null}
-            </View>
-            <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12, marginTop: 4 }} numberOfLines={2}>
-              {notification.body}
-            </Text>
-            <Text style={{ color: tokens.colors.mutedForeground, fontSize: 11, marginTop: 6 }}>
-              {notification.category.replace(/_/g, " ")} · {notification.priority} ·{" "}
-              {new Date(notification.createdAt).toLocaleString()}
-            </Text>
-            {/* Opening the record is the main move; it also marks the message read. */}
-            {getNotificationEntityRoute(notification) ? (
-              <Pressable
-                accessibilityRole="button"
-                style={[styles.markReadButton, { borderColor: tokens.colors.primary, minHeight: 44, justifyContent: "center" }]}
-                onPress={(event) => {
-                  event.stopPropagation();
-                  if (notification.readAt === null) void handleMarkRead(notification);
-                  router.push(getNotificationEntityRoute(notification)!);
-                }}
-              >
-                <Text style={{ color: tokens.colors.primary, fontWeight: "600" }}>Open record</Text>
-              </Pressable>
-            ) : null}
-            {notification.readAt === null ? (
-              <Pressable
-                style={[styles.markReadButton, { borderColor: tokens.colors.border }]}
-                onPress={(event) => {
-                  event.stopPropagation();
-                  void handleMarkRead(notification);
-                }}
-              >
-                <Text style={{ color: tokens.colors.foreground, fontSize: 12 }}>
-                  {markingId === notification.id ? "Marking…" : "Mark read"}
-                </Text>
-              </Pressable>
-            ) : null}
-          </Pressable>
-        ))
+            </Card>
+          );
+        })
       )}
-    </ScrollView>
+    </Screen>
   );
 }
-
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
-  filterRow: { flexDirection: "row", gap: 8, marginTop: 8 },
-  filterButton: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
-  card: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 8 },
-  cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  markReadButton: {
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginTop: 8,
-  },
-  error: { color: c.danger, marginTop: 8 },
-});

@@ -1,26 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { ActionBar, Banner, Button, Card, PageHeader, Screen, ScreenState, TextField } from "@/components/ui";
+import { Plus } from "@/components/ui/icons";
 import { SelectField } from "@/components/ui/select-field";
 import { ApiError } from "@/lib/api";
 import { createLototoPlan } from "@/lib/lototo/api";
 import { filterMachineryByWorkstation, loadLototoFormOptions } from "@/lib/lototo/form-options";
 import { useTheme } from "@/providers/theme-provider";
-import { useThemedStyles } from "@/theme/use-themed-styles";
-import type { ThemeColors } from "@/theme/types";
 
 export default function NewLototoPlanScreen() {
-  const styles = useThemedStyles(createStyles);
   const { machineryId: initialMachineryId } = useLocalSearchParams<{ machineryId?: string }>();
   const { tokens } = useTheme();
+  const [tried, setTried] = useState(false);
   const [options, setOptions] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>> | null>(
     null,
   );
@@ -50,14 +41,14 @@ export default function NewLototoPlanScreen() {
     loadLototoFormOptions()
       .then(setOptions)
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : "Failed to load machinery");
+        setError(err instanceof ApiError ? err.message : "The machinery list could not be loaded.");
       })
       .finally(() => setLoading(false));
   }, []);
 
   async function handleCreate() {
+    setTried(true);
     if (!machineryId || !title.trim()) {
-      setError("Machinery and title are required.");
       return;
     }
 
@@ -72,85 +63,42 @@ export default function NewLototoPlanScreen() {
       });
       router.replace(`/lototo/${plan.id}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to create plan");
+      setError(err instanceof ApiError ? err.message : "The plan could not be created.");
       setSubmitting(false);
     }
   }
 
+  const back = { label: "LOTOTO", href: "/lototo" };
   if (loading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: tokens.colors.background }]}>
-        <ActivityIndicator color={tokens.colors.primary} />
-      </View>
-    );
+    return <ScreenState back={back} />;
   }
 
   return (
-    <ScrollView style={{ backgroundColor: tokens.colors.background }} contentContainerStyle={styles.container}>
-      <Text style={[styles.title, { color: tokens.colors.foreground }]}>New LOTOTO plan</Text>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <SelectField
-        label="Workstation"
-        value={workstationId}
-        options={(options?.workstations ?? []).map((item) => ({
-          value: item.id,
-          label: item.code ? `${item.name} (${item.code})` : item.name,
-        }))}
-        placeholder="None"
-        hint="Optional — filters machinery below."
-        onChange={setWorkstationId}
-      />
-
-      <SelectField
-        label="Machinery"
-        value={machineryId}
-        options={machineryOptions}
-        placeholder="Select machinery"
-        required
-        hint={
-          machineryOptions.length === 0
-            ? "Add machinery under Organisation first."
-            : undefined
-        }
-        onChange={setMachineryId}
-      />
-
-      <Text style={styles.label}>Title</Text>
-      <TextInput
-        value={title}
-        onChangeText={setTitle}
-        style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
-      />
-
-      <Text style={styles.label}>Description</Text>
-      <TextInput
-        value={description}
-        onChangeText={setDescription}
-        multiline
-        style={[styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }]}
-      />
-
-      <Pressable
-        style={[styles.primaryButton, { backgroundColor: tokens.colors.primary, opacity: submitting ? 0.6 : 1 }]}
-        onPress={handleCreate}
-        disabled={submitting}
-      >
-        <Text style={styles.primaryButtonText}>{submitting ? "Creating…" : "Create plan"}</Text>
-      </Pressable>
-    </ScrollView>
+    <Screen footer={<ActionBar><Button label="Create plan" icon={Plus} loading={submitting} onPress={() => void handleCreate()} /></ActionBar>}>
+      <PageHeader title="New LOTOTO plan" description="Choose the machine, then add its isolation points in order on the next page." back={back} />
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      <Card style={{ gap: tokens.space[4] }}>
+        <SelectField
+          label="Workstation"
+          value={workstationId}
+          options={(options?.workstations ?? []).map((item) => ({ value: item.id, label: item.code ? `${item.name} (${item.code})` : item.name }))}
+          placeholder="Any workstation"
+          hint="Optional. Narrows the machinery list."
+          onChange={setWorkstationId}
+        />
+        <SelectField
+          label="Machinery"
+          value={machineryId}
+          options={machineryOptions}
+          placeholder="Choose machinery"
+          required
+          hint={machineryOptions.length === 0 ? "Add machinery under Organisation first." : undefined}
+          error={tried && !machineryId ? "Choose the machinery this plan isolates." : null}
+          onChange={setMachineryId}
+        />
+        <TextField label="Title" required value={title} onChangeText={setTitle} placeholder="For example: Pump P-101 full isolation" error={tried && !title.trim() ? "Give the plan a title." : null} />
+        <TextField label="Description" multiline value={description} onChangeText={setDescription} placeholder="When this plan is used (optional)" />
+      </Card>
+    </Screen>
   );
 }
-
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600", marginBottom: 8, color: c.foreground },
-  label: { fontSize: 13, fontWeight: "500", color: c.foreground },
-  input: { borderWidth: 1, borderRadius: 8, padding: 10 },
-  primaryButton: { marginTop: 8, borderRadius: 8, padding: 12, alignItems: "center" },
-  primaryButtonText: { color: c.primaryForeground, fontWeight: "600" },
-  error: { color: c.danger },
-});

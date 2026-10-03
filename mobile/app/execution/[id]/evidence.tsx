@@ -1,19 +1,23 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
+import { View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { AppText, Banner, Card, EmptyState, FileRow, PageHeader, Screen, ScreenState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { listEvidence } from "@/lib/execution/api";
+import { openPresignedDownload } from "@/lib/download";
+import { getEvidenceDownloadUrl, listEvidence } from "@/lib/execution/api";
 import type { EvidenceRecord } from "@/lib/execution/types";
-import { useThemedStyles } from "@/theme/use-themed-styles";
-import type { ThemeColors } from "@/theme/types";
+import { formatDateTime } from "@/lib/format";
+import { useTheme } from "@/providers/theme-provider";
 
 export default function EvidenceGalleryScreen() {
-  const styles = useThemedStyles(createStyles);
+  const { tokens } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const permitId = id ?? "";
   const [items, setItems] = useState<EvidenceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openError, setOpenError] = useState<string | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!permitId) {
@@ -21,49 +25,44 @@ export default function EvidenceGalleryScreen() {
     }
     listEvidence(permitId)
       .then(setItems)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load evidence"))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "The evidence could not be loaded."))
       .finally(() => setLoading(false));
   }, [permitId]);
 
-  if (loading) {
-    return <ActivityIndicator style={{ marginTop: 32 }} />;
+  async function open(evidenceId: string) {
+    setOpeningId(evidenceId);
+    setOpenError(null);
+    try {
+      await openPresignedDownload(() => getEvidenceDownloadUrl(permitId, evidenceId));
+    } catch (err) {
+      setOpenError(err instanceof ApiError ? err.message : "The file could not be opened.");
+    } finally {
+      setOpeningId(null);
+    }
+  }
+
+  const back = { label: "Permit work", href: `/execution/${permitId}` };
+  if (loading || error) {
+    return <ScreenState error={error} back={back} />;
   }
 
   return (
-    <View style={styles.container}>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={error ? null : <Text style={styles.empty}>No evidence uploaded.</Text>}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.fileName}>{item.fileName}</Text>
-            <Text style={styles.meta}>
-              {item.contentType} · {Math.round(item.fileSize / 1024)} KB
-            </Text>
-            {item.comment ? <Text style={styles.comment}>{item.comment}</Text> : null}
-            <Text style={styles.meta}>{new Date(item.createdAt).toLocaleString()}</Text>
-          </View>
-        )}
-      />
-    </View>
+    <Screen>
+      <PageHeader title="Evidence" description="Photos and files attached while the work was done." back={back} />
+      {openError ? <Banner tone="danger">{openError}</Banner> : null}
+      {items.length === 0 ? (
+        <EmptyState title="No evidence yet" body="Photos taken from the permit's work page appear here." />
+      ) : (
+        items.map((item) => (
+          <Card key={item.id} style={{ gap: tokens.space[1] }}>
+            <FileRow name={item.fileName} busy={openingId === item.id} onOpen={() => void open(item.id)} />
+            <View style={{ paddingLeft: 30, gap: 2 }}>
+              {item.comment ? <AppText variant="body" tone="secondary">{item.comment}</AppText> : null}
+              <AppText variant="caption">{`${formatDateTime(item.createdAt)} · ${Math.round(item.fileSize / 1024)} KB`}</AppText>
+            </View>
+          </Card>
+        ))
+      )}
+    </Screen>
   );
 }
-
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  card: {
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
-  fileName: { fontSize: 14, fontWeight: "600", color: c.foreground },
-  meta: { fontSize: 12, color: c.mutedForeground, marginTop: 4 },
-  comment: { fontSize: 13, color: c.mutedForeground, marginTop: 6 },
-  empty: { color: c.mutedForeground },
-  error: { color: c.danger, marginBottom: 8 },
-});

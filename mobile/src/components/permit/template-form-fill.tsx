@@ -12,45 +12,40 @@ import {
 } from "@/lib/permit/forms";
 import { useTheme } from "@/providers/theme-provider";
 import type { ThemeTokens } from "@/theme/types";
+import { tint } from "@/theme/tokens";
 
 /** Android's minimum touch target. */
 const TARGET = 48;
 
-function createStyles({ colors, radius, typography }: ThemeTokens) {
+function createStyles({ colors, radii, text, fonts, space }: ThemeTokens) {
+  const body = { fontFamily: fonts.body, fontSize: text.base, color: colors.foreground };
+  const pill = { minHeight: TARGET, justifyContent: "center" as const, paddingHorizontal: space[4], borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radii.full, backgroundColor: colors.card };
   return StyleSheet.create({
-    card: { gap: 10, padding: 12, borderWidth: 1, borderColor: colors.border, borderRadius: radius + 2, backgroundColor: colors.card },
-    cardTitle: { fontSize: typography.body + 2, fontWeight: "600", color: colors.foreground },
-    left: { fontSize: typography.body - 1, color: colors.warning },
-    done: { fontSize: typography.body - 1, color: colors.success },
-    section: { gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: 10 },
-    sectionTitle: { fontSize: typography.body, fontWeight: "600", color: colors.foreground },
-    field: { gap: 6 },
-    label: { fontSize: typography.body, color: colors.foreground },
+    // A form sits inside an editor card: a sunken panel, not a card in a card.
+    card: { gap: space[3], padding: space[4], borderRadius: radii.md, backgroundColor: colors.muted },
+    cardTitle: { fontFamily: fonts.display, fontSize: text.md, color: colors.foreground },
+    left: { fontFamily: fonts.bodySemibold, fontSize: text.sm, color: colors.warning },
+    done: { fontFamily: fonts.bodySemibold, fontSize: text.sm, color: colors.success },
+    section: { gap: space[3], borderTopWidth: 1, borderTopColor: colors.border, paddingTop: space[3] },
+    sectionTitle: { fontFamily: fonts.bodyBold, fontSize: text.base, color: colors.foreground },
+    field: { gap: space[2] },
+    label: { ...body, fontFamily: fonts.bodyMedium },
     required: { color: colors.danger },
-    hint: { fontSize: typography.body - 2, color: colors.mutedForeground },
-    row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    check: { minHeight: TARGET, minWidth: 56, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border, borderRadius: radius },
-    chip: { minHeight: TARGET, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderColor: colors.border, borderRadius: TARGET / 2 },
-    chipOn: { borderColor: colors.foreground, backgroundColor: colors.muted },
-    text: { color: colors.foreground, fontWeight: "500" },
-    textOn: { color: colors.foreground, fontWeight: "700" },
-    input: {
-      minHeight: TARGET,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius,
-      paddingHorizontal: 12,
-      fontSize: typography.body,
-      color: colors.foreground,
-      backgroundColor: colors.background,
-    },
-    textArea: { minHeight: 96, paddingTop: 10, textAlignVertical: "top" },
-    signature: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
-    button: { minHeight: TARGET, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderColor: colors.border, borderRadius: radius, alignSelf: "flex-start" },
-    confirm: { gap: 6, padding: 10, borderRadius: radius, backgroundColor: colors.muted },
-    primary: { minHeight: TARGET, justifyContent: "center", paddingHorizontal: 14, borderRadius: radius, backgroundColor: colors.primary },
-    primaryText: { color: colors.primaryForeground, fontWeight: "600" },
-    declaration: { fontSize: typography.body - 2, fontStyle: "italic", color: colors.mutedForeground },
+    hint: { fontFamily: fonts.body, fontSize: text.sm, color: colors.mutedForeground },
+    row: { flexDirection: "row", flexWrap: "wrap", gap: space[2] },
+    check: { ...pill, minWidth: 64, alignItems: "center" },
+    chip: pill,
+    chipOn: { borderColor: colors.primary, borderWidth: 2, backgroundColor: tint(colors.primary, 0.12) },
+    text: { fontFamily: fonts.bodyMedium, fontSize: text.sm + 1, color: colors.textSecondary },
+    textOn: { fontFamily: fonts.bodyBold, fontSize: text.sm + 1, color: colors.foreground },
+    input: { ...body, minHeight: TARGET, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radii.full, paddingHorizontal: space[4], backgroundColor: colors.card },
+    textArea: { minHeight: 96, paddingTop: space[3], borderRadius: radii.lg, textAlignVertical: "top" },
+    signature: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space[2] },
+    button: { ...pill, alignSelf: "flex-start" },
+    confirm: { gap: space[2], padding: space[3], borderRadius: radii.md, backgroundColor: colors.card },
+    primary: { ...pill, borderColor: colors.primaryFill, backgroundColor: colors.primaryFill },
+    primaryText: { fontFamily: fonts.bodySemibold, fontSize: text.sm + 1, color: colors.primaryForeground },
+    declaration: { fontFamily: fonts.body, fontSize: text.sm, fontStyle: "italic", color: colors.mutedForeground },
   });
 }
 
@@ -112,9 +107,9 @@ export function FieldInput({
                 accessibilityState={{ checked: selected, disabled }}
                 disabled={disabled}
                 onPress={() => onChange(selected ? undefined : option.value)}
-                style={[styles.check, selected && { backgroundColor: option.on, borderColor: option.ink }]}
+                style={[styles.check, selected && { backgroundColor: option.on, borderColor: option.ink, borderWidth: 2 }]}
               >
-                <Text style={{ color: selected ? option.ink : colors.foreground, fontWeight: selected ? "600" : "400" }}>{option.label}</Text>
+                <Text style={selected ? [styles.textOn, { color: option.ink }] : styles.text}>{option.label}</Text>
               </Pressable>
             );
           })}

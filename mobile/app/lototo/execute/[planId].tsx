@@ -1,15 +1,10 @@
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Alert, View } from "react-native";
+import { PointStepper } from "@/components/lototo/point-stepper";
+import { ActionBar, AppText, Banner, Button, Card, Chip, ChipRow, PageHeader, ProgressBar, SafetyStatusChip, Screen, ScreenState, SectionTitle, TextField } from "@/components/ui";
+import { Camera, Check, Lock, Play, ShieldCheck, Tag, Unlock } from "@/components/ui/icons";
+import { ISOLATION_STATUS } from "@/lib/safety-status";
 import { router, useLocalSearchParams } from "expo-router";
 import { ApiError } from "@/lib/api";
 import {
@@ -187,7 +182,7 @@ export default function IsolationExecutionScreen() {
   async function handleCameraCapture() {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      setError("Camera permission is required for evidence capture");
+      setError("Allow camera access in the phone's settings to take evidence photos.");
       return;
     }
 
@@ -200,33 +195,20 @@ export default function IsolationExecutionScreen() {
       return;
     }
 
-    setMessage("Photo captured — upload when online (evidence sync in SP-03.03)");
+    setMessage("Photo taken. Photos of isolation points are not uploaded from the phone yet; add them on the web.");
   }
 
+  const back = { label: "Isolate", href: "/lototo/active" };
   if (loading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: tokens.colors.background }]}>
-        <ActivityIndicator color={tokens.colors.primary} />
-      </View>
-    );
+    return <ScreenState back={back} />;
   }
 
   if (!detail) {
     return (
-      <ScrollView style={{ backgroundColor: tokens.colors.background }} contentContainerStyle={styles.container}>
-        <Text style={[styles.title, { color: tokens.colors.foreground }]}>Isolation execution</Text>
-        <Text style={{ color: tokens.colors.mutedForeground }}>
-          No execution started for this plan.
-        </Text>
-        {error ? <Text style={{ color: tokens.colors.danger }}>{error}</Text> : null}
-        <Pressable
-          style={[styles.button, { backgroundColor: tokens.colors.primary, opacity: submitting ? 0.6 : 1 }]}
-          onPress={() => void handleStart()}
-          disabled={submitting}
-        >
-          <Text style={[styles.buttonText, { color: tokens.colors.primaryForeground }]}>Start isolation</Text>
-        </Pressable>
-      </ScrollView>
+      <Screen footer={<ActionBar><Button label="Start isolation" icon={Play} size="lg" loading={submitting} onPress={() => void handleStart()} /></ActionBar>}>
+        <PageHeader title="Isolation" description="No isolation has started for this plan yet." back={back} />
+        {error ? <Banner tone="danger">{error}</Banner> : null}
+      </Screen>
     );
   }
 
@@ -236,163 +218,138 @@ export default function IsolationExecutionScreen() {
   const selected = points.find((p) => p.step.isolationPointId === selectedPointId) ?? current;
   const finished = points.filter((p) => p.done && p !== selected);
   const c = tokens.colors;
-  const text = { color: c.foreground };
-  const muted = { color: c.mutedForeground };
-  const outline = [styles.secondaryButton, { borderColor: c.border, backgroundColor: c.card }];
-  const primary = (off: boolean) => [styles.button, { backgroundColor: c.primary, opacity: off ? 0.6 : 1 }];
   const confirmThen = (title: string, body: string, run: () => void) =>
     Alert.alert(title, body, [
       { text: "Cancel", style: "cancel" },
       { text: "Confirm", onPress: run },
     ]);
+  const allLocked = points.length > 0 && points.every((p) => p.lock);
+  const done = (label: string) => <Chip label={label} color={c.success} icon={Check} />;
+  const stepBox = { gap: tokens.space[3], padding: tokens.space[3], borderRadius: tokens.radii.md, backgroundColor: c.muted };
 
   return (
-    <ScrollView style={{ backgroundColor: c.background }} contentContainerStyle={styles.container}>
-      <Text style={[styles.title, text]}>{detail.plan?.title ?? "Isolation execution"}</Text>
-      <Text style={muted}>
-        {points.length === 0 ? "No isolation sequence configured for this plan." : left === 0 ? `All ${points.length} points done` : `${left} of ${points.length} points to do`}
-        {isOnline ? "" : " · offline"}
-      </Text>
+    <Screen
+      footer={
+        execution.status === "in_progress" ? (
+          <ActionBar>
+            <Button
+              label="Mark isolation complete"
+              icon={Lock}
+              loading={submitting}
+              disabled={!allLocked}
+              onPress={() => confirmThen("Mark isolation complete", "Every point is locked and isolation is complete?", () => void runAction(() => markIsolationComplete(execution.id).then(() => undefined), "Isolation complete"))}
+            />
+          </ActionBar>
+        ) : execution.status === "isolated" ? (
+          <ActionBar>
+            <Button
+              label="Complete verification"
+              icon={ShieldCheck}
+              loading={submitting}
+              onPress={() => confirmThen("Complete verification", "All required verifications passed and work may start?", () => void runAction(() => markIsolationVerified(execution.id).then(() => undefined), "Isolation verified"))}
+            />
+          </ActionBar>
+        ) : execution.status === "verified" ? (
+          <ActionBar>
+            {detail.plan?.permitId ? <Button label="Permit work" variant="outline" onPress={() => router.push(`/execution/${detail.plan!.permitId}`)} /> : null}
+            <Button label="Start restoration" icon={Unlock} onPress={() => router.push(`/lototo/restoration/${execution.id}`)} />
+          </ActionBar>
+        ) : undefined
+      }
+    >
+      <PageHeader title={detail.plan?.title ?? "Isolation"} back={back}>
+        <ChipRow>
+          <SafetyStatusChip map={ISOLATION_STATUS} status={execution.status} />
+          {isOnline ? null : <Chip label="Offline" color={c.warning} dot />}
+        </ChipRow>
+        {points.length > 0 ? (
+          <ProgressBar value={points.length - left} total={points.length} label={left === 0 ? `All ${points.length} points done` : `${left} of ${points.length} points to do`} color={c.success} />
+        ) : (
+          <AppText variant="caption">No isolation sequence is configured for this plan.</AppText>
+        )}
+      </PageHeader>
 
-      {error ? <Text style={{ color: c.danger }}>{error}</Text> : null}
-      {message ? <Text style={{ color: c.success }}>{message}</Text> : null}
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      {message ? <Banner tone="success">{message}</Banner> : null}
 
       {/* Points in the approved order; a point opens once every earlier point is locked. */}
-      <View style={styles.chips}>
-        {points.map((p) => (
-          <Pressable
-            key={p.step.isolationPointId}
-            accessibilityRole="button"
-            accessibilityState={{ selected: p === selected, disabled: !p.open && !p.done }}
-            disabled={!p.open && !p.done}
-            onPress={() => setSelectedPointId(p.step.isolationPointId)}
-            style={[styles.chip, { borderColor: p === selected ? c.primary : c.border, opacity: !p.open && !p.done ? 0.5 : 1 }]}
-          >
-            <Text style={[text, p === selected && { fontWeight: "700" }]}>
-              {`${p.done ? "✓ " : ""}${p.step.sequenceOrder}. ${p.step.isolationNumber}`}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      {points.length > 0 ? (
+        <PointStepper
+          points={points.map((p) => ({ id: p.step.isolationPointId, order: p.step.sequenceOrder, label: p.step.isolationNumber, done: p.done, open: p.open }))}
+          selectedId={selected?.step.isolationPointId}
+          onSelect={setSelectedPointId}
+        />
+      ) : null}
 
       {selected ? (
-        <View style={[styles.card, { borderColor: c.border, backgroundColor: c.card }]}>
-          <Text style={[styles.section, text]}>{`Point ${selected.step.sequenceOrder}: ${selected.step.isolationNumber}`}</Text>
-          {selected.step.description ? <Text style={muted}>{selected.step.description}</Text> : null}
+        <Card accent={selected.done ? c.success : c.primary} style={{ gap: tokens.space[4] }}>
+          <View style={{ gap: 2 }}>
+            <AppText variant="title">{`Point ${selected.step.sequenceOrder}: ${selected.step.isolationNumber}`}</AppText>
+            {selected.step.description ? <AppText variant="body" tone="secondary">{selected.step.description}</AppText> : null}
+          </View>
 
-          <Text style={[styles.label, text]}>Lock</Text>
-          {selected.lock ? (
-            <Text style={{ color: c.success }}>{`Locked: ${selected.lock.lockTag} · ${selected.lock.lockMethod}`}</Text>
-          ) : (
-            <>
-              <TextInput value={lockTag} onChangeText={setLockTag} placeholder="Lock tag number" placeholderTextColor={c.mutedForeground} style={[styles.input, { borderColor: c.border, color: c.foreground }]} />
-              <TextInput value={lockMethod} onChangeText={setLockMethod} placeholder="Lock method" placeholderTextColor={c.mutedForeground} style={[styles.input, { borderColor: c.border, color: c.foreground }]} />
-              <Pressable accessibilityRole="button" style={primary(!canApply || !selected.open || submitting)} onPress={() => void handleApplyLock(false)} disabled={!canApply || !selected.open || submitting}>
-                <Text style={[styles.buttonText, { color: c.primaryForeground }]}>Apply lock</Text>
-              </Pressable>
-              {!isOnline ? (
-                <Pressable accessibilityRole="button" style={outline} onPress={() => void handleApplyLock(true)} disabled={!canApply || submitting}>
-                  <Text style={[styles.secondaryButtonText, text]}>Save lock on this phone</Text>
-                </Pressable>
-              ) : null}
-            </>
-          )}
+          <View style={stepBox}>
+            <AppText variant="label">1. Lock</AppText>
+            {selected.lock ? (
+              done(`Locked: ${selected.lock.lockTag} · ${selected.lock.lockMethod}`)
+            ) : (
+              <>
+                <TextField label="Lock tag number" value={lockTag} onChangeText={setLockTag} autoCapitalize="characters" />
+                <TextField label="Lock method" value={lockMethod} onChangeText={setLockMethod} />
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space[2] }}>
+                  <Button label="Apply lock" icon={Lock} disabled={!canApply || !selected.open || submitting} onPress={() => void handleApplyLock(false)} />
+                  {!isOnline ? <Button label="Save on this phone" variant="secondary" disabled={!canApply || submitting} onPress={() => void handleApplyLock(true)} /> : null}
+                </View>
+              </>
+            )}
+          </View>
 
-          <Text style={[styles.label, text]}>Tag</Text>
-          {selected.tag ? (
-            <Text style={{ color: c.success }}>{`Tagged: ${selected.tag.tagNumber} · ${selected.tag.tagType}`}</Text>
-          ) : (
-            <>
-              <TextInput value={tagNumber} onChangeText={setTagNumber} placeholder="Tag number" placeholderTextColor={c.mutedForeground} style={[styles.input, { borderColor: c.border, color: c.foreground }]} />
-              <Pressable accessibilityRole="button" style={primary(!canApply || submitting)} onPress={() => void handleApplyTag(false)} disabled={!canApply || submitting}>
-                <Text style={[styles.buttonText, { color: c.primaryForeground }]}>Apply tag</Text>
-              </Pressable>
-            </>
-          )}
+          <View style={stepBox}>
+            <AppText variant="label">2. Tag</AppText>
+            {selected.tag ? (
+              done(`Tagged: ${selected.tag.tagNumber} · ${selected.tag.tagType}`)
+            ) : (
+              <>
+                <TextField label="Tag number" value={tagNumber} onChangeText={setTagNumber} autoCapitalize="characters" />
+                <Button label="Apply tag" icon={Tag} disabled={!canApply || submitting} onPress={() => void handleApplyTag(false)} style={{ alignSelf: "flex-start" }} />
+              </>
+            )}
+          </View>
 
           {selected.step.requiresVerification ? (
-            <>
-              <Text style={[styles.label, text]}>Verify isolation</Text>
+            <View style={stepBox}>
+              <AppText variant="label">3. Verify</AppText>
               {selected.verification ? (
-                <Text style={{ color: c.success }}>Verified</Text>
+                done("Verified: isolation holds")
               ) : (
-                <Pressable accessibilityRole="button" style={outline} onPress={() => void handleVerify()} disabled={!selected.lock || submitting}>
-                  <Text style={[styles.secondaryButtonText, text, !selected.lock && muted]}>
-                    {selected.lock ? "Record pass verification" : "Lock this point before verifying it"}
-                  </Text>
-                </Pressable>
+                <>
+                  <AppText variant="caption">{selected.lock ? "Try to start the equipment; record a pass when it stays isolated." : "Lock this point before verifying it."}</AppText>
+                  <Button label="Record pass" icon={ShieldCheck} variant="outline" disabled={!selected.lock || submitting} onPress={() => void handleVerify()} style={{ alignSelf: "flex-start" }} />
+                </>
               )}
-            </>
+            </View>
           ) : null}
 
-          <Pressable accessibilityRole="button" style={outline} onPress={() => void handleCameraCapture()}>
-            <Text style={[styles.secondaryButtonText, text]}>Capture evidence photo</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      {/* Isolation as a whole: two separate confirmed steps. */}
-      {execution.status === "in_progress" ? (
-        <Pressable
-          accessibilityRole="button"
-          style={primary(submitting || points.some((p) => !p.lock))}
-          disabled={submitting || points.some((p) => !p.lock)}
-          onPress={() => confirmThen("Mark isolation complete", "Every point is locked and isolation is complete?", () => void runAction(() => markIsolationComplete(execution.id).then(() => undefined), "Isolation complete"))}
-        >
-          <Text style={[styles.buttonText, { color: c.primaryForeground }]}>Mark isolation complete</Text>
-        </Pressable>
-      ) : null}
-      {execution.status === "isolated" ? (
-        <Pressable
-          accessibilityRole="button"
-          style={primary(submitting)}
-          disabled={submitting}
-          onPress={() => confirmThen("Complete verification", "All required verifications passed and work may start?", () => void runAction(() => markIsolationVerified(execution.id).then(() => undefined), "Isolation verified"))}
-        >
-          <Text style={[styles.buttonText, { color: c.primaryForeground }]}>Complete verification</Text>
-        </Pressable>
+          <Button label="Take evidence photo" variant="ghost" icon={Camera} onPress={() => void handleCameraCapture()} style={{ alignSelf: "flex-start" }} />
+        </Card>
       ) : null}
 
       {finished.length > 0 ? (
-        <>
-          <Text style={[styles.section, text]}>{`Finished points (${finished.length})`}</Text>
-          {finished.map((p) => (
-            <Text key={p.step.isolationPointId} style={muted}>
-              {`${p.step.sequenceOrder}. ${p.step.isolationNumber} · lock ${p.lock?.lockTag ?? "—"} · tag ${p.tag?.tagNumber ?? "—"}${p.step.requiresVerification ? " · verified" : ""}`}
-            </Text>
-          ))}
-        </>
+        <View style={{ gap: tokens.space[3] }}>
+          <SectionTitle title="Finished points" count={finished.length} color={c.success} />
+          <Card>
+            {finished.map((p) => (
+              <View key={p.step.isolationPointId} style={{ flexDirection: "row", alignItems: "center", gap: tokens.space[3], minHeight: 40 }}>
+                <Check size={16} color={c.success} />
+                <View style={{ flex: 1 }}>
+                  <AppText variant="body" weight="semibold">{`${p.step.sequenceOrder}. ${p.step.isolationNumber}`}</AppText>
+                  <AppText variant="caption">{`Lock ${p.lock?.lockTag ?? "—"} · tag ${p.tag?.tagNumber ?? "—"}${p.step.requiresVerification ? " · verified" : ""}`}</AppText>
+                </View>
+              </View>
+            ))}
+          </Card>
+        </View>
       ) : null}
-
-      {execution.status === "verified" ? (
-        <>
-          <Pressable accessibilityRole="button" style={primary(false)} onPress={() => router.push(`/lototo/restoration/${execution.id}`)}>
-            <Text style={[styles.buttonText, { color: c.primaryForeground }]}>Start restoration</Text>
-          </Pressable>
-          {detail.plan?.permitId ? (
-            <Pressable accessibilityRole="button" style={outline} onPress={() => router.push(`/execution/${detail.plan!.permitId}`)}>
-              <Text style={[styles.secondaryButtonText, text]}>Open permit execution</Text>
-            </Pressable>
-          ) : null}
-        </>
-      ) : null}
-    </ScrollView>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600" },
-  section: { marginTop: 4, fontSize: 16, fontWeight: "600" },
-  label: { marginTop: 8, fontSize: 14, fontWeight: "600" },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { minHeight: 48, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderRadius: 24 },
-  card: { gap: 8, borderWidth: 1, borderRadius: 10, padding: 12 },
-  step: { borderWidth: 1, borderRadius: 8, padding: 10 },
-  input: { minHeight: 48, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12 },
-  button: { minHeight: 48, borderRadius: 8, padding: 12, alignItems: "center", justifyContent: "center" },
-  buttonText: { fontWeight: "600" },
-  secondaryButton: { minHeight: 48, borderRadius: 8, padding: 12, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-  secondaryButtonText: { fontWeight: "600" },
-});

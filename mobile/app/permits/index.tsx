@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator } from "react-native";
 import { router } from "expo-router";
+import { PermitCard } from "@/components/permit/permit-card";
+import { Banner, Button, EmptyState, PageHeader, Screen, SearchField, Tabs } from "@/components/ui";
+import { Plus } from "@/components/ui/icons";
 import { ApiError } from "@/lib/api";
 import { listPermits } from "@/lib/permit/api";
+import { useOrgNames } from "@/lib/permit/names";
 import {
   initPermitOfflineStorage,
   listLocalPermitDrafts,
@@ -11,8 +15,7 @@ import {
 } from "@/lib/permit/offline";
 import { isEditablePermitStatus } from "@/lib/permit/status";
 import type { PermitRecord } from "@/lib/permit/types";
-import { useThemedStyles } from "@/theme/use-themed-styles";
-import type { ThemeColors } from "@/theme/types";
+import { useTheme } from "@/providers/theme-provider";
 
 type Tab = "drafts" | "submitted";
 
@@ -24,142 +27,99 @@ const SUBMITTED_STATUSES = [
 ] as const;
 
 export default function PermitsScreen() {
-  const styles = useThemedStyles(createStyles);
+  const { tokens } = useTheme();
+  const names = useOrgNames();
   const [tab, setTab] = useState<Tab>("drafts");
   const [permits, setPermits] = useState<PermitRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     void initPermitOfflineStorage();
   }, []);
 
-  useEffect(() => {
-    setLoading(true);
+  const load = useCallback(async () => {
     setError(null);
-
-    const load = async () => {
-      try {
-        if (tab === "drafts") {
-          const [remote, local] = await Promise.all([
-            listPermits("draft").catch(() => [] as PermitRecord[]),
-            listLocalPermitDrafts(),
-          ]);
-          const localRecords = local.map(localDraftToPermitRecord);
-          const merged = [
-            ...localRecords,
-            ...remote.filter((r) => !localRecords.some((l) => l.id === r.id)),
-          ];
-          setPermits(merged);
-          return;
-        }
-
-        const groups = await Promise.all(
-          SUBMITTED_STATUSES.map((status) => listPermits(status).catch(() => [] as PermitRecord[])),
-        );
-        setPermits(
-          groups
-            .flat()
-            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
-        );
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Failed to load permits");
-      } finally {
-        setLoading(false);
+    try {
+      if (tab === "drafts") {
+        const [remote, local] = await Promise.all([
+          listPermits("draft").catch(() => [] as PermitRecord[]),
+          listLocalPermitDrafts(),
+        ]);
+        const localRecords = local.map(localDraftToPermitRecord);
+        setPermits([...localRecords, ...remote.filter((r) => !localRecords.some((l) => l.id === r.id))]);
+        return;
       }
-    };
-
-    void load();
+      const groups = await Promise.all(SUBMITTED_STATUSES.map((status) => listPermits(status).catch(() => [] as PermitRecord[])));
+      setPermits(groups.flat().sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Permits could not be loaded.");
+    } finally {
+      setLoading(false);
+    }
   }, [tab]);
 
+  useEffect(() => {
+    setLoading(true);
+    void load();
+  }, [load]);
+
+  const term = query.trim().toLowerCase();
+  const shown = term
+    ? permits.filter((p) => [p.title, p.reference ?? "", p.locationId ? names.location(p.locationId) : ""].some((v) => v.toLowerCase().includes(term)))
+    : permits;
+  const open = (item: PermitRecord) => router.push((isEditablePermitStatus(item.status) ? `/permits/${item.id}/edit` : `/permits/${item.id}`) as never);
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Permits</Text>
-        <Pressable style={styles.primaryButton} onPress={() => router.push("/permits/new")}>
-          <Text style={styles.primaryButtonText}>Create</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.tabs}>
-        {(["drafts", "submitted"] as const).map((value) => (
-          <Pressable
-            key={value}
-            style={[styles.tab, tab === value && styles.tabActive]}
-            onPress={() => setTab(value)}
-          >
-            <Text style={[styles.tabText, tab === value && styles.tabTextActive]}>
-              {value === "drafts" ? "Drafts" : "Submitted"}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 24 }} />
-      ) : (
-        <FlatList
-          data={permits}
-          keyExtractor={(item) => item.id}
-          ListEmptyComponent={error ? null : <Text style={styles.empty}>No permits found.</Text>}
-          renderItem={({ item }) => (
-            <Pressable
-              style={styles.card}
-              onPress={() =>
-                router.push(
-                  isEditablePermitStatus(item.status)
-                    ? `/permits/${item.id}/edit`
-                    : `/permits/${item.id}`,
-                )
-              }
-            >
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardMeta}>
-                {/* A permit made offline is not on the server yet; say so instead of a status it does not have. */}
-                {isLocalPermitId(item.id)
-                  ? "Pending server confirmation"
-                  : `${item.reference ?? "No reference yet"} · ${item.status.replace(/_/g, " ")}`}
-              </Text>
-            </Pressable>
-          )}
+    <Screen
+      refreshing={refreshing}
+      onRefresh={async () => {
+        setRefreshing(true);
+        await load();
+        setRefreshing(false);
+      }}
+    >
+      <PageHeader
+        title="Permits"
+        description="Drafts you are preparing and permits sent for approval."
+        back={{ label: "Home", href: "/" }}
+        actions={<Button label="Create permit" icon={Plus} onPress={() => router.push("/permits/new")} />}
+      >
+        <Tabs
+          options={[
+            { key: "drafts", label: "Drafts" },
+            { key: "submitted", label: "Submitted" },
+          ]}
+          value={tab}
+          onChange={setTab}
         />
+        <SearchField value={query} onChangeText={setQuery} placeholder="Reference, title or place" />
+      </PageHeader>
+
+      {error ? <Banner tone="danger" title="Could not load permits" action={<Button label="Retry" variant="ghost" size="sm" onPress={() => void load()} />}>{error}</Banner> : null}
+      {loading ? (
+        <ActivityIndicator color={tokens.colors.primary} style={{ marginTop: tokens.space[6] }} />
+      ) : error ? null : shown.length === 0 ? (
+        <EmptyState
+          title={term ? "No permits match" : tab === "drafts" ? "No drafts" : "Nothing submitted yet"}
+          body={term ? "Try another reference, title or place." : tab === "drafts" ? "Permits you start and save appear here until you submit them." : "Permits you submit appear here while they are reviewed."}
+          action={!term && tab === "drafts" ? <Button label="Create permit" variant="outline" onPress={() => router.push("/permits/new")} /> : undefined}
+        />
+      ) : (
+        shown.map((item) => (
+          <PermitCard
+            key={item.id}
+            permit={item}
+            names={names}
+            offline={isLocalPermitId(item.id)}
+            accent={tokens.status[item.status]}
+            onPress={() => open(item)}
+            action={isEditablePermitStatus(item.status) ? { label: item.status === "draft" ? "Continue" : "Revise", color: item.status === "draft" ? tokens.action.do : tokens.action.fix, solid: item.status !== "draft", onPress: () => open(item) } : undefined}
+          />
+        ))
       )}
-    </View>
+    </Screen>
   );
 }
-
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-  container: { flex: 1, padding: 16, gap: 12 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
-  tabs: { flexDirection: "row", gap: 8 },
-  tab: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: c.muted,
-  },
-  tabActive: { backgroundColor: c.primary },
-  tabText: { fontSize: 13, color: c.mutedForeground },
-  tabTextActive: { color: c.primaryForeground },
-  primaryButton: {
-    backgroundColor: c.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  primaryButtonText: { color: c.primaryForeground, fontWeight: "600" },
-  card: {
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
-  },
-  cardTitle: { fontSize: 16, fontWeight: "600", color: c.foreground },
-  cardMeta: { fontSize: 12, color: c.mutedForeground, marginTop: 4 },
-  empty: { color: c.mutedForeground, marginTop: 16 },
-  error: { color: c.danger },
-});

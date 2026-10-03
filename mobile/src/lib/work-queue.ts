@@ -17,17 +17,20 @@ export type WorkAction =
   | "revise"
   | "finish-draft";
 
-export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string }> = {
-  review: { group: "Waiting for your approval", verb: "Review" },
-  "safety-check": { group: "Safety check before work starts", verb: "Check" },
-  "final-approval": { group: "Waiting for final sign-off", verb: "Sign off" },
-  "approve-completion": { group: "Work finished, confirm completion", verb: "Confirm" },
-  revalidate: { group: "Suspended, needs revalidation", verb: "Revalidate" },
-  "start-work": { group: "Approved, ready to start", verb: "Start work" },
-  "log-progress": { group: "In progress", verb: "Update" },
-  "site-details": { group: "Add your on-site details", verb: "Add details" },
-  revise: { group: "Sent back to you", verb: "Revise" },
-  "finish-draft": { group: "Drafts to finish", verb: "Continue" },
+/** decide = approvals and sign-offs, fix = sent back or stopped, do = work to carry out (web --act-* colours). */
+export type ActionKind = "decide" | "fix" | "do";
+
+export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string; kind: ActionKind }> = {
+  review: { group: "Waiting for your approval", verb: "Review", kind: "decide" },
+  "safety-check": { group: "Safety check before work starts", verb: "Check", kind: "decide" },
+  "final-approval": { group: "Waiting for final sign-off", verb: "Sign off", kind: "decide" },
+  "approve-completion": { group: "Work finished, confirm completion", verb: "Confirm", kind: "decide" },
+  revalidate: { group: "Suspended, needs revalidation", verb: "Revalidate", kind: "fix" },
+  "start-work": { group: "Approved, ready to start", verb: "Start work", kind: "do" },
+  "log-progress": { group: "In progress", verb: "Update", kind: "do" },
+  "site-details": { group: "Add your on-site details", verb: "Add details", kind: "do" },
+  revise: { group: "Sent back to you", verb: "Revise", kind: "fix" },
+  "finish-draft": { group: "Drafts to finish", verb: "Continue", kind: "do" },
 };
 
 export type WorkItem = { key: string; action: WorkAction; permit: PermitRecord; href: string; urgent: boolean };

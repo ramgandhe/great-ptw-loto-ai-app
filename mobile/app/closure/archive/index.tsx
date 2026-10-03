@@ -1,22 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator } from "react-native";
 import { router } from "expo-router";
+import { AppText, Banner, Card, ChipRow, EmptyState, PageHeader, PermitStatusChip, RefChip, Screen, SearchField } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { listArchivedPermits } from "@/lib/closure/api";
 import type { ArchivedPermitSummary } from "@/lib/closure/types";
-import { useThemedStyles } from "@/theme/use-themed-styles";
-import type { ThemeColors } from "@/theme/types";
+import { formatDateTime } from "@/lib/format";
+import { useTheme } from "@/providers/theme-provider";
 
 export default function ClosureArchiveScreen() {
-  const styles = useThemedStyles(createStyles);
+  const { tokens } = useTheme();
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<ArchivedPermitSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +23,7 @@ export default function ClosureArchiveScreen() {
       setItems(await listArchivedPermits(search));
       setHasLoaded(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Search failed");
+      setError(err instanceof ApiError ? err.message : "The archive could not be searched.");
     } finally {
       setLoading(false);
     }
@@ -40,73 +33,29 @@ export default function ClosureArchiveScreen() {
     void loadArchive();
   }, [loadArchive]);
 
-  async function handleSearch() {
-    await loadArchive(query.trim() || undefined);
-  }
-
   return (
-    <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        value={query}
-        onChangeText={setQuery}
-        placeholder="Search archived permits..."
-      />
-      <Pressable style={styles.button} onPress={handleSearch} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? "Searching..." : "Search"}</Text>
-      </Pressable>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {loading && items.length === 0 ? (
-        <ActivityIndicator style={{ marginTop: 24 }} />
+    <Screen>
+      <PageHeader title="Archive" description="Closed permits, kept as they were. Search, then press enter." back={{ label: "Closure", href: "/closure" }}>
+        <SearchField value={query} onChangeText={setQuery} placeholder="Reference or title" onSubmit={() => void loadArchive(query.trim() || undefined)} />
+      </PageHeader>
+
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      {loading ? (
+        <ActivityIndicator color={tokens.colors.primary} style={{ marginTop: tokens.space[6] }} />
+      ) : hasLoaded && items.length === 0 ? (
+        <EmptyState title={query.trim() ? "No closed permits match" : "No closed permits yet"} body={query.trim() ? "Try another reference or title." : "Permits appear here once they are closed."} />
       ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(item) => item.permit.id}
-          ListEmptyComponent={
-            hasLoaded ? <Text style={styles.empty}>No archived permits found.</Text> : null
-          }
-          renderItem={({ item }) => (
-            <Pressable
-              style={styles.card}
-              onPress={() => router.push(`/closure/archive/${item.permit.id}`)}
-            >
-              <Text style={styles.cardTitle}>{item.permit.title}</Text>
-              <Text style={styles.cardMeta}>
-                Closed {new Date(item.closedAt).toLocaleString()}
-              </Text>
-            </Pressable>
-          )}
-        />
+        items.map((item) => (
+          <Card key={item.permit.id} accent={tokens.status.closed} onPress={() => router.push(`/closure/archive/${item.permit.id}`)} accessibilityLabel={item.permit.title}>
+            <AppText variant="subheading">{item.permit.title}</AppText>
+            <ChipRow>
+              <PermitStatusChip status={item.permit.status} />
+              <RefChip reference={item.permit.reference} />
+            </ChipRow>
+            <AppText variant="caption">{`Closed ${formatDateTime(item.closedAt)}`}</AppText>
+          </Card>
+        ))
       )}
-    </View>
+    </Screen>
   );
 }
-
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-  container: { flex: 1, padding: 16, gap: 8 },
-  input: {
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 8,
-    padding: 10,
-  },
-  button: {
-    backgroundColor: c.primary,
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-  },
-  buttonText: { color: c.primaryForeground, fontWeight: "500" },
-  card: {
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
-  },
-  cardTitle: { fontSize: 16, fontWeight: "600", color: c.foreground },
-  cardMeta: { fontSize: 12, color: c.mutedForeground, marginTop: 4 },
-  empty: { color: c.mutedForeground, marginTop: 16 },
-  error: { color: c.danger },
-});

@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { House, Settings } from "@/components/ui/icons";
 import { useTheme } from "@/providers/theme-provider";
 
 export default function TabLayout() {
@@ -7,17 +8,17 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: true,
+        // Each tab starts with its own page header, as on the web.
+        headerShown: false,
         tabBarActiveTintColor: tokens.colors.primary,
         tabBarInactiveTintColor: tokens.colors.mutedForeground,
-        tabBarStyle: { backgroundColor: tokens.colors.card, borderTopColor: tokens.colors.border },
-        headerStyle: { backgroundColor: tokens.colors.card },
-        headerTintColor: tokens.colors.foreground,
+        tabBarLabelStyle: { fontFamily: tokens.fonts.bodySemibold, fontSize: 12 },
+        tabBarStyle: { backgroundColor: tokens.colors.card, borderTopColor: tokens.colors.borderSubtle },
         sceneStyle: { backgroundColor: tokens.colors.background },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Home" }} />
-      <Tabs.Screen name="settings" options={{ title: "Settings" }} />
+      <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: ({ color, size }) => <House color={color} size={size} /> }} />
+      <Tabs.Screen name="settings" options={{ title: "Settings", tabBarIcon: ({ color, size }) => <Settings color={color} size={size} /> }} />
     </Tabs>
   );
 }

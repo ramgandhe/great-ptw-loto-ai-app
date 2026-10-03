@@ -1,0 +1,73 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+import type { LucideIcon } from "lucide-react-native";
+
+/**
+ * The Lucide icons the app uses (the web's icon set), loaded one file each: importing the package
+ * root would bundle all ~3,700 icons. Add an icon here before using it.
+ */
+export type { LucideIcon };
+export const Activity: LucideIcon = require("lucide-react-native/dist/cjs/icons/activity.js").default;
+export const ArrowLeft: LucideIcon = require("lucide-react-native/dist/cjs/icons/arrow-left.js").default;
+export const ArrowUpFromLine: LucideIcon = require("lucide-react-native/dist/cjs/icons/arrow-up-from-line.js").default;
+export const BarChart3: LucideIcon = require("lucide-react-native/dist/cjs/icons/chart-column.js").default;
+export const Bell: LucideIcon = require("lucide-react-native/dist/cjs/icons/bell.js").default;
+export const Building2: LucideIcon = require("lucide-react-native/dist/cjs/icons/building-complex.js").default;
+export const CircleAlert: LucideIcon = require("lucide-react-native/dist/cjs/icons/circle-alert.js").default;
+export const CircleCheck: LucideIcon = require("lucide-react-native/dist/cjs/icons/circle-check.js").default;
+export const CloudOff: LucideIcon = require("lucide-react-native/dist/cjs/icons/cloud-off.js").default;
+export const Container: LucideIcon = require("lucide-react-native/dist/cjs/icons/container.js").default;
+export const Eye: LucideIcon = require("lucide-react-native/dist/cjs/icons/eye.js").default;
+export const EyeOff: LucideIcon = require("lucide-react-native/dist/cjs/icons/eye-off.js").default;
+export const FilePlus2: LucideIcon = require("lucide-react-native/dist/cjs/icons/file-plus-corner.js").default;
+export const FileText: LucideIcon = require("lucide-react-native/dist/cjs/icons/file-text.js").default;
+export const Flame: LucideIcon = require("lucide-react-native/dist/cjs/icons/flame.js").default;
+export const House: LucideIcon = require("lucide-react-native/dist/cjs/icons/house.js").default;
+export const Info: LucideIcon = require("lucide-react-native/dist/cjs/icons/info.js").default;
+export const Layers: LucideIcon = require("lucide-react-native/dist/cjs/icons/layers.js").default;
+export const Lock: LucideIcon = require("lucide-react-native/dist/cjs/icons/lock.js").default;
+export const LogOut: LucideIcon = require("lucide-react-native/dist/cjs/icons/log-out.js").default;
+export const MapPin: LucideIcon = require("lucide-react-native/dist/cjs/icons/map-pin.js").default;
+export const RefreshCw: LucideIcon = require("lucide-react-native/dist/cjs/icons/refresh-cw.js").default;
+export const Search: LucideIcon = require("lucide-react-native/dist/cjs/icons/search.js").default;
+export const Settings: LucideIcon = require("lucide-react-native/dist/cjs/icons/settings.js").default;
+export const Shovel: LucideIcon = require("lucide-react-native/dist/cjs/icons/shovel.js").default;
+export const Siren: LucideIcon = require("lucide-react-native/dist/cjs/icons/siren.js").default;
+export const Snowflake: LucideIcon = require("lucide-react-native/dist/cjs/icons/snowflake.js").default;
+export const TriangleAlert: LucideIcon = require("lucide-react-native/dist/cjs/icons/triangle-alert.js").default;
+export const Truck: LucideIcon = require("lucide-react-native/dist/cjs/icons/truck.js").default;
+export const Users: LucideIcon = require("lucide-react-native/dist/cjs/icons/users.js").default;
+export const Wrench: LucideIcon = require("lucide-react-native/dist/cjs/icons/wrench.js").default;
+export const Zap: LucideIcon = require("lucide-react-native/dist/cjs/icons/zap.js").default;
+export const Plus: LucideIcon = require("lucide-react-native/dist/cjs/icons/plus.js").default;
+export const History: LucideIcon = require("lucide-react-native/dist/cjs/icons/rotate-ccw-clock.js").default;
+export const Pencil: LucideIcon = require("lucide-react-native/dist/cjs/icons/pencil.js").default;
+export const Play: LucideIcon = require("lucide-react-native/dist/cjs/icons/play.js").default;
+export const CalendarClock: LucideIcon = require("lucide-react-native/dist/cjs/icons/calendar-clock.js").default;
+export const Check: LucideIcon = require("lucide-react-native/dist/cjs/icons/check.js").default;
+export const ChevronDown: LucideIcon = require("lucide-react-native/dist/cjs/icons/chevron-down.js").default;
+export const X: LucideIcon = require("lucide-react-native/dist/cjs/icons/x.js").default;
+export const Trash2: LucideIcon = require("lucide-react-native/dist/cjs/icons/trash.js").default;
+export const Paperclip: LucideIcon = require("lucide-react-native/dist/cjs/icons/paperclip.js").default;
+export const Send: LucideIcon = require("lucide-react-native/dist/cjs/icons/send.js").default;
+export const Save: LucideIcon = require("lucide-react-native/dist/cjs/icons/save.js").default;
+export const Archive: LucideIcon = require("lucide-react-native/dist/cjs/icons/archive.js").default;
+export const ShieldCheck: LucideIcon = require("lucide-react-native/dist/cjs/icons/shield-check.js").default;
+export const Camera: LucideIcon = require("lucide-react-native/dist/cjs/icons/camera.js").default;
+export const CalendarDays: LucideIcon = require("lucide-react-native/dist/cjs/icons/calendar-days.js").default;
+export const Images: LucideIcon = require("lucide-react-native/dist/cjs/icons/images.js").default;
+export const ListChecks: LucideIcon = require("lucide-react-native/dist/cjs/icons/list-checks.js").default;
+export const Pause: LucideIcon = require("lucide-react-native/dist/cjs/icons/pause.js").default;
+export const Unlock: LucideIcon = require("lucide-react-native/dist/cjs/icons/lock-open.js").default;
+export const ListOrdered: LucideIcon = require("lucide-react-native/dist/cjs/icons/list-ordered.js").default;
+export const UserPlus: LucideIcon = require("lucide-react-native/dist/cjs/icons/user-plus.js").default;
+export const Tag: LucideIcon = require("lucide-react-native/dist/cjs/icons/tag.js").default;
+export const Ban: LucideIcon = require("lucide-react-native/dist/cjs/icons/ban.js").default;
+export const Clock: LucideIcon = require("lucide-react-native/dist/cjs/icons/clock.js").default;
+export const CalendarPlus: LucideIcon = require("lucide-react-native/dist/cjs/icons/calendar-plus.js").default;
+export const UserCheck: LucideIcon = require("lucide-react-native/dist/cjs/icons/user-check.js").default;
+export const ExternalLink: LucideIcon = require("lucide-react-native/dist/cjs/icons/external-link.js").default;
+export const ChevronRight: LucideIcon = require("lucide-react-native/dist/cjs/icons/chevron-right.js").default;
+export const Factory: LucideIcon = require("lucide-react-native/dist/cjs/icons/factory.js").default;
+export const Award: LucideIcon = require("lucide-react-native/dist/cjs/icons/award.js").default;
+export const BadgeCheck: LucideIcon = require("lucide-react-native/dist/cjs/icons/badge-check.js").default;
+export const UserRound: LucideIcon = require("lucide-react-native/dist/cjs/icons/user-round.js").default;

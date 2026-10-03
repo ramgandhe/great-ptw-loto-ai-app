@@ -1,17 +1,16 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator } from "react-native";
 import { router } from "expo-router";
+import { AppText, Banner, Button, Card, ChipRow, EmptyState, PageHeader, RefChip, SafetyStatusChip, Screen } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { listLototoPlans } from "@/lib/lototo/api";
 import type { LototoPlan } from "@/lib/lototo/types";
+import { LOTOTO_PLAN_STATUS, toneOf } from "@/lib/safety-status";
 import { useTheme } from "@/providers/theme-provider";
-import { useThemedStyles } from "@/theme/use-themed-styles";
-import type { ThemeColors } from "@/theme/types";
 
 const ACTIVE_STATUSES = new Set<LototoPlan["status"]>(["ready", "in_execution"]);
 
 export default function ActiveLototoScreen() {
-  const styles = useThemedStyles(createStyles);
   const { tokens } = useTheme();
   const [plans, setPlans] = useState<LototoPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,55 +20,38 @@ export default function ActiveLototoScreen() {
     listLototoPlans()
       .then((items) => setPlans(items.filter((plan) => ACTIVE_STATUSES.has(plan.status))))
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : "Failed to load active plans");
+        setError(err instanceof ApiError ? err.message : "The plans could not be loaded.");
       })
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: tokens.colors.background }]}>
-        <ActivityIndicator color={tokens.colors.primary} />
-      </View>
-    );
-  }
-
   return (
-    <ScrollView style={{ backgroundColor: tokens.colors.background }} contentContainerStyle={styles.container}>
-      <Text style={[styles.title, { color: tokens.colors.foreground }]}>Active LOTOTO</Text>
-      <Text style={{ color: tokens.colors.mutedForeground }}>
-        Plans ready for isolation execution or in progress.
-      </Text>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      {plans.length === 0 ? (
-        <Text style={{ color: tokens.colors.mutedForeground, marginTop: 12 }}>
-          No active plans. Configure and save a sequence first.
-        </Text>
+    <Screen>
+      <PageHeader title="Isolate" description="Plans ready to lock out, and isolations under way." back={{ label: "LOTOTO", href: "/lototo" }} />
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      {loading ? (
+        <ActivityIndicator color={tokens.colors.primary} style={{ marginTop: tokens.space[6] }} />
+      ) : error ? null : plans.length === 0 ? (
+        <EmptyState title="Nothing to isolate" body="A plan becomes ready once its isolation sequence is saved." />
       ) : (
         plans.map((plan) => (
-          <Pressable
-            key={plan.id}
-            style={[styles.card, { borderColor: tokens.colors.border }]}
-            onPress={() => router.push(`/lototo/execute/${plan.id}`)}
-          >
-            <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>{plan.title}</Text>
-            <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12 }}>
-              {plan.status.replace(/_/g, " ")}
-            </Text>
-          </Pressable>
+          <Card key={plan.id} accent={tokens.status[toneOf(LOTOTO_PLAN_STATUS, plan.status).key]} onPress={() => router.push(`/lototo/execute/${plan.id}`)} accessibilityLabel={plan.title}>
+            <AppText variant="subheading">{plan.title}</AppText>
+            <ChipRow>
+              <SafetyStatusChip map={LOTOTO_PLAN_STATUS} status={plan.status} />
+              <RefChip reference={plan.reference} />
+            </ChipRow>
+            <Button
+              label={plan.status === "ready" ? "Start isolation" : "Continue"}
+              variant={plan.status === "ready" ? "primary" : "tint"}
+              color={tokens.action.do}
+              size="sm"
+              onPress={() => router.push(`/lototo/execute/${plan.id}`)}
+              style={{ alignSelf: "flex-end" }}
+            />
+          </Card>
         ))
       )}
-    </ScrollView>
+    </Screen>
   );
 }
-
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
-  card: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 8 },
-  error: { color: c.danger },
-});

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { ActionBar, AppText, Banner, Button, Card, ChipRow, InfoList, PageHeader, PermitStatusChip, PermitTypeChip, ProgressBar, RefChip, Screen, ScreenState, SectionTitle } from "@/components/ui";
+import { History, Lock, Pencil, Play } from "@/components/ui/icons";
+import { formatDateTime, formatWindow } from "@/lib/format";
 import { ApiError } from "@/lib/api";
 import { getApprovalHistory, getApprovalReview } from "@/lib/approval/api";
 import type { ApprovalHistoryEntry, ApprovalReview } from "@/lib/approval/types";
@@ -10,8 +13,7 @@ import { permitDetailToForm } from "@/lib/permit/form";
 import { isEditablePermitStatus } from "@/lib/permit/status";
 import type { PermitDetail } from "@/lib/permit/types";
 import { useOrgNames } from "@/lib/permit/names";
-import { useThemedStyles } from "@/theme/use-themed-styles";
-import type { ThemeColors } from "@/theme/types";
+import { useTheme } from "@/providers/theme-provider";
 
 const APPROVAL_STATUSES = new Set([
   "pending_approval",
@@ -21,7 +23,7 @@ const APPROVAL_STATUSES = new Set([
 ]);
 
 export default function PermitDetailScreen() {
-  const styles = useThemedStyles(createStyles);
+  const { tokens } = useTheme();
   const names = useOrgNames();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
@@ -55,129 +57,95 @@ export default function PermitDetailScreen() {
           setLocalTitle(local.title);
           return;
         }
-        setError(err instanceof ApiError ? err.message : "Failed to load permit");
+        setError(err instanceof ApiError ? err.message : "The permit could not be loaded.");
       });
   }, [id]);
 
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.error}>{error}</Text>
-      </View>
-    );
-  }
+  const back = { label: "Permits", href: "/permits" };
 
-  if (!detail && !localTitle) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator />
-      </View>
-    );
+  if (error || (!detail && !localTitle)) {
+    return <ScreenState error={error} back={back} />;
   }
 
   if (localTitle && !detail) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>{localTitle}</Text>
-        <Text style={styles.meta}>Local offline draft — awaiting sync</Text>
-        <Pressable style={styles.button} onPress={() => router.push(`/permits/${id}/edit`)}>
-          <Text style={styles.buttonText}>Edit draft</Text>
-        </Pressable>
-      </View>
+      <Screen footer={<ActionBar><Button label="Edit draft" icon={Pencil} onPress={() => router.push(`/permits/${id}/edit`)} /></ActionBar>}>
+        <PageHeader title={localTitle} back={back} />
+        <Banner tone="warning" title="Saved on this phone">It is sent to the server when the connection returns; until then it has no reference.</Banner>
+      </Screen>
     );
   }
 
+  const permit = detail!.permit;
   const form = permitDetailToForm(detail!);
-  const status = detail!.permit.status;
+  const status = permit.status;
   const canEdit = isEditablePermitStatus(status);
   const isResubmit = status === "deferred" || status === "rejected";
   const completedStages = review?.workflow.filter((row) => row.assignment.status === "completed").length ?? 0;
   const totalStages = review?.workflow.length ?? 0;
+  const type = names.permitType(permit.permitTypeId);
+  const executable = ["approved", "active", "suspended"].includes(status);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{detail!.permit.title}</Text>
-      <Text style={styles.meta}>
-        {detail!.permit.reference ?? "Draft"} · {status.replace(/_/g, " ")}
-      </Text>
-      <Text style={styles.line}>Location: {names.location(form.locationId)}</Text>
-      <Text style={styles.line}>Hazards: {detail!.hazards.length}</Text>
-      <Text style={styles.line}>Executors: {detail!.executors.length}</Text>
-      <Text style={styles.line}>Attachments: {detail!.attachments.length}</Text>
+    <Screen
+      footer={
+        canEdit || executable ? (
+          <ActionBar>
+            {executable && permit.machineryId ? (
+              <Button label="LOTOTO" variant="outline" icon={Lock} onPress={() => router.push(`/lototo/new?machineryId=${permit.machineryId}`)} />
+            ) : null}
+            {canEdit ? (
+              <Button label={isResubmit ? "Revise and resubmit" : "Edit draft"} icon={Pencil} color={isResubmit ? tokens.action.fix : undefined} onPress={() => router.push(`/permits/${id}/edit`)} />
+            ) : null}
+            {executable ? <Button label={status === "approved" ? "Start work" : "Open work"} icon={Play} onPress={() => router.push(`/execution/${id}`)} /> : null}
+          </ActionBar>
+        ) : undefined
+      }
+    >
+      <PageHeader title={permit.title} back={back}>
+        <ChipRow>
+          <PermitStatusChip status={status} />
+          <RefChip reference={permit.reference} />
+          {type ? <PermitTypeChip name={type.name} color={type.color} /> : null}
+        </ChipRow>
+      </PageHeader>
+
+      <Card accent={tokens.status[status]}>
+        <InfoList
+          rows={[
+            ["Place", form.locationId ? names.location(form.locationId) : "Not set"],
+            ["When", formatWindow(permit.plannedStartAt, permit.plannedEndAt)],
+            ["Work", permit.workScope],
+            ["Hazards", `${detail!.hazards.length} identified`],
+            ["Crew", `${detail!.executors.length} assigned`],
+            ["Attachments", detail!.attachments.length ? `${detail!.attachments.length} files` : "None"],
+          ]}
+        />
+      </Card>
 
       {review ? (
-        <View style={styles.approvalBox}>
-          <Text style={styles.sectionTitle}>Approval progress</Text>
-          <Text style={styles.line}>
-            {completedStages} of {totalStages} stages complete
-          </Text>
-          <Pressable onPress={() => router.push(`/approvals/${id}/history`)}>
-            <Text style={styles.link}>View approval history</Text>
-          </Pressable>
+        <View style={{ gap: tokens.space[3] }}>
+          <SectionTitle title="Approval" />
+          <Card>
+            <ProgressBar value={completedStages} total={totalStages} label={`${completedStages} of ${totalStages} approval stages complete`} />
+            <Button label="Approval history" variant="ghost" size="sm" icon={History} onPress={() => router.push(`/approvals/${id}/history`)} style={{ alignSelf: "flex-start" }} />
+          </Card>
         </View>
       ) : null}
 
       {!review && history.length > 0 ? (
-        <View style={styles.approvalBox}>
-          <Text style={styles.sectionTitle}>Approval activity</Text>
-          {history.slice(0, 2).map((entry) => (
-            <Text key={entry.id} style={styles.line}>
-              {entry.action.replace(/_/g, " ")} · {new Date(entry.createdAt).toLocaleString()}
-            </Text>
-          ))}
+        <View style={{ gap: tokens.space[3] }}>
+          <SectionTitle title="Approval activity" />
+          <Card>
+            {history.slice(0, 2).map((entry) => (
+              <View key={entry.id} style={{ gap: 2 }}>
+                <AppText variant="body" weight="medium" style={{ textTransform: "capitalize" }}>{entry.action.replace(/_/g, " ")}</AppText>
+                <AppText variant="caption">{formatDateTime(entry.createdAt)}</AppText>
+              </View>
+            ))}
+          </Card>
         </View>
       ) : null}
-
-      {canEdit ? (
-        <Pressable style={styles.button} onPress={() => router.push(`/permits/${id}/edit`)}>
-          <Text style={styles.buttonText}>{isResubmit ? "Revise & resubmit" : "Edit draft"}</Text>
-        </Pressable>
-      ) : null}
-      {["approved", "active", "suspended"].includes(status) ? (
-        <>
-          <Pressable style={styles.button} onPress={() => router.push(`/execution/${id}`)}>
-            <Text style={styles.buttonText}>
-              {status === "approved" ? "Start execution" : "Open execution"}
-            </Text>
-          </Pressable>
-          {detail?.permit.machineryId ? (
-            <Pressable
-              style={styles.button}
-              onPress={() => router.push(`/lototo/new?machineryId=${detail.permit.machineryId}`)}
-            >
-              <Text style={styles.buttonText}>Configure LOTOTO</Text>
-            </Pressable>
-          ) : null}
-        </>
-      ) : null}
-    </ScrollView>
+    </Screen>
   );
 }
-
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  container: { padding: 16, gap: 8 },
-  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
-  meta: { color: c.mutedForeground, marginBottom: 8 },
-  line: { fontSize: 14, color: c.mutedForeground },
-  sectionTitle: { fontSize: 14, fontWeight: "600", marginBottom: 4, color: c.foreground },
-  approvalBox: {
-    marginTop: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 8,
-    gap: 4,
-  },
-  link: { color: c.primary, fontSize: 14, marginTop: 4 },
-  button: {
-    marginTop: 16,
-    backgroundColor: c.primary,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  buttonText: { color: c.primaryForeground, fontWeight: "600" },
-  error: { color: c.danger },
-});

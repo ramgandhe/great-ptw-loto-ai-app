@@ -1,15 +1,9 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Card, EmptyState, InfoList, PageHeader, Screen, ScreenState } from "@/components/ui";
 import { loadOrganisationProfile } from "@/lib/organisation/offline";
 import type { Organisation } from "@/lib/organisation/types";
-import { useTheme } from "@/providers/theme-provider";
-import { useThemedStyles } from "@/theme/use-themed-styles";
-import type { ThemeColors } from "@/theme/types";
 
 export default function OrganisationProfileScreen() {
-  const styles = useThemedStyles(createStyles);
-  const themeColors = useTheme().tokens.colors;
-  const { tokens } = useTheme();
   const [org, setOrg] = useState<Organisation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,35 +11,29 @@ export default function OrganisationProfileScreen() {
   useEffect(() => {
     loadOrganisationProfile()
       .then((records) => setOrg(records[0] ?? null))
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
+      .catch((err) => setError(err instanceof Error ? err.message : "The profile could not be loaded."))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return <ActivityIndicator style={{ marginTop: 24 }} />;
-  }
+  const back = { label: "Organisation", href: "/organisation" };
+  if (loading || error) return <ScreenState error={error} back={back} />;
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { padding: tokens.spacing.lg }]}>
-      {error ? <Text style={{ color: themeColors.danger }}>{error}</Text> : null}
+    <Screen>
+      <PageHeader title={org?.name ?? "Organisation profile"} back={back} />
       {!org ? (
-        <Text style={{ color: tokens.colors.mutedForeground }}>No organisation profile cached.</Text>
+        <EmptyState title="Not on this phone yet" body="Open this page once while online to keep a copy." />
       ) : (
-        <>
-          <Text style={[styles.title, { color: tokens.colors.foreground }]}>{org.name}</Text>
-          <Text style={{ color: tokens.colors.mutedForeground }}>Legal name: {org.legalName ?? "—"}</Text>
-          <Text style={{ color: tokens.colors.mutedForeground }}>
-            Registration: {org.registrationNumber ?? "—"}
-          </Text>
-          <Text style={{ color: tokens.colors.mutedForeground }}>Status: {org.status ?? "active"}</Text>
-        </>
+        <Card>
+          <InfoList
+            rows={[
+              ["Legal name", org.legalName ?? "Not recorded"],
+              ["Registration number", org.registrationNumber ?? "Not recorded"],
+              ["Status", org.status ?? "active"],
+            ]}
+          />
+        </Card>
       )}
-    </ScrollView>
+    </Screen>
   );
 }
-
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-  container: { gap: 8 },
-  title: { fontSize: 20, fontWeight: "600", color: c.foreground },
-});

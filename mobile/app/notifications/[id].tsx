@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActionBar, AppText, Banner, Button, Card, InfoList, PageHeader, Screen, ScreenState } from "@/components/ui";
+import { Check, ExternalLink } from "@/components/ui/icons";
+import { formatDateTime } from "@/lib/format";
 import { router, useLocalSearchParams } from "expo-router";
 import { ApiError } from "@/lib/api";
 import { getNotification, markNotificationRead } from "@/lib/notifications/api";
@@ -7,14 +9,9 @@ import { queueOfflineMarkNotificationRead } from "@/lib/notifications/offline";
 import { getNotificationEntityRoute } from "@/lib/notifications/routes";
 import type { Notification } from "@/lib/notifications/types";
 import { useOffline } from "@/providers/offline-provider";
-import { useTheme } from "@/providers/theme-provider";
-import { useThemedStyles } from "@/theme/use-themed-styles";
-import type { ThemeColors } from "@/theme/types";
 
 export default function NotificationDetailScreen() {
-  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { tokens } = useTheme();
   const { isOnline } = useOffline();
   const [notification, setNotification] = useState<Notification | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,7 +25,7 @@ export default function NotificationDetailScreen() {
 
     getNotification(id)
       .then(setNotification)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load notification"))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "The message could not be loaded."))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -48,89 +45,46 @@ export default function NotificationDetailScreen() {
       const updated = await markNotificationRead(notification.id);
       setNotification(updated);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to mark notification as read");
+      setError(err instanceof ApiError ? err.message : "The message could not be marked as read.");
     } finally {
       setIsMarkingRead(false);
     }
   }
 
-  if (loading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: tokens.colors.background }]}>
-        <ActivityIndicator color={tokens.colors.primary} />
-      </View>
-    );
+  const back = { label: "Messages", href: "/notifications" };
+  if (loading || !notification) {
+    return <ScreenState error={loading ? null : (error ?? "This message was not found.")} back={back} />;
   }
 
-  const entityRoute = notification ? getNotificationEntityRoute(notification) : null;
+  const entityRoute = getNotificationEntityRoute(notification);
+  const unread = notification.readAt === null;
 
   return (
-    <ScrollView style={{ backgroundColor: tokens.colors.background }} contentContainerStyle={styles.container}>
-      <Pressable onPress={() => router.back()}>
-        <Text style={{ color: tokens.colors.primary, marginBottom: 12 }}>Back</Text>
-      </Pressable>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      {notification ? (
-        <View style={[styles.card, { borderColor: tokens.colors.border }]}>
-          <Text style={[styles.title, { color: tokens.colors.foreground }]}>{notification.title}</Text>
-          {notification.readAt === null ? (
-            <Text style={{ color: tokens.colors.primary, fontSize: 11, fontWeight: "700", marginTop: 4 }}>
-              UNREAD
-            </Text>
-          ) : (
-            <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12, marginTop: 4 }}>
-              Read {new Date(notification.readAt).toLocaleString()}
-            </Text>
-          )}
-          <Text style={{ color: tokens.colors.foreground, marginTop: 12, lineHeight: 20 }}>
-            {notification.body}
-          </Text>
-          <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12, marginTop: 12 }}>
-            {notification.category.replace(/_/g, " ")} · {notification.priority}
-          </Text>
-          <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12, marginTop: 4 }}>
-            Received {new Date(notification.createdAt).toLocaleString()}
-          </Text>
-
-          {notification.readAt === null ? (
-            <Pressable
-              style={[styles.button, { backgroundColor: tokens.colors.primary }]}
-              onPress={() => void handleMarkRead()}
-            >
-              <Text style={styles.buttonText}>{isMarkingRead ? "Marking…" : "Mark as read"}</Text>
-            </Pressable>
-          ) : null}
-
-          {entityRoute ? (
-            <Pressable
-              style={[styles.secondaryButton, { borderColor: tokens.colors.border }]}
-              onPress={() => router.push(entityRoute)}
-            >
-              <Text style={{ color: tokens.colors.foreground, fontWeight: "500" }}>Open related record</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : null}
-    </ScrollView>
+    <Screen
+      footer={
+        unread || entityRoute ? (
+          <ActionBar>
+            {unread ? <Button label={isMarkingRead ? "Marking…" : "Mark as read"} variant="secondary" icon={Check} onPress={() => void handleMarkRead()} /> : null}
+            {entityRoute ? <Button label="Open record" icon={ExternalLink} onPress={() => router.push(entityRoute as never)} /> : null}
+          </ActionBar>
+        ) : undefined
+      }
+    >
+      <PageHeader title={notification.title} back={back} />
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      <Card>
+        <AppText variant="body">{notification.body}</AppText>
+      </Card>
+      <Card>
+        <InfoList
+          rows={[
+            ["About", notification.category.replace(/_/g, " ")],
+            ["Priority", notification.priority],
+            ["Received", formatDateTime(notification.createdAt)],
+            ["Read", unread ? "Not yet" : formatDateTime(notification.readAt)],
+          ]}
+        />
+      </Card>
+    </Screen>
   );
 }
-
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  container: { padding: 16 },
-  card: { borderWidth: 1, borderRadius: 8, padding: 16 },
-  title: { fontSize: 20, fontWeight: "600", color: c.foreground },
-  button: { borderRadius: 8, padding: 12, alignItems: "center", marginTop: 16 },
-  buttonText: { color: c.primaryForeground, fontWeight: "600" },
-  secondaryButton: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  error: { color: c.danger, marginBottom: 8 },
-});

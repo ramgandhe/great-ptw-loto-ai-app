@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { ApiError } from "@/lib/api";
 import { getIsolationExecutionForPlan } from "@/lib/isolation-execution/api";
 import { listLototoPlans } from "@/lib/lototo/api";
 import { useTheme } from "@/providers/theme-provider";
-import { useThemedStyles } from "@/theme/use-themed-styles";
-import type { ThemeColors } from "@/theme/types";
+import { ActivityIndicator } from "react-native";
+import { AppText, Banner, Button, Card, EmptyState, PageHeader, SafetyStatusChip, Screen } from "@/components/ui";
+import { ISOLATION_STATUS, toneOf } from "@/lib/safety-status";
 
 type Candidate = {
   planTitle: string;
@@ -16,7 +16,6 @@ type Candidate = {
 };
 
 export default function RestorationListScreen() {
-  const styles = useThemedStyles(createStyles);
   const { tokens } = useTheme();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,55 +43,30 @@ export default function RestorationListScreen() {
         setCandidates(items);
       })
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : "Failed to load restoration queue");
+        setError(err instanceof ApiError ? err.message : "The restoration list could not be loaded.");
       })
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: tokens.colors.background }]}>
-        <ActivityIndicator color={tokens.colors.primary} />
-      </View>
-    );
-  }
-
   return (
-    <ScrollView style={{ backgroundColor: tokens.colors.background }} contentContainerStyle={styles.container}>
-      <Text style={[styles.title, { color: tokens.colors.foreground }]}>Restoration</Text>
-      <Text style={{ color: tokens.colors.mutedForeground }}>
-        Verified isolations ready for equipment restoration.
-      </Text>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      {candidates.length === 0 ? (
-        <Text style={{ color: tokens.colors.mutedForeground, marginTop: 12 }}>
-          No verified isolations awaiting restoration.
-        </Text>
+    <Screen>
+      <PageHeader title="Restore" description="Verified isolations ready to remove locks and return the equipment to service." back={{ label: "LOTOTO", href: "/lototo" }} />
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      {loading ? (
+        <ActivityIndicator color={tokens.colors.primary} style={{ marginTop: tokens.space[6] }} />
+      ) : error ? null : candidates.length === 0 ? (
+        <EmptyState title="Nothing to restore" body="Isolations appear here once they are verified." />
       ) : (
         candidates.map((item) => (
-          <Pressable
-            key={item.executionId}
-            style={[styles.card, { borderColor: tokens.colors.border }]}
-            onPress={() => router.push(`/lototo/restoration/${item.executionId}`)}
-          >
-            <Text style={{ color: tokens.colors.foreground, fontWeight: "600" }}>{item.planTitle}</Text>
-            <Text style={{ color: tokens.colors.mutedForeground, fontSize: 12 }}>
-              {item.status.replace(/_/g, " ")}
-            </Text>
-          </Pressable>
+          <Card key={item.executionId} accent={tokens.status[toneOf(ISOLATION_STATUS, item.status).key]} onPress={() => router.push(`/lototo/restoration/${item.executionId}`)} accessibilityLabel={item.planTitle}>
+            <AppText variant="subheading">{item.planTitle}</AppText>
+            <SafetyStatusChip map={ISOLATION_STATUS} status={item.status} />
+            {item.status === "verified" ? (
+              <Button label="Restore" color={tokens.action.decide} size="sm" onPress={() => router.push(`/lototo/restoration/${item.executionId}`)} style={{ alignSelf: "flex-end" }} />
+            ) : null}
+          </Card>
         ))
       )}
-    </ScrollView>
+    </Screen>
   );
 }
-
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600", color: c.foreground },
-  card: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 8 },
-  error: { color: c.danger },
-});

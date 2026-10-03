@@ -1,16 +1,14 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { ScreenState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { getPermit } from "@/lib/permit/api";
 import { getLocalPermitDraft, resolvePermitId } from "@/lib/permit/offline";
 import { createEmptyPermitForm } from "@/lib/permit/form";
 import type { DraftFields, PermitDetail, PermitFormState } from "@/lib/permit/types";
 import { PermitWizard } from "@/components/permit/permit-wizard";
-import { useTheme } from "@/providers/theme-provider";
 
 export default function EditPermitScreen() {
-  const themeColors = useTheme().tokens.colors;
   const { id } = useLocalSearchParams<{ id: string }>();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
   const [localForm, setLocalForm] = useState<PermitFormState | null>(null);
@@ -38,24 +36,12 @@ export default function EditPermitScreen() {
           });
           return;
         }
-        setError(err instanceof ApiError ? err.message : "Failed to load permit");
+        setError(err instanceof ApiError ? err.message : "The permit could not be loaded.");
       });
   }, [id]);
 
-  if (error) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 16 }}>
-        <Text style={{ color: themeColors.danger }}>{error}</Text>
-      </View>
-    );
-  }
-
-  if (!detail && !localForm) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
-      </View>
-    );
+  if (error || (!detail && !localForm)) {
+    return <ScreenState error={error} back={{ label: "Permits", href: "/permits" }} />;
   }
 
   if (localForm && !detail) {
