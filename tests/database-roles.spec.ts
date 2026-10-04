@@ -86,26 +86,17 @@ describe('Database roles (NFR-SEC-001a)', () => {
 
   it('compiles no database credential into API code, so none ships in the API image', () => {
     const credential = /postgres(ql)?:\/\/[^:@/\s'"`]+:[^@\s'"`]+@/;
-    const found: string[] = [];
-    const scan = (dir: string): void => {
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const path = join(dir, entry.name);
-        if (entry.isDirectory()) scan(path);
-        else if (credential.test(readFileSync(path, 'utf8'))) found.push(path.slice(repoRoot.length + 1));
-      }
-    };
-    scan(join(repoRoot, 'app/src'));
+    const files = readdirSync(join(repoRoot, 'app/src'), { recursive: true, withFileTypes: true })
+      .filter((e) => e.isFile())
+      .map((e) => join(e.parentPath, e.name));
+    const found = files.filter((file) => credential.test(readFileSync(file, 'utf8'))).map((file) => file.slice(repoRoot.length + 1));
     expect(found).toEqual([]);
   });
 
   it('keeps owner credentials out of every compose file', () => {
     const files = readdirSync(repoRoot).filter((name) => /^docker-compose.*\.ya?ml$/.test(name));
     expect(files.length).toBeGreaterThan(0);
-    for (const file of files) {
-      const text = readFileSync(join(repoRoot, file), 'utf8');
-      for (const secret of ['MIGRATION_DATABASE_URL', 'PTW_OWNER_PASSWORD', 'ptw_owner']) {
-        expect({ file, secret, present: text.includes(secret) }).toEqual({ file, secret, present: false });
-      }
-    }
+    const leaking = files.filter((file) => /MIGRATION_DATABASE_URL|PTW_OWNER_PASSWORD|ptw_owner/.test(readFileSync(join(repoRoot, file), 'utf8')));
+    expect(leaking).toEqual([]);
   });
 });

@@ -18,8 +18,9 @@ export interface DbContext {
 export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function assertValidContext(ctx: DbContext): void {
-  const ids = [ctx.tenantId, ctx.personId, ...ctx.legalEntityIds].filter((id): id is string => id !== null);
-  if (!ids.every((id) => UUID_PATTERN.test(id))) throw new Error('Database context IDs must be UUIDs');
+  if (![ctx.tenantId, ctx.personId, ...ctx.legalEntityIds].every((id) => id === null || UUID_PATTERN.test(id))) {
+    throw new Error('Database context IDs must be UUIDs');
+  }
   if (ctx.actingRole === 'user' && (!ctx.tenantId || !ctx.personId || ctx.legalEntityIds.length === 0)) {
     throw new Error('A user context needs a tenant, a person and a legal entity');
   }

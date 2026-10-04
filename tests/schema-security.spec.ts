@@ -68,13 +68,11 @@ describe('Schema security (NFR-SEC-001a)', () => {
   }
 
   it('gives the API only INSERT and SELECT on append-only tables', async () => {
-    const problems = await appendOnlyViolations(APPEND_ONLY);
-    expect(problems).toEqual([]);
+    expect(await appendOnlyViolations(APPEND_ONLY)).toEqual([]);
   });
 
   it('does not let the API select full-record-only columns directly', async () => {
-    const problems = await fullRecordViolations(FULL_RECORD_COLUMNS);
-    expect(problems).toEqual([]);
+    expect(await fullRecordViolations(FULL_RECORD_COLUMNS)).toEqual([]);
   });
 
   it('detects UPDATE/DELETE/REFERENCES/TRIGGER privileges on append-only tables', async () => {

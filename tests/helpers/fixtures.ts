@@ -100,7 +100,6 @@ export async function makeAdmin(
 
 export interface TenantGraph {
   tenantId: string;
-  kind: 'organisation' | 'agency';
   /** An active person with an account. */
   personId: string;
   accountId: string;
@@ -124,7 +123,7 @@ export async function createTenantGraph(owner: Pool, kind: 'organisation' | 'age
   await makeAdmin(owner, { tenantId, personId, role: 'LEGAL_ORG_ADMIN', legalEntityId });
   await owner.query(`insert into audit_events (tenant_id, action, entity_type) values ($1, 'fixture.created', 'fixture')`, [tenantId]);
   await owner.query(`insert into tenant_data_keys (tenant_id, version, wrapped_key) values ($1, 1, 'vault:v1:fixture-not-a-key')`, [tenantId]);
-  return { tenantId, kind, personId, accountId: accountId as string, crewOnlyPersonId, legalEntityId, departmentId, plantId };
+  return { tenantId, personId, accountId: accountId as string, crewOnlyPersonId, legalEntityId, departmentId, plantId };
 }
 
 /** A valid user context for the graph's person. */

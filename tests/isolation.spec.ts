@@ -69,14 +69,9 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
     );
 
   /** "rows:N" or "code:SQLSTATE". */
-  const attempt = async (ctx: DbContext, query: SQL): Promise<string> => {
-    try {
-      const result = await runInContext(api.db, ctx, (tx) => tx.execute(query));
-      return `rows:${result.rowCount ?? 0}`;
-    } catch (error) {
-      return `code:${pgCode(error)}`;
-    }
-  };
+  const outcomeOf = (run: Promise<{ rowCount: number | null }>): Promise<string> =>
+    run.then((r) => `rows:${r.rowCount ?? 0}`, (e) => `code:${pgCode(e)}`);
+  const attempt = (ctx: DbContext, query: SQL) => outcomeOf(runInContext(api.db, ctx, (tx) => tx.execute(query)));
 
   /** A copy of one of tenant a's rows, for insert attempts. */
   const rowOfA = async (t: TenantTable) =>
@@ -118,13 +113,7 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
     acting_role: ctx.actingRole,
   });
   /** "rows:N" or "code:SQLSTATE" for a statement run on a pool client under these settings and always rolled back. */
-  const attemptRaw = async (settings: Settings, query: string, params: unknown[]): Promise<string> => {
-    try {
-      return `rows:${(await withRawSettings(settings, query, params)).rowCount ?? 0}`;
-    } catch (error) {
-      return `code:${pgCode(error)}`;
-    }
-  };
+  const attemptRaw = (settings: Settings, query: string, params: unknown[]) => outcomeOf(withRawSettings(settings, query, params));
 
   /** Contexts that claim tenant a but are incomplete or inconsistent: the database must treat each as no context. Later tasks add cases. */
   const incompleteContexts = (): [string, Settings][] => [
@@ -152,6 +141,9 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
     ['organisation x', ctxOf(x)],
     ['job without tenant', noTenantJobCtx],
   ];
+  /** Everyone but the owning tenant. The platform admin sees organisations, so it is left out there. */
+  const viewersOf = (t: TenantTable): [string, DbContext][] =>
+    t.table === 'organisations' ? outsiders() : [...outsiders(), ['platform admin', platformCtx]];
 
   it('classifies every table', () => {
     expect(unclassified).toEqual([]);
@@ -186,8 +178,7 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
   it('hides every tenant row from other tenants, jobs without a tenant and the platform admin', async () => {
     const problems: string[] = [];
     for (const t of tables) {
-      const viewers = t.table === 'organisations' ? outsiders() : [...outsiders(), ['platform admin', platformCtx] as [string, DbContext]];
-      for (const [who, ctx] of viewers) {
+      for (const [who, ctx] of viewersOf(t)) {
         const n = await count(ctx, t, a.tenantId);
         if (n !== 0) problems.push(`${t.table}: ${who} sees ${n} row(s) of tenant a`);
       }
@@ -322,8 +313,7 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
     // With no WHERE and a constant SET, only the UPDATE policy decides; the SELECT policy is not consulted. Always rolled back.
     const problems: string[] = [];
     for (const t of tables) {
-      const viewers = t.table === 'organisations' ? outsiders() : [...outsiders(), ['platform admin', platformCtx] as [string, DbContext]];
-      for (const [who, ctx] of viewers) {
+      for (const [who, ctx] of viewersOf(t)) {
         const own = ctx.tenantId
           ? (await owner.query<{ n: number }>(`select count(*)::int as n from ${q(t.table)} where ${q(t.key)} = $1`, [ctx.tenantId])).rows[0].n
           : 0;

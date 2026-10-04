@@ -50,11 +50,5 @@ export function pgCode(error: unknown): string | undefined {
   return e.code ?? e.cause?.code;
 }
 
-export async function pgErrorCode(promise: Promise<unknown>): Promise<string | undefined> {
-  try {
-    await promise;
-    return undefined;
-  } catch (error) {
-    return pgCode(error) ?? String(error);
-  }
-}
+export const pgErrorCode = (promise: Promise<unknown>): Promise<string | undefined> =>
+  promise.then(() => undefined, (error) => pgCode(error) ?? String(error));
