@@ -81,7 +81,10 @@ export function missingFormAnswers(templates: PermitTemplate[], responses: Recor
   });
 }
 
-/** Fills empty "fill from permit" fields from what the permit already says, so nothing is typed twice. */
+/**
+ * Fills "fill from permit" fields from what the permit already says, so nothing is typed twice.
+ * Those fields are not shown, so they always follow the permit; one the permit leaves empty is asked as usual.
+ */
 export function withPrefill(
   responses: Record<string, FormAnswers>,
   templates: PermitTemplate[],
@@ -92,7 +95,7 @@ export function withPrefill(
     const answers = { ...(next[template.id] ?? {}) };
     for (const field of template.config?.sections.flatMap((s) => s.fields) ?? []) {
       const source = field.prefill ? sources[field.prefill] : undefined;
-      if (source === undefined || source === "" || answers[field.id] !== undefined) continue;
+      if (source === undefined || source === "") continue;
       const value = field.type === "number" ? Number(source) : String(source);
       if (typeof value === "number" && !Number.isFinite(value)) continue;
       answers[field.id] = value;

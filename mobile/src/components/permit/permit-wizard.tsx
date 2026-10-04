@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 import { router } from "expo-router";
-import { ActionBar, AppText, Banner, Button, Card, DateTimeField, InfoList, PageHeader, Screen, TextField, ToggleRow } from "@/components/ui";
-import { Paperclip, Plus, Save, Send } from "@/components/ui/icons";
+import { ActionBar, AppText, Banner, Button, Card, ChoiceGroup, DateTimeField, EmptyState, InfoList, PageHeader, Screen, TextField, ToggleRow } from "@/components/ui";
+import { CalendarClock, ChevronRight, Paperclip, Pencil, Plus, Save, Send } from "@/components/ui/icons";
 import { formatWindow } from "@/lib/format";
 import { ApiError } from "@/lib/api";
 import { createPermit, getPermit, isRevisionConflict, savePermitDraft, submitPermit, uploadPermitAttachment } from "@/lib/permit/api";
@@ -12,6 +12,7 @@ import {
   PERMIT_WIZARD_STEPS,
   permitDetailToForm,
   shouldSaveExecutorPayload,
+  toDateInputValue,
   toStoredStep,
   validateStep,
 } from "@/lib/permit/form";
@@ -27,7 +28,7 @@ import { isEditablePermitStatus } from "@/lib/permit/status";
 import * as DocumentPicker from "expo-document-picker";
 import { SelectField } from "@/components/ui/select-field";
 import { TemplateFormFill } from "@/components/permit/template-form-fill";
-import { applicableTemplates, missingFormAnswers, withPrefill } from "@/lib/permit/forms";
+import { applicableTemplates, missingFormAnswers, withPrefill, type TemplatePrefillSource } from "@/lib/permit/forms";
 import { listLototoPlans } from "@/lib/lototo/api";
 import type { LototoPlan } from "@/lib/lototo/types";
 import { listGasTesting, type GasTestingRecord } from "@/lib/master-data/api";
@@ -84,6 +85,14 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     loadPermitFormOptions()
       .then((options) => {
         setFormOptions(options);
+        // On a new permit, a list with one entry needs no choosing.
+        const only = (list: { id: string }[], id: string) => id || (mode === "create" && list.length === 1 ? list[0].id : "");
+        setForm((current) => ({
+          ...current,
+          plantId: only(options.plants, current.plantId),
+          departmentId: only(options.departments, current.departmentId),
+          locationId: only(options.locations, current.locationId),
+        }));
         setForm((current) => {
           if (current.executors.some((executor) => (executor.workforceUserId ?? "").trim())) {
             return current;
@@ -133,27 +142,30 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   const isReadOnly = !isEditablePermitStatus(permitStatus);
 
   const forms = useMemo(() => applicableTemplates(formOptions?.templates ?? [], form.permitTypeId), [formOptions?.templates, form.permitTypeId]);
-  // Prefilled answers follow the permit until someone edits them, and are saved with it.
-  const prefilled = useMemo(() => {
+  // What the permit already says, for the check sheets' "fill from permit" fields.
+  const prefillSources = useMemo((): Record<TemplatePrefillSource, string | number> => {
     const nameOf = (list: { id: string; name: string }[] | undefined, id: string) => list?.find((row) => row.id === id)?.name ?? "";
     const crew = form.executors
       .map((e) => formOptions?.executors.find((o) => o.id === e.workforceUserId)?.name.replace(/ \(you\)$/, ""))
       .filter((name): name is string => Boolean(name));
     const place = [...new Set([nameOf(formOptions?.locations, form.locationId), nameOf(formOptions?.workstations, form.workstationId)].filter(Boolean))];
     return {
-      ...form,
-      formResponses: withPrefill(form.formResponses, forms, {
-        department: nameOf(formOptions?.departments, form.departmentId),
-        location: place.join(", "),
-        equipment: nameOf(formOptions?.machinery, form.machineryId),
-        "job-description": [form.title, form.workScope].filter((v) => v.trim()).join("\n\n"),
-        "valid-from": form.plannedStartAt.slice(0, 10),
-        "valid-to": form.plannedEndAt.slice(0, 10),
-        "crew-names": crew.join(", "),
-        "crew-count": crew.length || "",
-      }),
+      department: nameOf(formOptions?.departments, form.departmentId),
+      location: place.join(", "),
+      equipment: nameOf(formOptions?.machinery, form.machineryId),
+      "job-description": [form.title, form.workScope].filter((v) => v.trim()).join("\n\n"),
+      "valid-from": form.plannedStartAt.slice(0, 10),
+      "valid-to": form.plannedEndAt.slice(0, 10),
+      "crew-names": crew.join(", "),
+      "crew-count": crew.length || "",
     };
-  }, [form, forms, formOptions]);
+  }, [form, formOptions]);
+  // Those answers are not asked again: they follow the permit and are saved with it.
+  const fromPermit = useMemo(
+    () => new Set((Object.keys(prefillSources) as TemplatePrefillSource[]).filter((key) => prefillSources[key] !== "")),
+    [prefillSources],
+  );
+  const prefilled = useMemo(() => ({ ...form, formResponses: withPrefill(form.formResponses, forms, prefillSources) }), [form, forms, prefillSources]);
 
   const persistDraft = useCallback(async (): Promise<{ id: string; revision: number; queued: boolean }> => {
     const payload = formToSavePayload(prefilled, {
@@ -337,27 +349,82 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     }
   };
 
-  const typeName = formOptions?.permitTypes.find((t) => t.id === form.permitTypeId)?.name;
-  const subItem = { gap: tokens.space[3], padding: tokens.space[3], borderRadius: tokens.radii.md, backgroundColor: tokens.colors.muted };
+  const step = form.currentStep;
+  const last = PERMIT_WIZARD_STEPS.length - 1;
+  // Steps up to the furthest one reached can be revisited from the step bar; an existing permit opens all of them.
+  const [reached, setReached] = useState(mode === "edit" ? last : step);
+  const goTo = (next: number) => {
+    setErrors([]);
+    setReached((r) => Math.max(r, next));
+    setForm((current) => ({ ...current, currentStep: next }));
+  };
+  const handleNext = () => {
+    const stepErrors = isReadOnly ? [] : [...validateStep(form, step), ...(step === 4 ? missingFormAnswers(forms, prefilled.formResponses) : [])];
+    setErrors(stepErrors);
+    if (stepErrors.length === 0) goTo(step + 1);
+  };
+
+  const nameIn = (list: { id: string; name: string }[] | undefined, id: string) => list?.find((row) => row.id === id)?.name;
+  const hazardIds = form.hazards.map((h) => h.hazardCategoryId).filter(Boolean);
+  const ppeIds = form.ppe.map((p) => p.ppeCatalogueId).filter(Boolean);
+  const notSet = "Not set";
+  const crewNames = form.executors.map((e) => nameIn(formOptions?.executors, e.workforceUserId ?? "")).filter(Boolean).join(", ");
+  const reviewSections: { step: number; rows: [string, string][] }[] = [
+    { step: 0, rows: [["Type", nameIn(formOptions?.permitTypes, form.permitTypeId) ?? notSet], ["Title", form.title || notSet], ["Work", form.workScope || "—"]] },
+    {
+      step: 1,
+      rows: [
+        ["Location", [nameIn(formOptions?.locations, form.locationId), nameIn(formOptions?.workstations, form.workstationId)].filter(Boolean).join(", ") || notSet],
+        ["Machinery", nameIn(formOptions?.machinery, form.machineryId) ?? "—"],
+        ["When", formatWindow(form.plannedStartAt || null, form.plannedEndAt || null)],
+      ],
+    },
+    {
+      step: 2,
+      rows: [
+        ["Hazards", hazardIds.map((id) => nameIn(formOptions?.hazards, id)).join(", ") || notSet],
+        ["PPE", ppeIds.map((id) => nameIn(formOptions?.ppe, id)).join(", ") || notSet],
+        ["Isolation", form.lototoRequired ? `${form.lototo.filter((l) => l.lototoPlanId).length} procedure(s)` : "Not needed"],
+        ["Gas testing", form.gasTestingRequired ? `${form.gasTesting.filter((g) => g.gasTestingCatalogueId).length} test(s)` : "Not needed"],
+      ],
+    },
+    { step: 3, rows: [["Crew", crewNames || notSet]] },
+    {
+      step: 4,
+      rows: forms.length
+        ? forms.map((t) => {
+            const left = missingFormAnswers([t], prefilled.formResponses).length ? "Answers missing" : "Done";
+            return [t.name, left] as [string, string];
+          })
+        : [["Check sheets", "None for this type"]],
+    },
+  ];
 
   return (
     <Screen
+      key={step}
       footer={
         <ActionBar>
-          <Button label="Save draft" variant="secondary" icon={Save} loading={isBusy} onPress={() => void handleSaveDraft()} />
-          <Button label="Submit permit" icon={Send} disabled={isBusy} onPress={() => void handleSubmit()} />
+          {step > 0 ? <Button label="Back" variant="outline" onPress={() => goTo(step - 1)} style={{ marginRight: "auto" }} /> : null}
+          {!isReadOnly ? <Button label="Save draft" variant="secondary" icon={Save} loading={isBusy} onPress={() => void handleSaveDraft()} /> : null}
+          {step < last ? (
+            <Button label="Next" icon={ChevronRight} onPress={handleNext} />
+          ) : !isReadOnly ? (
+            <Button label="Submit" icon={Send} disabled={isBusy} onPress={() => void handleSubmit()} />
+          ) : null}
         </ActionBar>
       }
     >
       <PageHeader
         title={mode === "create" ? "Create permit" : "Edit permit"}
-        description="Describe the work and set the place, time and crew. Save at any point; submit when everything is filled in."
+        description={STEP_INTRO[step]}
         back={{ label: "Permits", href: "/permits" }}
       />
+      <StepBar step={step} reached={reached} onPick={goTo} />
 
       {queuedOffline ? <Banner tone="warning" title="Saved on this phone">Not sent yet: the permit reaches the server when the connection returns.</Banner> : null}
       {errors.length > 0 ? (
-        <Banner tone="danger" title="Complete these before submitting">
+        <Banner tone="danger" title={step === last ? "Complete these before submitting" : "Complete this step to continue"}>
           <View style={{ gap: 2 }}>
             {errors.map((error) => (
               <AppText key={error} variant="caption" tone="danger">{`• ${error}`}</AppText>
@@ -387,210 +454,196 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
         </Banner>
       ))}
 
-      <EditorSection title="Work">
-        <SelectField
-          label="Permit type"
-          value={form.permitTypeId}
-          options={(formOptions?.permitTypes ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
-          placeholder="Choose the kind of work"
-          required
-          disabled={isReadOnly || optionsLoading}
-          onChange={(permitTypeId) => setForm({ ...form, permitTypeId })}
-        />
-        <TextField label="Title" required value={form.title} editable={!isReadOnly} onChangeText={(value) => setForm({ ...form, title: value })} placeholder="For example: replace pump seal" />
-        <TextField label="Work scope" multiline value={form.workScope} editable={!isReadOnly} onChangeText={(value) => setForm({ ...form, workScope: value })} placeholder="What will be done, and how" />
-      </EditorSection>
+      {optionsLoading ? <ActivityIndicator color={tokens.colors.primary} style={{ marginTop: tokens.space[6] }} /> : null}
 
-      <EditorSection title="Place and schedule">
-        <SelectField
-          label="Plant"
-          value={form.plantId}
-          options={(formOptions?.plants ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
-          placeholder="Choose plant"
-          disabled={isReadOnly || optionsLoading}
-          onChange={(plantId) => setForm({ ...form, plantId })}
-        />
-        <SelectField
-          label="Department"
-          value={form.departmentId}
-          options={(formOptions?.departments ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
-          placeholder="Choose department"
-          disabled={isReadOnly || optionsLoading}
-          onChange={(departmentId) => setForm({ ...form, departmentId })}
-        />
-        <SelectField
-          label="Location"
-          value={form.locationId}
-          options={(formOptions?.locations ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
-          placeholder="Choose location"
-          required
-          disabled={isReadOnly || optionsLoading}
-          onChange={(locationId) => setForm({ ...form, locationId })}
-        />
-        <SelectField
-          label="Workstation"
-          value={form.workstationId}
-          options={(formOptions?.workstations ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
-          placeholder="Choose workstation (optional)"
-          disabled={isReadOnly || optionsLoading}
-          onChange={(workstationId) =>
-            setForm({
-              ...form,
-              workstationId,
-              gasTesting: workstationId === form.workstationId ? form.gasTesting : [],
-              gasTestingRequired: workstationId ? form.gasTestingRequired : false,
-            })
-          }
-        />
-        <SelectField
-          label="Machinery"
-          value={form.machineryId}
-          options={filteredMachinery.map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
-          placeholder="Choose machinery (optional)"
-          disabled={isReadOnly || optionsLoading}
-          onChange={(machineryId) =>
-            setForm({
-              ...form,
-              machineryId,
-              lototo: machineryId === form.machineryId ? form.lototo : [],
-              lototoRequired: machineryId ? form.lototoRequired : false,
-            })
-          }
-        />
-        <DateTimeField label="Planned start" required value={form.plannedStartAt} disabled={isReadOnly} onChange={(value) => setForm({ ...form, plannedStartAt: value })} />
-        <DateTimeField label="Planned end" required value={form.plannedEndAt} disabled={isReadOnly} onChange={(value) => setForm({ ...form, plannedEndAt: value })} />
-      </EditorSection>
+      {step === 0 && !optionsLoading ? (
+        <>
+          <StepCard title="Type of work" description="Choose the one that fits best. It decides the checks that follow.">
+            <ChoiceGroup
+              options={(formOptions?.permitTypes ?? []).map((item) => ({ key: item.id, label: item.name, color: item.color ?? undefined, swatch: item.color ?? undefined }))}
+              value={form.permitTypeId || null}
+              disabled={isReadOnly}
+              onChange={(permitTypeId) => setForm({ ...form, permitTypeId })}
+            />
+          </StepCard>
+          <StepCard title="The job">
+            <TextField label="Title" required value={form.title} editable={!isReadOnly} onChangeText={(value) => setForm({ ...form, title: value })} placeholder="For example: replace pump seal" />
+            <TextField label="What will be done" multiline value={form.workScope} editable={!isReadOnly} onChangeText={(value) => setForm({ ...form, workScope: value })} placeholder="The steps, tools and anything unusual" />
+          </StepCard>
+        </>
+      ) : null}
 
-      <EditorSection title="Site safety">
-        <AppText variant="label">Hazards</AppText>
-        {form.hazards.map((hazard, index) => (
-          <View key={`hazard-${index}`} style={subItem}>
+      {step === 1 && !optionsLoading ? (
+        <>
+          <StepCard title="Where">
             <SelectField
-              label={`Hazard ${index + 1}`}
-              value={hazard.hazardCategoryId}
-              options={(formOptions?.hazards ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
-              placeholder="Choose hazard"
-              disabled={isReadOnly || optionsLoading}
-              onChange={(hazardCategoryId) => {
-                const hazards = [...form.hazards];
-                hazards[index] = { ...hazard, hazardCategoryId };
-                setForm({ ...form, hazards });
-              }}
+              label="Location"
+              value={form.locationId}
+              options={(formOptions?.locations ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
+              placeholder="Choose location"
+              required
+              disabled={isReadOnly}
+              onChange={(locationId) => setForm({ ...form, locationId })}
             />
-            <TextField
-              label="How it is controlled"
-              multiline
-              value={hazard.description}
-              editable={!isReadOnly}
-              onChangeText={(value) => {
-                const hazards = [...form.hazards];
-                hazards[index] = { ...hazard, description: value };
-                setForm({ ...form, hazards });
-              }}
+            <SelectField
+              label="Workstation"
+              value={form.workstationId}
+              options={(formOptions?.workstations ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
+              placeholder="Optional"
+              disabled={isReadOnly}
+              onChange={(workstationId) =>
+                setForm({
+                  ...form,
+                  workstationId,
+                  gasTesting: workstationId === form.workstationId ? form.gasTesting : [],
+                  gasTestingRequired: workstationId ? form.gasTestingRequired : false,
+                })
+              }
             />
-          </View>
-        ))}
-        <Button label="Add hazard" variant="outline" size="sm" icon={Plus} disabled={isReadOnly} style={{ alignSelf: "flex-start" }} onPress={() => setForm({ ...form, hazards: [...form.hazards, { hazardCategoryId: "", description: "" }] })} />
+            <SelectField
+              label="Machinery"
+              value={form.machineryId}
+              options={filteredMachinery.map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
+              placeholder="Optional: needed for isolation"
+              disabled={isReadOnly}
+              onChange={(machineryId) =>
+                setForm({
+                  ...form,
+                  machineryId,
+                  lototo: machineryId === form.machineryId ? form.lototo : [],
+                  lototoRequired: machineryId ? form.lototoRequired : false,
+                })
+              }
+            />
+            <SelectField
+              label="Plant"
+              value={form.plantId}
+              options={(formOptions?.plants ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
+              placeholder="Optional"
+              disabled={isReadOnly}
+              onChange={(plantId) => setForm({ ...form, plantId })}
+            />
+            <SelectField
+              label="Department"
+              value={form.departmentId}
+              options={(formOptions?.departments ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
+              placeholder="Optional"
+              disabled={isReadOnly}
+              onChange={(departmentId) => setForm({ ...form, departmentId })}
+            />
+          </StepCard>
+          <StepCard title="When" description="Pick a common window, or set the start and end yourself.">
+            {!isReadOnly ? (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space[2] }}>
+                {schedulePresets().map((preset) => (
+                  <Button key={preset.label} label={preset.label} variant="outline" size="sm" icon={CalendarClock} onPress={() => setForm({ ...form, plannedStartAt: preset.start, plannedEndAt: preset.end })} />
+                ))}
+              </View>
+            ) : null}
+            <DateTimeField label="Start" required value={form.plannedStartAt} disabled={isReadOnly} onChange={(value) => setForm({ ...form, plannedStartAt: value })} />
+            <DateTimeField label="End" required value={form.plannedEndAt} disabled={isReadOnly} onChange={(value) => setForm({ ...form, plannedEndAt: value })} />
+          </StepCard>
+        </>
+      ) : null}
 
-        <AppText variant="label" style={{ marginTop: tokens.space[2] }}>Protective equipment</AppText>
-        {form.ppe.map((item, index) => (
-          <SelectField
-            key={`ppe-${index}`}
-            label={`PPE ${index + 1}`}
-            value={item.ppeCatalogueId}
-            options={(formOptions?.ppe ?? []).map((ppeItem) => ({ value: ppeItem.id, label: formatOrgOptionLabel(ppeItem) }))}
-            placeholder="Choose PPE"
-            disabled={isReadOnly || optionsLoading}
-            onChange={(ppeCatalogueId) => {
-              const ppe = [...form.ppe];
-              ppe[index] = { ...item, ppeCatalogueId };
-              setForm({ ...form, ppe });
-            }}
-          />
-        ))}
-        <Button label="Add PPE" variant="outline" size="sm" icon={Plus} disabled={isReadOnly} style={{ alignSelf: "flex-start" }} onPress={() => setForm({ ...form, ppe: [...form.ppe, { ppeCatalogueId: "", quantity: 1 }] })} />
-
-        <ToggleRow
-          label="Isolation (LOTOTO) required"
-          description={form.machineryId ? "Lock out the machinery's energy before work starts." : "Choose machinery first."}
-          value={form.lototoRequired}
-          disabled={isReadOnly || !form.machineryId}
-          onChange={(on) => setForm({ ...form, lototoRequired: on, lototo: on ? form.lototo : [] })}
-        />
-        {form.lototoRequired ? (
-          <>
-            {machineryLototo.length === 0 ? <AppText variant="caption">No LOTOTO procedures for this machinery.</AppText> : null}
-            {form.lototo.map((item, index) => (
-              <SelectField
-                key={`lototo-${index}`}
-                label="LOTOTO procedure"
-                value={item.lototoPlanId}
-                options={machineryLototo.map((plan) => ({ value: plan.id, label: plan.title }))}
-                placeholder="Choose procedure"
-                disabled={isReadOnly}
-                onChange={(lototoPlanId) => {
-                  const lototo = [...form.lototo];
-                  lototo[index] = { lototoPlanId };
-                  setForm({ ...form, lototo });
-                }}
+      {step === 2 && !optionsLoading ? (
+        <>
+          <StepCard title="Hazards" description="Tap every hazard present at this job.">
+            <ChoiceGroup
+              options={(formOptions?.hazards ?? []).map((item) => ({ key: item.id, label: item.name }))}
+              value={hazardIds}
+              disabled={isReadOnly}
+              onChange={(id) => setForm({ ...form, hazards: toggleRow(form.hazards, "hazardCategoryId", id, { description: "" }) })}
+            />
+            {form.hazards.filter((h) => h.hazardCategoryId).map((hazard) => (
+              <TextField
+                key={hazard.hazardCategoryId}
+                label={`How ${nameIn(formOptions?.hazards, hazard.hazardCategoryId)?.toLowerCase() ?? "it"} is controlled`}
+                hint="Optional"
+                value={hazard.description}
+                editable={!isReadOnly}
+                onChangeText={(description) => setForm({ ...form, hazards: form.hazards.map((h) => (h === hazard ? { ...h, description } : h)) })}
               />
             ))}
-            <Button label="Add procedure" variant="outline" size="sm" icon={Plus} style={{ alignSelf: "flex-start" }} disabled={isReadOnly || machineryLototo.length === 0} onPress={() => setForm({ ...form, lototo: [...form.lototo, { lototoPlanId: "" }] })} />
-          </>
-        ) : null}
+          </StepCard>
+          <StepCard title="Protective equipment" description="Tap everything the crew must wear.">
+            <ChoiceGroup
+              options={(formOptions?.ppe ?? []).map((item) => ({ key: item.id, label: item.name }))}
+              value={ppeIds}
+              disabled={isReadOnly}
+              onChange={(id) => setForm({ ...form, ppe: toggleRow(form.ppe, "ppeCatalogueId", id, { quantity: 1 }) })}
+            />
+          </StepCard>
+          <StepCard title="Isolation and gas testing">
+            <ToggleRow
+              label="Isolation (LOTOTO) required"
+              description={form.machineryId ? "Lock out the machinery's energy before work starts." : "Choose machinery in the previous step first."}
+              value={form.lototoRequired}
+              disabled={isReadOnly || !form.machineryId}
+              onChange={(on) => setForm({ ...form, lototoRequired: on, lototo: on ? form.lototo : [] })}
+            />
+            {form.lototoRequired ? (
+              machineryLototo.length === 0 ? (
+                <AppText variant="caption">No LOTOTO procedures for this machinery.</AppText>
+              ) : (
+                <ChoiceGroup
+                  label="Procedures"
+                  options={machineryLototo.map((plan) => ({ key: plan.id, label: plan.title }))}
+                  value={form.lototo.map((l) => l.lototoPlanId).filter(Boolean)}
+                  disabled={isReadOnly}
+                  onChange={(id) => setForm({ ...form, lototo: toggleRow(form.lototo, "lototoPlanId", id, {}) })}
+                />
+              )
+            ) : null}
+            <ToggleRow
+              label="Gas testing required"
+              description={form.workstationId ? "Test the atmosphere at the workstation before work starts." : "Choose a workstation in the previous step first."}
+              value={form.gasTestingRequired}
+              disabled={isReadOnly || !form.workstationId}
+              onChange={(on) => setForm({ ...form, gasTestingRequired: on, gasTesting: on ? form.gasTesting : [] })}
+            />
+            {form.gasTestingRequired ? (
+              workstationGasTesting.length === 0 ? (
+                <AppText variant="caption">No gas tests set up for this workstation.</AppText>
+              ) : (
+                <ChoiceGroup
+                  label="Gas tests"
+                  options={workstationGasTesting.map((row) => ({ key: row.id, label: `${row.parameter} (${row.minimum}–${row.maximum} ${row.unit})` }))}
+                  value={form.gasTesting.map((g) => g.gasTestingCatalogueId).filter(Boolean)}
+                  disabled={isReadOnly}
+                  onChange={(id) => setForm({ ...form, gasTesting: toggleRow(form.gasTesting, "gasTestingCatalogueId", id, {}) })}
+                />
+              )
+            ) : null}
+          </StepCard>
+        </>
+      ) : null}
 
-        <ToggleRow
-          label="Gas testing required"
-          description={form.workstationId ? "Test the atmosphere at the workstation before work starts." : "Choose a workstation first."}
-          value={form.gasTestingRequired}
-          disabled={isReadOnly || !form.workstationId}
-          onChange={(on) => setForm({ ...form, gasTestingRequired: on, gasTesting: on ? form.gasTesting : [] })}
-        />
-        {form.gasTestingRequired ? (
-          <>
-            {workstationGasTesting.length === 0 ? <AppText variant="caption">No gas tests set up for this workstation.</AppText> : null}
-            {form.gasTesting.map((item, index) => (
-              <SelectField
-                key={`gas-testing-${index}`}
-                label="Gas test"
-                value={item.gasTestingCatalogueId}
-                options={workstationGasTesting.map((row) => ({ value: row.id, label: `${row.parameter} (${row.minimum}–${row.maximum} ${row.unit})` }))}
-                placeholder="Choose gas test"
-                disabled={isReadOnly}
-                onChange={(gasTestingCatalogueId) => {
-                  const gasTesting = [...form.gasTesting];
-                  gasTesting[index] = { gasTestingCatalogueId };
-                  setForm({ ...form, gasTesting });
-                }}
-              />
-            ))}
-            <Button label="Add gas test" variant="outline" size="sm" icon={Plus} style={{ alignSelf: "flex-start" }} disabled={isReadOnly || workstationGasTesting.length === 0} onPress={() => setForm({ ...form, gasTesting: [...form.gasTesting, { gasTestingCatalogueId: "" }] })} />
-          </>
-        ) : null}
-      </EditorSection>
+      {step === 3 && !optionsLoading ? (
+        <StepCard title="Who does the work" description="The first person leads the crew on site.">
+          {form.executors.map((executor, index) => (
+            <SelectField
+              key={`executor-${index}`}
+              label={index === 0 ? "Crew lead" : `Crew member ${index}`}
+              value={executor.workforceUserId}
+              options={(formOptions?.executors ?? []).map((person) => ({ value: person.id, label: formatWorkforceOptionLabel(person) }))}
+              placeholder="Choose person"
+              required={index === 0}
+              disabled={isReadOnly}
+              onChange={(workforceUserId) => {
+                const executors = [...form.executors];
+                executors[index] = { ...executor, workforceUserId };
+                setForm({ ...form, executors });
+              }}
+            />
+          ))}
+          <Button label="Add crew member" variant="outline" size="sm" icon={Plus} disabled={isReadOnly} style={{ alignSelf: "flex-start" }} onPress={() => setForm({ ...form, executors: [...form.executors, { workforceUserId: "", isPrimary: false }] })} />
+        </StepCard>
+      ) : null}
 
-      <EditorSection title="Crew">
-        {form.executors.map((executor, index) => (
-          <SelectField
-            key={`executor-${index}`}
-            label={index === 0 ? "Primary executor" : `Executor ${index + 1}`}
-            value={executor.workforceUserId}
-            options={(formOptions?.executors ?? []).map((person) => ({ value: person.id, label: formatWorkforceOptionLabel(person) }))}
-            placeholder="Choose person"
-            disabled={isReadOnly || optionsLoading}
-            onChange={(workforceUserId) => {
-              const executors = [...form.executors];
-              executors[index] = { ...executor, workforceUserId };
-              setForm({ ...form, executors });
-            }}
-          />
-        ))}
-        <Button label="Add executor" variant="outline" size="sm" icon={Plus} disabled={isReadOnly} style={{ alignSelf: "flex-start" }} onPress={() => setForm({ ...form, executors: [...form.executors, { workforceUserId: "", isPrimary: false }] })} />
-      </EditorSection>
-
-      <EditorSection title="Forms and check sheets">
-        {forms.length === 0 ? (
-          <AppText variant="caption">No forms or check sheets apply to this permit type.</AppText>
+      {step === 4 && !optionsLoading ? (
+        forms.length === 0 ? (
+          <EmptyState title="No check sheets for this type of work" body="Continue to review and submit." done />
         ) : (
           forms.map((template) => (
             <TemplateFormFill
@@ -600,48 +653,126 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
               answers={prefilled.formResponses[template.id] ?? {}}
               disabled={isReadOnly}
               signerName={formOptions?.userName ?? ""}
+              fromPermit={fromPermit}
               onChange={(answers) => setForm({ ...form, formResponses: { ...form.formResponses, [template.id]: answers } })}
             />
           ))
-        )}
-      </EditorSection>
+        )
+      ) : null}
 
-      <EditorSection title="Review">
-        <InfoList
-          rows={[
-            ["Title", form.title || "Not set"],
-            ["Type", typeName ?? "Not set"],
-            ["Location", formOptions?.locations.find((l) => l.id === form.locationId)?.name ?? "Not set"],
-            ["When", formatWindow(form.plannedStartAt || null, form.plannedEndAt || null)],
-            ["Hazards", String(form.hazards.filter((h) => h.hazardCategoryId.trim()).length)],
-            ["Executors", String(form.executors.filter((e) => (e.workforceUserId ?? "").trim()).length)],
-          ]}
-        />
-        <AppText variant="label" style={{ marginTop: tokens.space[2] }}>Attachments</AppText>
-        {attachments.length === 0 ? (
-          <AppText variant="caption">No attachments yet.</AppText>
-        ) : (
-          attachments.map((attachment) => (
-            <View key={attachment.id} style={{ flexDirection: "row", alignItems: "center", gap: tokens.space[2] }}>
-              <Paperclip size={14} color={tokens.colors.mutedForeground} />
-              <AppText variant="body">{attachment.fileName}</AppText>
-            </View>
-          ))
-        )}
-        {!isReadOnly && currentPermitId ? (
-          <Button label="Add attachment" variant="outline" size="sm" icon={Paperclip} disabled={isBusy} style={{ alignSelf: "flex-start" }} onPress={() => void handlePickAttachment()} />
-        ) : null}
-      </EditorSection>
+      {step === last && !optionsLoading ? (
+        <>
+          {reviewSections.map((section) => (
+            <StepCard
+              key={section.step}
+              title={PERMIT_WIZARD_STEPS[section.step]}
+              action={isReadOnly ? undefined : <Button label="Change" variant="ghost" size="sm" icon={Pencil} onPress={() => goTo(section.step)} />}
+            >
+              <InfoList rows={section.rows} />
+            </StepCard>
+          ))}
+          <StepCard title="Attachments">
+            {attachments.length === 0 ? (
+              <AppText variant="caption">No attachments yet.</AppText>
+            ) : (
+              attachments.map((attachment) => (
+                <View key={attachment.id} style={{ flexDirection: "row", alignItems: "center", gap: tokens.space[2] }}>
+                  <Paperclip size={14} color={tokens.colors.mutedForeground} />
+                  <AppText variant="body">{attachment.fileName}</AppText>
+                </View>
+              ))
+            )}
+            {!isReadOnly ? (
+              currentPermitId ? (
+                <Button label="Add attachment" variant="outline" size="sm" icon={Paperclip} disabled={isBusy} style={{ alignSelf: "flex-start" }} onPress={() => void handlePickAttachment()} />
+              ) : (
+                <AppText variant="caption">Save the draft to add photos or documents.</AppText>
+              )
+            ) : null}
+          </StepCard>
+        </>
+      ) : null}
     </Screen>
   );
 }
 
-/** One part of the permit form: a card with its title. */
-function EditorSection({ title, children }: { title: string; children: React.ReactNode }) {
+const STEP_INTRO = [
+  "What kind of work, and what it is.",
+  "Where the work happens, and when.",
+  "The hazards on site and how the crew is protected.",
+  "The people doing the work.",
+  "The check sheets for this type of work. Answers the permit already gives are filled in for you.",
+  "Check everything, then submit for approval.",
+];
+
+const localInput = (date: Date) => toDateInputValue(date.toISOString());
+
+/** Tap-to-toggle over a list of rows keyed by one ID field; rows with no ID chosen yet are dropped. */
+function toggleRow<K extends string, R extends Record<K, string>>(rows: R[], key: K, id: string, rest: Omit<R, K>): R[] {
+  const chosen = rows.filter((row) => row[key]);
+  return chosen.some((row) => row[key] === id) ? chosen.filter((row) => row[key] !== id) : [...chosen, { ...rest, [key]: id } as R];
+}
+
+/** One-tap schedules for the common cases, as on the web. */
+function schedulePresets(now = new Date()): { label: string; start: string; end: string }[] {
+  const soon = new Date(now);
+  soon.setMinutes(soon.getMinutes() < 30 ? 30 : 60, 0, 0);
+  const soonEnd = new Date(soon.getTime() + 8 * 3_600_000);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(8, 0, 0, 0);
+  const tomorrowEnd = new Date(tomorrow);
+  tomorrowEnd.setHours(16, 0, 0, 0);
+  const weekEnd = new Date(tomorrowEnd);
+  weekEnd.setDate(weekEnd.getDate() + 4);
+  return [
+    { label: "Today, next 8 hours", start: localInput(soon), end: localInput(soonEnd) },
+    { label: "Tomorrow, 08:00–16:00", start: localInput(tomorrow), end: localInput(tomorrowEnd) },
+    { label: "5 days from tomorrow", start: localInput(tomorrow), end: localInput(weekEnd) },
+  ];
+}
+
+/** Where the person is in the form: done steps ticked, the current one ringed; reached steps can be tapped. */
+function StepBar({ step, reached, onPick }: { step: number; reached: number; onPick: (step: number) => void }) {
+  const { tokens } = useTheme();
+  const c = tokens.colors;
+  return (
+    <View style={{ gap: tokens.space[2] }}>
+      <View style={{ flexDirection: "row", gap: 4 }}>
+        {PERMIT_WIZARD_STEPS.map((name, index) => {
+          const current = index === step;
+          const done = index < step;
+          return (
+            <Pressable
+              key={name}
+              accessibilityRole="button"
+              accessibilityLabel={`Step ${index + 1}: ${name}${done ? ", done" : current ? ", current" : ""}`}
+              accessibilityState={{ selected: current, disabled: index > reached }}
+              disabled={index > reached || current}
+              onPress={() => onPick(index)}
+              hitSlop={{ top: 12, bottom: 12 }}
+              style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: done || current ? c.primaryFill : c.inputFill, borderWidth: done || current ? 0 : 1, borderColor: c.inputBorder }}
+            />
+          );
+        })}
+      </View>
+      <AppText variant="label" tone="secondary">{`Step ${step + 1} of ${PERMIT_WIZARD_STEPS.length}: ${PERMIT_WIZARD_STEPS[step]}`}</AppText>
+    </View>
+  );
+}
+
+/** One part of a step: a card with its title, an optional line under it and an optional action. */
+function StepCard({ title, description, action, children }: { title: string; description?: string; action?: React.ReactNode; children: React.ReactNode }) {
   const { tokens } = useTheme();
   return (
     <Card style={{ gap: tokens.space[4] }}>
-      <AppText variant="title">{title}</AppText>
+      <View style={{ gap: tokens.space[1] }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: tokens.space[2] }}>
+          <AppText variant="title" style={{ flex: 1 }}>{title}</AppText>
+          {action}
+        </View>
+        {description ? <AppText variant="caption">{description}</AppText> : null}
+      </View>
       {children}
     </Card>
   );

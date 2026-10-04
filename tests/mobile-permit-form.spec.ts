@@ -39,8 +39,9 @@ describe('mobile permit form (S0a)', () => {
     ];
     const forms = applicableTemplates(templates, 'cold');
     expect(forms.map((t) => t.id)).toEqual(['t1']);
+    // Fields the permit gives are not asked, so they follow the permit, over an earlier answer.
     const filled = withPrefill({ t1: { dept: 'Typed by hand' } }, forms, { department: 'Maintenance', 'crew-count': 3 });
-    expect(filled.t1).toEqual({ dept: 'Typed by hand', count: 3 });
+    expect(filled.t1).toEqual({ dept: 'Maintenance', count: 3 });
     // The approval-stage signature never blocks submission.
     expect(missingFormAnswers(forms, filled)).toEqual(['Safe work permit: 1 required answer missing']);
     expect(missingFormAnswers(forms, { t1: { ...filled.t1, ok: 'yes' } })).toEqual([]);

@@ -2,11 +2,11 @@ import type { DraftFields, PermitDetail, PermitFormState } from "./types";
 
 /** Same order and stored step index as the web editor's sections (0 work … 4 forms, 5 review). */
 export const PERMIT_WIZARD_STEPS = [
-  "Basic",
-  "Location",
-  "Hazards & PPE",
-  "Executors",
-  "Forms",
+  "Work",
+  "Place and time",
+  "Safety",
+  "Crew",
+  "Check sheets",
   "Review",
 ] as const;
 

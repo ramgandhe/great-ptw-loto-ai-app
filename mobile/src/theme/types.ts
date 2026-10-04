@@ -33,8 +33,10 @@ export interface ThemeColors {
   muted: string;
   mutedForeground: string;
   border: string;
-  /** Edges of fields and pickers: at least 3:1 against the surface, so a field can be seen. */
+  /** Edges of fields and pickers: at least 3:1 against the surface and the field, so a field can be seen. */
   inputBorder: string;
+  /** Inside of fields, pickers and choice pills: set apart from the card they sit on. */
+  inputFill: string;
   /** Cards and sheets (web --bg-surface). */
   card: string;
   cardRaised: string;

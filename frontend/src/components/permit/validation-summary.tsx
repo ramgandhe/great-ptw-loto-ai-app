@@ -13,7 +13,14 @@ function focusTarget(href: string) {
 }
 
 /** Errors after a refused submit; each link moves to the field (or section) where it is fixed. */
-export function ValidationSummary({ errors }: { errors: { message: string; href?: string }[] }) {
+export function ValidationSummary<E extends { message: string; href?: string }>({
+  errors,
+  onGo,
+}: {
+  errors: E[];
+  /** Called first, e.g. to show the step the field is on; the field is focused once that has rendered. */
+  onGo?: (error: E) => void;
+}) {
   if (errors.length === 0) {
     return null;
   }
@@ -34,7 +41,8 @@ export function ValidationSummary({ errors }: { errors: { message: string; href?
                 href={error.href}
                 onClick={(event) => {
                   event.preventDefault();
-                  focusTarget(error.href!);
+                  onGo?.(error);
+                  setTimeout(() => focusTarget(error.href!), 0);
                 }}
                 className="underline underline-offset-2"
               >

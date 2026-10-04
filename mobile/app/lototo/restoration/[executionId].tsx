@@ -108,7 +108,7 @@ export default function RestorationScreen() {
       },
     ]);
 
-  const stepBox = { gap: tokens.space[3], padding: tokens.space[3], borderRadius: tokens.radii.md, backgroundColor: c.muted };
+  const stepBox = { gap: tokens.space[3], padding: tokens.space[3], borderRadius: tokens.radii.md, borderWidth: 1, borderColor: c.border };
 
   return (
     <Screen

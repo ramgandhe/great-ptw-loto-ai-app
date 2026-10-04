@@ -193,7 +193,7 @@ export default function LototoPlanDetailScreen() {
               <AppText variant="body" weight="semibold">{point.isolationNumber}</AppText>
             </View>
           ))}
-          <View style={{ gap: tokens.space[3], padding: tokens.space[3], borderRadius: tokens.radii.md, backgroundColor: tokens.colors.muted }}>
+          <View style={{ gap: tokens.space[3], padding: tokens.space[3], borderRadius: tokens.radii.md, borderWidth: 1, borderColor: tokens.colors.border }}>
             <AppText variant="label">Add a point</AppText>
             <TextField label="Isolation number" required value={isolationNumber} onChangeText={setIsolationNumber} placeholder="For example: ISO-01" autoCapitalize="characters" />
             <SelectField

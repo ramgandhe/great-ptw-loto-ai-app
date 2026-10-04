@@ -46,7 +46,7 @@ export function Button({
   const soft = variant === "danger" ? (tokens.dark ? 0.2 : 0.1) : 0.13;
   const look: { bg: string; fg: string; border: string } = {
     primary: { bg: color ? readable(color, tokens.statusInk) : c.primaryFill, fg: color ? tokens.statusInk : c.primaryForeground, border: "transparent" },
-    secondary: { bg: c.muted, fg: c.foreground, border: "transparent" },
+    secondary: { bg: c.inputFill, fg: c.foreground, border: "transparent" },
     outline: { bg: c.card, fg: c.foreground, border: c.inputBorder },
     ghost: { bg: "transparent", fg: color ? readable(color, c.background) : c.foreground, border: "transparent" },
     danger: { bg: tint(hue, soft), fg: readable(hue, blend(hue, soft, c.card)), border: tint(hue, 0.25) },

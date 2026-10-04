@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import {
   isAnswered,
+  type TemplatePrefillSource,
   requiredForSubmit,
   signNow,
   type FormAnswer,
@@ -13,20 +14,22 @@ import {
 import { useTheme } from "@/providers/theme-provider";
 import type { ThemeTokens } from "@/theme/types";
 import { tint } from "@/theme/tokens";
+import { placeholderColor } from "@/components/ui/field";
+import { ChevronDown, ChevronRight } from "@/components/ui/icons";
 
 /** Android's minimum touch target. */
 const TARGET = 48;
 
 function createStyles({ colors, radii, text, fonts, space }: ThemeTokens) {
   const body = { fontFamily: fonts.body, fontSize: text.base, color: colors.foreground };
-  const pill = { minHeight: TARGET, justifyContent: "center" as const, paddingHorizontal: space[4], borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radii.full, backgroundColor: colors.card };
+  const pill = { minHeight: TARGET, justifyContent: "center" as const, paddingHorizontal: space[4], borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radii.full, backgroundColor: colors.inputFill };
   return StyleSheet.create({
-    // A form sits inside an editor card: a sunken panel, not a card in a card.
-    card: { gap: space[3], padding: space[4], borderRadius: radii.md, backgroundColor: colors.muted },
+    card: { gap: space[3], padding: space[4], borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
     cardTitle: { fontFamily: fonts.display, fontSize: text.md, color: colors.foreground },
     left: { fontFamily: fonts.bodySemibold, fontSize: text.sm, color: colors.warning },
     done: { fontFamily: fonts.bodySemibold, fontSize: text.sm, color: colors.success },
     section: { gap: space[3], borderTopWidth: 1, borderTopColor: colors.border, paddingTop: space[3] },
+    sectionHead: { minHeight: TARGET, flexDirection: "row", alignItems: "center", gap: space[2] },
     sectionTitle: { fontFamily: fonts.bodyBold, fontSize: text.base, color: colors.foreground },
     field: { gap: space[2] },
     label: { ...body, fontFamily: fonts.bodyMedium },
@@ -38,7 +41,7 @@ function createStyles({ colors, radii, text, fonts, space }: ThemeTokens) {
     chipOn: { borderColor: colors.primary, borderWidth: 2, backgroundColor: tint(colors.primary, 0.12) },
     text: { fontFamily: fonts.bodyMedium, fontSize: text.sm + 1, color: colors.textSecondary },
     textOn: { fontFamily: fonts.bodyBold, fontSize: text.sm + 1, color: colors.foreground },
-    input: { ...body, minHeight: TARGET, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radii.full, paddingHorizontal: space[4], backgroundColor: colors.card },
+    input: { ...body, minHeight: TARGET, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radii.full, paddingHorizontal: space[4], backgroundColor: colors.inputFill },
     textArea: { minHeight: 96, paddingTop: space[3], borderRadius: radii.lg, textAlignVertical: "top" },
     signature: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space[2] },
     button: { ...pill, alignSelf: "flex-start" },
@@ -51,7 +54,7 @@ function createStyles({ colors, radii, text, fonts, space }: ThemeTokens) {
 
 export function useFormStyles() {
   const { tokens } = useTheme();
-  return useMemo(() => ({ styles: createStyles(tokens), colors: tokens.colors }), [tokens]);
+  return useMemo(() => ({ styles: createStyles(tokens), colors: tokens.colors, placeholder: placeholderColor(tokens) }), [tokens]);
 }
 
 function Chip({ label, selected, disabled, onPress }: { label: string; selected: boolean; disabled?: boolean; onPress: () => void }) {
@@ -88,7 +91,7 @@ export function FieldInput({
   signOnly?: boolean;
   onChange: (value: FormAnswer | undefined) => void;
 }) {
-  const { styles, colors } = useFormStyles();
+  const { styles, colors, placeholder } = useFormStyles();
   const checks = [
     { value: "yes", label: "Yes", on: colors.successBg, ink: colors.success },
     { value: "no", label: "No", on: colors.dangerBg, ink: colors.danger },
@@ -160,7 +163,7 @@ export function FieldInput({
           <TextInput
             accessibilityLabel={`${field.label}: name`}
             placeholder="Name"
-            placeholderTextColor={colors.mutedForeground}
+            placeholderTextColor={placeholder}
             editable={!disabled}
             value={sig.name}
             onChangeText={(name) => onChange(name ? { ...sig, name } : undefined)}
@@ -182,7 +185,7 @@ export function FieldInput({
           value={value === undefined ? "" : String(value)}
           onChangeText={(v) => onChange(v === "" ? undefined : Number(v))}
           placeholder={field.unit}
-          placeholderTextColor={colors.mutedForeground}
+          placeholderTextColor={placeholder}
           style={[styles.input, { maxWidth: 160 }]}
         />
       );
@@ -193,7 +196,7 @@ export function FieldInput({
           editable={!disabled}
           multiline={field.type === "textarea"}
           placeholder={field.type === "date" ? "YYYY-MM-DD" : field.type === "time" ? "HH:MM" : undefined}
-          placeholderTextColor={colors.mutedForeground}
+          placeholderTextColor={placeholder}
           value={(value as string | undefined) ?? ""}
           onChangeText={(v) => onChange(v === "" ? undefined : v)}
           style={[styles.input, field.type === "textarea" && styles.textArea]}
@@ -205,10 +208,11 @@ export function FieldInput({
 const laterStage = (field: TemplateField) => Boolean(field.required && field.requiredAt && field.requiredAt !== "submit");
 
 /**
- * Fill in one permit template. Yes/No/N.A. is one tap. A section's unanswered checks can be
- * confirmed as Yes together after the questions, with a confirmation listing them; answers given
- * are never changed. Approval and closure fields are shown, not filled: that decision's maker signs
- * them at the decision. The server records each answer under the signed-in person.
+ * Fill in one permit template, one section open at a time. Answers the permit already gives
+ * (`fromPermit`: department, place, dates, crew, job) are not asked again; they follow the permit.
+ * Yes/No/N.A. is one tap. A section's unanswered checks can be confirmed as Yes together, with a
+ * confirmation listing them; answers given are never changed. Approval and closure fields are shown,
+ * not filled: that decision's maker signs them at the decision.
  */
 export function TemplateFormFill({
   name,
@@ -216,6 +220,7 @@ export function TemplateFormFill({
   answers,
   disabled,
   signerName,
+  fromPermit = new Set(),
   onChange,
 }: {
   name: string;
@@ -223,12 +228,17 @@ export function TemplateFormFill({
   answers: FormAnswers;
   disabled?: boolean;
   signerName: string;
+  fromPermit?: Set<TemplatePrefillSource>;
   onChange: (answers: FormAnswers) => void;
 }) {
-  const { styles } = useFormStyles();
+  const { styles, colors } = useFormStyles();
   const [confirming, setConfirming] = useState<string | null>(null);
-  const fields = config.sections.flatMap((s) => s.fields);
-  const left = fields.filter((f) => requiredForSubmit(f) && !isAnswered(answers[f.id])).length;
+  const asked = (f: TemplateField) => !(f.prefill && fromPermit.has(f.prefill));
+  const sections = config.sections.map((s) => ({ ...s, fields: s.fields.filter(asked) })).filter((s) => s.fields.length > 0);
+  const linked = config.sections.flatMap((s) => s.fields).filter((f) => !asked(f));
+  const leftIn = (fields: TemplateField[]) => fields.filter((f) => requiredForSubmit(f) && !isAnswered(answers[f.id])).length;
+  const left = leftIn(sections.flatMap((s) => s.fields));
+  const [openId, setOpenId] = useState<string | null>(() => (sections.find((s) => leftIn(s.fields) > 0) ?? sections[0])?.id ?? null);
   const set = (id: string, value: FormAnswer | undefined) => {
     const next = { ...answers };
     if (value === undefined) delete next[id];
@@ -240,12 +250,26 @@ export function TemplateFormFill({
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{name}</Text>
       <Text style={left ? styles.left : styles.done}>{left ? `${left} required left` : "Required done"}</Text>
-      {config.sections.map((section) => {
+      {linked.length ? <Text style={styles.hint}>{`From this permit, not asked again: ${linked.map((f) => f.label).join(", ")}.`}</Text> : null}
+      {sections.map((section) => {
         const open = section.fields.filter((f) => f.type === "check" && !laterStage(f) && !isAnswered(answers[f.id]));
+        const expanded = openId === section.id;
+        const sectionLeft = leftIn(section.fields);
+        const later = section.fields.every(laterStage);
+        const Chevron = expanded ? ChevronDown : ChevronRight;
         return (
           <View key={section.id} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            {section.fields.map((field) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded }}
+              onPress={() => setOpenId(expanded ? null : section.id)}
+              style={styles.sectionHead}
+            >
+              <Text style={[styles.sectionTitle, { flex: 1 }]}>{section.title}</Text>
+              <Text style={later ? styles.hint : sectionLeft ? styles.left : styles.done}>{later ? "Signed later" : sectionLeft ? `${sectionLeft} left` : "Done"}</Text>
+              <Chevron size={20} color={colors.foreground} />
+            </Pressable>
+            {expanded ? section.fields.map((field) => (
               <View key={field.id} style={styles.field}>
                 <Text style={styles.label}>
                   {field.label}
@@ -266,8 +290,8 @@ export function TemplateFormFill({
                   <FieldInput field={field} value={answers[field.id]} disabled={disabled} signerName={signerName} onChange={(v) => set(field.id, v)} />
                 )}
               </View>
-            ))}
-            {open.length > 1 && !disabled ? (
+            )) : null}
+            {expanded && open.length > 1 && !disabled ? (
               confirming === section.id ? (
                 <View style={styles.confirm}>
                   <Text style={styles.label}>{`Confirm these ${open.length} checks are Yes`}</Text>

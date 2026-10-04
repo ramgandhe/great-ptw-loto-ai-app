@@ -225,7 +225,7 @@ export default function IsolationExecutionScreen() {
     ]);
   const allLocked = points.length > 0 && points.every((p) => p.lock);
   const done = (label: string) => <Chip label={label} color={c.success} icon={Check} />;
-  const stepBox = { gap: tokens.space[3], padding: tokens.space[3], borderRadius: tokens.radii.md, backgroundColor: c.muted };
+  const stepBox = { gap: tokens.space[3], padding: tokens.space[3], borderRadius: tokens.radii.md, borderWidth: 1, borderColor: c.border };
 
   return (
     <Screen

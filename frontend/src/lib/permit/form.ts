@@ -14,13 +14,14 @@ export const PERMIT_WIZARD_STEPS = [
 ] as const;
 
 /**
- * The one-page editor's sections, over the stored step indices above (the server, the journey page
+ * The editor's steps (one shown at a time), over the stored step indices above (the server, the journey page
  * and the native app keep using those). `steps[0]` is what currentStep records for the section.
  */
 export const PERMIT_EDITOR_SECTIONS = [
   { id: "work", label: "Work", steps: [0] },
   { id: "place", label: "Place and schedule", steps: [1] },
-  { id: "site", label: "Site and crew", steps: [2, 3] },
+  { id: "site", label: "Site safety", steps: [2] },
+  { id: "crew", label: "Crew", steps: [3] },
   { id: "forms", label: "Forms and evidence", steps: [4] },
   { id: "review", label: "Review", steps: [5] },
 ] as const;

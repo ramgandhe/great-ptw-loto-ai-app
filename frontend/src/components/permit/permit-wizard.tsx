@@ -57,7 +57,7 @@ import {
 } from "@/lib/workforce/api";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { ensureEndAfterStart } from "@/lib/datetime";
-import { Copy, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Copy, Pencil, X } from "lucide-react";
 import { formatRelative } from "@/lib/format";
 import { useWorkQueue } from "@/lib/work-queue-context";
 import { cn } from "@/lib/utils";
@@ -207,7 +207,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [base, setBase] = useState<PermitFormState>(() => (initialDetail ? permitDetailToForm(initialDetail) : createEmptyPermitForm()));
   // Values both people changed differently; each needs the person's choice before saving again.
   const [conflicts, setConflicts] = useState<FieldConflict[]>([]);
-  const [errors, setErrors] = useState<{ message: string; href?: string }[]>([]);
+  const [errors, setErrors] = useState<{ message: string; href?: string; section?: PermitEditorSectionId }[]>([]);
   // The title follows the scope's first sentence until someone types their own.
   const [titleEdited, setTitleEdited] = useState(
     () => Boolean(initialDetail) && initialDetail!.permit.title !== titleFromScope(initialDetail!.permit.workScope ?? ""),
@@ -242,6 +242,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   >([]);
   const [userRoles, setUserRoles] = useState<string[]>(authRoles);
   const [masterDataLoading, setMasterDataLoading] = useState(true);
+  // One step at a time. A draft reopens where it was left; the executor's part starts at Site safety.
+  const [active, setActive] = useState<PermitEditorSectionId>(() =>
+    mode === "edit" && shouldSaveExecutorPayload(authRoles)
+      ? "site"
+      : (PERMIT_EDITOR_SECTIONS.find((section) => (section.steps as readonly number[]).includes(form.currentStep))?.id ?? "work"),
+  );
 
   useEffect(() => {
     if (authRoles.length > 0) {
@@ -427,15 +433,15 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     setForm(update);
   };
 
-  /** Fills empty "fill from permit" fields from what the permit already says, so nothing is typed twice. */
-  const withPrefill = (current: PermitFormState): PermitFormState => {
+  /** What the permit already says, for the forms' "fill from permit" fields. */
+  const prefillSources = (current: PermitFormState): Record<TemplatePrefillSource, string | number | undefined> => {
     const nameOf = (list: { id: string; name: string }[], id: string) => list.find((row) => row.id === id)?.name ?? "";
     const crew = current.executors
       .map((e) => executorOptions.find((o) => o.id === e.workforceUserId)?.name.replace(/ \(you\)$/, ""))
       .filter((name): name is string => Boolean(name));
     // A workstation often carries its location's name; say it once.
     const place = [...new Set([nameOf(locations, current.locationId), nameOf(workstations, current.workstationId)].filter(Boolean))];
-    const sources: Record<TemplatePrefillSource, string | number | undefined> = {
+    return {
       department: nameOf(departments, current.departmentId) || undefined,
       location: place.join(", ") || undefined,
       equipment: nameOf(machinery, current.machineryId) || undefined,
@@ -445,12 +451,20 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       "crew-names": crew.join(", ") || undefined,
       "crew-count": crew.length || undefined,
     };
+  };
+
+  /**
+   * Fills the forms' "fill from permit" fields from the permit, so nothing is typed twice. Those fields
+   * are not shown, so they always follow the permit; one the permit leaves empty is asked as usual.
+   */
+  const withPrefill = (current: PermitFormState): PermitFormState => {
+    const sources = prefillSources(current);
     const formResponses = { ...current.formResponses };
     for (const template of applicableTemplates(templates, current.permitTypeId)) {
       const answers = { ...(formResponses[template.id] ?? {}) };
       for (const field of template.config?.sections.flatMap((section) => section.fields) ?? []) {
         const source = field.prefill ? sources[field.prefill] : undefined;
-        if (source === undefined || answers[field.id] !== undefined) continue;
+        if (source === undefined) continue;
         const value: FormAnswer = field.type === "number" ? Number(source) : String(source);
         if (typeof value === "number" && !Number.isFinite(value)) continue;
         answers[field.id] = value;
@@ -460,8 +474,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     return { ...current, formResponses };
   };
 
-  // Prefilled answers follow the permit until someone edits them, and are saved with it.
+  // Prefilled answers follow the permit and are saved with it.
   const prefilled = withPrefill(form);
+  const fromPermit = new Set(
+    (Object.entries(prefillSources(form)) as [TemplatePrefillSource, unknown][]).flatMap(([key, value]) => (value === undefined ? [] : [key])),
+  );
 
   const persistDraft = async () => {
     const roles = authRoles.length > 0 ? authRoles : userRoles;
@@ -602,7 +619,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const missing: Record<PermitEditorSectionId, string[]> = {
     work: validateStep(prefilled, 0),
     place: validateStep(prefilled, 1),
-    site: [...validateStep(prefilled, 2, forms, machinery), ...validateStep(prefilled, 3)],
+    site: validateStep(prefilled, 2, forms, machinery),
+    crew: validateStep(prefilled, 3),
     forms: validateStep(prefilled, 4, forms),
     review: [],
   };
@@ -610,12 +628,30 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   // Leaving with unsaved changes asks first: tab close and in-app links alike.
   useLeaveGuard(dirty);
 
-  // The executor's part starts at Site and crew; open the editor there.
-  useEffect(() => {
-    if (!masterDataLoading && isExecutor && mode === "edit") {
-      document.getElementById("section-site")?.scrollIntoView({ block: "start" });
+  const activeIndex = PERMIT_EDITOR_SECTIONS.findIndex((section) => section.id === active);
+  const goTo = (id: PermitEditorSectionId) => {
+    setActive(id);
+    const step = PERMIT_EDITOR_SECTIONS.find((section) => section.id === id)!.steps[0];
+    setForm((current) => ({ ...current, currentStep: step }));
+    window.scrollTo({ top: 0 });
+  };
+  const sectionEditable = (id: PermitEditorSectionId) => id === "review" || editable(PERMIT_EDITOR_SECTIONS.find((section) => section.id === id)!.steps[0]);
+  const errorsFor = (id: PermitEditorSectionId) =>
+    missing[id].map((message) => {
+      // A form's error goes to that form, where the unanswered questions are marked.
+      const template = id === "forms" ? forms.find((t) => message.startsWith(`${t.name}:`)) : undefined;
+      return { message, section: id, href: `#${template ? `form-${template.id}` : (ERROR_FIELDS[message] ?? `section-${id}`)}` };
+    });
+  /** Next checks only this step, and only when this person fills it in. */
+  const handleNext = () => {
+    const stepErrors = sectionEditable(active) ? errorsFor(active) : [];
+    setErrors(stepErrors);
+    if (stepErrors.length) {
+      requestAnimationFrame(() => document.getElementById("validation-summary")?.focus());
+      return;
     }
-  }, [masterDataLoading, isExecutor, mode]);
+    goTo(PERMIT_EDITOR_SECTIONS[activeIndex + 1].id);
+  };
 
   const handleSaveDraft = async () => {
     setIsSaving(true);
@@ -634,15 +670,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   };
 
   const handleSubmit = async () => {
-    const allErrors = PERMIT_EDITOR_SECTIONS.flatMap((section) =>
-      missing[section.id].map((message) => {
-        // A form's error goes to that form, where the unanswered questions are marked.
-        const template = section.id === "forms" ? forms.find((t) => message.startsWith(`${t.name}:`)) : undefined;
-        return { message, href: `#${template ? `form-${template.id}` : (ERROR_FIELDS[message] ?? `section-${section.id}`)}` };
-      }),
-    );
+    const allErrors = PERMIT_EDITOR_SECTIONS.flatMap((section) => errorsFor(section.id));
     setErrors(allErrors);
     if (allErrors.length > 0) {
+      // Open the first step with something to fix; the summary links to the rest.
+      setActive(allErrors[0].section);
       requestAnimationFrame(() => document.getElementById("validation-summary")?.focus());
       return;
     }
@@ -708,6 +740,22 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
   const placeEditable = editable(1);
   const siteEditable = editable(2);
+  const crewEditable = editable(3);
+  const nameIn = (list: { id: string; name: string }[], id: string) => list.find((row) => row.id === id)?.name;
+  const reviewRows: [PermitEditorSectionId, string, string][] = [
+    ["work", "Permit type", nameIn(permitTypes, form.permitTypeId) ?? "Not set"],
+    ["work", "Title", form.title || "Not set"],
+    ["place", "Location", nameIn(locations, form.locationId) ?? "Not set"],
+    ["place", "Department", nameIn(departments, form.departmentId) ?? "—"],
+    ["place", "When", form.plannedStartAt && form.plannedEndAt ? `${form.plannedStartAt.replace("T", " ")} to ${form.plannedEndAt.replace("T", " ")}` : "Not set"],
+    ["site", "Workstation", nameIn(workstations, form.workstationId) ?? "—"],
+    ["site", "Hazards", hazardRows.map((h) => nameIn(hazards, h.hazardCategoryId)).filter(Boolean).join(", ") || "Not set"],
+    ["site", "PPE", ppeRows.map((p) => nameIn(ppeItems, p.ppeCatalogueId)).filter(Boolean).join(", ") || "Not set"],
+    ["site", "Isolation", form.lototoRequired ? `${form.lototo.filter((l) => l.lototoPlanId).length} LOTOTO procedure(s)` : "Not needed"],
+    ["site", "Gas testing", form.gasTestingRequired ? `${form.gasTesting.filter((g) => g.gasTestingCatalogueId).length} test(s)` : "Not needed"],
+    ["crew", "Crew", crewRows.map((e) => personName(e.workforceUserId)).join(", ") || "Not set"],
+    ["forms", "Forms", forms.length ? forms.map((t) => `${t.name}: ${missing.forms.some((m) => m.startsWith(`${t.name}:`)) ? "answers missing" : "done"}`).join("; ") : "None for this type"],
+  ];
   const formsEditable = editable(4);
 
   return (
@@ -721,34 +769,42 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             : "Describe the work and set the place, time and executor. Submit once the executor has added the site details."
         }
       >
-        <nav aria-label="Permit sections">
+        <nav aria-label="Permit steps">
           {/* One row on every width; it scrolls sideways on a phone instead of wrapping over the form. */}
           <ol className="flex gap-2 overflow-x-auto">
-            {PERMIT_EDITOR_SECTIONS.map((section) => {
+            {PERMIT_EDITOR_SECTIONS.map((section, index) => {
               const left = missing[section.id].length;
+              const current = section.id === active;
               return (
                 <li key={section.id}>
-                  <a
-                    href={`#section-${section.id}`}
-                    className="inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-3 text-xs font-medium hover:bg-muted"
+                  <button
+                    type="button"
+                    aria-current={current ? "step" : undefined}
+                    onClick={() => goTo(section.id)}
+                    className={cn(
+                      "inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3 text-xs font-medium",
+                      current ? "border-2 border-primary bg-primary/10 font-semibold" : "border-input bg-input-fill hover:bg-muted",
+                    )}
                   >
+                    <span aria-hidden className={cn("grid size-5 place-items-center rounded-full text-[0.7rem]", !left && section.id !== "review" ? "bg-(--status-success) text-white" : "bg-foreground/10")}>
+                      {!left && section.id !== "review" ? <Check className="size-3" /> : index + 1}
+                    </span>
                     {section.label}
-                    {left ? (
-                      <span className="text-(--status-warning)">· {left} to do</span>
-                    ) : section.id !== "review" ? (
-                      <span className="text-(--status-success)">· done</span>
-                    ) : null}
-                  </a>
+                    {left ? <span className="text-(--status-warning)">· {left} to do</span> : null}
+                  </button>
                 </li>
               );
             })}
           </ol>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Step {activeIndex + 1} of {PERMIT_EDITOR_SECTIONS.length}: {PERMIT_EDITOR_SECTIONS[activeIndex].label}
+          </p>
         </nav>
       </PageHeader>
 
       {status === "draft" ? <DraftBanner /> : null}
 
-      {mode === "create" && !permitId && recentPermits.length > 0 && editable(0) ? (
+      {active === "work" && mode === "create" && !permitId && recentPermits.length > 0 && editable(0) ? (
         <details className="rounded-xl border border-border bg-card px-4 py-1">
           <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold">Use a previous permit</summary>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -778,7 +834,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       ) : null}
 
 
-      <ValidationSummary errors={errors} />
+      <ValidationSummary errors={errors} onGo={(error) => error.section && setActive(error.section)} />
       {apiError ? (
         <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {apiError}
@@ -821,6 +877,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         </div>
       ) : null}
 
+      {active === "work" ? (
       <EditorSection id="work" title="Work" owner="Job issuer" editable={editable(0)} left={missing.work.length}>
         <div className="grid gap-2">
           <p id="permit-type-label" className="text-sm font-medium">
@@ -844,9 +901,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     onClick={() => edit({ ...form, permitTypeId: type.id })}
                     className={cn(
                       "flex min-h-11 items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors disabled:opacity-60",
-                      selected ? "border-foreground bg-foreground/5 font-semibold" : "border-border bg-card hover:bg-muted",
+                      selected ? "border-2 border-primary bg-primary/10 font-semibold" : "border-input bg-input-fill hover:bg-muted",
                     )}
                   >
+                    {selected ? <Check aria-hidden className="size-4 shrink-0" /> : null}
                     <span aria-hidden className="size-3 shrink-0 rounded-full bg-border" style={type.color ? { backgroundColor: type.color } : undefined} />
                     {type.name}
                   </button>
@@ -880,7 +938,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           />
         </FormField>
       </EditorSection>
+      ) : null}
 
+      {active === "place" ? (
       <EditorSection id="place" title="Place and schedule" owner="Job issuer" editable={placeEditable} left={missing.place.length}>
         <div className="grid gap-4 md:grid-cols-2">
           <FormField label="Location" htmlFor="locationId" error={fieldError("locationId")}>
@@ -964,7 +1024,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                   type="button"
                   aria-pressed={form.plannedStartAt === preset.start && form.plannedEndAt === preset.end}
                   onClick={() => edit((current) => ({ ...current, plannedStartAt: preset.start, plannedEndAt: preset.end }))}
-                  className="min-h-11 rounded-full border border-border px-3.5 text-sm hover:bg-muted aria-pressed:border-foreground aria-pressed:bg-foreground/5 aria-pressed:font-semibold"
+                  className="min-h-11 rounded-full border border-input bg-input-fill px-3.5 text-sm hover:bg-muted aria-pressed:border-2 aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:font-semibold"
                 >
                   {preset.label}
                 </button>
@@ -1038,14 +1098,16 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           </div>
         </details>
       </EditorSection>
+      ) : null}
 
+      {active === "site" ? (
       <EditorSection
         id="site"
-        title="Site and crew"
+        title="Site safety"
         owner="Job executor"
         editable={siteEditable}
         left={missing.site.length}
-        note="The job executor adds these after you save: workstation, machinery, isolation, gas tests, hazards, PPE and crew."
+        note="The job executor adds these after you save: workstation, machinery, isolation, gas tests, hazards and PPE."
       >
         <div className="grid gap-4 md:grid-cols-2">
           <FormField label="Workstation" htmlFor="workstationId" error={fieldError("workstationId")}>
@@ -1290,8 +1352,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           ) : null}
         </div>
 
+      </EditorSection>
+      ) : null}
+
+      {active === "crew" ? (
+      <EditorSection id="crew" title="Crew" owner="Job executor" editable={crewEditable} left={missing.crew.length} note="The job executor adds the crew after you save.">
         <div className="grid gap-2">
-          <h3 className="text-sm font-semibold">Crew</h3>
           <ul className="grid gap-2">
             {crewRows.map((executor) => (
               <li key={executor.workforceUserId} className="flex flex-wrap items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm">
@@ -1388,7 +1454,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           </div>
         </details>
       </EditorSection>
+      ) : null}
 
+      {active === "forms" ? (
       <EditorSection id="forms" title="Forms and evidence" owner="Job issuer or executor" editable={formsEditable} left={missing.forms.length}>
         {!templatesLoaded && !masterDataLoading ? (
           <p role="alert" className="text-sm text-destructive">The forms for this permit could not be loaded. Reload the page to try again.</p>
@@ -1399,8 +1467,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
-              Details the permit already holds are filled in and follow the permit until you change them. Questions marked * must be answered
-              before the permit can be submitted.
+              Details the permit already holds are filled in for you and not asked again. Questions marked * must be answered before the
+              permit can be submitted.
             </p>
             {forms.map((template) => (
               <TemplateFormFill
@@ -1411,6 +1479,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 disabled={!formsEditable}
                 signerName={signerName}
                 anchorId={`form-${template.id}`}
+                fromPermit={fromPermit}
                 showMissing={errors.length > 0}
                 onChange={(answers) => edit((current) => ({ ...current, formResponses: { ...current.formResponses, [template.id]: answers } }))}
               />
@@ -1459,15 +1528,33 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           ) : null}
         </div>
       </EditorSection>
+      ) : null}
 
+      {active === "review" ? (
       <EditorSection id="review" title="Review" owner="Job issuer" editable left={0}>
+        <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[10rem_minmax(0,1fr)_auto]">
+          {reviewRows.map(([section, label, value], index) => (
+            <div key={`${label}-${index}`} className="contents">
+              <dt className="text-muted-foreground">{label}</dt>
+              <dd className="min-w-0 break-words">{value}</dd>
+              <dd className="sm:text-right">
+                {index === 0 || reviewRows[index - 1][0] !== section ? (
+                  <Button type="button" variant="ghost" className="min-h-11" onClick={() => goTo(section)}>
+                    <Pencil aria-hidden />
+                    Change
+                  </Button>
+                ) : null}
+              </dd>
+            </div>
+          ))}
+        </dl>
         {PERMIT_EDITOR_SECTIONS.some((section) => missing[section.id].length) ? (
           <ul className="grid gap-2 text-sm">
             {PERMIT_EDITOR_SECTIONS.filter((section) => missing[section.id].length).map((section) => (
               <li key={section.id}>
-                <a href={`#section-${section.id}`} className="font-medium underline underline-offset-2">
+                <button type="button" onClick={() => goTo(section.id)} className="font-medium underline underline-offset-2">
                   {section.label}
-                </a>
+                </button>
                 <span className="text-muted-foreground">: {missing[section.id].join("; ")}</span>
               </li>
             ))}
@@ -1481,6 +1568,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             : "Submitting saves your changes and sends the permit for approval. Saving the draft does not authorise any work."}
         </p>
       </EditorSection>
+      ) : null}
 
       <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-8 sm:px-8">
         <p role="status" className="mr-auto text-sm text-muted-foreground">
@@ -1497,11 +1585,22 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                   : ""}
         </p>
         {status === "draft" ? (
-          <Button type="button" size="lg" className="min-h-11 px-4" variant={canSubmit ? "secondary" : "default"} onClick={() => void handleSaveDraft()} disabled={isSaving || isSubmitting || conflicts.length > 0}>
+          <Button type="button" size="lg" className="min-h-11 px-4" variant="secondary" onClick={() => void handleSaveDraft()} disabled={isSaving || isSubmitting || conflicts.length > 0}>
             {isSaving ? "Saving…" : saveLabel}
           </Button>
         ) : null}
-        {canSubmit ? (
+        {activeIndex > 0 ? (
+          <Button type="button" size="lg" variant="outline" className="min-h-11 px-4" onClick={() => goTo(PERMIT_EDITOR_SECTIONS[activeIndex - 1].id)}>
+            <ChevronLeft aria-hidden />
+            Back
+          </Button>
+        ) : null}
+        {active !== "review" ? (
+          <Button type="button" size="lg" className="min-h-11 px-4" onClick={handleNext}>
+            Next
+            <ChevronRight aria-hidden />
+          </Button>
+        ) : canSubmit ? (
           <Button type="button" size="lg" className="min-h-11 px-4" onClick={() => void handleSubmit()} disabled={isSubmitting || isSaving || isReadOnly || conflict}>
             {isSubmitting ? "Submitting…" : isResubmit ? "Resubmit permit" : "Submit permit"}
           </Button>
@@ -1581,10 +1680,11 @@ function ChipPicker({
             disabled={disabled}
             onClick={() => onToggle(option.id)}
             className={cn(
-              "min-h-11 rounded-full border px-3.5 text-sm transition-colors disabled:opacity-60",
-              on ? "border-foreground bg-foreground/5 font-semibold" : "border-border bg-card hover:bg-muted",
+              "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-colors disabled:opacity-60",
+              on ? "border-2 border-primary bg-primary/10 font-semibold" : "border-input bg-input-fill hover:bg-muted",
             )}
           >
+            {on ? <Check aria-hidden className="size-4" /> : null}
             {option.name}
           </button>
         );

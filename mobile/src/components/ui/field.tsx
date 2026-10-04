@@ -8,7 +8,10 @@ import type { ThemeTokens } from "@/theme/types";
 import { blend, readable, tint } from "@/theme/tokens";
 import { AppText } from "./text";
 
-/** The input look shared by text fields and pickers: a pill on the surface, ringed when focused or wrong. */
+/** Placeholder and empty-picker text: muted, but still readable on the field's fill. */
+export const placeholderColor = (tokens: ThemeTokens) => readable(tokens.colors.mutedForeground, tokens.colors.inputFill);
+
+/** The input look shared by text fields and pickers: a filled, edged pill, ringed when focused or wrong. */
 export function inputBox(tokens: ThemeTokens, { focused = false, invalid = false, multiline = false } = {}) {
   const c = tokens.colors;
   return {
@@ -16,7 +19,7 @@ export function inputBox(tokens: ThemeTokens, { focused = false, invalid = false
     borderRadius: multiline ? tokens.radii.lg : tokens.radii.full,
     borderWidth: focused || invalid ? 2 : 1,
     borderColor: invalid ? c.danger : focused ? c.focus : c.inputBorder,
-    backgroundColor: c.card,
+    backgroundColor: c.inputFill,
     paddingHorizontal: focused || invalid ? tokens.space[4] - 1 : tokens.space[4],
     paddingVertical: multiline ? tokens.space[3] : 0,
     color: c.foreground,
@@ -31,7 +34,7 @@ export function FieldFrame({ label, required, hint, error, children, trailing }:
   return (
     <View style={{ gap: tokens.space[2] }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: tokens.space[2] }}>
-        <AppText variant="label">
+        <AppText variant="label" tone="secondary">
           {label}
           {required ? <AppText variant="label" tone="danger">{" *"}</AppText> : null}
         </AppText>
@@ -69,7 +72,7 @@ export function TextField({
         <TextInput
           accessibilityLabel={label}
           accessibilityHint={error ?? hint}
-          placeholderTextColor={tokens.colors.mutedForeground}
+          placeholderTextColor={placeholderColor(tokens)}
           {...input}
           multiline={multiline}
           secureTextEntry={secureTextEntry && hidden}
@@ -111,7 +114,7 @@ export function SearchField({ value, onChangeText, placeholder, accessibilityLab
         onChangeText={onChangeText}
         placeholder={placeholder}
         accessibilityLabel={accessibilityLabel ?? placeholder}
-        placeholderTextColor={tokens.colors.mutedForeground}
+        placeholderTextColor={placeholderColor(tokens)}
         returnKeyType="search"
         onSubmitEditing={onSubmit}
         autoCorrect={false}
@@ -169,7 +172,7 @@ export function DateTimeField({ label, value, onChange, required, error, disable
         style={[inputBox(tokens, { invalid: Boolean(error) }), { flexDirection: "row", alignItems: "center", gap: tokens.space[2], opacity: disabled ? 0.6 : 1 }]}
       >
         <CalendarClock size={18} color={tokens.colors.mutedForeground} />
-        <AppText variant="body" tone={value ? "default" : "muted"}>{shown ?? (dateOnly ? "Choose date" : "Choose date and time")}</AppText>
+        <AppText variant="body" style={value ? undefined : { color: placeholderColor(tokens) }}>{shown ?? (dateOnly ? "Choose date" : "Choose date and time")}</AppText>
       </Pressable>
       {iosOpen ? <DateTimePicker value={current} mode={dateOnly ? "date" : "datetime"} display="inline" onChange={(_, date) => date && emit(date)} /> : null}
     </FieldFrame>
@@ -216,7 +219,7 @@ export function CheckRow({ label, value, onChange, disabled }: { label: string; 
       onPress={() => onChange(!value)}
       style={{ flexDirection: "row", alignItems: "center", gap: tokens.space[3], minHeight: 48, opacity: disabled ? 0.5 : 1 }}
     >
-      <View style={{ width: 24, height: 24, borderRadius: Math.min(6, tokens.radii.xs), borderWidth: 2, borderColor: value ? c.primaryFill : c.inputBorder, backgroundColor: value ? c.primaryFill : c.card, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ width: 24, height: 24, borderRadius: Math.min(6, tokens.radii.xs), borderWidth: 2, borderColor: value ? c.primaryFill : c.inputBorder, backgroundColor: value ? c.primaryFill : c.inputFill, alignItems: "center", justifyContent: "center" }}>
         {value ? <Check size={16} color={c.primaryForeground} strokeWidth={3} /> : null}
       </View>
       <AppText variant="body" style={{ flex: 1 }}>{label}</AppText>
@@ -225,7 +228,8 @@ export function CheckRow({ label, value, onChange, disabled }: { label: string; 
 }
 
 /**
- * One choice from a few, as pills side by side: the chosen one ringed and tinted in its colour.
+ * Choices as edged pills side by side: chosen ones ringed, tinted in their colour and ticked.
+ * One choice when `value` is a key; several when it is an array (each tap toggles).
  * `fill` stretches the options across the row (decisions); otherwise they wrap.
  */
 export function ChoiceGroup<K extends string>({
@@ -238,7 +242,7 @@ export function ChoiceGroup<K extends string>({
 }: {
   label?: string;
   options: { key: K; label: string; color?: string; swatch?: string }[];
-  value: K | null;
+  value: K | K[] | null;
   onChange: (key: K) => void;
   disabled?: boolean;
   fill?: boolean;
@@ -248,14 +252,15 @@ export function ChoiceGroup<K extends string>({
   return (
     <View style={{ gap: tokens.space[2] }}>
       {label ? <AppText variant="label">{label}</AppText> : null}
-      <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ flexDirection: "row", flexWrap: fill ? "nowrap" : "wrap", gap: tokens.space[2] }}>
+      <View accessibilityRole={Array.isArray(value) ? undefined : "radiogroup"} accessibilityLabel={label} style={{ flexDirection: "row", flexWrap: fill ? "nowrap" : "wrap", gap: tokens.space[2] }}>
         {options.map((option) => {
-          const selected = option.key === value;
+          const selected = Array.isArray(value) ? value.includes(option.key) : option.key === value;
           const hue = option.color ?? c.primary;
+          const ink = option.color ? readable(option.color, blend(hue, 0.13, c.card)) : c.foreground;
           return (
             <Pressable
               key={option.key}
-              accessibilityRole="radio"
+              accessibilityRole={Array.isArray(value) ? "checkbox" : "radio"}
               accessibilityState={{ checked: selected, disabled }}
               disabled={disabled}
               onPress={() => onChange(option.key)}
@@ -270,12 +275,13 @@ export function ChoiceGroup<K extends string>({
                 borderRadius: tokens.radii.full,
                 borderWidth: selected ? 2 : 1,
                 borderColor: selected ? hue : c.inputBorder,
-                backgroundColor: selected ? tint(hue, 0.13) : c.card,
+                backgroundColor: selected ? tint(hue, 0.13) : c.inputFill,
                 opacity: disabled ? 0.5 : 1,
               }}
             >
+              {selected ? <Check size={16} strokeWidth={3} color={ink} /> : null}
               {option.swatch ? <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: option.swatch }} /> : null}
-              <AppText variant="label" weight={selected ? "bold" : "semibold"} style={{ color: selected ? (option.color ? readable(option.color, blend(hue, 0.13, c.card)) : c.foreground) : c.textSecondary }}>
+              <AppText variant="label" weight={selected ? "bold" : "semibold"} style={{ color: selected ? ink : c.foreground }}>
                 {option.label}
               </AppText>
             </Pressable>

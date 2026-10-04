@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/providers/theme-provider";
 import { tint } from "@/theme/tokens";
 import { Button } from "./button";
-import { FieldFrame, SearchField, inputBox } from "./field";
+import { FieldFrame, SearchField, inputBox, placeholderColor } from "./field";
 import { Check, ChevronDown } from "./icons";
 import { AppText } from "./text";
 
@@ -63,10 +63,10 @@ export function SelectField({
         }}
         style={[inputBox(tokens, { invalid: Boolean(error) }), { flexDirection: "row", alignItems: "center", gap: tokens.space[2], opacity: disabled ? 0.6 : 1 }]}
       >
-        <AppText variant="body" tone={selectedLabel ? "default" : "muted"} numberOfLines={1} style={{ flex: 1 }}>
+        <AppText variant="body" numberOfLines={1} style={{ flex: 1, color: selectedLabel ? c.foreground : placeholderColor(tokens) }}>
           {selectedLabel ?? placeholder}
         </AppText>
-        <ChevronDown size={18} color={c.mutedForeground} />
+        <ChevronDown size={20} color={c.foreground} />
       </Pressable>
 
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>

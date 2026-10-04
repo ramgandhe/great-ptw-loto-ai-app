@@ -76,7 +76,7 @@ export default function IncidentDetailScreen() {
 
   const { incident } = detail;
   const open = incident.status !== "draft" && incident.status !== "closed";
-  const step = { gap: tokens.space[3], padding: tokens.space[3], borderRadius: tokens.radii.md, backgroundColor: tokens.colors.muted };
+  const step = { gap: tokens.space[3], padding: tokens.space[3], borderRadius: tokens.radii.md, borderWidth: 1, borderColor: tokens.colors.border };
 
   return (
     <Screen

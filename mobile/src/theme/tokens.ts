@@ -64,6 +64,8 @@ export function createThemeTokens(preferences: ThemePreferences): ThemeTokens {
 
   // Text in a status colour sits on its pale banner and on cards: it must read on both.
   const onBoth = (color: string, tintBg: string) => readable(readable(color, tintBg), c.bgSurface);
+  // Fields must not look like the card they sit on: sunken on light themes, lifted on dark ones.
+  const inputFill = dark ? blend(c.textPrimary, 0.08, c.bgSurface) : c.bgSunken;
 
   return {
     dark,
@@ -78,7 +80,8 @@ export function createThemeTokens(preferences: ThemePreferences): ThemeTokens {
       muted: c.bgSunken,
       mutedForeground: c.textTertiary,
       border: c.borderDefault,
-      inputBorder: readable(c.borderDefault, c.bgSurface, 3),
+      inputBorder: readable(readable(c.borderStrong, c.bgSurface, 3), inputFill, 3),
+      inputFill,
       card: c.bgSurface,
       cardRaised: c.bgSurfaceRaised,
       overlay: c.bgOverlay,

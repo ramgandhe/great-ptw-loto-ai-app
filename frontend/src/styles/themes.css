@@ -554,7 +554,9 @@
   --accent-foreground: var(--text-primary);
   --destructive: var(--status-danger);
   --border: var(--border-default);
-  --input: var(--border-default);
+  /* Fields stand apart from the card they sit on: a clear edge, and a fill sunken on light themes, lifted on dark ones. */
+  --input: color-mix(in oklab, var(--text-primary) 50%, var(--bg-surface));
+  --input-fill: var(--bg-sunken);
   --ring: var(--focus-ring);
   --chart-1: var(--vivid-1);
   --chart-2: var(--vivid-2);
@@ -569,6 +571,10 @@
   --sidebar-accent-foreground: var(--text-secondary);
   --sidebar-border: var(--border-default);
   --sidebar-ring: var(--focus-ring);
+}
+
+.dark[data-theme] {
+  --input-fill: color-mix(in oklab, var(--text-primary) 8%, var(--bg-surface));
 }
 
 /* Shared scale tokens */

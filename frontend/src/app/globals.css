@@ -26,6 +26,7 @@
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
+  --color-input-fill: var(--input-fill);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
@@ -311,4 +312,26 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+/*
+ * Every text field, picker and text area: filled and edged so it never looks like the card behind it.
+ * Unlayered on purpose, so it wins over per-page bg-background / border-border utilities.
+ */
+input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"]),
+select,
+textarea {
+  background-color: var(--input-fill);
+  border-color: var(--input);
+  &[aria-invalid="true"] {
+    border-color: var(--destructive);
+  }
+  &:focus-visible {
+    border-color: var(--ring);
+  }
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.8;
 }
