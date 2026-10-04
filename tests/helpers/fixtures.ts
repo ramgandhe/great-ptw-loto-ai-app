@@ -129,3 +129,24 @@ export async function createTenantGraph(owner: Pool, kind: 'organisation' | 'age
 
 /** A valid user context for the graph's person. */
 export const ctxOf = (g: TenantGraph): DbContext => userCtx(g.tenantId, g.personId, [g.legalEntityId]);
+
+export async function engage(
+  owner: Pool,
+  client: TenantGraph,
+  agency: TenantGraph,
+  opts: { status?: string; startsInDays?: number; endsInDays?: number; plantIds?: string[] } = {},
+): Promise<string> {
+  const { rows } = await owner.query<{ id: string }>(
+    `insert into engagements (client_tenant_id, client_legal_entity_id, agency_tenant_id, status, starts_on, ends_on)
+     values ($1, $2, $3, $4, current_date + $5::int, current_date + $6::int) returning id`,
+    [client.tenantId, client.legalEntityId, agency.tenantId, opts.status ?? 'active', opts.startsInDays ?? -1, opts.endsInDays ?? 30],
+  );
+  for (const plantId of opts.plantIds ?? [client.plantId]) {
+    await owner.query(`insert into engagement_plants (engagement_id, client_tenant_id, plant_id) values ($1, $2, $3)`, [
+      rows[0].id,
+      client.tenantId,
+      plantId,
+    ]);
+  }
+  return rows[0].id;
+}

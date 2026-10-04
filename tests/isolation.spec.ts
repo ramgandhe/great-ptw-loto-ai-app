@@ -2,14 +2,14 @@ import { sql, SQL } from 'drizzle-orm';
 import { DbContext, runInContext } from '../app/src/database/context';
 import { Client, PoolClient } from 'pg';
 import { apiDatabaseUrl, connectApi, connectOwner, noTenantJobCtx, pgCode, pgErrorCode, platformCtx, userCtx } from './helpers/db';
-import { createTenantGraph, ctxOf, insertPerson, TenantGraph } from './helpers/fixtures';
+import { createTenantGraph, ctxOf, engage, insertPerson, TenantGraph } from './helpers/fixtures';
 
 /**
  * Tables without a tenant_id column, and how each is scoped. A table that is neither tenant-keyed nor
  * listed here fails the suite, so every new table is classified on purpose (NFR-SEC-001).
  */
 const ACCOUNT_SCOPED: string[] = ['accounts'];
-const CROSS_TENANT: Record<string, string[]> = {};
+const CROSS_TENANT: Record<string, string[]> = { engagements: ['client_tenant_id', 'agency_tenant_id'], engagement_plants: ['client_tenant_id'] };
 
 /**
  * Policies ("table.policy") allowed to have no `<tenant key> = app_tenant_id()` binding. Each entry must be a
@@ -38,6 +38,7 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
     a = await createTenantGraph(owner);
     b = await createTenantGraph(owner, 'agency');
     x = await createTenantGraph(owner);
+    await engage(owner, a, b);
     const { rows } = await owner.query<{ table: string; has_tenant_id: boolean }>(`
       select c.relname as table,
              exists (select 1 from pg_attribute t where t.attrelid = c.oid and t.attname = 'tenant_id' and not t.attisdropped) as has_tenant_id
@@ -382,6 +383,24 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
       }
     } finally {
       await single.pool.end();
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('shows an engagement only to its client and its agency', async () => {
+    const problems: string[] = [];
+    for (const [table, columns] of Object.entries(CROSS_TENANT)) {
+      const where = sql.join(columns.map((c) => sql`${sql.identifier(c)} = ${a.tenantId}`), sql` or `);
+      const n = async (ctx: DbContext) =>
+        runInContext(api.db, ctx, async (tx) =>
+          (await tx.execute<{ n: number }>(sql`select count(*)::int as n from ${sql.identifier(table)} where ${where}`)).rows[0].n,
+        );
+      if ((await n(ctxOf(a))) < 1) problems.push(`${table}: client cannot see it`);
+      if ((await n(ctxOf(b))) < 1) problems.push(`${table}: agency cannot see it`);
+      for (const [who, ctx] of [['organisation x', ctxOf(x)], ['job without tenant', noTenantJobCtx], ['platform admin', platformCtx]] as [string, DbContext][]) {
+        const seen = await n(ctx);
+        if (seen !== 0) problems.push(`${table}: ${who} sees ${seen}`);
+      }
     }
     expect(problems).toEqual([]);
   });
