@@ -123,6 +123,7 @@ export async function createTenantGraph(owner: Pool, kind: 'organisation' | 'age
   await assignRole(owner, { tenantId, personId, plantId, legalEntityId, roleId: roleIds.PTW_PERMIT_COORDINATOR });
   await makeAdmin(owner, { tenantId, personId, role: 'LEGAL_ORG_ADMIN', legalEntityId });
   await owner.query(`insert into audit_events (tenant_id, action, entity_type) values ($1, 'fixture.created', 'fixture')`, [tenantId]);
+  await owner.query(`insert into tenant_data_keys (tenant_id, version, wrapped_key) values ($1, 1, 'vault:v1:fixture-not-a-key')`, [tenantId]);
   return { tenantId, kind, personId, accountId: accountId as string, crewOnlyPersonId, legalEntityId, departmentId, plantId };
 }
 

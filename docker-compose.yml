@@ -97,6 +97,33 @@ services:
     ports:
       - "3100:3100"
 
+  # NFR-SEC-003 master key. Dev mode keeps keys in memory, so restarting it makes encrypted values unreadable:
+  # local, disposable test data only. The Phase 3 pilot runs OpenBao with persistent storage, an unseal
+  # procedure and an application token limited to datakey and decrypt on this key.
+  openbao:
+    image: quay.io/openbao/openbao:2.2
+    command: server -dev -dev-listen-address=0.0.0.0:8200 -dev-root-token-id=${KEY_SERVICE_TOKEN:-dev-only-token}
+    cap_add: [IPC_LOCK]
+    ports:
+      - "8200:8200"
+
+  openbao-init:
+    image: quay.io/openbao/openbao:2.2
+    depends_on: [openbao]
+    restart: "no"
+    environment:
+      BAO_ADDR: http://openbao:8200
+      BAO_TOKEN: ${KEY_SERVICE_TOKEN:-dev-only-token}
+      VAULT_ADDR: http://openbao:8200
+      VAULT_TOKEN: ${KEY_SERVICE_TOKEN:-dev-only-token}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until bao status >/dev/null 2>&1; do sleep 1; done
+        bao secrets enable transit || true
+        bao write -f transit/keys/ptw-master type=aes256-gcm96 || true
+
   api:
     build:
       context: .
@@ -134,6 +161,8 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       LOKI_URL: http://loki:3100
       CORS_ORIGIN: http://localhost:3000
+      KEY_SERVICE_URL: http://openbao:8200
+      KEY_SERVICE_TOKEN: ${KEY_SERVICE_TOKEN:-dev-only-token}
     depends_on:
       postgres:
         condition: service_healthy
@@ -147,6 +176,8 @@ services:
         condition: service_started
       mailpit:
         condition: service_started
+      openbao-init:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [

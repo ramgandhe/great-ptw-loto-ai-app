@@ -18,6 +18,8 @@ export const REQUIRED_ENV_VARS = [
   'KEYCLOAK_URL',
   'KEYCLOAK_REALM',
   'LOKI_URL',
+  'KEY_SERVICE_URL',
+  'KEY_SERVICE_TOKEN',
 ] as const;
 
 /** Extra vars required only when NODE_ENV=production (SP-08.03). */
@@ -43,6 +45,11 @@ const INSECURE_PRODUCTION_PATTERNS: ReadonlyArray<{
     key: 'MINIO_SECRET_KEY',
     pattern: /CHANGE_ME|ptw_minio_password/i,
     hint: 'replace local MinIO secret key',
+  },
+  {
+    key: 'KEY_SERVICE_TOKEN',
+    pattern: /dev-only-token|CHANGE_ME/i,
+    hint: 'replace the development key-service token',
   },
 ];
 

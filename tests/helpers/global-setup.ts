@@ -21,6 +21,11 @@ export default async function globalSetup(): Promise<void> {
       await client.end().catch(() => undefined);
     }
   }
+  const keyServiceUrl = process.env.KEY_SERVICE_URL ?? 'http://localhost:8200';
+  const health = await fetch(`${keyServiceUrl}/v1/sys/health`).catch(() => undefined);
+  if (!health?.ok) {
+    throw new Error(`Tests need the key service at ${keyServiceUrl}. Run: docker compose up -d openbao openbao-init`);
+  }
   // Migrate once, as the owner role, before any spec runs.
   const pool = new Pool({ connectionString: ownerDatabaseUrl });
   try {

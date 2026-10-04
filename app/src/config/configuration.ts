@@ -47,6 +47,11 @@ export default () => ({
     helmetEnabled: process.env.SECURITY_HELMET_ENABLED !== 'false',
     trustProxy: process.env.SECURITY_TRUST_PROXY === 'true',
   },
+  keyService: {
+    url: process.env.KEY_SERVICE_URL ?? 'http://localhost:8200',
+    token: process.env.KEY_SERVICE_TOKEN,
+    keyName: process.env.KEY_SERVICE_KEY_NAME ?? 'ptw-master',
+  },
   minio: {
     endPoint: process.env.MINIO_ENDPOINT ?? 'localhost',
     port: parseInt(process.env.MINIO_PORT ?? '9000', 10),

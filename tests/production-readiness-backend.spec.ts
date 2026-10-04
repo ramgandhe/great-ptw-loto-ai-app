@@ -51,6 +51,10 @@ describe('Production readiness backend (PUS-220)', () => {
     const env = fullProductionEnv();
     env.DATABASE_URL = 'postgresql://ptw_api:ptw_api_dev_password@localhost:5432/ptw_platform';
     expect(() => validateEnv(env, silentLogger)).toThrow(/Insecure production configuration/);
+
+    const tokenEnv = fullProductionEnv();
+    tokenEnv.KEY_SERVICE_TOKEN = 'dev-only-token';
+    expect(() => validateEnv(tokenEnv, silentLogger)).toThrow(/KEY_SERVICE_TOKEN/);
   });
 
   it('exposes live and ready probes', async () => {

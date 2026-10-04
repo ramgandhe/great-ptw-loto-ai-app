@@ -40,6 +40,8 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       LOKI_URL: http://loki:3100
       CORS_ORIGIN: http://localhost:3000
+      KEY_SERVICE_URL: http://openbao:8200
+      KEY_SERVICE_TOKEN: ${KEY_SERVICE_TOKEN:-dev-only-token}
     networks:
       - infrastructure_default
     healthcheck:
