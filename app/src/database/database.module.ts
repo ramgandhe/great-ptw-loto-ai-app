@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
-import { Database, DbContext, Tx, runInContext } from './context';
+import { Database, DbContext, Tx, forEachTenant, runInContext } from './context';
 import { assertRuntimeDatabaseRole } from './runtime-guard';
 
 export const DATABASE_CONNECTION = 'DATABASE_CONNECTION';
@@ -17,6 +17,11 @@ export class ContextDb {
 
   run<T>(ctx: DbContext, fn: (tx: Tx) => Promise<T>): Promise<T> {
     return runInContext(this.db, ctx, fn);
+  }
+
+  /** Cross-tenant job sweeps (NFR-SEC-008). */
+  forEachTenant(fn: (tx: Tx, tenantId: string) => Promise<void>): Promise<void> {
+    return forEachTenant(this.db, fn);
   }
 
   /** Health check only: a round trip that reads no table. */

@@ -52,3 +52,17 @@ export const jobContext = (tenantId: string): DbContext => ({
   legalEntityIds: [],
   actingRole: 'job',
 });
+
+/** Runs fn once per tenant, each under that tenant's own job context. One tenant's failure does not stop the others. */
+export async function forEachTenant(db: Database, fn: (tx: Tx, tenantId: string) => Promise<void>): Promise<void> {
+  const { rows } = await db.execute<{ id: string }>(sql`select id from app_tenant_ids_for_jobs() as id`);
+  const failures: unknown[] = [];
+  for (const { id } of rows) {
+    try {
+      await runInContext(db, jobContext(id), (tx) => fn(tx, id));
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length > 0) throw new AggregateError(failures, `${failures.length} tenant(s) failed`);
+}

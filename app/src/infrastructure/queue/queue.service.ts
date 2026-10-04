@@ -1,11 +1,22 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Inject } from '@nestjs/common';
-import { Job, Queue, Worker } from 'bullmq';
+import { Job, JobsOptions, Queue, Worker } from 'bullmq';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../redis/redis.module';
+import { assertIdsOnly } from './tenant-job';
 
 export const PLATFORM_QUEUE = 'platform-queue';
+
+// NFR-SEC-008: failed jobs are kept for at most 7 days. Age-based removal in BullMQ is lazy (it runs only when
+// another job finishes), so a quiet queue could keep one longer; removing at final failure meets the bound.
+// The worker's 'failed' handler logs the job name, ID and error, which is what remains for investigation.
+export const DEFAULT_JOB_OPTIONS: JobsOptions = {
+  attempts: 3,
+  backoff: { type: 'exponential', delay: 1000 },
+  removeOnComplete: true,
+  removeOnFail: true,
+};
 
 export type QueueJobHandler = (job: Job) => Promise<void>;
 
@@ -35,12 +46,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
 
     this.queue = new Queue(PLATFORM_QUEUE, {
       connection,
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 1000 },
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
+      defaultJobOptions: DEFAULT_JOB_OPTIONS,
     });
 
     const concurrency = this.configService.get<number>('bullmq.workerConcurrency') ?? 5;
@@ -75,6 +81,12 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   async onModuleDestroy(): Promise<void> {
     await this.worker?.close();
     await this.queue?.close();
+  }
+
+  /** The only way to enqueue tenant work: payloads are checked to hold record IDs only (NFR-SEC-008). */
+  async enqueueTenantJob(name: string, payload: Record<string, unknown>): Promise<void> {
+    assertIdsOnly(payload);
+    await this.queue.add(name, payload);
   }
 
   getQueue(): Queue {

@@ -1,3 +1,4 @@
+import { connect } from 'net';
 import { Client, Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
@@ -26,6 +27,15 @@ export default async function globalSetup(): Promise<void> {
   if (!health?.ok) {
     throw new Error(`Tests need the key service at ${keyServiceUrl}. Run: docker compose up -d openbao openbao-init`);
   }
+  const redisUp = await new Promise<boolean>((resolve) => {
+    const socket = connect(Number(process.env.REDIS_PORT ?? 6379), process.env.REDIS_HOST ?? 'localhost');
+    socket.once('connect', () => {
+      socket.end();
+      resolve(true);
+    });
+    socket.once('error', () => resolve(false));
+  });
+  if (!redisUp) throw new Error('Tests need Redis. Run: docker compose up -d redis');
   // Migrate once, as the owner role, before any spec runs.
   const pool = new Pool({ connectionString: ownerDatabaseUrl });
   try {
