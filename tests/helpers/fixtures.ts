@@ -37,11 +37,41 @@ export async function insertPlant(owner: Pool, tenantId: string, legalEntityId: 
   return rows[0].id;
 }
 
+export async function insertAccount(owner: Pool): Promise<string> {
+  const { rows } = await owner.query<{ id: string }>(
+    `insert into accounts (keycloak_subject) values ($1) returning id`,
+    [randomUUID()],
+  );
+  return rows[0].id;
+}
+
+/**
+ * accountId: undefined creates a new account, null makes a crew-only person.
+ * email: defaults to a generated address when the person has an account, otherwise null.
+ */
+export async function insertPerson(
+  owner: Pool,
+  tenantId: string,
+  legalEntityId: string,
+  opts: { accountId?: string | null; email?: string | null } = {},
+): Promise<{ personId: string; accountId: string | null }> {
+  const accountId = opts.accountId === undefined ? await insertAccount(owner) : opts.accountId;
+  const email = opts.email !== undefined ? opts.email : accountId ? `p-${short()}@example.test` : null;
+  const { rows } = await owner.query<{ id: string }>(
+    `insert into people (tenant_id, employer_legal_entity_id, employment_type, account_id, full_name, email)
+     values ($1, $2, 'employee', $3, $4, $5) returning id`,
+    [tenantId, legalEntityId, accountId, `Person ${short()}`, email],
+  );
+  return { personId: rows[0].id, accountId };
+}
+
 export interface TenantGraph {
   tenantId: string;
   kind: 'organisation' | 'agency';
-  /** An active person with an account. Random until Task 7 creates person records. */
+  /** An active person with an account. */
   personId: string;
+  accountId: string;
+  crewOnlyPersonId: string;
   /** The person's employer legal entity. */
   legalEntityId: string;
   departmentId: string;
@@ -54,7 +84,9 @@ export async function createTenantGraph(owner: Pool, kind: 'organisation' | 'age
   const legalEntityId = await insertLegalEntity(owner, tenantId);
   const departmentId = await insertDepartment(owner, tenantId, legalEntityId);
   const plantId = await insertPlant(owner, tenantId, legalEntityId);
-  return { tenantId, kind, personId: randomUUID(), legalEntityId, departmentId, plantId };
+  const { personId, accountId } = await insertPerson(owner, tenantId, legalEntityId);
+  const { personId: crewOnlyPersonId } = await insertPerson(owner, tenantId, legalEntityId, { accountId: null });
+  return { tenantId, kind, personId, accountId: accountId as string, crewOnlyPersonId, legalEntityId, departmentId, plantId };
 }
 
 /** A valid user context for the graph's person. */

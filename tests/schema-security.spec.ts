@@ -5,7 +5,7 @@ import { apiDatabaseUrl } from './helpers/db';
 const APPEND_ONLY: string[] = [];
 
 /** Full-record-only columns the API role must not select directly (FR-PRV-005). Later tasks add to it. */
-const FULL_RECORD_COLUMNS: [string, string][] = [];
+const FULL_RECORD_COLUMNS: [string, string][] = [['people', 'email'], ['people', 'phone']];
 
 // NFR-SEC-001a: "A CI schema test, run as the API role, fails if any application table lacks FORCE RLS
 // or a policy, or if the API role is a superuser, has BYPASSRLS or owns a table."

@@ -1,14 +1,14 @@
 import { sql, SQL } from 'drizzle-orm';
 import { DbContext, runInContext } from '../app/src/database/context';
 import { Client, PoolClient } from 'pg';
-import { apiDatabaseUrl, connectApi, connectOwner, noTenantJobCtx, pgCode, pgErrorCode, platformCtx } from './helpers/db';
-import { createTenantGraph, ctxOf, TenantGraph } from './helpers/fixtures';
+import { apiDatabaseUrl, connectApi, connectOwner, noTenantJobCtx, pgCode, pgErrorCode, platformCtx, userCtx } from './helpers/db';
+import { createTenantGraph, ctxOf, insertPerson, TenantGraph } from './helpers/fixtures';
 
 /**
  * Tables without a tenant_id column, and how each is scoped. A table that is neither tenant-keyed nor
  * listed here fails the suite, so every new table is classified on purpose (NFR-SEC-001).
  */
-const ACCOUNT_SCOPED: string[] = [];
+const ACCOUNT_SCOPED: string[] = ['accounts'];
 const CROSS_TENANT: Record<string, string[]> = {};
 
 /**
@@ -30,6 +30,7 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
   let a: TenantGraph; // the tenant whose rows everyone else tries to reach
   let b: TenantGraph; // an agency (Task 12 engages it with a)
   let x: TenantGraph; // an unrelated organisation
+  let leftPersonId: string; // a person of tenant a who has left
   const tables: TenantTable[] = [];
   const unclassified: string[] = [];
 
@@ -48,6 +49,8 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
       else if (r.has_tenant_id) tables.push({ table: r.table, key: 'tenant_id' });
       else if (!ACCOUNT_SCOPED.includes(r.table) && !(r.table in CROSS_TENANT)) unclassified.push(r.table);
     }
+    leftPersonId = (await insertPerson(owner, a.tenantId, a.legalEntityId)).personId;
+    await owner.query(`update people set status = 'left', left_on = current_date where id = $1`, [leftPersonId]);
   });
 
   afterAll(async () => {
@@ -136,6 +139,9 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
     ['unknown acting role', { ...fullUser(), acting_role: 'admin' }],
     ["user listing another tenant's legal entity", { ...fullUser(), legal_entity_ids: `${a.legalEntityId},${x.legalEntityId}` }],
     ["job listing another tenant's legal entity", { ...fullJob(), legal_entity_ids: x.legalEntityId }],
+    ['user whose person belongs to another tenant', { ...fullUser(), person_id: x.personId }],
+    ['user whose person has left', { ...fullUser(), person_id: leftPersonId }],
+    ['user whose person does not exist', { ...fullUser(), person_id: x.tenantId }],
   ];
 
   const outsiders = (): [string, DbContext][] => [
@@ -146,6 +152,22 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
 
   it('classifies every table', () => {
     expect(unclassified).toEqual([]);
+  });
+
+  it('shows an account only to tenants where it holds a person record, and lets no tenant create one', async () => {
+    const seen = (ctx: DbContext) =>
+      runInContext(api.db, ctx, async (tx) =>
+        (await tx.execute<{ n: number }>(sql`select count(*)::int as n from accounts where id = ${a.accountId}`)).rows[0].n,
+      );
+    expect(await seen(ctxOf(a))).toBe(1);
+    for (const [, ctx] of [...outsiders(), ['platform admin', platformCtx] as [string, DbContext]]) {
+      expect(await seen(ctx)).toBe(0);
+    }
+    expect(await seen(userCtx(a.tenantId, x.personId, [a.legalEntityId]))).toBe(0);
+    const create = runInContext(api.db, ctxOf(a), (tx) =>
+      tx.execute(sql`insert into accounts (keycloak_subject) values (${`s-${a.tenantId}`})`),
+    );
+    expect(await pgErrorCode(create)).toBe('42501');
   });
 
   it('gives every tenant table a fixture row that its own tenant can see', async () => {
