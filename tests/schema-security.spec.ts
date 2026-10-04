@@ -34,27 +34,56 @@ describe('Schema security (NFR-SEC-001a)', () => {
     expect(problems).toEqual([]);
   });
 
-  it('gives the API only INSERT and SELECT on append-only tables', async () => {
+  async function appendOnlyViolations(tables: string[]): Promise<string[]> {
     const problems: string[] = [];
-    for (const table of APPEND_ONLY) {
+    for (const table of tables) {
       const { rows } = await pool.query(
-        `select has_table_privilege(current_user, $1, 'INSERT') as ins, has_table_privilege(current_user, $1, 'SELECT') as sel,
-                has_table_privilege(current_user, $1, 'UPDATE') as upd, has_table_privilege(current_user, $1, 'DELETE') as del,
-                has_table_privilege(current_user, $1, 'TRUNCATE') as trunc`,
-        [table],
+        `select has_table_privilege(current_user, $1, 'INSERT') as ins,
+                has_table_privilege(current_user, $1, 'SELECT') as sel,
+                has_any_column_privilege(current_user, $1, 'UPDATE') as upd,
+                has_table_privilege(current_user, $1, 'DELETE') as del,
+                has_table_privilege(current_user, $1, 'TRUNCATE') as trunc,
+                has_any_column_privilege(current_user, $1, 'REFERENCES') as refs,
+                has_table_privilege(current_user, $1, 'TRIGGER') as trig`,
+        [`public.${table}`],
       );
       const p = rows[0];
-      if (!p.ins || !p.sel || p.upd || p.del || p.trunc) problems.push(`${table}: ${JSON.stringify(p)}`);
+      if (!p.ins || !p.sel || p.upd || p.del || p.trunc || p.refs || p.trig) {
+        problems.push(`${table}: ${JSON.stringify(p)}`);
+      }
     }
+    return problems;
+  }
+
+  async function fullRecordViolations(columns: Array<[string, string]>): Promise<string[]> {
+    const problems: string[] = [];
+    for (const [table, column] of columns) {
+      const { rows } = await pool.query(`select has_column_privilege(current_user, $1, $2, 'SELECT') as sel`, [
+        `public.${table}`,
+        column,
+      ]);
+      if (rows[0].sel) problems.push(`${table}.${column} is selectable`);
+    }
+    return problems;
+  }
+
+  it('gives the API only INSERT and SELECT on append-only tables', async () => {
+    const problems = await appendOnlyViolations(APPEND_ONLY);
     expect(problems).toEqual([]);
   });
 
   it('does not let the API select full-record-only columns directly', async () => {
-    const problems: string[] = [];
-    for (const [table, column] of FULL_RECORD_COLUMNS) {
-      const { rows } = await pool.query(`select has_column_privilege(current_user, $1, $2, 'SELECT') as sel`, [table, column]);
-      if (rows[0].sel) problems.push(`${table}.${column} is selectable`);
-    }
+    const problems = await fullRecordViolations(FULL_RECORD_COLUMNS);
     expect(problems).toEqual([]);
+  });
+
+  it('detects UPDATE/DELETE/REFERENCES/TRIGGER privileges on append-only tables', async () => {
+    const problems = await appendOnlyViolations(['organisations']);
+    expect(problems.length).toBeGreaterThan(0);
+  });
+
+  it('detects SELECT privilege on full-record-only columns', async () => {
+    const problems = await fullRecordViolations([['organisations', 'name']]);
+    expect(problems.length).toBeGreaterThan(0);
   });
 });
