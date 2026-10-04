@@ -68,15 +68,17 @@ describe('Database roles (NFR-SEC-001a)', () => {
   });
 
   it('refuses to start the API when its role owns a table', async () => {
-    // Only the bootstrap superuser can hand the API role a table, so arrange it as that user and always clean up.
+    // Only the bootstrap superuser can hand the API role a table. The probe lives in its own schema, so
+    // catalogue specs that scan `public` never see it; it is always dropped.
     const superuser = new Pool({ connectionString: superuserDatabaseUrl });
     try {
-      await superuser.query('drop table if exists public.guard_owned_probe');
-      await superuser.query('create table public.guard_owned_probe (id int)');
-      await superuser.query('alter table public.guard_owned_probe owner to ptw_api');
+      await superuser.query('drop schema if exists guard_probe cascade');
+      await superuser.query('create schema guard_probe');
+      await superuser.query('create table guard_probe.owned_table (id int)');
+      await superuser.query('alter table guard_probe.owned_table owner to ptw_api');
       await expect(assertRuntimeDatabaseRole(api, {})).rejects.toThrow('own tables');
     } finally {
-      await superuser.query('drop table if exists public.guard_owned_probe');
+      await superuser.query('drop schema if exists guard_probe cascade');
       await superuser.end();
     }
     await expect(assertRuntimeDatabaseRole(api, {})).resolves.toBeUndefined();
