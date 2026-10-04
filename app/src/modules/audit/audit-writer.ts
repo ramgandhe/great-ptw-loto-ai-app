@@ -2,13 +2,22 @@ import { Injectable } from '@nestjs/common';
 import type { DbContext, Tx } from '../../database/context';
 import { auditEvents } from '../../database/schema';
 
-/** FR-AUD-005: per entity type, fields whose values never reach audit. A change is recorded as "changed". */
+/**
+ * FR-AUD-005: fields whose values never reach audit. A change is recorded as "changed". Redaction fails closed:
+ * the union of these names applies to every entity type, to camelCase spellings, and to any field that holds
+ * one at any depth. Add the names of a new kind of personal value here.
+ */
 export const REDACTED_FIELDS: Record<string, readonly string[]> = {
   person: [
     'email', 'phone', 'blood_group', 'health_conditions', 'emergency_contacts', 'identity_document_number',
     'employment_history',
   ],
 };
+
+const REDACTED = new Set(Object.values(REDACTED_FIELDS).flat());
+const isRedacted = (key: string): boolean => REDACTED.has(key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase());
+const holdsRedacted = (value: unknown): boolean =>
+  typeof value === 'object' && value !== null && Object.entries(value).some(([key, v]) => isRedacted(key) || holdsRedacted(v));
 
 export type AuditChange = { before: unknown; after: unknown } | 'changed';
 
@@ -30,11 +39,11 @@ export function auditChanges(
 ): Record<string, AuditChange> {
   const before = event.before ?? {};
   const after = event.after ?? {};
-  const redacted = new Set(REDACTED_FIELDS[event.entityType] ?? []);
   const changes: Record<string, AuditChange> = {};
   for (const field of new Set([...Object.keys(before), ...Object.keys(after)])) {
-    if (JSON.stringify(before[field]) === JSON.stringify(after[field])) continue;
-    changes[field] = redacted.has(field) ? 'changed' : { before: before[field] ?? null, after: after[field] ?? null };
+    const [was, now] = [before[field] ?? null, after[field] ?? null];
+    if (JSON.stringify(was) === JSON.stringify(now)) continue;
+    changes[field] = isRedacted(field) || holdsRedacted(was) || holdsRedacted(now) ? 'changed' : { before: was, after: now };
   }
   for (const field of event.changedFields ?? []) changes[field] = 'changed';
   return changes;

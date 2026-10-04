@@ -33,6 +33,25 @@ describe('Audit (FR-AUD-001 to 003, 005)', () => {
     expect(auditChanges({ entityType: 'gas_reading', before: { o2: 20.9 }, after: { o2: 19.1 } })).toEqual({
       o2: { before: 20.9, after: 19.1 },
     });
+
+    // FR-AUD-005 fails closed: redaction does not depend on the entity type, the key's spelling or its nesting.
+    expect(auditChanges({ entityType: 'account', before: { phone: '+91 1' }, after: { phone: '+91 2' } })).toEqual({
+      phone: 'changed',
+    });
+    expect(auditChanges({ entityType: 'person', before: { bloodGroup: 'A+' }, after: { bloodGroup: 'B+' } })).toEqual({
+      bloodGroup: 'changed',
+    });
+    expect(
+      auditChanges({ entityType: 'person', before: { profile: { phone: '+91 1' } }, after: { profile: { phone: '+91 2' } } }),
+    ).toEqual({ profile: 'changed' });
+    expect(
+      auditChanges({ entityType: 'person', before: { contacts: [{ Email: 'a@x.test' }] }, after: { contacts: [] } }),
+    ).toEqual({ contacts: 'changed' });
+    expect(auditChanges({ entityType: 'person', before: { profile: { phone: '+91 1' } }, after: { profile: { phone: '+91 1' } } })).toEqual({});
+
+    // An absent field and null are the same value: no change, so no false "phone changed".
+    expect(auditChanges({ entityType: 'person', before: {}, after: { phone: null, note: null } })).toEqual({});
+    expect(auditChanges({ entityType: 'person', before: { phone: undefined, note: undefined }, after: {} })).toEqual({});
   });
 
   it('writes in the action transaction, so a rolled-back action leaves no audit event', async () => {
@@ -40,10 +59,12 @@ describe('Audit (FR-AUD-001 to 003, 005)', () => {
     const kept = `test.kept.${randomUUID()}`;
     const dropped = `test.dropped.${randomUUID()}`;
     await runInContext(api.db, ctx, (tx) => audit.record(tx, ctx, { action: kept, entityType: 'test', deviceId: 'device-1' }));
-    await runInContext(api.db, ctx, async (tx) => {
-      await audit.record(tx, ctx, { action: dropped, entityType: 'test' });
-      throw new Error('action failed');
-    }).catch(() => undefined);
+    await expect(
+      runInContext(api.db, ctx, async (tx) => {
+        await audit.record(tx, ctx, { action: dropped, entityType: 'test' });
+        throw new Error('action failed');
+      }),
+    ).rejects.toThrow('action failed');
     const { rows } = await owner.query(
       `select action, actor_person_id, device_id from audit_events where action in ($1, $2)`,
       [kept, dropped],
