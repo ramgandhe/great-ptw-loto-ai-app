@@ -1,0 +1,8 @@
+VC-1: agree | no amendment. A hold the server has not confirmed cannot complete Isolation, issue the permit or check crew in, and restoration and new holds exclude each other atomically. This closes the R8 race and fails safe offline.
+VC-2: agree-with-amendment | In the new FR-PTW-012, replace "Only an approved extension or renewal ([v1 FR-MDP-009]) reopens the window." with "Only an approved extension or renewal ([v1 FR-MDP-009]) reopens the window; before Issue, a new end time is a scope edit under FR-WFE-006, which reruns the approval."
+VC-3: agree-with-amendment | In path (d), replace "the sync service, under server authority, appends" with "the sync service appends, through one SECURITY DEFINER function that checks the account's assignment at the moment its access ended in the database,", and rename the list "Received after access ended" in FR-AGY-008 and §21, because it now also covers wind-down and handover, not only End now.
+
+Contradictions:
+1. VC-2 and FR-WFE-006: without the amendment, "only an approved extension or renewal reopens the window" forbids the pre-Issue end-time edit that FR-WFE-006 allows (start and end time are scope fields before Issue).
+2. VC-2 and FR-CRW-006 (issue lapse): an Issued permit that reaches its end time before the end of its date of Issue becomes Expired, and the lapse rule would then return it to Approved at midnight. Add to FR-CRW-006: "The lapse applies only to a permit still Issued at the end of its date of Issue."
+3. VC-3 and NFR-SEC-002 ("all enforced in the database"): path (d) as written is enforced by the sync service, not by the database. The VC-3 amendment above resolves this.
