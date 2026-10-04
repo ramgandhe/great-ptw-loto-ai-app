@@ -34,6 +34,7 @@ export default async function globalSetup(): Promise<void> {
       resolve(true);
     });
     socket.once('error', () => resolve(false));
+    socket.setTimeout(5000, () => socket.destroy(new Error('timeout')));
   });
   if (!redisUp) throw new Error('Tests need Redis. Run: docker compose up -d redis');
   // Migrate once, as the owner role, before any spec runs.

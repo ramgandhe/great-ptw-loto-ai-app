@@ -64,8 +64,12 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
       { connection, concurrency },
     );
 
+    // Fires on every attempt, retries included. With removeOnFail the job is gone afterwards, so this line is the
+    // only trace: payloads hold IDs only (NFR-SEC-008), so the tenant ID is safe to log.
     this.worker.on('failed', (job, error) => {
-      this.logger.error(`Job ${job?.id} failed: ${error.message}`);
+      this.logger.error(
+        `Job ${job?.name} ${job?.id} (tenant ${job?.data?.tenantId}) failed, attempt ${job?.attemptsMade}/${job?.opts.attempts}: ${error.message}`,
+      );
     });
 
     try {
@@ -87,10 +91,6 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   async enqueueTenantJob(name: string, payload: Record<string, unknown>): Promise<void> {
     assertIdsOnly(payload);
     await this.queue.add(name, payload);
-  }
-
-  getQueue(): Queue {
-    return this.queue;
   }
 
   async isHealthy(): Promise<boolean> {
