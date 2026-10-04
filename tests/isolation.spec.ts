@@ -98,6 +98,21 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
   const fullJob = (): Settings => ({ tenant_id: a.tenantId, person_id: 'none', legal_entity_ids: 'none', acting_role: 'job' });
   const fullPlatform = (): Settings => ({ tenant_id: 'none', person_id: 'none', legal_entity_ids: 'none', acting_role: 'platform_admin' });
   const without = (settings: Settings, name: string): Settings => Object.fromEntries(Object.entries(settings).filter(([key]) => key !== name));
+  /** The settings runInContext sets for a context, for probes that must be rolled back. */
+  const settingsOf = (ctx: DbContext): Settings => ({
+    tenant_id: ctx.tenantId ?? 'none',
+    person_id: ctx.personId ?? 'none',
+    legal_entity_ids: ctx.legalEntityIds.length ? ctx.legalEntityIds.join(',') : 'none',
+    acting_role: ctx.actingRole,
+  });
+  /** "rows:N" or "code:SQLSTATE" for a statement run on a pool client under these settings and always rolled back. */
+  const attemptRaw = async (settings: Settings, query: string, params: unknown[]): Promise<string> => {
+    try {
+      return `rows:${(await withRawSettings(settings, query, params)).rowCount ?? 0}`;
+    } catch (error) {
+      return `code:${pgCode(error)}`;
+    }
+  };
 
   /** Contexts that claim tenant a but are incomplete or inconsistent: the database must treat each as no context. Later tasks add cases. */
   const incompleteContexts = (): [string, Settings][] => [
@@ -176,35 +191,75 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
     expect(problems).toEqual([]);
   });
 
-  it('denies the partial job and platform contexts on a fresh and on a reused connection', async () => {
-    const partial: [string, Settings][] = [
-      ['job with only tenant and acting role', { tenant_id: a.tenantId, acting_role: 'job' }],
-      ['platform admin with only acting role', { acting_role: 'platform_admin' }],
-    ];
-    // Only tables that exist at this point: the catalogue list grows as later tasks add tables.
-    const reads = tables.map((t) => `select count(*)::int as n from ${q(t.table)} where ${q(t.key)} = $1`);
+  it('denies every incomplete or inconsistent context on a fresh and on a reused connection, for reads and writes', async () => {
+    const rowByTable = new Map<string, unknown>();
+    for (const t of tables) rowByTable.set(t.table, await rowOfA(t));
+    const problems: string[] = [];
+
+    /**
+     * One transaction on this client with exactly these settings; every table is probed inside it, each probe undone by a
+     * savepoint (a repeated name just shadows the last). On a brand-new client the settings are unset (NULL), not '', so
+     * this is the first and only transaction.
+     */
+    const probeEveryTable = async (client: Client, label: string, name: string, settings: Settings) => {
+      await client.query('begin');
+      try {
+        for (const [setting, value] of Object.entries(settings)) await client.query('select set_config($1, $2, true)', [`app.${setting}`, value]);
+        for (const t of tables) {
+          await client.query('savepoint s');
+          const read = await client.query<{ n: number }>(`select count(*)::int as n from ${q(t.table)} where ${q(t.key)} = $1`, [a.tenantId]);
+          if (read.rows[0].n !== 0) problems.push(`${t.table}: "${name}" on a ${label} connection reads ${read.rows[0].n} row(s)`);
+          await client.query('rollback to savepoint s');
+          const code = await pgErrorCode(
+            client.query(`insert into ${q(t.table)} select * from jsonb_populate_record(null::${q(t.table)}, $1::jsonb)`, [JSON.stringify(rowByTable.get(t.table))]),
+          );
+          if (code !== '42501') problems.push(`${t.table}: "${name}" on a ${label} connection insert gave ${code ?? 'no error'}`);
+          await client.query('rollback to savepoint s');
+        }
+      } finally {
+        await client.query('rollback').catch(() => undefined);
+      }
+    };
+
     const reused = new Client({ connectionString: apiDatabaseUrl });
     await reused.connect();
-    const problems: string[] = [];
     try {
       // A complete transaction first, so the settings exist on this connection (as '') afterwards.
       await rawOn(reused, fullUser(), 'select 1', []);
-      for (const [name, settings] of partial) {
-        for (const query of reads) {
-          const fresh = new Client({ connectionString: apiDatabaseUrl });
-          await fresh.connect();
-          try {
-            for (const [label, client] of [['fresh', fresh], ['reused', reused]] as [string, Client][]) {
-              const { rows } = await rawOn(client, settings, query, [a.tenantId]);
-              if (rows[0].n !== 0) problems.push(`"${name}" on a ${label} connection: ${query} gave ${rows[0].n}`);
-            }
-          } finally {
-            await fresh.end();
-          }
+      for (const [name, settings] of incompleteContexts()) {
+        const fresh = new Client({ connectionString: apiDatabaseUrl });
+        await fresh.connect();
+        try {
+          await probeEveryTable(fresh, 'fresh', name, settings);
+        } finally {
+          await fresh.end();
         }
+        await probeEveryTable(reused, 'reused', name, settings);
       }
     } finally {
       await reused.end();
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('gives every policy a valid-context check and, on a tenant table, a tenant check, for every command', async () => {
+    const { rows } = await owner.query<{ tablename: string; policyname: string; cmd: string; qual: string | null; with_check: string | null }>(
+      `select tablename, policyname, cmd, qual, with_check from pg_policies where schemaname = 'public' order by 1, 2`,
+    );
+    const keyOf = new Map(tables.map((t) => [t.table, t.key]));
+    const problems: string[] = [];
+    for (const p of rows) {
+      const key = keyOf.get(p.tablename);
+      const where = `${p.tablename}.${p.policyname} (${p.cmd})`;
+      if (p.qual === null && p.with_check === null) problems.push(`${where}: no USING or WITH CHECK expression`);
+      for (const [part, expr] of [['USING', p.qual], ['WITH CHECK', p.with_check]] as [string, string | null][]) {
+        if (expr === null) continue;
+        if (!expr.includes('app_context_valid()')) problems.push(`${where}: ${part} lacks app_context_valid()`);
+        // A policy is bound to the tenant, or to the platform admin role alone (such as creating tenants).
+        if (key && !expr.includes(`${key} = app_tenant_id()`) && !expr.includes(`app_acting_role() = 'platform_admin'::text`)) {
+          problems.push(`${where}: ${part} lacks ${key} = app_tenant_id()`);
+        }
+      }
     }
     expect(problems).toEqual([]);
   });
@@ -222,6 +277,22 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
           const outcome = await attempt(ctx, query);
           if (outcome !== 'rows:0' && outcome !== 'code:42501') problems.push(`${t.table}: ${who} ${op} gave ${outcome}`);
         }
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('lets an update that reads no column touch only the caller\'s own rows', async () => {
+    // With no WHERE and a constant SET, only the UPDATE policy decides; the SELECT policy is not consulted. Always rolled back.
+    const problems: string[] = [];
+    for (const t of tables) {
+      const viewers = t.table === 'organisations' ? outsiders() : [...outsiders(), ['platform admin', platformCtx] as [string, DbContext]];
+      for (const [who, ctx] of viewers) {
+        const own = ctx.tenantId
+          ? (await owner.query<{ n: number }>(`select count(*)::int as n from ${q(t.table)} where ${q(t.key)} = $1`, [ctx.tenantId])).rows[0].n
+          : 0;
+        const outcome = await attemptRaw(settingsOf(ctx), `update ${q(t.table)} set ${q(t.key)} = $1`, [ctx.tenantId ?? a.tenantId]);
+        if (outcome !== `rows:${own}` && outcome !== 'code:42501') problems.push(`${t.table}: ${who} update without WHERE gave ${outcome}, expected rows:${own} or code:42501`);
       }
     }
     expect(problems).toEqual([]);
@@ -248,12 +319,16 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
   it('refuses moving an own row into another tenant', async () => {
     const problems: string[] = [];
     for (const t of tables) {
-      const T = sql.identifier(t.table);
-      const K = sql.identifier(t.key);
-      const code = await pgErrorCode(
-        runInContext(api.db, ctxOf(x), (tx) => tx.execute(sql`update ${T} set ${K} = ${a.tenantId} where ${K} = ${x.tenantId}`)),
-      );
-      if (code !== '42501') problems.push(`${t.table}: moving x's row to a gave ${code ?? 'no error'}`);
+      const T = q(t.table);
+      const K = q(t.key);
+      // The second statement reads no column, so only the UPDATE policy's WITH CHECK can stop it. Both are rolled back.
+      for (const [how, query, params] of [
+        ['with WHERE', `update ${T} set ${K} = $1 where ${K} = $2`, [a.tenantId, x.tenantId]],
+        ['without WHERE', `update ${T} set ${K} = $1`, [a.tenantId]],
+      ] as [string, string, string[]][]) {
+        const outcome = await attemptRaw(settingsOf(ctxOf(x)), query, params);
+        if (outcome !== 'code:42501') problems.push(`${t.table}: moving x's row to a ${how} gave ${outcome}`);
+      }
     }
     expect(problems).toEqual([]);
   });
