@@ -4,8 +4,7 @@ module.exports = {
   roots: ['<rootDir>/src', '<rootDir>/../tests'],
   testMatch: ['<rootDir>/../tests/**/*.spec.ts'],
   testTimeout: 30000,
-  // A run that cannot reach the database fails instead of passing with database tests skipped.
-  globalSetup: '<rootDir>/../tests/helpers/require-database.js',
+  globalSetup: '<rootDir>/../tests/helpers/global-setup.ts',
   maxWorkers: process.env.CI ? 1 : '50%',
   transform: {
     '^.+\\.(t|j)s$': [

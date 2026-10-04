@@ -3,9 +3,7 @@ export default () => ({
   apiVersion: process.env.API_VERSION ?? 'v1',
   nodeEnv: process.env.NODE_ENV ?? 'development',
   database: {
-    url:
-      process.env.DATABASE_URL ??
-      'postgresql://ptw:ptw_dev_password@localhost:5432/ptw_platform',
+    url: process.env.DATABASE_URL,
     poolMax: parseInt(process.env.DATABASE_POOL_MAX ?? '20', 10),
     poolIdleTimeoutMs: parseInt(process.env.DATABASE_POOL_IDLE_TIMEOUT_MS ?? '30000', 10),
     poolConnectionTimeoutMs: parseInt(

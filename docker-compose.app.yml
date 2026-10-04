@@ -14,7 +14,7 @@ services:
     environment:
       NODE_ENV: development
       API_PORT: 4000
-      DATABASE_URL: postgresql://ptw:${POSTGRES_PASSWORD:-ptw_dev_password}@postgres:5432/ptw_platform
+      DATABASE_URL: postgresql://ptw_api:${PTW_API_PASSWORD:-ptw_api_dev_password}@postgres:5432/ptw_platform
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}

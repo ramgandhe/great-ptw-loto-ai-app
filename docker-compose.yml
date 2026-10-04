@@ -4,13 +4,16 @@ services:
     environment:
       POSTGRES_USER: ptw
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ptw_dev_password}
-      POSTGRES_DB: ptw_platform
+      POSTGRES_DB: postgres
+    env_file:
+      - ./infrastructure/postgres/.env
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ptw -d ptw_platform"]
+      test: ["CMD-SHELL", "pg_isready -U ptw -d postgres"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -58,9 +61,9 @@ services:
     command: start-dev --import-realm
     environment:
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/ptw_platform
-      KC_DB_USERNAME: ptw
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-ptw_dev_password}
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak_dev_password}
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_HTTP_PORT: 8080
@@ -94,21 +97,6 @@ services:
     ports:
       - "3100:3100"
 
-  metabase:
-    image: metabase/metabase:v0.50.13
-    ports:
-      - "3001:3000"
-    environment:
-      MB_DB_TYPE: postgres
-      MB_DB_DBNAME: ptw_platform
-      MB_DB_PORT: 5432
-      MB_DB_USER: ptw
-      MB_DB_PASS: ${POSTGRES_PASSWORD:-ptw_dev_password}
-      MB_DB_HOST: postgres
-    depends_on:
-      postgres:
-        condition: service_healthy
-
   api:
     build:
       context: .
@@ -117,7 +105,7 @@ services:
       - "4000:4000"
     environment:
       API_PORT: 4000
-      DATABASE_URL: postgresql://ptw:${POSTGRES_PASSWORD:-ptw_dev_password}@postgres:5432/ptw_platform
+      DATABASE_URL: postgresql://ptw_api:${PTW_API_PASSWORD:-ptw_api_dev_password}@postgres:5432/ptw_platform
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}

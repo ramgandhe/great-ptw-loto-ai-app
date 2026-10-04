@@ -1,8 +1,9 @@
-import { Global, Module, OnModuleDestroy, Inject } from '@nestjs/common';
+import { Global, Module, OnModuleDestroy, OnModuleInit, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
+import { assertRuntimeDatabaseRole } from './runtime-guard';
 
 export const DATABASE_CONNECTION = 'DATABASE_CONNECTION';
 export const DATABASE_POOL = 'DATABASE_POOL';
@@ -33,8 +34,12 @@ export type Database = NodePgDatabase<typeof schema>;
   ],
   exports: [DATABASE_CONNECTION, DATABASE_POOL],
 })
-export class DatabaseModule implements OnModuleDestroy {
+export class DatabaseModule implements OnModuleInit, OnModuleDestroy {
   constructor(@Inject(DATABASE_POOL) private readonly pool: Pool) {}
+
+  async onModuleInit(): Promise<void> {
+    await assertRuntimeDatabaseRole(this.pool);
+  }
 
   async onModuleDestroy(): Promise<void> {
     await this.pool.end();

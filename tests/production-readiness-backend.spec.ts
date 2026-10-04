@@ -18,7 +18,7 @@ function fullProductionEnv(): NodeJS.ProcessEnv {
   for (const key of PRODUCTION_REQUIRED_ENV_VARS) {
     env[key] = 'set';
   }
-  env.DATABASE_URL = 'postgresql://ptw:prod_secret@postgres:5432/ptw_platform';
+  env.DATABASE_URL = 'postgresql://ptw_api:prod_secret@postgres:5432/ptw_platform';
   env.REDIS_PASSWORD = 'prod-redis-secret';
   env.MINIO_ACCESS_KEY = 'prod-minio-user';
   env.MINIO_SECRET_KEY = 'prod-minio-secret';
@@ -49,7 +49,7 @@ describe('Production readiness backend (PUS-220)', () => {
 
   it('rejects local/dev secret defaults in production', () => {
     const env = fullProductionEnv();
-    env.DATABASE_URL = 'postgresql://ptw:ptw_dev_password@localhost:5432/ptw_platform';
+    env.DATABASE_URL = 'postgresql://ptw_api:ptw_api_dev_password@localhost:5432/ptw_platform';
     expect(() => validateEnv(env, silentLogger)).toThrow(/Insecure production configuration/);
   });
 

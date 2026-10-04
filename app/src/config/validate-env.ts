@@ -31,7 +31,7 @@ const INSECURE_PRODUCTION_PATTERNS: ReadonlyArray<{
 }> = [
   {
     key: 'DATABASE_URL',
-    pattern: /ptw_dev_password|CHANGE_ME/i,
+    pattern: /_dev_password|CHANGE_ME/i,
     hint: 'replace local Postgres credentials',
   },
   {
