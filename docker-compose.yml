@@ -105,7 +105,7 @@ services:
     command: server -dev -dev-listen-address=0.0.0.0:8200 -dev-root-token-id=${KEY_SERVICE_TOKEN:-dev-only-token}
     cap_add: [IPC_LOCK]
     ports:
-      - "8200:8200"
+      - "127.0.0.1:8200:8200"
 
   openbao-init:
     image: quay.io/openbao/openbao:2.2
@@ -123,6 +123,7 @@ services:
         until bao status >/dev/null 2>&1; do sleep 1; done
         bao secrets enable transit || true
         bao write -f transit/keys/ptw-master type=aes256-gcm96 || true
+        bao read transit/keys/ptw-master
 
   api:
     build:

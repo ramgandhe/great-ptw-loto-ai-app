@@ -9,10 +9,11 @@ describe('Field encryption (NFR-SEC-003)', () => {
   const key = randomBytes(32);
 
   it('round-trips with the same record ID and records the key version', () => {
-    const blob = encryptField(key, 3, 'O+', 'person-1:blood_group');
+    const plaintext = 'blood-group-O-positive-sentinel';
+    const blob = encryptField(key, 3, plaintext, 'person-1:blood_group');
     expect(keyVersionOf(blob)).toBe(3);
-    expect(blob.includes(Buffer.from('O+'))).toBe(false);
-    expect(decryptField(key, blob, 'person-1:blood_group')).toBe('O+');
+    expect(blob.includes(Buffer.from(plaintext))).toBe(false);
+    expect(decryptField(key, blob, 'person-1:blood_group')).toBe(plaintext);
   });
 
   it('refuses a value moved to another record or field, or tampered with', () => {
@@ -22,6 +23,14 @@ describe('Field encryption (NFR-SEC-003)', () => {
     const tampered = Buffer.from(blob);
     tampered[tampered.length - 1] ^= 1;
     expect(() => decryptField(key, tampered, 'person-1:blood_group')).toThrow();
+    const badTag = Buffer.from(blob);
+    badTag[16] ^= 1;
+    expect(() => decryptField(key, badTag, 'person-1:blood_group')).toThrow();
+    // An empty value's blob cut inside the tag is the dangerous case: a short tag is a prefix of the real one.
+    const empty = encryptField(key, 1, '', 'person-1:blood_group');
+    for (let length = 20; length < 32; length++) {
+      expect(() => decryptField(key, empty.subarray(0, length), 'person-1:blood_group')).toThrow();
+    }
   });
 });
 
