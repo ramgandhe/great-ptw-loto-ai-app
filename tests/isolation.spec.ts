@@ -134,6 +134,8 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
     ['job carrying a person', { ...fullJob(), person_id: a.personId }],
     ['platform admin carrying a tenant', { ...fullPlatform(), tenant_id: a.tenantId }],
     ['unknown acting role', { ...fullUser(), acting_role: 'admin' }],
+    ["user listing another tenant's legal entity", { ...fullUser(), legal_entity_ids: `${a.legalEntityId},${x.legalEntityId}` }],
+    ["job listing another tenant's legal entity", { ...fullJob(), legal_entity_ids: x.legalEntityId }],
   ];
 
   const outsiders = (): [string, DbContext][] => [

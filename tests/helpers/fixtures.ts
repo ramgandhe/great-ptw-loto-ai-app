@@ -13,19 +13,48 @@ export async function insertOrganisation(owner: Pool, kind: 'organisation' | 'ag
   return rows[0].id;
 }
 
+export async function insertLegalEntity(owner: Pool, tenantId: string): Promise<string> {
+  const { rows } = await owner.query<{ id: string }>(
+    `insert into legal_entities (tenant_id, legal_name, short_code, country) values ($1, $2, $3, 'IN') returning id`,
+    [tenantId, `Entity ${short()}`, `LE${short().slice(0, 4).toUpperCase()}`],
+  );
+  return rows[0].id;
+}
+
+export async function insertDepartment(owner: Pool, tenantId: string, legalEntityId: string): Promise<string> {
+  const { rows } = await owner.query<{ id: string }>(
+    `insert into departments (tenant_id, legal_entity_id, name) values ($1, $2, $3) returning id`,
+    [tenantId, legalEntityId, `Department ${short()}`],
+  );
+  return rows[0].id;
+}
+
+export async function insertPlant(owner: Pool, tenantId: string, legalEntityId: string): Promise<string> {
+  const { rows } = await owner.query<{ id: string }>(
+    `insert into plants (tenant_id, legal_entity_id, name, code, time_zone) values ($1, $2, $3, $4, 'Asia/Kolkata') returning id`,
+    [tenantId, legalEntityId, `Plant ${short()}`, `P${short().slice(0, 4).toUpperCase()}`],
+  );
+  return rows[0].id;
+}
+
 export interface TenantGraph {
   tenantId: string;
   kind: 'organisation' | 'agency';
   /** An active person with an account. Random until Task 7 creates person records. */
   personId: string;
-  /** The person's employer legal entity. Random until Task 6 creates legal entities. */
+  /** The person's employer legal entity. */
   legalEntityId: string;
+  departmentId: string;
+  plantId: string;
 }
 
 /** One row in every tenant table, so the isolation suite can test each table. Each new table adds its row here. */
 export async function createTenantGraph(owner: Pool, kind: 'organisation' | 'agency' = 'organisation'): Promise<TenantGraph> {
   const tenantId = await insertOrganisation(owner, kind);
-  return { tenantId, kind, personId: randomUUID(), legalEntityId: randomUUID() };
+  const legalEntityId = await insertLegalEntity(owner, tenantId);
+  const departmentId = await insertDepartment(owner, tenantId, legalEntityId);
+  const plantId = await insertPlant(owner, tenantId, legalEntityId);
+  return { tenantId, kind, personId: randomUUID(), legalEntityId, departmentId, plantId };
 }
 
 /** A valid user context for the graph's person. */
