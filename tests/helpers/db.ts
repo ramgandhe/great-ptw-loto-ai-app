@@ -1,5 +1,9 @@
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import * as schema from '../../app/src/database/schema';
+import type { Database, DbContext } from '../../app/src/database/context';
 
 /** The API role (NOSUPERUSER, NOBYPASSRLS). */
 export const apiDatabaseUrl =
@@ -18,4 +22,39 @@ export const migrationsFolder = join(__dirname, '../../app/src/database/migratio
 
 if (!existsSync(migrationsFolder)) {
   throw new Error(`Migrations folder not found: ${migrationsFolder}`);
+}
+
+/** The API role. Specs query through runInContext, exactly as the API does. */
+export function connectApi(max = 4): { pool: Pool; db: Database } {
+  const pool = new Pool({ connectionString: apiDatabaseUrl, max });
+  return { pool, db: drizzle(pool, { schema }) };
+}
+
+/** The owner role (BYPASSRLS), for migrations and fixtures only. */
+export function connectOwner(): Pool {
+  return new Pool({ connectionString: ownerDatabaseUrl });
+}
+
+export const userCtx = (tenantId: string, personId: string, legalEntityIds: string[]): DbContext => ({
+  tenantId,
+  personId,
+  legalEntityIds,
+  actingRole: 'user',
+});
+export const platformCtx: DbContext = { tenantId: null, personId: null, legalEntityIds: [], actingRole: 'platform_admin' };
+export const noTenantJobCtx: DbContext = { tenantId: null, personId: null, legalEntityIds: [], actingRole: 'job' };
+
+/** SQLSTATE of a pg error, whether or not Drizzle wrapped it. */
+export function pgCode(error: unknown): string | undefined {
+  const e = error as { code?: string; cause?: { code?: string } };
+  return e.code ?? e.cause?.code;
+}
+
+export async function pgErrorCode(promise: Promise<unknown>): Promise<string | undefined> {
+  try {
+    await promise;
+    return undefined;
+  } catch (error) {
+    return pgCode(error) ?? String(error);
+  }
 }

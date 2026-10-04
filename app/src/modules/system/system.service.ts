@@ -1,12 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Inject } from '@nestjs/common';
-import { Pool } from 'pg';
 import { PLATFORM_VERSION, ClientConfig } from '@ptw/shared';
 import { RedisHealthService } from '../../infrastructure/redis/redis.service';
 import { StorageService } from '../../infrastructure/storage/storage.service';
 import { QueueService } from '../../infrastructure/queue/queue.service';
-import { DATABASE_POOL } from '../../database/database.module';
+import { ContextDb } from '../../database/database.module';
 
 export interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -32,7 +30,7 @@ export interface ReadinessStatus {
 export class HealthService {
   constructor(
     private readonly configService: ConfigService,
-    @Inject(DATABASE_POOL) private readonly pool: Pool,
+    private readonly db: ContextDb,
     private readonly redisHealth: RedisHealthService,
     private readonly storageService: StorageService,
     private readonly queueService: QueueService,
@@ -91,7 +89,7 @@ export class HealthService {
 
   private async checkDatabase(): Promise<{ status: 'up' | 'down'; message?: string }> {
     try {
-      await this.pool.query('SELECT 1');
+      await this.db.ping();
       return { status: 'up' };
     } catch (error) {
       return { status: 'down', message: (error as Error).message };

@@ -56,7 +56,7 @@ describe('Production readiness backend (PUS-220)', () => {
   it('exposes live and ready probes', async () => {
     const health = new HealthService(
       { get: () => 'http://keycloak:8080' } as never,
-      { query: jest.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] }) } as never,
+      { ping: jest.fn().mockResolvedValue(undefined) } as never,
       { ping: jest.fn().mockResolvedValue(true) } as never,
       { isHealthy: jest.fn().mockResolvedValue(true) } as never,
       { isHealthy: jest.fn().mockResolvedValue(true) } as never,
@@ -75,7 +75,7 @@ describe('Production readiness backend (PUS-220)', () => {
   it('returns 503 from ready controller when critical deps are down', async () => {
     const health = new HealthService(
       { get: () => undefined } as never,
-      { query: jest.fn().mockRejectedValue(new Error('no db')) } as never,
+      { ping: jest.fn().mockRejectedValue(new Error('no db')) } as never,
       { ping: jest.fn().mockResolvedValue(false) } as never,
       { isHealthy: jest.fn().mockResolvedValue(false) } as never,
       { isHealthy: jest.fn().mockResolvedValue(false) } as never,
