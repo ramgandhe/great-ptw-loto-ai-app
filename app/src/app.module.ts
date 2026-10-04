@@ -15,6 +15,7 @@ import { StorageModule } from './infrastructure/storage/storage.module';
 import { QueueModule } from './infrastructure/queue/queue.module';
 import { MailModule } from './infrastructure/mail/mail.module';
 import { SystemModule } from './modules/system/system.module';
+import { AuditModule } from './modules/audit/audit.module';
 import { AccessModule } from './modules/access/access.module';
 
 // v2 is rebuilt module by module (PRD §19). Until Phase 1b brings sign-in back, only the public
@@ -53,6 +54,7 @@ import { AccessModule } from './modules/access/access.module';
     StorageModule,
     QueueModule,
     SystemModule,
+    AuditModule,
     AccessModule,
   ],
   providers: [

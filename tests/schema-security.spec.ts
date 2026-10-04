@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 import { apiDatabaseUrl } from './helpers/db';
 
 /** Tables the API may only INSERT into and SELECT from (NFR-SEC-001a, FR-AUD-003). Later tasks add to it. */
-const APPEND_ONLY: string[] = [];
+const APPEND_ONLY: string[] = ['audit_events'];
 
 /** Full-record-only columns the API role must not select directly (FR-PRV-005). Later tasks add to it. */
 const FULL_RECORD_COLUMNS: [string, string][] = [['people', 'email'], ['people', 'phone']];

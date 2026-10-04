@@ -122,6 +122,7 @@ export async function createTenantGraph(owner: Pool, kind: 'organisation' | 'age
   const roleIds = await insertDefaultRoles(owner, tenantId, legalEntityId);
   await assignRole(owner, { tenantId, personId, plantId, legalEntityId, roleId: roleIds.PTW_PERMIT_COORDINATOR });
   await makeAdmin(owner, { tenantId, personId, role: 'LEGAL_ORG_ADMIN', legalEntityId });
+  await owner.query(`insert into audit_events (tenant_id, action, entity_type) values ($1, 'fixture.created', 'fixture')`, [tenantId]);
   return { tenantId, kind, personId, accountId: accountId as string, crewOnlyPersonId, legalEntityId, departmentId, plantId };
 }
 
