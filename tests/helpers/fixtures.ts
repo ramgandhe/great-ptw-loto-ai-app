@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Pool } from 'pg';
+import { DEFAULT_ROLES, type AdminRole, type DefaultRoleKey } from '@ptw/shared';
 import type { DbContext } from '../../app/src/database/context';
 import { userCtx } from './db';
 
@@ -16,7 +17,7 @@ export async function insertOrganisation(owner: Pool, kind: 'organisation' | 'ag
 export async function insertLegalEntity(owner: Pool, tenantId: string): Promise<string> {
   const { rows } = await owner.query<{ id: string }>(
     `insert into legal_entities (tenant_id, legal_name, short_code, country) values ($1, $2, $3, 'IN') returning id`,
-    [tenantId, `Entity ${short()}`, `LE${short().slice(0, 4).toUpperCase()}`],
+    [tenantId, `Entity ${short()}`, `LE${short().slice(0, 6).toUpperCase()}`],
   );
   return rows[0].id;
 }
@@ -32,7 +33,7 @@ export async function insertDepartment(owner: Pool, tenantId: string, legalEntit
 export async function insertPlant(owner: Pool, tenantId: string, legalEntityId: string): Promise<string> {
   const { rows } = await owner.query<{ id: string }>(
     `insert into plants (tenant_id, legal_entity_id, name, code, time_zone) values ($1, $2, $3, $4, 'Asia/Kolkata') returning id`,
-    [tenantId, legalEntityId, `Plant ${short()}`, `P${short().slice(0, 4).toUpperCase()}`],
+    [tenantId, legalEntityId, `Plant ${short()}`, `P${short().slice(0, 6).toUpperCase()}`],
   );
   return rows[0].id;
 }
@@ -65,6 +66,38 @@ export async function insertPerson(
   return { personId: rows[0].id, accountId };
 }
 
+export async function insertDefaultRoles(owner: Pool, tenantId: string, legalEntityId: string): Promise<Record<DefaultRoleKey, string>> {
+  const ids = {} as Record<DefaultRoleKey, string>;
+  for (const role of DEFAULT_ROLES) {
+    const { rows } = await owner.query<{ id: string }>(
+      `insert into roles (tenant_id, legal_entity_id, key, name, permissions) values ($1, $2, $3, $4, $5) returning id`,
+      [tenantId, legalEntityId, role.key, role.name, [...role.permissions]],
+    );
+    ids[role.key] = rows[0].id;
+  }
+  return ids;
+}
+
+export async function assignRole(
+  owner: Pool,
+  a: { tenantId: string; personId: string; plantId: string; legalEntityId: string; roleId: string; departmentId?: string },
+): Promise<void> {
+  await owner.query(
+    `insert into plant_assignments (tenant_id, person_id, plant_id, legal_entity_id, role_id, department_id) values ($1, $2, $3, $4, $5, $6)`,
+    [a.tenantId, a.personId, a.plantId, a.legalEntityId, a.roleId, a.departmentId ?? null],
+  );
+}
+
+export async function makeAdmin(
+  owner: Pool,
+  a: { tenantId: string; personId: string; role: AdminRole; legalEntityId?: string },
+): Promise<void> {
+  await owner.query(
+    `insert into admin_assignments (tenant_id, person_id, role, legal_entity_id) values ($1, $2, $3, $4)`,
+    [a.tenantId, a.personId, a.role, a.legalEntityId ?? null],
+  );
+}
+
 export interface TenantGraph {
   tenantId: string;
   kind: 'organisation' | 'agency';
@@ -86,6 +119,9 @@ export async function createTenantGraph(owner: Pool, kind: 'organisation' | 'age
   const plantId = await insertPlant(owner, tenantId, legalEntityId);
   const { personId, accountId } = await insertPerson(owner, tenantId, legalEntityId);
   const { personId: crewOnlyPersonId } = await insertPerson(owner, tenantId, legalEntityId, { accountId: null });
+  const roleIds = await insertDefaultRoles(owner, tenantId, legalEntityId);
+  await assignRole(owner, { tenantId, personId, plantId, legalEntityId, roleId: roleIds.PTW_PERMIT_COORDINATOR });
+  await makeAdmin(owner, { tenantId, personId, role: 'LEGAL_ORG_ADMIN', legalEntityId });
   return { tenantId, kind, personId, accountId: accountId as string, crewOnlyPersonId, legalEntityId, departmentId, plantId };
 }
 

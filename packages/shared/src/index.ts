@@ -41,3 +41,4 @@ export interface UserProfile {
   roles: string[];
   tenantId?: string;
 }
+export * from './permissions';

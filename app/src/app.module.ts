@@ -15,6 +15,7 @@ import { StorageModule } from './infrastructure/storage/storage.module';
 import { QueueModule } from './infrastructure/queue/queue.module';
 import { MailModule } from './infrastructure/mail/mail.module';
 import { SystemModule } from './modules/system/system.module';
+import { AccessModule } from './modules/access/access.module';
 
 // v2 is rebuilt module by module (PRD §19). Until Phase 1b brings sign-in back, only the public
 // health routes answer; any other route fails closed because no authentication strategy is registered.
@@ -52,6 +53,7 @@ import { SystemModule } from './modules/system/system.module';
     StorageModule,
     QueueModule,
     SystemModule,
+    AccessModule,
   ],
   providers: [
     JwtAuthGuard,
