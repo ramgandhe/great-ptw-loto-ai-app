@@ -62,19 +62,36 @@ describe('Agency path skeleton (NFR-SEC-002, PRD §19 Phase 1)', () => {
   });
 
   it("gives the client no rows when it selects every column of any agency table (criterion 4)", async () => {
-    const { rows: tables } = await owner.query<{ table: string }>(`
-      select c.relname as table from pg_class c join pg_namespace n on n.oid = c.relnamespace
-       where n.nspname = 'public' and c.relkind = 'r'
-         and exists (select 1 from pg_attribute t where t.attrelid = c.oid and t.attname = 'tenant_id' and not t.attisdropped)`);
+    // Every tenant-keyed table, partitioned ones included (organisations is keyed by id).
+    const { rows: tables } = await owner.query<{ table: string; key: string }>(`
+      select c.relname as table, case when c.relname = 'organisations' then 'id' else 'tenant_id' end as key
+        from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relkind in ('r', 'p')
+         and (c.relname = 'organisations'
+              or exists (select 1 from pg_attribute t where t.attrelid = c.oid and t.attname = 'tenant_id' and not t.attisdropped))`);
+    expect(tables.length).toBeGreaterThan(0);
     const problems: string[] = [];
-    for (const { table } of tables) {
-      // A table with full-record columns refuses `select *` outright (42501); any other must return no rows.
-      const outcome = await runInContext(api.db, ctxOf(client), (tx) =>
-        tx.execute(sql`select * from ${sql.identifier(table)} where tenant_id = ${agency.tenantId}`),
-      ).then((r) => `rows:${r.rows.length}`, (e) => `code:${pgCode(e)}`);
-      if (outcome !== 'rows:0' && outcome !== 'code:42501') problems.push(`${table}: ${outcome}`);
+    for (const { table, key } of tables) {
+      // Only the columns the API role may select: a column privilege error must not stand in for RLS (people refuses `select *`).
+      const { rows: columns } = await api.pool.query<{ name: string }>(
+        `select attname as name from pg_attribute
+          where attrelid = $1::regclass and attnum > 0 and not attisdropped and has_column_privilege(current_user, attrelid, attnum, 'SELECT')
+          order by attnum`,
+        [`public.${table}`],
+      );
+      expect(columns.length).toBeGreaterThan(0);
+      const T = sql.identifier(table);
+      const K = sql.identifier(key);
+      // Any error here (a privilege error included) fails the test: only RLS may be what returns nothing.
+      const { count, rowsSeen } = await runInContext(api.db, ctxOf(client), async (tx) => ({
+        count: (await tx.execute<{ n: number }>(sql`select count(*)::int as n from ${T} where ${K} = ${agency.tenantId}`)).rows[0].n,
+        rowsSeen: (await tx.execute(sql`select ${sql.join(columns.map((c) => sql.identifier(c.name)), sql`, `)} from ${T} where ${K} = ${agency.tenantId}`)).rows.length,
+      }));
+      if (count !== 0) problems.push(`${table}: count(*) saw ${count} agency row(s)`);
+      if (rowsSeen !== 0) problems.push(`${table}: its ${columns.length} readable columns gave ${rowsSeen} agency row(s)`);
     }
     expect(problems).toEqual([]);
+    // The full-record columns are refused outright, by column privilege.
     expect(
       await pgErrorCode(runInContext(api.db, ctxOf(client), (tx) => tx.execute(sql`select email, phone from people where tenant_id = ${agency.tenantId}`))),
     ).toBe('42501');

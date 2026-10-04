@@ -35,6 +35,10 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
   let leftPersonId: string; // a person of tenant a who has left
   const tables: TenantTable[] = [];
   const unclassified: string[] = [];
+  /** Per table, the quoted columns the API role may INSERT. Insert probes name only these, so a missing column privilege (also 42501) cannot stand in for the policy. */
+  const insertColumns = new Map<string, string>();
+  /** Tables whose key column the API role may UPDATE. Update probes set the key, so they skip the rest (see the test below). */
+  const updatableKey = new Set<string>();
 
   beforeAll(async () => {
     a = await createTenantGraph(owner);
@@ -51,6 +55,18 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
       if (r.table === 'organisations') tables.push({ table: r.table, key: 'id' });
       else if (r.has_tenant_id) tables.push({ table: r.table, key: 'tenant_id' });
       else if (!ACCOUNT_SCOPED.includes(r.table) && !(r.table in CROSS_TENANT)) unclassified.push(r.table);
+    }
+    const insertable = await api.pool.query<{ table: string; columns: string }>(`
+      select c.relname as table, string_agg(quote_ident(t.attname), ', ' order by t.attnum) as columns
+        from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        join pg_attribute t on t.attrelid = c.oid and t.attnum > 0 and not t.attisdropped
+       where n.nspname = 'public' and c.relkind in ('r', 'p') and has_column_privilege(current_user, c.oid, t.attnum, 'INSERT')
+       group by c.relname`);
+    for (const r of insertable.rows) insertColumns.set(r.table, r.columns);
+    const keys: [string, string][] = [...tables.map((t): [string, string] => [t.table, t.key]), ...Object.keys(CROSS_TENANT).map((t): [string, string] => [t, 'client_tenant_id'])];
+    for (const [table, key] of keys) {
+      const { rows: priv } = await api.pool.query<{ ok: boolean }>(`select has_column_privilege(current_user, $1::regclass, $2, 'UPDATE') as ok`, [`public.${table}`, key]);
+      if (priv[0].ok) updatableKey.add(table);
     }
     leftPersonId = (await insertPerson(owner, a.tenantId, a.legalEntityId)).personId;
     await owner.query(`update people set status = 'left', left_on = current_date where id = $1`, [leftPersonId]);
@@ -76,6 +92,15 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
   /** A copy of one of tenant a's rows, for insert attempts. */
   const rowOfA = async (t: TenantTable) =>
     (await owner.query(`select to_jsonb(r) as row from ${q(t.table)} r where ${q(t.key)} = $1 limit 1`, [a.tenantId])).rows[0].row;
+
+  const insertList = (table: string): string => {
+    const columns = insertColumns.get(table);
+    if (!columns) throw new Error(`the API role may insert no column of ${table}`);
+    return columns;
+  };
+  /** A copy of the jsonb row ($1) of this table, naming only the columns the API role may insert. */
+  const insertCopy = (table: string) =>
+    `insert into ${q(table)} (${insertList(table)}) select ${insertList(table)} from jsonb_populate_record(null::${q(table)}, $1::jsonb)`;
 
   type Settings = Record<string, string>;
 
@@ -194,7 +219,7 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
         const { rows } = await withRawSettings(settings, `select count(*)::int as n from ${q(t.table)} where ${q(t.key)} = $1`, [a.tenantId]);
         if (rows[0].n !== 0) problems.push(`${t.table}: "${name}" reads ${rows[0].n} row(s)`);
         const code = await pgErrorCode(
-          withRawSettings(settings, `insert into ${q(t.table)} select * from jsonb_populate_record(null::${q(t.table)}, $1::jsonb)`, [JSON.stringify(row)]),
+          withRawSettings(settings, insertCopy(t.table), [JSON.stringify(row)]),
         );
         if (code !== '42501') problems.push(`${t.table}: "${name}" insert gave ${code ?? 'no error'}`);
       }
@@ -235,7 +260,7 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
           if (read.rows[0].n !== 0) problems.push(`${t.table}: "${name}" on a ${label} connection reads ${read.rows[0].n} row(s)`);
           await client.query('rollback to savepoint s');
           const code = await pgErrorCode(
-            client.query(`insert into ${q(t.table)} select * from jsonb_populate_record(null::${q(t.table)}, $1::jsonb)`, [JSON.stringify(rowByTable.get(t.table))]),
+            client.query(insertCopy(t.table), [JSON.stringify(rowByTable.get(t.table))]),
           );
           if (code !== '42501') problems.push(`${t.table}: "${name}" on a ${label} connection insert gave ${code ?? 'no error'}`);
           await client.query('rollback to savepoint s');
@@ -291,6 +316,18 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
     expect(problems).toEqual([]);
   });
 
+  it('skips the update probes only for tables the API role cannot update at all', async () => {
+    // A probe sets the key column, so the key must be one the API role may UPDATE; otherwise a privilege error (42501) could pass for the policy.
+    const skipped = tables.filter((t) => !updatableKey.has(t.table)).map((t) => t.table);
+    const problems: string[] = Object.keys(CROSS_TENANT).filter((table) => !updatableKey.has(table)).map((table) => `${table}: its key is not updatable`);
+    for (const table of skipped) {
+      const { rows } = await api.pool.query<{ ok: boolean }>(`select has_any_column_privilege(current_user, $1::regclass, 'UPDATE') as ok`, [`public.${table}`]);
+      if (rows[0].ok) problems.push(`${table}: the key is not updatable but another column is; probe that column`);
+    }
+    expect(problems).toEqual([]);
+    expect(skipped).toEqual(['audit_events', 'tenant_data_keys']);
+  });
+
   it("refuses updates and deletes of another tenant's rows", async () => {
     const problems: string[] = [];
     for (const t of tables) {
@@ -301,6 +338,7 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
           ['update', sql`update ${T} set ${K} = ${K} where ${K} = ${a.tenantId}`],
           ['delete', sql`delete from ${T} where ${K} = ${a.tenantId}`],
         ] as [string, SQL][]) {
+          if (op === 'update' && !updatableKey.has(t.table)) continue;
           const outcome = await attempt(ctx, query);
           if (outcome !== 'rows:0' && outcome !== 'code:42501') problems.push(`${t.table}: ${who} ${op} gave ${outcome}`);
         }
@@ -313,6 +351,7 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
     // With no WHERE and a constant SET, only the UPDATE policy decides; the SELECT policy is not consulted. Always rolled back.
     const problems: string[] = [];
     for (const t of tables) {
+      if (!updatableKey.has(t.table)) continue;
       for (const [who, ctx] of viewersOf(t)) {
         const own = ctx.tenantId
           ? (await owner.query<{ n: number }>(`select count(*)::int as n from ${q(t.table)} where ${q(t.key)} = $1`, [ctx.tenantId])).rows[0].n
@@ -329,11 +368,12 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
     for (const t of tables) {
       const row = await rowOfA(t);
       const T = sql.identifier(t.table);
+      const columns = sql.raw(insertList(t.table));
       for (const [who, ctx] of outsiders()) {
         // RLS WITH CHECK runs before unique and foreign-key checks, so a copy of a's row must fail with 42501.
         const code = await pgErrorCode(
           runInContext(api.db, ctx, (tx) =>
-            tx.execute(sql`insert into ${T} select * from jsonb_populate_record(null::${T}, ${JSON.stringify(row)}::jsonb)`),
+            tx.execute(sql`insert into ${T} (${columns}) select ${columns} from jsonb_populate_record(null::${T}, ${JSON.stringify(row)}::jsonb)`),
           ),
         );
         if (code !== '42501') problems.push(`${t.table}: ${who} insert gave ${code ?? 'no error'}`);
@@ -345,6 +385,7 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
   it('refuses moving an own row into another tenant', async () => {
     const problems: string[] = [];
     for (const t of tables) {
+      if (!updatableKey.has(t.table)) continue;
       const T = q(t.table);
       const K = q(t.key);
       // The second statement reads no column, so only the UPDATE policy's WITH CHECK can stop it. Both are rolled back.
@@ -413,12 +454,13 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
       for (const [who, ctx] of [...outsiders(), ['platform admin', platformCtx]] as [string, DbContext][]) {
         // All rolled back. The updates read no column or only the key, and the delete has no WHERE, so the write policies decide.
         const attempts: [string, string, string[]][] = [
-          ['insert', `insert into ${T} select * from jsonb_populate_record(null::${T}, $1::jsonb)`, [JSON.stringify(row)]],
+          ['insert', insertCopy(table), [JSON.stringify(row)]],
           ['update', `update ${T} set client_tenant_id = client_tenant_id`, []],
           ['update without a column', `update ${T} set client_tenant_id = $1`, [a.tenantId]],
           ['delete', `delete from ${T}`, []],
         ];
         for (const [op, query, params] of attempts) {
+          if (op.startsWith('update') && !updatableKey.has(table)) continue;
           const outcome = await attemptRaw(settingsOf(ctx), query, params);
           const allowed = op === 'insert' ? ['code:42501'] : ['rows:0', 'code:42501'];
           if (!allowed.includes(outcome)) problems.push(`${table}: ${who} ${op} gave ${outcome}`);

@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { runInContext } from '../app/src/database/context';
 import { connectApi, connectOwner, pgErrorCode, userCtx } from './helpers/db';
-import { insertAccount, insertLegalEntity, insertOrganisation, insertPerson } from './helpers/fixtures';
+import { insertAccount, insertLegalEntity, insertOrganisation, insertPerson, short } from './helpers/fixtures';
 
 describe('Accounts and person records (FR-PPL-001, 004, 005; FR-PRV-005)', () => {
   const owner = connectOwner();
@@ -17,6 +17,32 @@ describe('Accounts and person records (FR-PPL-001, 004, 005; FR-PRV-005)', () =>
     const entity = await insertLegalEntity(owner, tenant);
     const accountId = await insertAccount(owner);
     expect(await pgErrorCode(insertPerson(owner, tenant, entity, { accountId, email: null }))).toBe('23514');
+  });
+
+  it('refuses an account-linked person whose email is empty or has surrounding spaces (FR-PPL-005)', async () => {
+    const tenant = await insertOrganisation(owner);
+    const entity = await insertLegalEntity(owner, tenant);
+    for (const email of ['', ' a@x.test', 'a@x.test ']) {
+      expect(await pgErrorCode(insertPerson(owner, tenant, entity, { email }))).toBe('23514');
+    }
+  });
+
+  it('lets the API role write a person record but never its account link (FR-PPL-004)', async () => {
+    const tenant = await insertOrganisation(owner);
+    const entity = await insertLegalEntity(owner, tenant);
+    const viewer = (await insertPerson(owner, tenant, entity)).personId;
+    const target = (await insertPerson(owner, tenant, entity, { accountId: null, email: `t-${short()}@example.test` })).personId;
+    const learnedAccount = await insertAccount(owner);
+    const as = (query: ReturnType<typeof sql>) => runInContext(api.db, userCtx(tenant, viewer, [entity]), (tx) => tx.execute(query));
+    // Controls: the same context may write every other column, so the refusals below come from the account_id privilege alone.
+    expect((await as(sql`update people set designation = 'Fitter' where id = ${target}`)).rowCount).toBe(1);
+    expect((await as(sql`insert into people (tenant_id, employer_legal_entity_id, employment_type, full_name) values (${tenant}, ${entity}, 'employee', 'Crew member')`)).rowCount).toBe(1);
+    expect(await pgErrorCode(as(sql`update people set account_id = ${learnedAccount} where id = ${target}`))).toBe('42501');
+    expect(await pgErrorCode(as(sql`update people set account_id = null where id = ${viewer}`))).toBe('42501');
+    expect(
+      await pgErrorCode(as(sql`insert into people (tenant_id, employer_legal_entity_id, employment_type, account_id, full_name, email)
+        values (${tenant}, ${entity}, 'employee', ${learnedAccount}, 'Linked', ${`l-${short()}@example.test`})`)),
+    ).toBe('42501');
   });
 
   it('refuses an employer from another tenant', async () => {

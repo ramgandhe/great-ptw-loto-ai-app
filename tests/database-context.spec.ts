@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
-import { sql } from 'drizzle-orm';
-import { runInContext } from '../app/src/database/context';
-import { connectApi, connectOwner, pgErrorCode, platformCtx } from './helpers/db';
+import { sql, SQL } from 'drizzle-orm';
+import { DbContext, runInContext } from '../app/src/database/context';
+import { connectApi, connectOwner, pgCode, pgErrorCode, platformCtx } from './helpers/db';
 import { createTenantGraph, ctxOf, TenantGraph } from './helpers/fixtures';
 
 describe('Request context (NFR-SEC-008)', () => {
@@ -60,6 +60,24 @@ describe('Request context (NFR-SEC-008)', () => {
       );
     expect(await pgErrorCode(create(ctxOf(a)))).toBe('42501');
     expect(await pgErrorCode(create(platformCtx))).toBeUndefined();
+  });
+
+  it("lets a tenant rename itself but not change its kind, status or slug, which only the platform admin can", async () => {
+    // Each probe updates tenant a's organisation row and is always rolled back: "rows:N", or "code:SQLSTATE" if refused.
+    const update = (ctx: DbContext, set: SQL): Promise<string> => {
+      let rows: number | null = null;
+      return runInContext(api.db, ctx, async (tx) => {
+        rows = (await tx.execute(sql`update organisations set ${set} where id = ${a.tenantId}`)).rowCount;
+        throw new Error('probe rolled back');
+      }).catch((e) => (rows === null ? `code:${pgCode(e)}` : `rows:${rows}`));
+    };
+    expect(await update(ctxOf(a), sql`name = 'Renamed'`)).toBe('rows:1');
+    expect(await update(ctxOf(a), sql`kind = kind`)).toBe('rows:1');
+    const identity = [sql`kind = 'agency'`, sql`status = 'suspended'`, sql`slug = 'renamed-slug'`];
+    for (const set of identity) {
+      expect(await update(ctxOf(a), set)).toBe('code:42501');
+      expect(await update(platformCtx, set)).toBe('rows:1');
+    }
   });
 
   it('rejects context values that are not UUIDs, and user contexts missing a tenant, person or legal entity', async () => {

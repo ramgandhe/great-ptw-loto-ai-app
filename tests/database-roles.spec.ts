@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { Pool } from 'pg';
@@ -82,6 +83,33 @@ describe('Database roles (NFR-SEC-001a)', () => {
       await superuser.end();
     }
     await expect(assertRuntimeDatabaseRole(api, {})).resolves.toBeUndefined();
+  });
+
+  it('refuses to start the API when its role is a member of a role that bypasses RLS', async () => {
+    // Only the bootstrap superuser can make such roles. Both are throwaway, and always dropped.
+    const superuser = new Pool({ connectionString: superuserDatabaseUrl });
+    const suffix = randomUUID().replace(/-/g, '').slice(0, 12);
+    const [bypass, member] = [`guard_bypass_${suffix}`, `guard_member_${suffix}`];
+    const password = randomUUID();
+    const memberUrl = new URL(superuserDatabaseUrl);
+    memberUrl.username = member;
+    memberUrl.password = password;
+    const memberPool = new Pool({ connectionString: memberUrl.toString() });
+    try {
+      await superuser.query(`create role ${bypass} nologin bypassrls`);
+      await superuser.query(`create role ${member} login password '${password}' in role ${bypass}`);
+      await superuser.query(`grant connect on database "${(await superuser.query('select current_database() as name')).rows[0].name}" to ${member}`);
+      const own = await superuser.query(`select rolsuper or rolbypassrls as unsafe from pg_roles where rolname = $1`, [member]);
+      expect(own.rows[0].unsafe).toBe(false); // clean on its own: only the membership is unsafe
+      await expect(assertRuntimeDatabaseRole(memberPool, {})).rejects.toThrow('bypass RLS');
+    } finally {
+      await memberPool.end();
+      for (const role of [member, bypass]) {
+        await superuser.query(`drop owned by ${role}`).catch(() => undefined);
+        await superuser.query(`drop role if exists ${role}`);
+      }
+      await superuser.end();
+    }
   });
 
   it('compiles no database credential into API code, so none ships in the API image', () => {
