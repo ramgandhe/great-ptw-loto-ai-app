@@ -11,6 +11,12 @@ import { createTenantGraph, ctxOf, TenantGraph } from './helpers/fixtures';
 const ACCOUNT_SCOPED: string[] = [];
 const CROSS_TENANT: Record<string, string[]> = {};
 
+/**
+ * Policies ("table.policy") allowed to have no `<tenant key> = app_tenant_id()` binding. Each entry must be a
+ * platform-admin-only policy; later tasks add their entries here, so each one is visible in review.
+ */
+const NO_TENANT_BINDING: string[] = ['organisations.organisation_create'];
+
 interface TenantTable {
   table: string;
   key: string;
@@ -250,13 +256,13 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
     const problems: string[] = [];
     for (const p of rows) {
       const key = keyOf.get(p.tablename);
-      const where = `${p.tablename}.${p.policyname} (${p.cmd})`;
+      const label = `${p.tablename}.${p.policyname}`;
+      const where = `${label} (${p.cmd})`;
       if (p.qual === null && p.with_check === null) problems.push(`${where}: no USING or WITH CHECK expression`);
       for (const [part, expr] of [['USING', p.qual], ['WITH CHECK', p.with_check]] as [string, string | null][]) {
         if (expr === null) continue;
         if (!expr.includes('app_context_valid()')) problems.push(`${where}: ${part} lacks app_context_valid()`);
-        // A policy is bound to the tenant, or to the platform admin role alone (such as creating tenants).
-        if (key && !expr.includes(`${key} = app_tenant_id()`) && !expr.includes(`app_acting_role() = 'platform_admin'::text`)) {
+        if (key && !NO_TENANT_BINDING.includes(label) && !expr.includes(`${key} = app_tenant_id()`)) {
           problems.push(`${where}: ${part} lacks ${key} = app_tenant_id()`);
         }
       }
