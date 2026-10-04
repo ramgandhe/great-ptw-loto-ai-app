@@ -13,30 +13,11 @@ import { DatabaseModule } from './database/database.module';
 import { RedisInfrastructureModule } from './infrastructure/redis';
 import { StorageModule } from './infrastructure/storage/storage.module';
 import { QueueModule } from './infrastructure/queue/queue.module';
-import { AuthModule } from './modules/auth/auth.module';
-import { SystemModule } from './modules/system/system.module';
-import { MasterDataModule } from './modules/master-data/master-data.module';
-import { OrganisationModule } from './modules/organisation/organisation.module';
-import { WorkforceModule } from './modules/workforce/workforce.module';
-import { PermitModule } from './modules/permit/permit.module';
-import { ApprovalModule } from './modules/approval/approval.module';
-import { ExecutionModule } from './modules/execution/execution.module';
-import { IsolationExecutionModule } from './modules/isolation-execution/isolation-execution.module';
-import { LototoModule } from './modules/lototo/lototo.module';
-import { RestorationModule } from './modules/restoration/restoration.module';
-import { SimopsModule } from './modules/simops/simops.module';
-import { DailyProgressModule } from './modules/daily-progress/daily-progress.module';
-import { RevalidationModule } from './modules/revalidation/revalidation.module';
-import { IncidentsModule } from './modules/incidents/incidents.module';
-import { InvestigationModule } from './modules/investigation/investigation.module';
-import { IncidentClosureModule } from './modules/incident-closure/incident-closure.module';
-import { NotificationsModule } from './modules/notifications/notifications.module';
-import { DashboardsModule } from './modules/dashboards/dashboards.module';
-import { BillingModule } from './modules/billing/billing.module';
-import { ClosureModule } from './modules/closure/closure.module';
-import { LoggingModule } from './modules/logging/logging.module';
 import { MailModule } from './infrastructure/mail/mail.module';
-import { PlatformModule } from './modules/platform/platform.module';
+import { SystemModule } from './modules/system/system.module';
+
+// v2 is rebuilt module by module (PRD §19). Until Phase 1b brings sign-in back, only the public
+// health routes answer; any other route fails closed because no authentication strategy is registered.
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -70,29 +51,7 @@ import { PlatformModule } from './modules/platform/platform.module';
     RedisInfrastructureModule,
     StorageModule,
     QueueModule,
-    LoggingModule,
-    AuthModule,
     SystemModule,
-    MasterDataModule,
-    OrganisationModule,
-    WorkforceModule,
-    ClosureModule,
-    IncidentClosureModule,
-    PermitModule,
-    ApprovalModule,
-    ExecutionModule,
-    LototoModule,
-    IsolationExecutionModule,
-    RestorationModule,
-    SimopsModule,
-    DailyProgressModule,
-    RevalidationModule,
-    IncidentsModule,
-    InvestigationModule,
-    NotificationsModule,
-    DashboardsModule,
-    BillingModule,
-    PlatformModule,
   ],
   providers: [
     JwtAuthGuard,
