@@ -53,10 +53,11 @@ CREATE POLICY engagement_plants_client_delete ON engagement_plants FOR DELETE
 CREATE FUNCTION app_agency_covers_plant(p_plant_id uuid) RETURNS boolean LANGUAGE sql STABLE AS $$
   SELECT EXISTS (
     SELECT 1
-      FROM engagements e
-      JOIN engagement_plants ep ON ep.engagement_id = e.id
+      FROM public.engagements e
+      JOIN public.engagement_plants ep ON ep.engagement_id = e.id
      WHERE ep.plant_id = p_plant_id
        AND e.agency_tenant_id = app_tenant_id()
        AND e.status = 'active'
-       AND current_date BETWEEN e.starts_on AND e.ends_on)
+       AND current_date BETWEEN e.starts_on AND e.ends_on
+       AND EXISTS (SELECT 1 FROM public.organisations o WHERE o.id = app_tenant_id() AND o.kind = 'agency'))
 $$;

@@ -9,6 +9,8 @@ import { createTenantGraph, ctxOf, engage, insertPerson, TenantGraph } from './h
  * listed here fails the suite, so every new table is classified on purpose (NFR-SEC-001).
  */
 const ACCOUNT_SCOPED: string[] = ['accounts'];
+/** Every write policy on a cross-tenant table must contain this: only the client writes. */
+const CLIENT_ONLY = 'client_tenant_id = app_tenant_id()';
 const CROSS_TENANT: Record<string, string[]> = { engagements: ['client_tenant_id', 'agency_tenant_id'], engagement_plants: ['client_tenant_id'] };
 
 /**
@@ -290,6 +292,9 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
         if (key && !NO_TENANT_BINDING.includes(label) && !expr.includes(`${key} = app_tenant_id()`)) {
           problems.push(`${where}: ${part} lacks ${key} = app_tenant_id()`);
         }
+        if (p.tablename in CROSS_TENANT && p.cmd !== 'SELECT' && !expr.includes(CLIENT_ONLY)) {
+          problems.push(`${where}: ${part} lacks ${CLIENT_ONLY}`);
+        }
       }
     }
     expect(problems).toEqual([]);
@@ -403,5 +408,45 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
       }
     }
     expect(problems).toEqual([]);
+  });
+
+  it('lets only the client write a cross-tenant table: no insert, update or delete by anyone else', async () => {
+    const problems: string[] = [];
+    const countsOfA = async () =>
+      Promise.all(Object.keys(CROSS_TENANT).map(async (table) =>
+        (await owner.query<{ n: number }>(`select count(*)::int as n from ${q(table)} where client_tenant_id = $1`, [a.tenantId])).rows[0].n,
+      ));
+    const before = await countsOfA();
+    for (const table of Object.keys(CROSS_TENANT)) {
+      const T = q(table);
+      const row = await rowOfA({ table, key: 'client_tenant_id' });
+      for (const [who, ctx] of [...outsiders(), ['platform admin', platformCtx]] as [string, DbContext][]) {
+        // All rolled back. The updates read no column or only the key, and the delete has no WHERE, so the write policies decide.
+        const attempts: [string, string, string[]][] = [
+          ['insert', `insert into ${T} select * from jsonb_populate_record(null::${T}, $1::jsonb)`, [JSON.stringify(row)]],
+          ['update', `update ${T} set client_tenant_id = client_tenant_id`, []],
+          ['update without a column', `update ${T} set client_tenant_id = $1`, [a.tenantId]],
+          ['delete', `delete from ${T}`, []],
+        ];
+        for (const [op, query, params] of attempts) {
+          const outcome = await attemptRaw(settingsOf(ctx), query, params);
+          const allowed = op === 'insert' ? ['code:42501'] : ['rows:0', 'code:42501'];
+          if (!allowed.includes(outcome)) problems.push(`${table}: ${who} ${op} gave ${outcome}`);
+        }
+      }
+    }
+    expect(problems).toEqual([]);
+    expect(await countsOfA()).toEqual(before);
+  });
+
+  it("refuses the client attaching another tenant's plant to its own engagement", async () => {
+    const engagementId = (await owner.query<{ id: string }>(`select id from engagements where client_tenant_id = $1`, [a.tenantId])).rows[0].id;
+    // The WITH CHECK passes (the row is a's), so the composite foreign key to plants (tenant_id, id) stops it: 23503.
+    const outcome = await attemptRaw(
+      settingsOf(ctxOf(a)),
+      `insert into engagement_plants (engagement_id, client_tenant_id, plant_id) values ($1, $2, $3)`,
+      [engagementId, a.tenantId, x.plantId],
+    );
+    expect(outcome).toBe('code:23503');
   });
 });

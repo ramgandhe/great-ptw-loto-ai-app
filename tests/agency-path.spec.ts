@@ -36,6 +36,12 @@ describe('Agency path skeleton (NFR-SEC-002, PRD §19 Phase 1)', () => {
     expect(await covers(otherAgency, client.plantId)).toBe(false);
   });
 
+  it('never covers for a tenant that is not an agency, even with an active engagement', async () => {
+    const nonAgency = await createTenantGraph(owner);
+    await engage(owner, client, nonAgency);
+    expect(await covers(nonAgency, client.plantId)).toBe(false);
+  });
+
   it('stops covering when the engagement ends or has not started', async () => {
     await owner.query(`update engagements set status = 'ended' where id = $1`, [engagementId]);
     expect(await covers(agency, client.plantId)).toBe(false);
