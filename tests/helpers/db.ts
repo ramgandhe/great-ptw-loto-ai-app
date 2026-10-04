@@ -10,6 +10,10 @@ export const ownerDatabaseUrl =
   process.env.MIGRATION_DATABASE_URL ??
   'postgresql://ptw_owner:ptw_owner_dev_password@localhost:5432/ptw_platform';
 
+/** The bootstrap superuser. Tests use it only to arrange states no other role can create (never app/src). */
+export const superuserDatabaseUrl =
+  process.env.POSTGRES_SUPERUSER_URL ?? 'postgresql://ptw:ptw_dev_password@localhost:5432/ptw_platform';
+
 export const migrationsFolder = join(__dirname, '../../app/src/database/migrations');
 
 if (!existsSync(migrationsFolder)) {

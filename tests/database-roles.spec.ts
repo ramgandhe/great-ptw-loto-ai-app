@@ -1,8 +1,9 @@
 import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { Pool } from 'pg';
+import { DatabaseModule } from '../app/src/database/database.module';
 import { assertRuntimeDatabaseRole } from '../app/src/database/runtime-guard';
-import { apiDatabaseUrl, ownerDatabaseUrl } from './helpers/db';
+import { apiDatabaseUrl, ownerDatabaseUrl, superuserDatabaseUrl } from './helpers/db';
 
 const repoRoot = join(__dirname, '..');
 
@@ -50,6 +51,35 @@ describe('Database roles (NFR-SEC-001a)', () => {
     await expect(assertRuntimeDatabaseRole(api, { MIGRATION_DATABASE_URL: ownerDatabaseUrl })).rejects.toThrow('MIGRATION_DATABASE_URL');
     await expect(assertRuntimeDatabaseRole(api, { PTW_OWNER_PASSWORD: 'x' })).rejects.toThrow('PTW_OWNER_PASSWORD');
     await expect(assertRuntimeDatabaseRole(owner, {})).rejects.toThrow('bypass RLS');
+  });
+
+  it('starts the API module through the guard: it refuses while an owner credential is in process.env', async () => {
+    const module = new DatabaseModule(api);
+    const saved = process.env.MIGRATION_DATABASE_URL;
+    try {
+      process.env.MIGRATION_DATABASE_URL = ownerDatabaseUrl;
+      await expect(module.onModuleInit()).rejects.toThrow('MIGRATION_DATABASE_URL');
+      delete process.env.MIGRATION_DATABASE_URL;
+      await expect(module.onModuleInit()).resolves.toBeUndefined();
+    } finally {
+      if (saved === undefined) delete process.env.MIGRATION_DATABASE_URL;
+      else process.env.MIGRATION_DATABASE_URL = saved;
+    }
+  });
+
+  it('refuses to start the API when its role owns a table', async () => {
+    // Only the bootstrap superuser can hand the API role a table, so arrange it as that user and always clean up.
+    const superuser = new Pool({ connectionString: superuserDatabaseUrl });
+    try {
+      await superuser.query('drop table if exists public.guard_owned_probe');
+      await superuser.query('create table public.guard_owned_probe (id int)');
+      await superuser.query('alter table public.guard_owned_probe owner to ptw_api');
+      await expect(assertRuntimeDatabaseRole(api, {})).rejects.toThrow('own tables');
+    } finally {
+      await superuser.query('drop table if exists public.guard_owned_probe');
+      await superuser.end();
+    }
+    await expect(assertRuntimeDatabaseRole(api, {})).resolves.toBeUndefined();
   });
 
   it('compiles no database credential into API code, so none ships in the API image', () => {
