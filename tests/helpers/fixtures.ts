@@ -142,6 +142,11 @@ export async function createTenantGraph(owner: Pool, kind: 'organisation' | 'age
     [tenantId, personId, noticeId],
   );
   await owner.query(`insert into person_private_data (person_id, tenant_id, blood_group) values ($1, $2, '\\x00')`, [personId, tenantId]);
+  await owner.query(
+    `insert into personal_data_access_log (tenant_id, viewer_tenant_id, viewer_person_id, subject_person_id, fields, purpose)
+     values ($1, $1, $2, $2, '{blood_group}', 'own_record')`,
+    [tenantId, personId],
+  );
   return { tenantId, personId, accountId: accountId as string, crewOnlyPersonId, legalEntityId, departmentId, plantId };
 }
 

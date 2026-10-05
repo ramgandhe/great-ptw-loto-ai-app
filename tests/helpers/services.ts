@@ -3,6 +3,7 @@ import { PermissionService } from '../../app/src/modules/access/permission.servi
 import { AuditWriter } from '../../app/src/modules/audit/audit-writer';
 import { ConsentService } from '../../app/src/modules/privacy/consent.service';
 import { KeyService } from '../../app/src/modules/privacy/key.service';
+import { PersonalDataService } from '../../app/src/modules/privacy/personal-data.service';
 import { TenantKeyService } from '../../app/src/modules/privacy/tenant-key.service';
 
 export const keyServiceConfig: Record<string, string> = {
@@ -20,5 +21,6 @@ export function services(keyConfig: Record<string, string> = keyServiceConfig) {
   const keys = new KeyService(configFrom(keyConfig));
   const tenantKeys = new TenantKeyService(keys);
   const consent = new ConsentService(permissions, audit);
-  return { permissions, audit, keys, tenantKeys, consent };
+  const personalData = new PersonalDataService(tenantKeys, consent, permissions, audit);
+  return { permissions, audit, keys, tenantKeys, consent, personalData };
 }

@@ -33,8 +33,8 @@ const SECRET_NAMES = new Set([
 
 /**
  * Interim rule until counsel classifies the personal fields (O5): for these entity types, matched on the normalised
- * name (`people`, `Person`, `accounts`), only the IDs keep their values and every other field is recorded as
- * "changed". Relaxing it needs a PRD amendment.
+ * name (`people`, `Person`, `accounts`), only the internal IDs in INTERNAL_IDS keep their values and every other
+ * field is recorded as "changed". Relaxing it needs a PRD amendment.
  */
 const PERSONAL_ENTITY = /^(person|people|account)s?$/;
 
@@ -52,7 +52,13 @@ const SECRET_SUFFIX = new RegExp(`(^|_)(${[...SECRET_NAMES].filter((n) => !/^key
 const isSecret = (name: string): boolean =>
   SECRET_NAMES.has(name) || SECRET_SUFFIX.test(name) || name.split('_').some((word) => SECRET_WORDS.has(word));
 const isRedacted = (key: string): boolean => REDACTED.has(snake(key)) || isSecret(snake(key));
-const isId = (key: string): boolean => /(^|_)id$/.test(snake(key));
+// Internal references that keep their values on a person or account. A name ending in `_id` is not enough: `national_id`
+// and `passport_id` are personal identifiers. A new internal reference is added here deliberately.
+const INTERNAL_IDS = new Set([
+  'id', 'tenant_id', 'person_id', 'account_id', 'legal_entity_id', 'employer_legal_entity_id', 'department_id', 'plant_id',
+  'role_id',
+]);
+const isId = (key: string): boolean => INTERNAL_IDS.has(snake(key));
 const holdsRedacted = (value: unknown): boolean =>
   typeof value === 'object' && value !== null && Object.entries(value).some(([key, v]) => isRedacted(key) || holdsRedacted(v));
 

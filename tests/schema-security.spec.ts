@@ -2,13 +2,13 @@ import { Pool, PoolClient } from 'pg';
 import { apiDatabaseUrl, connectOwner } from './helpers/db';
 
 /** Tables the API may only INSERT into and SELECT from (NFR-SEC-001a, FR-AUD-003). Later tasks add to it. */
-const APPEND_ONLY: string[] = ['audit_events', 'tenant_data_keys', 'privacy_notices', 'consents'];
+const APPEND_ONLY: string[] = ['audit_events', 'tenant_data_keys', 'privacy_notices', 'consents', 'personal_data_access_log'];
 
 /** Full-record-only columns the API role must not select directly (FR-PRV-005). Later tasks add to it. */
 const FULL_RECORD_COLUMNS: [string, string][] = [['people', 'email'], ['people', 'phone']];
 
 /** SECURITY DEFINER functions the API role may execute: each runs as the owner with a pinned search_path. A new one is added here on purpose. */
-const ALLOWED_DEFINERS: string[] = ['public.app_context_valid', 'public.app_tenant_ids_for_jobs'];
+const ALLOWED_DEFINERS: string[] = ['public.app_context_valid', 'public.app_tenant_ids_for_jobs', 'public.app_person_contact'];
 
 // NFR-SEC-001a: "A CI schema test, run as the API role, fails if any application table lacks FORCE RLS
 // or a policy, or if the API role is a superuser, has BYPASSRLS or owns a table."

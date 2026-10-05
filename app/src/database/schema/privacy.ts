@@ -44,3 +44,15 @@ export const consents = pgTable('consents', {
   recordedByPersonId: uuid('recorded_by_person_id').notNull(),
   recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const personalDataAccessLog = pgTable('personal_data_access_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').notNull(),
+  viewerTenantId: uuid('viewer_tenant_id').notNull(),
+  viewerPersonId: uuid('viewer_person_id'),
+  subjectPersonId: uuid('subject_person_id').notNull(),
+  fields: text('fields').array().notNull(),
+  purpose: text('purpose', { enum: ['own_record', 'employer_admin'] }).notNull(),
+  permitId: uuid('permit_id'),
+  viewedAt: timestamp('viewed_at', { withTimezone: true }).notNull().defaultNow(),
+});

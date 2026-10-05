@@ -17,6 +17,7 @@ import { MailModule } from './infrastructure/mail/mail.module';
 import { SystemModule } from './modules/system/system.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AccessModule } from './modules/access/access.module';
+import { PrivacyModule } from './modules/privacy/privacy.module';
 
 // v2 is rebuilt module by module (PRD §19). Until Phase 1b brings sign-in back, only the public
 // health routes answer; any other route fails closed because no authentication strategy is registered.
@@ -56,6 +57,7 @@ import { AccessModule } from './modules/access/access.module';
     SystemModule,
     AuditModule,
     AccessModule,
+    PrivacyModule,
   ],
   providers: [
     JwtAuthGuard,

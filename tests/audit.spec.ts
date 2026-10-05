@@ -123,6 +123,14 @@ describe('Audit (FR-AUD-001 to 003, 005)', () => {
     expect(
       auditChanges({ entityType: 'person', before: { personID: 'p-1', legalEntityID: 'le-1' }, after: { personID: 'p-2', legalEntityID: 'le-2' } }),
     ).toEqual({ personID: { before: 'p-1', after: 'p-2' }, legalEntityID: { before: 'le-1', after: 'le-2' } });
+    // A personal identifier does not keep its value because its name ends in _id: only the listed internal references do.
+    expect(
+      auditChanges({
+        entityType: 'person',
+        before: { national_id: 'N-1', passport_id: 'P-1', employee_id: 'E-1', account_id: 'a-1' },
+        after: { national_id: 'N-2', passport_id: 'P-2', employee_id: 'E-2', account_id: 'a-2' },
+      }),
+    ).toEqual({ national_id: 'changed', passport_id: 'changed', employee_id: 'changed', account_id: { before: 'a-1', after: 'a-2' } });
     // The personal entity type is matched on its normalised form, so spelling and plurals do not escape the rule.
     for (const entityType of ['people', 'Person', 'PERSON', 'accounts']) {
       expect(
