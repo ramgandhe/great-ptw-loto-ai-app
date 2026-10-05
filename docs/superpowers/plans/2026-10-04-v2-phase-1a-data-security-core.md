@@ -2612,7 +2612,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `AuditWriter.record(tx: Tx, ctx: DbContext, event: AuditEvent): Promise<void>`, where `AuditEvent = { action; entityType; entityId?; legalEntityId?; onBehalfOfPersonId?; deviceId?; before?; after?; changedFields? }`.
   - `AuditModule`, which is global and exports `AuditWriter`.
 
-**Redaction (FR-AUD-005, owner review T12-STD-01):** secrets (any name with a `password`, `secret`, `token`, `credential` or `apikey` segment, or a key name such as `api_key` or `sendgrid_api_key`, whatever its separators) are recorded as "changed" on every entity type and at any depth, and until counsel classifies the personal fields (O5) every non-ID field of a `person`, `people` or `account` entity is recorded as "changed" too; relaxing that needs a PRD amendment.
+**Redaction (FR-AUD-005, owner review T12-STD-01):** secrets (any name with a `password`, `secret`, `token`, `credential` or `apikey` segment, or a key name such as `api_key` or `sendgrid_api_key`, singular or plural, whatever its separators or acronym-led camelCase such as `SMTPPassword`) are recorded as "changed" on every entity type and at any depth, and until counsel classifies the personal fields (O5) every non-ID field of a `person`, `people` or `account` entity is recorded as "changed" too; relaxing that needs a PRD amendment.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2681,6 +2681,8 @@ describe('Audit (FR-AUD-001 to 003, 005)', () => {
       // Separators other than "_", prefixed compound names and the other secret words.
       'x-api-key', 'X-Api-Key', 'smtp.password', 'smtp password', 'sendgrid_api_key', 'tls_private_key', 's3_access_key',
       'webhook_signing_key', 'hmac_key', 'kms_key', 'api_keys', 'sendgrid_api_keys', 'keys', 'secrets', 'db_pwd', 'authorization', 'bearerToken',
+      // Acronym-led camelCase, and plurals of the compound names.
+      'SMTPPassword', 'JWTSecret', 'APIToken', 'private_keys', 'encryption_keys',
     ];
     const changes = auditChanges({
       entityType: 'email_server',
@@ -2737,6 +2739,10 @@ describe('Audit (FR-AUD-001 to 003, 005)', () => {
     expect(auditChanges({ entityType: 'account', before: { status: 'active' }, after: { status: 'disabled' } })).toEqual({
       status: 'changed',
     });
+    // IDs keep their values in any spelling, including acronym-led ones.
+    expect(
+      auditChanges({ entityType: 'person', before: { personID: 'p-1', legalEntityID: 'le-1' }, after: { personID: 'p-2', legalEntityID: 'le-2' } }),
+    ).toEqual({ personID: { before: 'p-1', after: 'p-2' }, legalEntityID: { before: 'le-1', after: 'le-2' } });
     // The personal entity type is matched on its normalised form, so spelling and plurals do not escape the rule.
     for (const entityType of ['people', 'Person', 'PERSON', 'accounts']) {
       expect(
@@ -2874,8 +2880,9 @@ export const REDACTED_FIELDS: Record<string, readonly string[]> = {
  * FR-AUD-005: secrets are recorded as "changed", never as values. Names are matched after camelCase is split and
  * every run of non-alphanumeric characters becomes `_`. A name is a secret when one of its `_` segments is in
  * SECRET_WORDS, or it equals a SECRET_NAMES entry, or it ends with `_` and an entry other than bare `key` or
- * `keys` (`sendgrid_api_key`). `lock_key`, `lock_keys` and `lock_key_number` are LOTO safety fields and keep their
- * values, as do `pass` and `pin` names such as `gas_test_pass`. When a new kind of secret appears, add its name here.
+ * `keys`, singular or plural (`sendgrid_api_key`, `private_keys`). `lock_key`, `lock_keys` and `lock_key_number` are
+ * LOTO safety fields and keep their values, as do `pass` and `pin` names such as `gas_test_pass`. When a new kind
+ * of secret appears, add its name here.
  */
 const SECRET_WORDS = new Set([
   'password', 'passwd', 'pwd', 'passphrase', 'secret', 'token', 'credential', 'credentials', 'apikey', 'authorization',
@@ -2894,11 +2901,18 @@ const SECRET_NAMES = new Set([
 const PERSONAL_ENTITY = /^(person|people|account)s?$/;
 
 const REDACTED = new Set(Object.values(REDACTED_FIELDS).flat());
+/** `SMTPPassword` and `personID` split at the acronym boundary too; every run of other characters becomes `_`. */
 const snake = (key: string): string =>
-  key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toLowerCase();
+  key
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+    .toLowerCase();
+// A SECRET_NAMES entry, alone or after `_`, with an optional plural `s`. Bare `key` and `keys` only count as whole names.
+const SECRET_SUFFIX = new RegExp(`(^|_)(${[...SECRET_NAMES].filter((n) => !/^keys?$/.test(n)).join('|')})s?$`);
 const isSecret = (name: string): boolean =>
-  name.split('_').some((word) => SECRET_WORDS.has(word)) ||
-  [...SECRET_NAMES].some((secret) => name === secret || (!/^keys?$/.test(secret) && name.endsWith(`_${secret}`)));
+  SECRET_NAMES.has(name) || SECRET_SUFFIX.test(name) || name.split('_').some((word) => SECRET_WORDS.has(word));
 const isRedacted = (key: string): boolean => REDACTED.has(snake(key)) || isSecret(snake(key));
 const isId = (key: string): boolean => /(^|_)id$/.test(snake(key));
 const holdsRedacted = (value: unknown): boolean =>

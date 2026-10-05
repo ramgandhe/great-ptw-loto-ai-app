@@ -18,8 +18,9 @@ export const REDACTED_FIELDS: Record<string, readonly string[]> = {
  * FR-AUD-005: secrets are recorded as "changed", never as values. Names are matched after camelCase is split and
  * every run of non-alphanumeric characters becomes `_`. A name is a secret when one of its `_` segments is in
  * SECRET_WORDS, or it equals a SECRET_NAMES entry, or it ends with `_` and an entry other than bare `key` or
- * `keys` (`sendgrid_api_key`). `lock_key`, `lock_keys` and `lock_key_number` are LOTO safety fields and keep their
- * values, as do `pass` and `pin` names such as `gas_test_pass`. When a new kind of secret appears, add its name here.
+ * `keys`, singular or plural (`sendgrid_api_key`, `private_keys`). `lock_key`, `lock_keys` and `lock_key_number` are
+ * LOTO safety fields and keep their values, as do `pass` and `pin` names such as `gas_test_pass`. When a new kind
+ * of secret appears, add its name here.
  */
 const SECRET_WORDS = new Set([
   'password', 'passwd', 'pwd', 'passphrase', 'secret', 'token', 'credential', 'credentials', 'apikey', 'authorization',
@@ -38,11 +39,18 @@ const SECRET_NAMES = new Set([
 const PERSONAL_ENTITY = /^(person|people|account)s?$/;
 
 const REDACTED = new Set(Object.values(REDACTED_FIELDS).flat());
+/** `SMTPPassword` and `personID` split at the acronym boundary too; every run of other characters becomes `_`. */
 const snake = (key: string): string =>
-  key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toLowerCase();
+  key
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+    .toLowerCase();
+// A SECRET_NAMES entry, alone or after `_`, with an optional plural `s`. Bare `key` and `keys` only count as whole names.
+const SECRET_SUFFIX = new RegExp(`(^|_)(${[...SECRET_NAMES].filter((n) => !/^keys?$/.test(n)).join('|')})s?$`);
 const isSecret = (name: string): boolean =>
-  name.split('_').some((word) => SECRET_WORDS.has(word)) ||
-  [...SECRET_NAMES].some((secret) => name === secret || (!/^keys?$/.test(secret) && name.endsWith(`_${secret}`)));
+  SECRET_NAMES.has(name) || SECRET_SUFFIX.test(name) || name.split('_').some((word) => SECRET_WORDS.has(word));
 const isRedacted = (key: string): boolean => REDACTED.has(snake(key)) || isSecret(snake(key));
 const isId = (key: string): boolean => /(^|_)id$/.test(snake(key));
 const holdsRedacted = (value: unknown): boolean =>

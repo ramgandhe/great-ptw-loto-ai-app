@@ -61,6 +61,8 @@ describe('Audit (FR-AUD-001 to 003, 005)', () => {
       // Separators other than "_", prefixed compound names and the other secret words.
       'x-api-key', 'X-Api-Key', 'smtp.password', 'smtp password', 'sendgrid_api_key', 'tls_private_key', 's3_access_key',
       'webhook_signing_key', 'hmac_key', 'kms_key', 'api_keys', 'sendgrid_api_keys', 'keys', 'secrets', 'db_pwd', 'authorization', 'bearerToken',
+      // Acronym-led camelCase, and plurals of the compound names.
+      'SMTPPassword', 'JWTSecret', 'APIToken', 'private_keys', 'encryption_keys',
     ];
     const changes = auditChanges({
       entityType: 'email_server',
@@ -117,6 +119,10 @@ describe('Audit (FR-AUD-001 to 003, 005)', () => {
     expect(auditChanges({ entityType: 'account', before: { status: 'active' }, after: { status: 'disabled' } })).toEqual({
       status: 'changed',
     });
+    // IDs keep their values in any spelling, including acronym-led ones.
+    expect(
+      auditChanges({ entityType: 'person', before: { personID: 'p-1', legalEntityID: 'le-1' }, after: { personID: 'p-2', legalEntityID: 'le-2' } }),
+    ).toEqual({ personID: { before: 'p-1', after: 'p-2' }, legalEntityID: { before: 'le-1', after: 'le-2' } });
     // The personal entity type is matched on its normalised form, so spelling and plurals do not escape the rule.
     for (const entityType of ['people', 'Person', 'PERSON', 'accounts']) {
       expect(

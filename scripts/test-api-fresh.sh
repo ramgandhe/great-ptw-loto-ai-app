@@ -21,7 +21,8 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 # No POSTGRES_DB: 01-roles.sh creates ptw_platform itself and fails if it already exists.
-docker run -d --rm --name "$name" \
+# No --rm: if init fails, the container must outlive it so the logs below can be printed. The EXIT trap removes it.
+docker run -d --name "$name" \
   -p "127.0.0.1:$port:5432" \
   -v "$PWD/infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro" \
   -e POSTGRES_USER=ptw -e POSTGRES_PASSWORD="$ptw_pw" \
@@ -37,7 +38,7 @@ for _ in $(seq 60); do
   sleep 1
 done
 if [ -z "$ready" ]; then
-  echo "test-api-fresh: PostgreSQL in $name was not ready after 60 s (init failed or port $port taken?)" >&2
+  echo "test-api-fresh: PostgreSQL in $name was not ready after 60 s (init failed?)" >&2
   docker logs --tail 20 "$name" >&2 || true
   exit 1
 fi
