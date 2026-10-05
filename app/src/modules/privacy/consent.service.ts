@@ -4,10 +4,14 @@ import { DATA_CATEGORIES, DEFAULT_LAWFUL_BASES, type DataCategory, type LawfulBa
 import type { DbContext, Tx } from '../../database/context';
 import { consents, lawfulBases, people, personPrivateData, privacyNotices } from '../../database/schema';
 import { PermissionService } from '../access/permission.service';
-import { AuditWriter } from '../audit/audit-writer';
+import { AuditWriter, type AuditEvent } from '../audit/audit-writer';
 import { CATEGORY_FIELDS, FIELD_COLUMN } from './sensitive-fields';
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** A real `YYYY-MM-DD` day: `2026-02-31` rolls over to March in JS and `2026-10-00` is invalid, so both fail the round trip. */
+const isCalendarDate = (s: string): boolean => {
+  const d = new Date(`${s}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+};
 
 type Decision = { decision: 'given' | 'withheld' | 'withdrawn'; decidedAt: Date | null; version: number };
 
@@ -119,7 +123,7 @@ export class ConsentService {
     let decidedOn = today;
     if (!self) {
       if (!input.formFileKey) throw new BadRequestException('Attach the signed consent form');
-      if (!input.signedOn || !DATE.test(input.signedOn)) throw new BadRequestException('Give the date the form was signed');
+      if (!input.signedOn || !isCalendarDate(input.signedOn)) throw new BadRequestException('Give the date the form was signed');
       if (input.signedOn > today || input.signedOn < notice.publishedAt.toISOString().slice(0, 10)) {
         throw new BadRequestException('The signature date must be between the notice publication and today');
       }
@@ -137,14 +141,17 @@ export class ConsentService {
       decidedAt: self ? now : null,
       recordedByPersonId: ctx.personId as string,
     });
+    // FR-AUD-001: the audit context. An admin records on the person's behalf.
+    const auditContext = { legalEntityId: subject.employerLegalEntityId, ...(self ? {} : { onBehalfOfPersonId: subject.id }) };
     await this.audit.record(tx, ctx, {
+      ...auditContext,
       action: `consent.${input.decision}`,
       entityType: 'consent',
       entityId: subject.id,
       after: { category: input.category, notice_version: notice.version, decided_on: decidedOn },
     });
     if (!(await this.hasConsent(tx, subject.id, input.category))) {
-      await this.deleteDependentData(tx, ctx, subject.id, input.category);
+      await this.deleteDependentData(tx, ctx, subject.id, input.category, auditContext);
       // Telling the employer's admin (FR-PRV-002) arrives with notifications in Phase 2.
     }
   }
@@ -190,9 +197,16 @@ export class ConsentService {
   /**
    * Deletes every stored field of the category (CATEGORY_FIELDS). Contact consent covers optional contact details
    * (phone) only. The sign-in identity never relies on consent, so the account link, tenant access, roles and
-   * permit duties stay (FR-PPL-005, D31).
+   * permit duties stay (FR-PPL-005, D31); the guard below keeps that true even if a lawful basis ever allowed it.
    */
-  private async deleteDependentData(tx: Tx, ctx: DbContext, personId: string, category: DataCategory): Promise<void> {
+  private async deleteDependentData(
+    tx: Tx,
+    ctx: DbContext,
+    personId: string,
+    category: DataCategory,
+    auditContext: Pick<AuditEvent, 'legalEntityId' | 'onBehalfOfPersonId'>,
+  ): Promise<void> {
+    if (category === 'sign_in') throw new Error('The sign-in identity never relies on consent and is never deleted by a withdrawal');
     const fields = CATEGORY_FIELDS[category];
     const cleared: string[] = [];
     if (fields.encrypted.length) {
@@ -212,7 +226,13 @@ export class ConsentService {
       if (rows.length) cleared.push(...fields.people);
     }
     if (cleared.length) {
-      await this.audit.record(tx, ctx, { action: 'person.consent_data_deleted', entityType: 'person', entityId: personId, changedFields: cleared });
+      await this.audit.record(tx, ctx, {
+        ...auditContext,
+        action: 'person.consent_data_deleted',
+        entityType: 'person',
+        entityId: personId,
+        changedFields: cleared,
+      });
     }
   }
 

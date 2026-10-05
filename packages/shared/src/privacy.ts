@@ -9,7 +9,7 @@ export const LAWFUL_BASES = ['legal_obligation', 'employment', 'vital_interest',
 export type LawfulBasis = (typeof LAWFUL_BASES)[number];
 
 // Provisional (owner decision D32): PRD v0.5 defaults, pending counsel's R4 review; may change after counsel.
-/** FR-PRV-001 platform defaults (as approved after counsel review, O5). An admin changes one only after recording the legal reason. */
+/** FR-PRV-001 platform defaults. An admin changes one only after recording the legal reason. */
 export const DEFAULT_LAWFUL_BASES: Partial<Record<DataCategory, readonly LawfulBasis[]>> = {
   blood_group: ['consent'],
   health_conditions: ['consent'],

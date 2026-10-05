@@ -56,7 +56,9 @@ CREATE TABLE consents (
   FOREIGN KEY (tenant_id, notice_id) REFERENCES privacy_notices (tenant_id, id),
   FOREIGN KEY (tenant_id, recorded_by_person_id) REFERENCES people (tenant_id, id),
   CONSTRAINT admin_recorded_consent_has_form CHECK (method <> 'admin_form' OR form_file_key IS NOT NULL),
-  CONSTRAINT only_in_app_decisions_are_timed CHECK ((method = 'in_app') = (decided_at IS NOT NULL))
+  CONSTRAINT only_in_app_decisions_are_timed CHECK ((method = 'in_app') = (decided_at IS NOT NULL)),
+  -- A decision made in the app is the person's own; only an admin's recorded form is entered by someone else.
+  CONSTRAINT in_app_consent_is_by_the_person CHECK (method <> 'in_app' OR recorded_by_person_id = person_id)
 );
 CREATE INDEX consents_by_day ON consents (person_id, category, decided_on DESC);
 SELECT app_apply_tenant_policy('consents');

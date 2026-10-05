@@ -1,6 +1,9 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { getTableColumns } from 'drizzle-orm';
 import { DbContext, runInContext, Tx } from '../app/src/database/context';
+import { personPrivateData } from '../app/src/database/schema';
 import { decisionInForce } from '../app/src/modules/privacy/consent.service';
+import { CATEGORY_FIELDS, FIELD_COLUMN } from '../app/src/modules/privacy/sensitive-fields';
 import { connectApi, connectOwner, pgErrorCode, userCtx } from './helpers/db';
 import {
   assignRole,
@@ -23,6 +26,8 @@ describe('Lawful basis and consent (FR-PRV-001, 002, 011)', () => {
   let otherEntity: string;
   let noticeV1: string;
   let otherEntityNotice: string;
+  let datedNotice: string;
+  let otherEntityCrew: string;
   let self: string;
   let crewOnly: string;
   let admin: string;
@@ -59,6 +64,10 @@ describe('Lawful basis and consent (FR-PRV-001, 002, 011)', () => {
     await makeAdmin(owner, { tenantId: tenant, personId: otherAdmin, role: 'LEGAL_ORG_ADMIN', legalEntityId: otherEntity });
     noticeV1 = await insertNotice(owner, tenant, entity, 1);
     otherEntityNotice = await insertNotice(owner, tenant, otherEntity, 1);
+    // Published on a fixed past day, so the date-validation tests can name fixed dates before it and after it.
+    datedNotice = await insertNotice(owner, tenant, otherEntity, 2);
+    await owner.query(`update privacy_notices set published_at = '2026-01-01T00:00:00Z' where id = $1`, [datedNotice]);
+    otherEntityCrew = (await insertPerson(owner, tenant, otherEntity, { accountId: null })).personId;
   });
 
   afterAll(async () => {
@@ -86,13 +95,24 @@ describe('Lawful basis and consent (FR-PRV-001, 002, 011)', () => {
     expect(await pgErrorCode(set(['consent'], 'sign_in', 'Counsel advice'))).toBe('23514');
   });
 
+  it("lets only the entity's own legal-entity admin set its lawful bases", async () => {
+    for (const actor of [colleague, otherAdmin]) {
+      await expect(
+        as(actor, (tx) => consent.setLawfulBasis(tx, ctx(actor), { legalEntityId: entity, category: 'contact', purpose: 'Work contact', bases: ['employment'] })),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    }
+    expect((await owner.query(`select 1 from lawful_bases where legal_entity_id = $1 and category = 'contact'`, [entity])).rowCount).toBe(0);
+  });
+
   it('records in-app consent against the notice shown, and an admin record only with the signed form and its date', async () => {
     await as(self, (tx) => consent.record(tx, ctx(self), { personId: self, category: 'blood_group', noticeId: noticeV1, decision: 'given' }));
     expect(await as(self, (tx) => consent.hasConsent(tx, self, 'blood_group'))).toBe(true);
     // The decision is audited as a consent record, not a person record: the interim personal-data rule would hide its values.
-    const { rows: audited } = await owner.query(`select changes from audit_events where entity_type = 'consent' and entity_id = $1 and action = 'consent.given'`, [self]);
+    const { rows: audited } = await owner.query(`select changes, legal_entity_id, on_behalf_of_person_id from audit_events where entity_type = 'consent' and entity_id = $1 and action = 'consent.given'`, [self]);
     expect(audited).toEqual([
       {
+        legal_entity_id: entity,
+        on_behalf_of_person_id: null,
         changes: {
           category: { before: null, after: 'blood_group' },
           notice_version: { before: null, after: 1 },
@@ -109,6 +129,12 @@ describe('Lawful basis and consent (FR-PRV-001, 002, 011)', () => {
     await adminRecord({ formFileKey: 'forms/crew-1.pdf', signedOn: today() });
     const { rows } = await owner.query(`select method, decided_on::text as decided from consents where person_id = $1`, [crewOnly]);
     expect(rows).toEqual([{ method: 'admin_form', decided: today() }]);
+    // FR-AUD-001: an admin's record carries the legal entity and names the person it was recorded for.
+    const { rows: adminAudit } = await owner.query(
+      `select actor_person_id, legal_entity_id, on_behalf_of_person_id from audit_events where entity_type = 'consent' and entity_id = $1 and action = 'consent.given'`,
+      [crewOnly],
+    );
+    expect(adminAudit).toEqual([{ actor_person_id: admin, legal_entity_id: entity, on_behalf_of_person_id: crewOnly }]);
   });
 
   it("refuses consent recorded by anyone else, against another entity's notice, or for data that does not rely on consent", async () => {
@@ -125,6 +151,62 @@ describe('Lawful basis and consent (FR-PRV-001, 002, 011)', () => {
         as(self, (tx) => consent.record(tx, ctx(self), { personId: self, category, noticeId: noticeV1, decision: 'withdrawn' })),
       ).rejects.toBeInstanceOf(BadRequestException);
     }
+  });
+
+  it('finds no person of another tenant to record consent for', async () => {
+    const elsewhere = await insertOrganisation(owner);
+    const stranger = (await insertPerson(owner, elsewhere, await insertLegalEntity(owner, elsewhere))).personId;
+    for (const actor of [self, admin]) {
+      await expect(
+        as(actor, (tx) => consent.record(tx, ctx(actor), { personId: stranger, category: 'blood_group', noticeId: noticeV1, decision: 'given', formFileKey: 'f.pdf', signedOn: today() })),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    }
+    expect((await owner.query(`select 1 from consents where person_id = $1`, [stranger])).rowCount).toBe(0);
+  });
+
+  it('accepts a signed-form date only if it is a real day between the notice publication and today', async () => {
+    const signedOn = (date: string) =>
+      as(otherAdmin, (tx) =>
+        consent.record(tx, ctx(otherAdmin), { personId: otherEntityCrew, category: 'blood_group', noticeId: datedNotice, decision: 'given', formFileKey: 'forms/d.pdf', signedOn: date }),
+      );
+    // The notice was published on 2026-01-01.
+    await expect(signedOn('2025-12-31')).rejects.toBeInstanceOf(BadRequestException); // before publication
+    await expect(signedOn('2026-02-31')).rejects.toBeInstanceOf(BadRequestException); // rolls over to March
+    await expect(signedOn('2026-02-00')).rejects.toBeInstanceOf(BadRequestException); // no such day
+    await expect(signedOn('2026-02-27T10:00')).rejects.toBeInstanceOf(BadRequestException); // not a plain date
+    expect((await owner.query(`select 1 from consents where person_id = $1`, [otherEntityCrew])).rowCount).toBe(0);
+    await signedOn('2026-02-27');
+    expect((await owner.query(`select decided_on::text as decided from consents where person_id = $1`, [otherEntityCrew])).rows).toEqual([{ decided: '2026-02-27' }]);
+  });
+
+  it('refuses, in the database, an in-app decision recorded by someone other than the person', async () => {
+    const error = await owner
+      .query(
+        `insert into consents (tenant_id, person_id, category, notice_id, decision, method, decided_on, decided_at, recorded_by_person_id)
+         values ($1, $2, 'blood_group', $3, 'given', 'in_app', current_date, now(), $4)`,
+        [tenant, self, noticeV1, admin],
+      )
+      .then(() => undefined, (e: unknown) => e);
+    expect(error).toMatchObject({ code: '23514', constraint: 'in_app_consent_is_by_the_person' });
+  });
+
+  it('never deletes the sign-in identity, even if asked to (D31)', async () => {
+    // Unreachable through record(): the lawful_bases CHECK keeps sign_in off consent. Called directly, as a second line of defence.
+    const { personId } = await insertPerson(owner, tenant, entity);
+    await expect(
+      as(personId, (tx) => consent['deleteDependentData'](tx, ctx(personId), personId, 'sign_in', { legalEntityId: entity })),
+    ).rejects.toThrow('sign-in identity');
+    expect((await owner.query(`select email is not null as signs_in from people where id = $1`, [personId])).rows).toEqual([{ signs_in: true }]);
+  });
+
+  it('keeps the person_private_data columns in step with the fields the categories list', async () => {
+    const columns = getTableColumns(personPrivateData);
+    const listed = Object.values(CATEGORY_FIELDS).flatMap((fields) => fields.encrypted.map((field) => columns[FIELD_COLUMN[field]].name)).sort();
+    const { rows } = await owner.query<{ column_name: string }>(
+      `select column_name from information_schema.columns
+        where table_schema = 'public' and table_name = 'person_private_data' and column_name not in ('person_id', 'tenant_id', 'updated_at')`,
+    );
+    expect(rows.map((row) => row.column_name).sort()).toEqual(listed);
   });
 
   it('deletes consent-based data at once on every withdrawing decision, and keeps data that does not rely on consent', async () => {
@@ -144,6 +226,16 @@ describe('Lawful basis and consent (FR-PRV-001, 002, 011)', () => {
       consent.record(tx, ctx(admin), { personId: person, category: 'blood_group', noticeId: noticeV1, decision: 'withdrawn', formFileKey: 'forms/w.pdf', signedOn: today() }),
     );
     expect((await stored(person)).blood).toBe(false);
+    // FR-AUD-001: each deletion is audited with the legal entity, and names the person when an admin recorded the withdrawal.
+    const { rows: deletions } = await owner.query(
+      `select legal_entity_id, on_behalf_of_person_id from audit_events where action = 'person.consent_data_deleted' and entity_id = $1 order by occurred_at`,
+      [person],
+    );
+    expect(deletions).toEqual([
+      { legal_entity_id: entity, on_behalf_of_person_id: null },
+      { legal_entity_id: entity, on_behalf_of_person_id: null },
+      { legal_entity_id: entity, on_behalf_of_person_id: person },
+    ]);
   });
 
   it('keeps the decision date order: an older signed form entered later does not restore withdrawn consent', async () => {
