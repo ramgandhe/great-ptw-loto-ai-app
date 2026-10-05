@@ -1,7 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
-import { runInContext, Tx } from '../app/src/database/context';
-import { connectApi, connectOwner, pgErrorCode, userCtx } from './helpers/db';
+import { jobContext, runInContext, Tx } from '../app/src/database/context';
+import { connectApi, connectOwner, pgErrorCode, platformCtx, userCtx } from './helpers/db';
 import { insertLegalEntity, insertNotice, insertOrganisation, insertPerson, makeAdmin } from './helpers/fixtures';
 import { keyServiceConfig, services } from './helpers/services';
 
@@ -61,11 +61,24 @@ describe('Personal-data service (NFR-SEC-003, FR-PRV-002, 004, 005, 008)', () =>
     expect(log.rows).toEqual([{ viewer_person_id: self, purpose: 'own_record', fields: ['emergency_contacts'] }]);
   });
 
-  it('refuses blood group until consent is in force (FR-PRV-002)', async () => {
+  it('refuses blood group until consent is in force, then lets the person and their employer admin enter it (FR-PRV-002)', async () => {
     await expect(as(self, (tx) => personalData.write(tx, ctx(self), self, { blood_group: 'B+' }))).rejects.toBeInstanceOf(ForbiddenException);
     await give(self);
     await as(self, (tx) => personalData.write(tx, ctx(self), self, { blood_group: 'B+' }));
     expect(await as(self, (tx) => personalData.read(tx, ctx(self), self, ['blood_group']))).toEqual({ blood_group: 'B+' });
+    // The person's consent, not the admin's, is what lets the admin write.
+    await as(admin, (tx) => personalData.write(tx, ctx(admin), self, { blood_group: 'A+' }));
+    expect(await as(admin, (tx) => personalData.read(tx, ctx(admin), self, ['blood_group']))).toEqual({ blood_group: 'A+' });
+    // FR-AUD-001: each write is audited under the employer legal entity; the admin's on the person's behalf.
+    const { rows } = await owner.query(
+      `select actor_person_id, legal_entity_id, on_behalf_of_person_id from audit_events
+        where action = 'person.sensitive_updated' and entity_id = $1 and changes ? 'blood_group' order by occurred_at`,
+      [self],
+    );
+    expect(rows).toEqual([
+      { actor_person_id: self, legal_entity_id: entity, on_behalf_of_person_id: null },
+      { actor_person_id: admin, legal_entity_id: entity, on_behalf_of_person_id: self },
+    ]);
   });
 
   it("shows sensitive fields only to the person and the employer's legal-entity admin (FR-PRV-005)", async () => {
@@ -101,9 +114,20 @@ describe('Personal-data service (NFR-SEC-003, FR-PRV-002, 004, 005, 008)', () =>
     ]);
   });
 
+  it("the database function refuses a departed person's own call, a job and the platform admin", async () => {
+    const contact = (personId: string) => (tx: Tx) => tx.execute(sql`select email, phone from app_person_contact(${personId})`);
+    const leaver = (await insertPerson(owner, tenant, entity)).personId;
+    expect((await as(leaver, contact(leaver))).rows).toHaveLength(1);
+    await owner.query(`update people set status = 'left', left_on = current_date where id = $1`, [leaver]);
+    // runInContext accepts the context; the database finds it invalid, so the function returns nothing.
+    expect((await as(leaver, contact(leaver))).rows).toEqual([]);
+    expect((await runInContext(api.db, jobContext(tenant), contact(self))).rows).toEqual([]);
+    expect((await runInContext(api.db, platformCtx, contact(self))).rows).toEqual([]);
+  });
+
   it('returns nothing when the access-log entry cannot be written', async () => {
     // An empty field list violates the log's CHECK, so the log write fails inside the read.
-    await expect(as(self, (tx) => personalData.read(tx, ctx(self), self, []))).rejects.toThrow();
+    expect(await pgErrorCode(as(self, (tx) => personalData.read(tx, ctx(self), self, [])))).toBe('23514');
   });
 
   it('refuses a value copied onto another person', async () => {

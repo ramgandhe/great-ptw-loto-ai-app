@@ -75,7 +75,10 @@ export class PersonalDataService {
       .insert(personPrivateData)
       .values({ personId, tenantId: subject.tenantId, ...set })
       .onConflictDoUpdate({ target: personPrivateData.personId, set: { ...set, updatedAt: new Date() } });
+    // FR-AUD-001: the audit context. An admin writes on the person's behalf.
     await this.audit.record(tx, ctx, {
+      legalEntityId: subject.employerLegalEntityId,
+      ...(ctx.personId === subject.id ? {} : { onBehalfOfPersonId: subject.id }),
       action: 'person.sensitive_updated',
       entityType: 'person',
       entityId: personId,
