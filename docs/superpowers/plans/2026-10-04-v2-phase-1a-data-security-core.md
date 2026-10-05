@@ -2680,7 +2680,7 @@ describe('Audit (FR-AUD-001 to 003, 005)', () => {
       'smtpPassword', 'smtp_password', 'apiKey', 'access_token', 'clientSecret',
       // Separators other than "_", prefixed compound names and the other secret words.
       'x-api-key', 'X-Api-Key', 'smtp.password', 'smtp password', 'sendgrid_api_key', 'tls_private_key', 's3_access_key',
-      'webhook_signing_key', 'hmac_key', 'kms_key', 'api_keys', 'secrets', 'db_pwd', 'authorization', 'bearerToken',
+      'webhook_signing_key', 'hmac_key', 'kms_key', 'api_keys', 'sendgrid_api_keys', 'keys', 'secrets', 'db_pwd', 'authorization', 'bearerToken',
     ];
     const changes = auditChanges({
       entityType: 'email_server',
@@ -2708,11 +2708,11 @@ describe('Audit (FR-AUD-001 to 003, 005)', () => {
 
     // LOTO safety values keep their before and after: a "key" inside a name is not a secret.
     const before: Record<string, unknown> = {
-      o2: 20.9, isolation_point: 'V-101', lock_key_number: 'K-7', lock_key: 'K-7', gas_test_pass: 'pass', hazard: 'H2S',
+      o2: 20.9, isolation_point: 'V-101', lock_key_number: 'K-7', lock_key: 'K-7', lock_keys: ['K-7'], gas_test_pass: 'pass', hazard: 'H2S',
       control: 'Blind flange', decision: 'approved', starts_at: '2026-10-05T08:00:00Z',
     };
     const after: Record<string, unknown> = {
-      o2: 19.1, isolation_point: 'V-102', lock_key_number: 'K-9', lock_key: 'K-9', gas_test_pass: 'fail', hazard: 'Steam',
+      o2: 19.1, isolation_point: 'V-102', lock_key_number: 'K-9', lock_key: 'K-9', lock_keys: ['K-9', 'K-10'], gas_test_pass: 'fail', hazard: 'Steam',
       control: 'Double block', decision: 'deferred', starts_at: '2026-10-05T09:00:00Z',
     };
     expect(auditChanges({ entityType: 'isolation', before, after })).toEqual(
@@ -2873,9 +2873,9 @@ export const REDACTED_FIELDS: Record<string, readonly string[]> = {
 /**
  * FR-AUD-005: secrets are recorded as "changed", never as values. Names are matched after camelCase is split and
  * every run of non-alphanumeric characters becomes `_`. A name is a secret when one of its `_` segments is in
- * SECRET_WORDS, or it equals a SECRET_NAMES entry, or it ends with `_` and an entry other than bare `key`
- * (`sendgrid_api_key`). `lock_key` and `lock_key_number` are LOTO safety fields and keep their values, as do
- * `pass` and `pin` names such as `gas_test_pass`. When a new kind of secret appears, add its name here.
+ * SECRET_WORDS, or it equals a SECRET_NAMES entry, or it ends with `_` and an entry other than bare `key` or
+ * `keys` (`sendgrid_api_key`). `lock_key`, `lock_keys` and `lock_key_number` are LOTO safety fields and keep their
+ * values, as do `pass` and `pin` names such as `gas_test_pass`. When a new kind of secret appears, add its name here.
  */
 const SECRET_WORDS = new Set([
   'password', 'passwd', 'pwd', 'passphrase', 'secret', 'token', 'credential', 'credentials', 'apikey', 'authorization',
@@ -2898,7 +2898,7 @@ const snake = (key: string): string =>
   key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toLowerCase();
 const isSecret = (name: string): boolean =>
   name.split('_').some((word) => SECRET_WORDS.has(word)) ||
-  [...SECRET_NAMES].some((secret) => name === secret || (secret !== 'key' && name.endsWith(`_${secret}`)));
+  [...SECRET_NAMES].some((secret) => name === secret || (!/^keys?$/.test(secret) && name.endsWith(`_${secret}`)));
 const isRedacted = (key: string): boolean => REDACTED.has(snake(key)) || isSecret(snake(key));
 const isId = (key: string): boolean => /(^|_)id$/.test(snake(key));
 const holdsRedacted = (value: unknown): boolean =>

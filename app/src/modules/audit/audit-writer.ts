@@ -17,9 +17,9 @@ export const REDACTED_FIELDS: Record<string, readonly string[]> = {
 /**
  * FR-AUD-005: secrets are recorded as "changed", never as values. Names are matched after camelCase is split and
  * every run of non-alphanumeric characters becomes `_`. A name is a secret when one of its `_` segments is in
- * SECRET_WORDS, or it equals a SECRET_NAMES entry, or it ends with `_` and an entry other than bare `key`
- * (`sendgrid_api_key`). `lock_key` and `lock_key_number` are LOTO safety fields and keep their values, as do
- * `pass` and `pin` names such as `gas_test_pass`. When a new kind of secret appears, add its name here.
+ * SECRET_WORDS, or it equals a SECRET_NAMES entry, or it ends with `_` and an entry other than bare `key` or
+ * `keys` (`sendgrid_api_key`). `lock_key`, `lock_keys` and `lock_key_number` are LOTO safety fields and keep their
+ * values, as do `pass` and `pin` names such as `gas_test_pass`. When a new kind of secret appears, add its name here.
  */
 const SECRET_WORDS = new Set([
   'password', 'passwd', 'pwd', 'passphrase', 'secret', 'token', 'credential', 'credentials', 'apikey', 'authorization',
@@ -42,7 +42,7 @@ const snake = (key: string): string =>
   key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toLowerCase();
 const isSecret = (name: string): boolean =>
   name.split('_').some((word) => SECRET_WORDS.has(word)) ||
-  [...SECRET_NAMES].some((secret) => name === secret || (secret !== 'key' && name.endsWith(`_${secret}`)));
+  [...SECRET_NAMES].some((secret) => name === secret || (!/^keys?$/.test(secret) && name.endsWith(`_${secret}`)));
 const isRedacted = (key: string): boolean => REDACTED.has(snake(key)) || isSecret(snake(key));
 const isId = (key: string): boolean => /(^|_)id$/.test(snake(key));
 const holdsRedacted = (value: unknown): boolean =>
