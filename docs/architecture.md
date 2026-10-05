@@ -26,7 +26,7 @@
   all and creates tenants). Child rows reference parents by `(tenant_id, id)`. `accounts` are readable only through
   a person record in the request tenant. Engagements are readable by both parties and written by the client.
 - **Definer functions.** Exactly three, each with a pinned `search_path`: `app_context_valid`,
-  `app_tenant_ids_for_jobs` and `app_person_contact`. `tests/schema-security.spec.ts` holds them to that allow-list
+  `app_tenant_ids_for_jobs` and `app_person_contact`. `tests/schema-security.spec.ts` holds them, by full signature, to that allow-list
   and also rejects any view without `security_invoker` and any materialized view.
 - **Full record.** The API role cannot select `people.email` or `people.phone`; they are read through
   `PersonalDataService.readProfile` (via `app_person_contact`, which needs a valid user context and the person or an
@@ -35,14 +35,21 @@
   columns follow the same rule.
 - **Personal data.** Sensitive fields live in `person_private_data`, encrypted with AES-256-GCM (`<person id>:<field>`
   as associated data) under a per-tenant data key wrapped by the OpenBao Transit master key. Only
-  `PersonalDataService` decrypts; it checks FR-PRV-005, gates consent-based fields and writes
-  `personal_data_access_log` in the same transaction before returning anything, so a failed log write returns nothing.
-  Its writes are audited with the employer legal entity and, for an admin, the person acted for.
+  `PersonalDataService` decrypts: `PrivacyModule` does not export `KeyService` or `TenantKeyService`, and a lint rule
+  (`no-restricted-imports`) refuses imports of `field-crypto`, `key.service` and `tenant-key.service` from outside
+  `src/modules/privacy`. It checks FR-PRV-005 and writes `personal_data_access_log` in the same transaction before
+  returning anything, so a failed log write returns nothing. Writes of consent-based encrypted fields are refused
+  without consent in force, and reads omit consent-based values without consent in force. Phone writes are not yet
+  gated; Phase 1b routes them through the same check. Its writes are audited with the employer legal entity and, for
+  an admin, the person acted for.
 - **Consent.** `ConsentService.record` is the only consent operation. Each decision is bound to the notice version
-  shown or signed and its decision date (and time, for in-app decisions). On the latest decision date, the
+  shown or signed and its decision date (and time, for in-app decisions). Decision dates are days in the employer
+  legal entity's time zone (`legal_entities.time_zone`), the calendar a signed form carries. Only decisions under the
+  notices of the person's current employer count. On the latest decision date, the
   decisions that cannot be ordered against each other decide (a day with a signed form: all of them; otherwise
   those at the latest instant), and consent is in force only if all of them are "given". Any decision that leaves
-  consent not in force deletes every stored field of the category (`CATEGORY_FIELDS`) in the same transaction.
+  consent not in force deletes every stored field of the category (`CATEGORY_FIELDS`) in the same transaction, and
+  so does a change of a category's lawful basis to consent, for each person of that legal entity without consent in force.
   The sign-in identity (`people.email`) is separate from optional contact details (`people.phone`), relies on
   employment and never on consent, so withdrawing contact consent never touches sign-in, tenant access, roles or
   permit duties (D31). A phase that stores new consent-based data adds it to `CATEGORY_FIELDS`.

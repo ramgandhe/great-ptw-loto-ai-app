@@ -34,7 +34,8 @@ export class PersonalDataService {
     const values: Partial<Record<SensitiveField, string>> = {};
     for (const field of fields) {
       const blob = row?.[FIELD_COLUMN[field]];
-      if (!blob) continue;
+      // Defence in depth (FR-PRV-002): a consent-based value is never returned without consent in force.
+      if (!blob || (await this.lacksConsent(tx, subject, field))) continue;
       const key = await this.tenantKeys.byVersion(tx, subject.tenantId, keyVersionOf(blob));
       values[field] = decryptField(key, blob, aad(personId, field));
     }
@@ -58,12 +59,7 @@ export class PersonalDataService {
     await this.purpose(tx, ctx, subject);
     const entries = Object.entries(values) as [SensitiveField, string | null][];
     for (const [field, value] of entries) {
-      const category = FIELD_CATEGORY[field];
-      if (
-        value !== null &&
-        (await this.consent.requiresConsent(tx, subject.employerLegalEntityId, category)) &&
-        !(await this.consent.hasConsent(tx, personId, category))
-      ) {
+      if (value !== null && (await this.lacksConsent(tx, subject, field))) {
         throw new ForbiddenException(`Consent for ${field.replace(/_/g, ' ')} is not in force`);
       }
     }
@@ -102,9 +98,17 @@ export class PersonalDataService {
       .select({ id: people.id, tenantId: people.tenantId, employerLegalEntityId: people.employerLegalEntityId })
       .from(people)
       .where(eq(people.id, personId));
-    const [subject] = lock ? await query.for('update') : await query;
+    const [subject] = lock ? await query.for('no key update') : await query;
     if (!subject) throw new NotFoundException('Person not found');
     return subject;
+  }
+
+  /** FR-PRV-002: the field relies on consent at the person's employer, and the person's consent is not in force. */
+  private async lacksConsent(tx: Tx, subject: { id: string; employerLegalEntityId: string }, field: SensitiveField): Promise<boolean> {
+    const category = FIELD_CATEGORY[field];
+    return (
+      (await this.consent.requiresConsent(tx, subject.employerLegalEntityId, category)) && !(await this.consent.hasConsent(tx, subject.id, category))
+    );
   }
 
   /** FR-PRV-005: the person, or the admins of the person's employer legal entity. Nobody else. */

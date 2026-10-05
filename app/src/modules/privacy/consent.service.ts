@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { and, desc, eq } from 'drizzle-orm';
 import { DATA_CATEGORIES, DEFAULT_LAWFUL_BASES, type DataCategory, type LawfulBasis } from '@ptw/shared';
 import type { DbContext, Tx } from '../../database/context';
-import { consents, lawfulBases, people, personPrivateData, privacyNotices } from '../../database/schema';
+import { consents, lawfulBases, legalEntities, people, personPrivateData, privacyNotices } from '../../database/schema';
 import { PermissionService } from '../access/permission.service';
 import { AuditWriter, type AuditEvent } from '../audit/audit-writer';
 import { CATEGORY_FIELDS, FIELD_COLUMN } from './sensitive-fields';
@@ -12,6 +12,10 @@ const isCalendarDate = (s: string): boolean => {
   const d = new Date(`${s}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
 };
+
+/** The calendar day (`YYYY-MM-DD`) of an instant in a time zone. An unknown time zone throws (RangeError). */
+export const localDate = (at: Date, timeZone: string): string =>
+  new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
 
 type Decision = { decision: 'given' | 'withheld' | 'withdrawn'; decidedAt: Date | null; version: number };
 
@@ -65,6 +69,21 @@ export class ConsentService {
       updatedAt: new Date(),
     };
     await tx.insert(lawfulBases).values(values).onConflictDoUpdate({ target: [lawfulBases.legalEntityId, lawfulBases.category], set: values });
+    // FR-PRV-002: data kept under a basis that now becomes consent may stay only for people whose consent is in force.
+    // People are locked in id order, each before its data, as record and PersonalDataService.write do: no deadlock.
+    if (input.bases.includes('consent') && !before?.bases.includes('consent')) {
+      const staff = await tx
+        .select({ id: people.id })
+        .from(people)
+        .where(eq(people.employerLegalEntityId, input.legalEntityId))
+        .orderBy(people.id)
+        .for('no key update');
+      for (const { id } of staff) {
+        if (!(await this.hasConsent(tx, id, input.category))) {
+          await this.deleteDependentData(tx, ctx, id, input.category, { legalEntityId: input.legalEntityId });
+        }
+      }
+    }
     await this.audit.record(tx, ctx, {
       action: 'lawful_basis.set',
       entityType: 'lawful_basis',
@@ -86,7 +105,8 @@ export class ConsentService {
    * FR-PRV-002, the only consent operation. Recorded by the person in the app against the notice they were
    * shown, or by their employer's admin from the signed form (wording version, signature date, file). Any
    * decision that leaves consent not in force deletes the data that relies on it, in this transaction.
-   * The person row is locked, so this serialises with PersonalDataService.write.
+   * The person row is locked (FOR NO KEY UPDATE), so this serialises with PersonalDataService.write and
+   * setLawfulBasis without blocking foreign-key checks that reference the person.
    */
   async record(
     tx: Tx,
@@ -104,7 +124,7 @@ export class ConsentService {
       .select({ id: people.id, tenantId: people.tenantId, employerLegalEntityId: people.employerLegalEntityId })
       .from(people)
       .where(eq(people.id, input.personId))
-      .for('update');
+      .for('no key update');
     if (!subject) throw new NotFoundException('Person not found');
     const self = ctx.personId === subject.id;
     if (!self) await this.requireLegalEntityAdmin(tx, ctx, subject.employerLegalEntityId);
@@ -118,13 +138,18 @@ export class ConsentService {
     if (!notice || notice.legalEntityId !== subject.employerLegalEntityId) {
       throw new BadRequestException("That privacy notice is not the employer's");
     }
+    // Decision dates are the employer's local days, the calendar a signed form carries; decided_at stays the instant.
+    const [employer] = await tx
+      .select({ timeZone: legalEntities.timeZone })
+      .from(legalEntities)
+      .where(eq(legalEntities.id, subject.employerLegalEntityId));
     const now = new Date();
-    const today = now.toISOString().slice(0, 10);
+    const today = localDate(now, employer.timeZone);
     let decidedOn = today;
     if (!self) {
       if (!input.formFileKey) throw new BadRequestException('Attach the signed consent form');
       if (!input.signedOn || !isCalendarDate(input.signedOn)) throw new BadRequestException('Give the date the form was signed');
-      if (input.signedOn > today || input.signedOn < notice.publishedAt.toISOString().slice(0, 10)) {
+      if (input.signedOn > today || input.signedOn < localDate(notice.publishedAt, employer.timeZone)) {
         throw new BadRequestException('The signature date must be between the notice publication and today');
       }
       decidedOn = input.signedOn;
@@ -183,12 +208,16 @@ export class ConsentService {
     return ask;
   }
 
-  /** The decisions made on the latest decision date, with the wording version each was made under. */
+  /**
+   * The decisions made on the latest decision date, with the wording version each was made under. Only decisions
+   * under the notices of the person's current employer count: consent given to a former employer is not consent.
+   */
   private async latestDay(tx: Tx, personId: string, category: DataCategory): Promise<Decision[]> {
     const rows = await tx
       .select({ decision: consents.decision, decidedOn: consents.decidedOn, decidedAt: consents.decidedAt, version: privacyNotices.version })
       .from(consents)
       .innerJoin(privacyNotices, eq(privacyNotices.id, consents.noticeId))
+      .innerJoin(people, and(eq(people.id, consents.personId), eq(people.employerLegalEntityId, privacyNotices.legalEntityId)))
       .where(and(eq(consents.personId, personId), eq(consents.category, category)))
       .orderBy(desc(consents.decidedOn));
     return rows.filter((row) => row.decidedOn === rows[0].decidedOn);

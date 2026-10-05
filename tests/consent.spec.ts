@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { getTableColumns } from 'drizzle-orm';
 import { DbContext, runInContext, Tx } from '../app/src/database/context';
 import { personPrivateData } from '../app/src/database/schema';
-import { decisionInForce } from '../app/src/modules/privacy/consent.service';
+import { decisionInForce, localDate } from '../app/src/modules/privacy/consent.service';
 import { CATEGORY_FIELDS, FIELD_COLUMN } from '../app/src/modules/privacy/sensitive-fields';
 import { connectApi, connectOwner, pgErrorCode, userCtx } from './helpers/db';
 import {
@@ -33,10 +33,11 @@ describe('Lawful basis and consent (FR-PRV-001, 002, 011)', () => {
   let admin: string;
   let otherAdmin: string;
   let colleague: string;
+  let bystander: string;
 
   const ctx = (personId: string): DbContext => userCtx(tenant, personId, [entity, otherEntity]);
   const as = <T>(personId: string, fn: (tx: Tx) => Promise<T>) => runInContext(api.db, ctx(personId), fn);
-  const today = () => new Date().toISOString().slice(0, 10);
+  const today = () => localDate(new Date(), 'Asia/Kolkata'); // the fixtures' legal entities keep Indian time
   const stored = async (personId: string) =>
     (await owner.query(
       `select blood_group is not null as blood, health_conditions is not null as health, emergency_contacts is not null as contacts
@@ -68,6 +69,16 @@ describe('Lawful basis and consent (FR-PRV-001, 002, 011)', () => {
     datedNotice = await insertNotice(owner, tenant, otherEntity, 2);
     await owner.query(`update privacy_notices set published_at = '2026-01-01T00:00:00Z' where id = $1`, [datedNotice]);
     otherEntityCrew = (await insertPerson(owner, tenant, otherEntity, { accountId: null })).personId;
+    // A same-tenant person with data in every category the tests withdraw, at a legal entity whose bases never change.
+    bystander = (await insertPerson(owner, tenant, await insertLegalEntity(owner, tenant))).personId;
+    await owner.query(`update people set phone = '+91 98000 44444' where id = $1`, [bystander]);
+    await seedPrivate(bystander);
+  });
+
+  // A withdrawal deletes the deciding person's data and nobody else's.
+  afterEach(async () => {
+    expect(await stored(bystander)).toEqual({ blood: true, health: true, contacts: true });
+    expect((await owner.query(`select phone from people where id = $1`, [bystander])).rows).toEqual([{ phone: '+91 98000 44444' }]);
   });
 
   afterAll(async () => {
@@ -107,6 +118,9 @@ describe('Lawful basis and consent (FR-PRV-001, 002, 011)', () => {
   it('records in-app consent against the notice shown, and an admin record only with the signed form and its date', async () => {
     await as(self, (tx) => consent.record(tx, ctx(self), { personId: self, category: 'blood_group', noticeId: noticeV1, decision: 'given' }));
     expect(await as(self, (tx) => consent.hasConsent(tx, self, 'blood_group'))).toBe(true);
+    // The decision date is the employer's local day, not the UTC day.
+    const { rows: inApp } = await owner.query(`select method, decided_on::text as decided from consents where person_id = $1`, [self]);
+    expect(inApp).toEqual([{ method: 'in_app', decided: localDate(new Date(), 'Asia/Kolkata') }]);
     // The decision is audited as a consent record, not a person record: the interim personal-data rule would hide its values.
     const { rows: audited } = await owner.query(`select changes, legal_entity_id, on_behalf_of_person_id from audit_events where entity_type = 'consent' and entity_id = $1 and action = 'consent.given'`, [self]);
     expect(audited).toEqual([
@@ -265,6 +279,23 @@ describe('Lawful basis and consent (FR-PRV-001, 002, 011)', () => {
     expect(decisionInForce([])).toBeNull();
   });
 
+  it("takes the calendar day of an instant in the legal entity's time zone", () => {
+    const at = new Date('2026-10-04T20:30:00Z');
+    expect(localDate(at, 'Asia/Kolkata')).toBe('2026-10-05');
+    expect(localDate(at, 'UTC')).toBe('2026-10-04');
+    expect(() => localDate(at, 'Not/AZone')).toThrow(RangeError);
+  });
+
+  it('keeps an Indian in-app withdrawal at 02:00 in force against a form signed that local day', () => {
+    const withdrawnAt = new Date('2026-10-04T20:30:00Z'); // 02:00 on 5 October in India
+    // Its decision date is the local day, 2026-10-05, the form's date: both are decided on the same day.
+    expect(localDate(withdrawnAt, 'Asia/Kolkata')).toBe('2026-10-05');
+    expect(decisionInForce([
+      { decision: 'given', decidedAt: null, version: 1 }, // the form, signed on 2026-10-05
+      { decision: 'withdrawn', decidedAt: withdrawnAt, version: 1 },
+    ])?.given).toBe(false);
+  });
+
   it('gives the same answer for two in-app decisions at the same millisecond, in either row order (R3-SPEC-02)', () => {
     const tie = new Date('2026-10-04T12:00:00.123Z');
     const grant = { decision: 'given' as const, decidedAt: tie, version: 1 };
@@ -328,5 +359,44 @@ describe('Lawful basis and consent (FR-PRV-001, 002, 011)', () => {
     await as(person, (tx) => consent.record(tx, ctx(person), { personId: person, category: 'blood_group', noticeId: noticeV2, decision: 'given' }));
     await as(person, (tx) => consent.record(tx, ctx(person), { personId: person, category: 'health_conditions', noticeId: noticeV2, decision: 'withheld' }));
     expect(await as(person, (tx) => consent.categoriesToAsk(tx, person))).toEqual([]);
+  });
+
+  it('deletes stored data at once when its basis becomes consent, for each person without consent in force (FR-PRV-002)', async () => {
+    const employer = await insertLegalEntity(owner, tenant);
+    const employerAdmin = (await insertPerson(owner, tenant, employer)).personId;
+    await makeAdmin(owner, { tenantId: tenant, personId: employerAdmin, role: 'LEGAL_ORG_ADMIN', legalEntityId: employer });
+    const employerNotice = await insertNotice(owner, tenant, employer, 1);
+    const unasked = (await insertPerson(owner, tenant, employer)).personId;
+    const consenting = (await insertPerson(owner, tenant, employer)).personId;
+    await owner.query(`update people set phone = '+91 98000 33333' where id in ($1, $2)`, [unasked, consenting]);
+    await seedPrivate(unasked); // a stored blood group, whose basis does not change
+    // Contact consent given while contact still relied on employment (record() refuses it then, so the owner inserts it).
+    await owner.query(
+      `insert into consents (tenant_id, person_id, category, notice_id, decision, method, decided_on, decided_at, recorded_by_person_id)
+       values ($1, $2, 'contact', $3, 'given', 'in_app', current_date, now(), $2)`,
+      [tenant, consenting, employerNotice],
+    );
+    await as(employerAdmin, (tx) =>
+      consent.setLawfulBasis(tx, ctx(employerAdmin), { legalEntityId: employer, category: 'contact', purpose: 'Contact', bases: ['consent'], changeReason: 'Counsel advice' }),
+    );
+    const { rows } = await owner.query(`select id, phone from people where id in ($1, $2)`, [unasked, consenting]);
+    expect(Object.fromEntries(rows.map((row) => [row.id, row.phone]))).toEqual({ [unasked]: null, [consenting]: '+91 98000 33333' });
+    expect((await stored(unasked)).blood).toBe(true);
+    const { rows: deletions } = await owner.query(
+      `select entity_id, legal_entity_id, actor_person_id from audit_events where action = 'person.consent_data_deleted' and entity_id in ($1, $2)`,
+      [unasked, consenting],
+    );
+    expect(deletions).toEqual([{ entity_id: unasked, legal_entity_id: employer, actor_person_id: employerAdmin }]);
+  });
+
+  it("counts only decisions under the current employer's notices", async () => {
+    const person = (await insertPerson(owner, tenant, entity)).personId;
+    await as(person, (tx) => consent.record(tx, ctx(person), { personId: person, category: 'blood_group', noticeId: noticeV1, decision: 'given' }));
+    expect(await as(person, (tx) => consent.hasConsent(tx, person, 'blood_group'))).toBe(true);
+    const newEmployer = await insertLegalEntity(owner, tenant);
+    await insertNotice(owner, tenant, newEmployer, 1);
+    await owner.query(`update people set employer_legal_entity_id = $2 where id = $1`, [person, newEmployer]);
+    expect(await as(person, (tx) => consent.hasConsent(tx, person, 'blood_group'))).toBe(false);
+    expect(await as(person, (tx) => consent.categoriesToAsk(tx, person))).toContain('blood_group');
   });
 });

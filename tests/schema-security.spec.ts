@@ -7,8 +7,11 @@ const APPEND_ONLY: string[] = ['audit_events', 'tenant_data_keys', 'privacy_noti
 /** Full-record-only columns the API role must not select directly (FR-PRV-005). Later tasks add to it. */
 const FULL_RECORD_COLUMNS: [string, string][] = [['people', 'email'], ['people', 'phone']];
 
-/** SECURITY DEFINER functions the API role may execute: each runs as the owner with a pinned search_path. A new one is added here on purpose. */
-const ALLOWED_DEFINERS: string[] = ['public.app_context_valid', 'public.app_tenant_ids_for_jobs', 'public.app_person_contact'];
+/**
+ * SECURITY DEFINER functions the API role may execute, by full signature (regprocedure, public on the search_path),
+ * so an overload is not let in by its name: each runs as the owner with a pinned search_path. A new one is added here on purpose.
+ */
+const ALLOWED_DEFINERS: string[] = ['app_context_valid()', 'app_tenant_ids_for_jobs()', 'app_person_contact(uuid)'];
 
 // NFR-SEC-001a: "A CI schema test, run as the API role, fails if any application table lacks FORCE RLS
 // or a policy, or if the API role is a superuser, has BYPASSRLS or owns a table."
@@ -95,7 +98,7 @@ describe('Schema security (NFR-SEC-001a)', () => {
       else if (!o.invoker) problems.push(`view ${o.name} lacks security_invoker=true`);
     }
     const definers = await db.query<{ name: string; pinned: boolean }>(`
-      select n.nspname || '.' || p.proname as name,
+      select p.oid::regprocedure::text as name,
              exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%') as pinned
         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
        where p.prosecdef and n.nspname not in ('pg_catalog', 'information_schema')
@@ -141,12 +144,15 @@ describe('Schema security (NFR-SEC-001a)', () => {
       await client.query('create materialized view public.zz_probe_matview as select 1 as n');
       await client.query('create function public.zz_probe_pinned() returns int language sql security definer set search_path = pg_catalog as $$ select 1 $$');
       await client.query('create function public.zz_probe_unpinned() returns int language sql security definer as $$ select 1 $$');
+      // An overload of an allowed name is still a new function.
+      await client.query('create function public.app_person_contact(text) returns int language sql security definer set search_path = pg_catalog as $$ select 1 $$');
       expect(await securityObjectProblems(client, 'ptw_api')).toEqual([
         'materialized view zz_probe_matview ignores RLS',
         'view zz_probe_view lacks security_invoker=true',
-        'unexpected SECURITY DEFINER function public.zz_probe_pinned',
-        'unexpected SECURITY DEFINER function public.zz_probe_unpinned',
-        'SECURITY DEFINER function public.zz_probe_unpinned does not pin search_path',
+        'unexpected SECURITY DEFINER function app_person_contact(text)',
+        'unexpected SECURITY DEFINER function zz_probe_pinned()',
+        'unexpected SECURITY DEFINER function zz_probe_unpinned()',
+        'SECURITY DEFINER function zz_probe_unpinned() does not pin search_path',
       ]);
     } finally {
       await client.query('rollback');

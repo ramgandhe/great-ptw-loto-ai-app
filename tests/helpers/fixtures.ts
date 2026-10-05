@@ -16,7 +16,7 @@ export async function insertOrganisation(owner: Pool, kind: 'organisation' | 'ag
 
 export async function insertLegalEntity(owner: Pool, tenantId: string): Promise<string> {
   const { rows } = await owner.query<{ id: string }>(
-    `insert into legal_entities (tenant_id, legal_name, short_code, country) values ($1, $2, $3, 'IN') returning id`,
+    `insert into legal_entities (tenant_id, legal_name, short_code, country, time_zone) values ($1, $2, $3, 'IN', 'Asia/Kolkata') returning id`,
     [tenantId, `Entity ${short()}`, `LE${short().slice(0, 6).toUpperCase()}`],
   );
   return rows[0].id;

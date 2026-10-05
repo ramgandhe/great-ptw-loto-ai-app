@@ -18,6 +18,7 @@ export const legalEntities = pgTable('legal_entities', {
   legalName: text('legal_name').notNull(),
   shortCode: text('short_code').notNull(),
   country: text('country').notNull(),
+  timeZone: text('time_zone').notNull().default('UTC'),
   status: text('status', { enum: ['active', 'retired'] }).notNull().default('active'),
   ...timestamps,
 });

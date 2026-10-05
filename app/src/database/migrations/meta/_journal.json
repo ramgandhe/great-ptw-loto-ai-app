@@ -12,6 +12,7 @@
     { "idx": 7, "version": "7", "when": 1791072420000, "tag": "0007_engagements", "breakpoints": true },
     { "idx": 8, "version": "7", "when": 1791072480000, "tag": "0008_hardening", "breakpoints": true },
     { "idx": 9, "version": "7", "when": 1791072540000, "tag": "0009_consent", "breakpoints": true },
-    { "idx": 10, "version": "7", "when": 1791072600000, "tag": "0010_personal_data", "breakpoints": true }
+    { "idx": 10, "version": "7", "when": 1791072600000, "tag": "0010_personal_data", "breakpoints": true },
+    { "idx": 11, "version": "7", "when": 1791072660000, "tag": "0011_legal_entity_time_zone", "breakpoints": true }
   ]
 }

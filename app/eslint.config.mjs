@@ -35,4 +35,18 @@ export default tseslint.config(
   },
   { files: ['src/database/context.ts'], rules: { 'no-restricted-syntax': ['error', ...contactSelectors] } },
   { files: ['src/modules/privacy/personal-data.service.ts'], rules: { 'no-restricted-syntax': ['error', ...contextSelectors] } },
+  // NFR-SEC-003: only the privacy module may encrypt, decrypt or reach the keys. A different rule from the blocks above,
+  // so it does not replace their options.
+  {
+    files: ['src/**/*.ts'],
+    ignores: ['src/modules/privacy/**'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['**/privacy/field-crypto', '**/privacy/key.service', '**/privacy/tenant-key.service'],
+          message: 'Only the privacy module may use the field encryption and the keys (NFR-SEC-003).',
+        }],
+      }],
+    },
+  },
 );

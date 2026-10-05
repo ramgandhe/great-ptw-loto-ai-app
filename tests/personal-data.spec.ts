@@ -1,6 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
 import { jobContext, runInContext, Tx } from '../app/src/database/context';
+import { localDate } from '../app/src/modules/privacy/consent.service';
 import { connectApi, connectOwner, pgErrorCode, platformCtx, userCtx } from './helpers/db';
 import { insertLegalEntity, insertNotice, insertOrganisation, insertPerson, makeAdmin } from './helpers/fixtures';
 import { keyServiceConfig, services } from './helpers/services';
@@ -19,6 +20,7 @@ describe('Personal-data service (NFR-SEC-003, FR-PRV-002, 004, 005, 008)', () =>
   let orgAdmin: string;
   let colleague: string;
   let otherEntityColleague: string;
+  let bystander: string;
 
   const ctx = (personId: string) => userCtx(tenant, personId, [entity, otherEntity]);
   const as = <T>(personId: string, fn: (tx: Tx) => Promise<T>) => runInContext(api.db, ctx(personId), fn);
@@ -40,6 +42,20 @@ describe('Personal-data service (NFR-SEC-003, FR-PRV-002, 004, 005, 008)', () =>
     await makeAdmin(owner, { tenantId: tenant, personId: orgAdmin, role: 'TENANT_ORG_ADMIN' });
     notice = await insertNotice(owner, tenant, entity, 1);
     await owner.query(`update people set phone = '+91 98000 55555' where id = $1`, [self]);
+    // A same-tenant person with phone, blood group and health data, at a legal entity whose bases never change.
+    bystander = (await insertPerson(owner, tenant, await insertLegalEntity(owner, tenant))).personId;
+    await owner.query(`update people set phone = '+91 98000 44444' where id = $1`, [bystander]);
+    await owner.query(`insert into person_private_data (person_id, tenant_id, blood_group, health_conditions) values ($1, $2, '\\x01', '\\x02')`, [bystander, tenant]);
+  });
+
+  // A withdrawal deletes the deciding person's data and nobody else's.
+  afterEach(async () => {
+    const { rows } = await owner.query(
+      `select p.phone, d.blood_group is not null as blood, d.health_conditions is not null as health
+         from people p join person_private_data d on d.person_id = p.id where p.id = $1`,
+      [bystander],
+    );
+    expect(rows).toEqual([{ phone: '+91 98000 44444', blood: true, health: true }]);
   });
 
   afterAll(async () => {
@@ -79,6 +95,16 @@ describe('Personal-data service (NFR-SEC-003, FR-PRV-002, 004, 005, 008)', () =>
       { actor_person_id: self, legal_entity_id: entity, on_behalf_of_person_id: null },
       { actor_person_id: admin, legal_entity_id: entity, on_behalf_of_person_id: self },
     ]);
+  });
+
+  it("refuses a write by anyone but the person and their employer's legal-entity admin, and stores nothing (FR-PRV-005)", async () => {
+    const person = (await insertPerson(owner, tenant, entity)).personId;
+    for (const writer of [colleague, otherAdmin, orgAdmin]) {
+      await expect(as(writer, (tx) => personalData.write(tx, ctx(writer), person, { emergency_contacts: 'Forged' }))).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    }
+    expect((await owner.query(`select 1 from person_private_data where person_id = $1`, [person])).rowCount).toBe(0);
   });
 
   it("shows sensitive fields only to the person and the employer's legal-entity admin (FR-PRV-005)", async () => {
@@ -140,6 +166,29 @@ describe('Personal-data service (NFR-SEC-003, FR-PRV-002, 004, 005, 008)', () =>
     await expect(as(other, (tx) => personalData.read(tx, ctx(other), other, ['emergency_contacts']))).rejects.toThrow();
   });
 
+  it("refuses a value moved to another of the person's fields", async () => {
+    const person = (await insertPerson(owner, tenant, entity)).personId;
+    await give(person);
+    await as(person, (tx) => consent.record(tx, ctx(person), { personId: person, category: 'health_conditions', noticeId: notice, decision: 'given' }));
+    await as(person, (tx) => personalData.write(tx, ctx(person), person, { blood_group: 'O+' }));
+    expect(await as(person, (tx) => personalData.read(tx, ctx(person), person, ['blood_group']))).toEqual({ blood_group: 'O+' });
+    await owner.query(`update person_private_data set health_conditions = blood_group where person_id = $1`, [person]);
+    await expect(as(person, (tx) => personalData.read(tx, ctx(person), person, ['health_conditions']))).rejects.toThrow('unable to authenticate data');
+  });
+
+  it('never returns a consent-based value without consent in force, and still logs the fields asked for (FR-PRV-002, 008)', async () => {
+    const person = (await insertPerson(owner, tenant, entity)).personId;
+    await give(person);
+    await as(person, (tx) => personalData.write(tx, ctx(person), person, { blood_group: 'B-', emergency_contacts: 'Meera' }));
+    // The consent goes but the value stays, as it would for any value the withdrawal path never reached.
+    await owner.query(`delete from consents where person_id = $1`, [person]);
+    expect(await as(admin, (tx) => personalData.read(tx, ctx(admin), person, ['blood_group', 'emergency_contacts']))).toEqual({
+      emergency_contacts: 'Meera',
+    });
+    const { rows } = await owner.query(`select viewer_person_id, fields from personal_data_access_log where subject_person_id = $1`, [person]);
+    expect(rows).toEqual([{ viewer_person_id: admin, fields: ['blood_group', 'emergency_contacts'] }]);
+  });
+
   it('stores nothing when the key service is unavailable (Review Focus 3)', async () => {
     const broken = services({ ...keyServiceConfig, 'keyService.url': 'http://localhost:1' });
     const person = (await insertPerson(owner, tenant, entity)).personId;
@@ -157,7 +206,7 @@ describe('Personal-data service (NFR-SEC-003, FR-PRV-002, 004, 005, 008)', () =>
     await as(admin, (tx) =>
       consent.record(tx, ctx(admin), {
         personId: person, category: 'blood_group', noticeId: notice, decision: 'given',
-        formFileKey: 'forms/morning.pdf', signedOn: new Date().toISOString().slice(0, 10),
+        formFileKey: 'forms/morning.pdf', signedOn: localDate(new Date(), 'Asia/Kolkata'),
       }),
     );
     await expect(as(admin, (tx) => personalData.write(tx, ctx(admin), person, { blood_group: 'O-' }))).rejects.toBeInstanceOf(ForbiddenException);
