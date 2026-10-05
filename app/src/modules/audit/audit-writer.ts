@@ -10,12 +10,34 @@ import { auditEvents } from '../../database/schema';
 export const REDACTED_FIELDS: Record<string, readonly string[]> = {
   person: [
     'email', 'phone', 'blood_group', 'health_conditions', 'emergency_contacts', 'identity_document_number',
-    'employment_history',
+    'employment_history', 'full_name', 'designation',
   ],
 };
 
+/**
+ * FR-AUD-005: secrets are recorded as "changed", never as values. A name is a secret when one of its `_` segments
+ * is in SECRET_WORDS or the whole name is in SECRET_NAMES. A bare `_key` suffix is not matched: LOTO safety
+ * fields such as `lock_key_number` keep their values. When a new kind of secret appears, add its name here.
+ */
+const SECRET_WORDS = new Set(['password', 'passwd', 'passphrase', 'secret', 'token', 'credential', 'credentials', 'apikey']);
+const SECRET_NAMES = new Set([
+  'key', 'api_key', 'private_key', 'secret_key', 'access_key', 'wrapped_key', 'data_key', 'encryption_key',
+  'signing_key', 'master_key',
+]);
+
+/**
+ * Interim rule until counsel classifies the personal fields (O5): for these entity types only the IDs keep their
+ * values and every other field is recorded as "changed". Relaxing it needs a PRD amendment.
+ */
+const PERSONAL_ENTITIES = new Set(['person', 'account']);
+
 const REDACTED = new Set(Object.values(REDACTED_FIELDS).flat());
-const isRedacted = (key: string): boolean => REDACTED.has(key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase());
+const snake = (key: string): string => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+const isRedacted = (key: string): boolean => {
+  const name = snake(key);
+  return REDACTED.has(name) || SECRET_NAMES.has(name) || name.split('_').some((word) => SECRET_WORDS.has(word));
+};
+const isId = (key: string): boolean => /(^|_)id$/.test(snake(key));
 const holdsRedacted = (value: unknown): boolean =>
   typeof value === 'object' && value !== null && Object.entries(value).some(([key, v]) => isRedacted(key) || holdsRedacted(v));
 
@@ -39,11 +61,13 @@ export function auditChanges(
 ): Record<string, AuditChange> {
   const before = event.before ?? {};
   const after = event.after ?? {};
+  const personal = PERSONAL_ENTITIES.has(event.entityType);
   const changes: Record<string, AuditChange> = {};
   for (const field of new Set([...Object.keys(before), ...Object.keys(after)])) {
     const [was, now] = [before[field] ?? null, after[field] ?? null];
     if (JSON.stringify(was) === JSON.stringify(now)) continue;
-    changes[field] = isRedacted(field) || holdsRedacted(was) || holdsRedacted(now) ? 'changed' : { before: was, after: now };
+    const redacted = (personal && !isId(field)) || isRedacted(field) || holdsRedacted(was) || holdsRedacted(now);
+    changes[field] = redacted ? 'changed' : { before: was, after: now };
   }
   for (const field of event.changedFields ?? []) changes[field] = 'changed';
   return changes;

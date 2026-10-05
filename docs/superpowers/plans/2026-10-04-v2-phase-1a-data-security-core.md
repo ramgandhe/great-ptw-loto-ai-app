@@ -2612,6 +2612,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `AuditWriter.record(tx: Tx, ctx: DbContext, event: AuditEvent): Promise<void>`, where `AuditEvent = { action; entityType; entityId?; legalEntityId?; onBehalfOfPersonId?; deviceId?; before?; after?; changedFields? }`.
   - `AuditModule`, which is global and exports `AuditWriter`.
 
+**Redaction (FR-AUD-005, owner review T12-STD-01):** secrets (any name with a `password`, `secret`, `token`, `credential` or `apikey` segment, or a key name such as `api_key`) are recorded as "changed" on every entity type and at any depth, and until counsel classifies the personal fields (O5) every non-ID field of a `person` or `account` is recorded as "changed" too; relaxing that needs a PRD amendment.
+
 - [ ] **Step 1: Write the failing tests**
 
 Create `tests/audit.spec.ts`:
@@ -2647,10 +2649,88 @@ describe('Audit (FR-AUD-001 to 003, 005)', () => {
         after: { designation: 'Supervisor', phone: '+91 98000 11111', status: 'active' },
         changedFields: ['blood_group'],
       }),
-    ).toEqual({ designation: { before: 'Fitter', after: 'Supervisor' }, phone: 'changed', blood_group: 'changed' });
+    ).toEqual({ designation: 'changed', phone: 'changed', blood_group: 'changed' });
     expect(auditChanges({ entityType: 'gas_reading', before: { o2: 20.9 }, after: { o2: 19.1 } })).toEqual({
       o2: { before: 20.9, after: 19.1 },
     });
+
+    // FR-AUD-005 fails closed: redaction does not depend on the entity type, the key's spelling or its nesting.
+    expect(auditChanges({ entityType: 'account', before: { phone: '+91 1' }, after: { phone: '+91 2' } })).toEqual({
+      phone: 'changed',
+    });
+    expect(auditChanges({ entityType: 'person', before: { bloodGroup: 'A+' }, after: { bloodGroup: 'B+' } })).toEqual({
+      bloodGroup: 'changed',
+    });
+    expect(
+      auditChanges({ entityType: 'person', before: { profile: { phone: '+91 1' } }, after: { profile: { phone: '+91 2' } } }),
+    ).toEqual({ profile: 'changed' });
+    expect(
+      auditChanges({ entityType: 'person', before: { contacts: [{ Email: 'a@x.test' }] }, after: { contacts: [] } }),
+    ).toEqual({ contacts: 'changed' });
+    expect(auditChanges({ entityType: 'person', before: { profile: { phone: '+91 1' } }, after: { profile: { phone: '+91 1' } } })).toEqual({});
+
+    // An absent field and null are the same value: no change, so no false "phone changed".
+    expect(auditChanges({ entityType: 'person', before: {}, after: { phone: null, note: null } })).toEqual({});
+    expect(auditChanges({ entityType: 'person', before: { phone: undefined, note: undefined }, after: {} })).toEqual({});
+  });
+
+  // FR-AUD-005: "Secrets (email-server passwords, keys) are recorded as 'changed', never as values."
+  it('records secrets as changed on any entity type and at any depth, and keeps safety values', () => {
+    const secrets = ['smtpPassword', 'smtp_password', 'apiKey', 'access_token', 'clientSecret'];
+    const changes = auditChanges({
+      entityType: 'email_server',
+      before: { host: 'old.mail', ...Object.fromEntries(secrets.map((k) => [k, 'old-sentinel'])) },
+      after: { host: 'new.mail', ...Object.fromEntries(secrets.map((k) => [k, 'new-sentinel'])) },
+    });
+    expect(changes).toEqual({
+      host: { before: 'old.mail', after: 'new.mail' },
+      ...Object.fromEntries(secrets.map((k) => [k, 'changed'])),
+    });
+    expect(JSON.stringify(changes)).not.toContain('sentinel');
+    const nested = [
+      auditChanges({ entityType: 'settings', before: { config: { key: 'old-sentinel' } }, after: { config: { key: 'new-sentinel' } } }),
+      auditChanges({ entityType: 'email_server', before: { servers: [{ password: 'old-sentinel' }] }, after: { servers: [] } }),
+    ];
+    expect(nested).toEqual([{ config: 'changed' }, { servers: 'changed' }]);
+    expect(JSON.stringify(nested)).not.toContain('sentinel');
+
+    // LOTO safety values keep their before and after: a "key" inside a name is not a secret.
+    const before: Record<string, unknown> = {
+      o2: 20.9, isolation_point: 'V-101', lock_key_number: 'K-7', hazard: 'H2S', control: 'Blind flange',
+      decision: 'approved', starts_at: '2026-10-05T08:00:00Z',
+    };
+    const after: Record<string, unknown> = {
+      o2: 19.1, isolation_point: 'V-102', lock_key_number: 'K-9', hazard: 'Steam', control: 'Double block',
+      decision: 'deferred', starts_at: '2026-10-05T09:00:00Z',
+    };
+    expect(auditChanges({ entityType: 'isolation', before, after })).toEqual(
+      Object.fromEntries(Object.keys(before).map((k) => [k, { before: before[k], after: after[k] }])),
+    );
+  });
+
+  // Interim rule until counsel classifies the personal fields (O5): a person or account keeps only its IDs.
+  it('records every non-ID field of a person or account as changed, and personal names on any entity type', () => {
+    expect(
+      auditChanges({
+        entityType: 'person',
+        before: { full_name: 'A. Rao', status: 'active', employer_legal_entity_id: 'le-1', employerLegalEntityId: 'le-1' },
+        after: { full_name: 'A. Rao-Iyer', status: 'left', employer_legal_entity_id: 'le-2', employerLegalEntityId: 'le-2' },
+      }),
+    ).toEqual({
+      full_name: 'changed',
+      status: 'changed',
+      employer_legal_entity_id: { before: 'le-1', after: 'le-2' },
+      employerLegalEntityId: { before: 'le-1', after: 'le-2' },
+    });
+    expect(auditChanges({ entityType: 'account', before: { status: 'active' }, after: { status: 'disabled' } })).toEqual({
+      status: 'changed',
+    });
+    expect(auditChanges({ entityType: 'permit', before: { full_name: 'A' }, after: { full_name: 'B' } })).toEqual({
+      full_name: 'changed',
+    });
+    expect(
+      auditChanges({ entityType: 'permit', before: { crew: [{ designation: 'Fitter' }] }, after: { crew: [] } }),
+    ).toEqual({ crew: 'changed' });
   });
 
   it('writes in the action transaction, so a rolled-back action leaves no audit event', async () => {
@@ -2658,10 +2738,12 @@ describe('Audit (FR-AUD-001 to 003, 005)', () => {
     const kept = `test.kept.${randomUUID()}`;
     const dropped = `test.dropped.${randomUUID()}`;
     await runInContext(api.db, ctx, (tx) => audit.record(tx, ctx, { action: kept, entityType: 'test', deviceId: 'device-1' }));
-    await runInContext(api.db, ctx, async (tx) => {
-      await audit.record(tx, ctx, { action: dropped, entityType: 'test' });
-      throw new Error('action failed');
-    }).catch(() => undefined);
+    await expect(
+      runInContext(api.db, ctx, async (tx) => {
+        await audit.record(tx, ctx, { action: dropped, entityType: 'test' });
+        throw new Error('action failed');
+      }),
+    ).rejects.toThrow('action failed');
     const { rows } = await owner.query(
       `select action, actor_person_id, device_id from audit_events where action in ($1, $2)`,
       [kept, dropped],
@@ -2754,13 +2836,44 @@ import { Injectable } from '@nestjs/common';
 import type { DbContext, Tx } from '../../database/context';
 import { auditEvents } from '../../database/schema';
 
-/** FR-AUD-005: per entity type, fields whose values never reach audit. A change is recorded as "changed". */
+/**
+ * FR-AUD-005: fields whose values never reach audit. A change is recorded as "changed". Redaction fails closed:
+ * the union of these names applies to every entity type, to camelCase spellings, and to any field that holds
+ * one at any depth. Add the names of a new kind of personal value here.
+ */
 export const REDACTED_FIELDS: Record<string, readonly string[]> = {
   person: [
     'email', 'phone', 'blood_group', 'health_conditions', 'emergency_contacts', 'identity_document_number',
-    'employment_history',
+    'employment_history', 'full_name', 'designation',
   ],
 };
+
+/**
+ * FR-AUD-005: secrets are recorded as "changed", never as values. A name is a secret when one of its `_` segments
+ * is in SECRET_WORDS or the whole name is in SECRET_NAMES. A bare `_key` suffix is not matched: LOTO safety
+ * fields such as `lock_key_number` keep their values. When a new kind of secret appears, add its name here.
+ */
+const SECRET_WORDS = new Set(['password', 'passwd', 'passphrase', 'secret', 'token', 'credential', 'credentials', 'apikey']);
+const SECRET_NAMES = new Set([
+  'key', 'api_key', 'private_key', 'secret_key', 'access_key', 'wrapped_key', 'data_key', 'encryption_key',
+  'signing_key', 'master_key',
+]);
+
+/**
+ * Interim rule until counsel classifies the personal fields (O5): for these entity types only the IDs keep their
+ * values and every other field is recorded as "changed". Relaxing it needs a PRD amendment.
+ */
+const PERSONAL_ENTITIES = new Set(['person', 'account']);
+
+const REDACTED = new Set(Object.values(REDACTED_FIELDS).flat());
+const snake = (key: string): string => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+const isRedacted = (key: string): boolean => {
+  const name = snake(key);
+  return REDACTED.has(name) || SECRET_NAMES.has(name) || name.split('_').some((word) => SECRET_WORDS.has(word));
+};
+const isId = (key: string): boolean => /(^|_)id$/.test(snake(key));
+const holdsRedacted = (value: unknown): boolean =>
+  typeof value === 'object' && value !== null && Object.entries(value).some(([key, v]) => isRedacted(key) || holdsRedacted(v));
 
 export type AuditChange = { before: unknown; after: unknown } | 'changed';
 
@@ -2782,11 +2895,13 @@ export function auditChanges(
 ): Record<string, AuditChange> {
   const before = event.before ?? {};
   const after = event.after ?? {};
-  const redacted = new Set(REDACTED_FIELDS[event.entityType] ?? []);
+  const personal = PERSONAL_ENTITIES.has(event.entityType);
   const changes: Record<string, AuditChange> = {};
   for (const field of new Set([...Object.keys(before), ...Object.keys(after)])) {
-    if (JSON.stringify(before[field]) === JSON.stringify(after[field])) continue;
-    changes[field] = redacted.has(field) ? 'changed' : { before: before[field] ?? null, after: after[field] ?? null };
+    const [was, now] = [before[field] ?? null, after[field] ?? null];
+    if (JSON.stringify(was) === JSON.stringify(now)) continue;
+    const redacted = (personal && !isId(field)) || isRedacted(field) || holdsRedacted(was) || holdsRedacted(now);
+    changes[field] = redacted ? 'changed' : { before: was, after: now };
   }
   for (const field of event.changedFields ?? []) changes[field] = 'changed';
   return changes;
