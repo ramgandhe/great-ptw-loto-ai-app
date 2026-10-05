@@ -12,6 +12,7 @@
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run build -w @ptw/shared && npm run test --workspaces --if-present",
+    "test:api:fresh": "bash scripts/test-api-fresh.sh",
     "dev:api": "API_PORT=4000 npm run start:dev -w api",
     "dev:web": "PORT=3000 NEXT_PUBLIC_APP_URL=http://localhost:3000 NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1 npm run dev -w web",
     "dev:mobile": "npm run start -w mobile",

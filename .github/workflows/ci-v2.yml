@@ -1,0 +1,49 @@
+name: CI v2
+
+# v2 branches only; the v1 workflow (ci.yml) is separate and untouched. A ref under v2/ cannot exist while a
+# branch named v2 does, so the patterns are v2 and v2-*.
+on:
+  push:
+    branches: [v2, "v2-*"]
+  pull_request:
+    branches: [v2, "v2-*"]
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Compose validates the whole file, including the env_file of services this job never starts.
+      - name: Create env files from the examples
+        run: |
+          cp .env.example .env
+          cp infrastructure/postgres/.env.example infrastructure/postgres/.env
+
+      - run: docker compose -f docker-compose.yml config -q
+
+      # Redis on localhost:6379 and OpenBao on 127.0.0.1:8200 are what the Jest global setup looks for.
+      - name: Start Redis and OpenBao
+        run: docker compose up -d redis openbao
+
+      # run, not up --exit-code-from: that implies --abort-on-container-exit, which stops every container once one exits.
+      - name: Create the OpenBao transit key
+        run: docker compose run --rm openbao-init
+
+      - run: npm run build -w @ptw/shared
+
+      - run: npm run build -w api
+
+      - run: npm run lint -w api
+
+      - run: bash scripts/test-api-fresh.sh
