@@ -15,28 +15,35 @@ export const REDACTED_FIELDS: Record<string, readonly string[]> = {
 };
 
 /**
- * FR-AUD-005: secrets are recorded as "changed", never as values. A name is a secret when one of its `_` segments
- * is in SECRET_WORDS or the whole name is in SECRET_NAMES. A bare `_key` suffix is not matched: LOTO safety
- * fields such as `lock_key_number` keep their values. When a new kind of secret appears, add its name here.
+ * FR-AUD-005: secrets are recorded as "changed", never as values. Names are matched after camelCase is split and
+ * every run of non-alphanumeric characters becomes `_`. A name is a secret when one of its `_` segments is in
+ * SECRET_WORDS, or it equals a SECRET_NAMES entry, or it ends with `_` and an entry other than bare `key`
+ * (`sendgrid_api_key`). `lock_key` and `lock_key_number` are LOTO safety fields and keep their values, as do
+ * `pass` and `pin` names such as `gas_test_pass`. When a new kind of secret appears, add its name here.
  */
-const SECRET_WORDS = new Set(['password', 'passwd', 'passphrase', 'secret', 'token', 'credential', 'credentials', 'apikey']);
+const SECRET_WORDS = new Set([
+  'password', 'passwd', 'pwd', 'passphrase', 'secret', 'token', 'credential', 'credentials', 'apikey', 'authorization',
+  'bearer',
+]);
 const SECRET_NAMES = new Set([
-  'key', 'api_key', 'private_key', 'secret_key', 'access_key', 'wrapped_key', 'data_key', 'encryption_key',
-  'signing_key', 'master_key',
+  'key', 'keys', 'api_key', 'api_keys', 'private_key', 'secret_key', 'access_key', 'wrapped_key', 'data_key',
+  'encryption_key', 'signing_key', 'master_key', 'hmac_key', 'kms_key', 'secrets', 'tokens', 'passwords',
 ]);
 
 /**
- * Interim rule until counsel classifies the personal fields (O5): for these entity types only the IDs keep their
- * values and every other field is recorded as "changed". Relaxing it needs a PRD amendment.
+ * Interim rule until counsel classifies the personal fields (O5): for these entity types, matched on the normalised
+ * name (`people`, `Person`, `accounts`), only the IDs keep their values and every other field is recorded as
+ * "changed". Relaxing it needs a PRD amendment.
  */
-const PERSONAL_ENTITIES = new Set(['person', 'account']);
+const PERSONAL_ENTITY = /^(person|people|account)s?$/;
 
 const REDACTED = new Set(Object.values(REDACTED_FIELDS).flat());
-const snake = (key: string): string => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
-const isRedacted = (key: string): boolean => {
-  const name = snake(key);
-  return REDACTED.has(name) || SECRET_NAMES.has(name) || name.split('_').some((word) => SECRET_WORDS.has(word));
-};
+const snake = (key: string): string =>
+  key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toLowerCase();
+const isSecret = (name: string): boolean =>
+  name.split('_').some((word) => SECRET_WORDS.has(word)) ||
+  [...SECRET_NAMES].some((secret) => name === secret || (secret !== 'key' && name.endsWith(`_${secret}`)));
+const isRedacted = (key: string): boolean => REDACTED.has(snake(key)) || isSecret(snake(key));
 const isId = (key: string): boolean => /(^|_)id$/.test(snake(key));
 const holdsRedacted = (value: unknown): boolean =>
   typeof value === 'object' && value !== null && Object.entries(value).some(([key, v]) => isRedacted(key) || holdsRedacted(v));
@@ -61,7 +68,7 @@ export function auditChanges(
 ): Record<string, AuditChange> {
   const before = event.before ?? {};
   const after = event.after ?? {};
-  const personal = PERSONAL_ENTITIES.has(event.entityType);
+  const personal = PERSONAL_ENTITY.test(snake(event.entityType));
   const changes: Record<string, AuditChange> = {};
   for (const field of new Set([...Object.keys(before), ...Object.keys(after)])) {
     const [was, now] = [before[field] ?? null, after[field] ?? null];
