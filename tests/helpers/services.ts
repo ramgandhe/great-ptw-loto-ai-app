@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { PermissionService } from '../../app/src/modules/access/permission.service';
 import { AuditWriter } from '../../app/src/modules/audit/audit-writer';
+import { ConsentService } from '../../app/src/modules/privacy/consent.service';
 import { KeyService } from '../../app/src/modules/privacy/key.service';
 import { TenantKeyService } from '../../app/src/modules/privacy/tenant-key.service';
 
@@ -18,5 +19,6 @@ export function services(keyConfig: Record<string, string> = keyServiceConfig) {
   const audit = new AuditWriter();
   const keys = new KeyService(configFrom(keyConfig));
   const tenantKeys = new TenantKeyService(keys);
-  return { permissions, audit, keys, tenantKeys };
+  const consent = new ConsentService(permissions, audit);
+  return { permissions, audit, keys, tenantKeys, consent };
 }

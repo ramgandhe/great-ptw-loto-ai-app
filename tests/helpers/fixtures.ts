@@ -66,6 +66,14 @@ export async function insertPerson(
   return { personId: rows[0].id, accountId };
 }
 
+export async function insertNotice(owner: Pool, tenantId: string, legalEntityId: string, version: number): Promise<string> {
+  const { rows } = await owner.query<{ id: string }>(
+    `insert into privacy_notices (tenant_id, legal_entity_id, version, notice_text, consent_text) values ($1, $2, $3, $4, $5) returning id`,
+    [tenantId, legalEntityId, version, `Notice v${version}`, `Consent wording v${version}`],
+  );
+  return rows[0].id;
+}
+
 export async function insertDefaultRoles(owner: Pool, tenantId: string, legalEntityId: string): Promise<Record<DefaultRoleKey, string>> {
   const ids = {} as Record<DefaultRoleKey, string>;
   for (const role of DEFAULT_ROLES) {
@@ -123,6 +131,17 @@ export async function createTenantGraph(owner: Pool, kind: 'organisation' | 'age
   await makeAdmin(owner, { tenantId, personId, role: 'LEGAL_ORG_ADMIN', legalEntityId });
   await owner.query(`insert into audit_events (tenant_id, action, entity_type) values ($1, 'fixture.created', 'fixture')`, [tenantId]);
   await owner.query(`insert into tenant_data_keys (tenant_id, version, wrapped_key) values ($1, 1, 'vault:v1:fixture-not-a-key')`, [tenantId]);
+  await owner.query(
+    `insert into lawful_bases (tenant_id, legal_entity_id, category, purpose, bases, updated_by_person_id) values ($1, $2, 'contact', 'Work contact', '{employment}', $3)`,
+    [tenantId, legalEntityId, personId],
+  );
+  const noticeId = await insertNotice(owner, tenantId, legalEntityId, 1);
+  await owner.query(
+    `insert into consents (tenant_id, person_id, category, notice_id, decision, method, decided_on, decided_at, recorded_by_person_id)
+     values ($1, $2, 'blood_group', $3, 'given', 'in_app', current_date, now(), $2)`,
+    [tenantId, personId, noticeId],
+  );
+  await owner.query(`insert into person_private_data (person_id, tenant_id, blood_group) values ($1, $2, '\\x00')`, [personId, tenantId]);
   return { tenantId, personId, accountId: accountId as string, crewOnlyPersonId, legalEntityId, departmentId, plantId };
 }
 

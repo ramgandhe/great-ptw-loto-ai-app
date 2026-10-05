@@ -325,7 +325,7 @@ describe('Tenant isolation suite (NFR-SEC-001, NFR-SEC-008, PRD §21 criterion 4
       if (rows[0].ok) problems.push(`${table}: the key is not updatable but another column is; probe that column`);
     }
     expect(problems).toEqual([]);
-    expect(skipped).toEqual(['audit_events', 'tenant_data_keys']);
+    expect([...skipped].sort()).toEqual(['audit_events', 'consents', 'privacy_notices', 'tenant_data_keys']); // the APPEND_ONLY tables (catalogue order is alphabetical)
   });
 
   it("refuses updates and deletes of another tenant's rows", async () => {

@@ -1,4 +1,4 @@
-import { date, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { customType, date, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { timestamps } from './columns';
 
 export const accounts = pgTable('accounts', {
@@ -22,4 +22,17 @@ export const people = pgTable('people', {
   status: text('status', { enum: ['active', 'left'] }).notNull().default('active'),
   leftOn: date('left_on'),
   ...timestamps,
+});
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
+
+export const personPrivateData = pgTable('person_private_data', {
+  personId: uuid('person_id').primaryKey(),
+  tenantId: uuid('tenant_id').notNull(),
+  bloodGroup: bytea('blood_group'),
+  healthConditions: bytea('health_conditions'),
+  emergencyContacts: bytea('emergency_contacts'),
+  identityDocumentNumber: bytea('identity_document_number'),
+  employmentHistory: bytea('employment_history'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

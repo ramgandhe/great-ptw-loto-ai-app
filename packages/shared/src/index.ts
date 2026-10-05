@@ -42,3 +42,4 @@ export interface UserProfile {
   tenantId?: string;
 }
 export * from './permissions';
+export * from './privacy';
