@@ -4,7 +4,7 @@
 # Starts postgres:16-alpine on 127.0.0.1:${PTW_TEST_PG_PORT:-55432} (loopback only), initialised by this
 # branch's infrastructure/postgres/init (roles ptw_owner, ptw_api, keycloak; database ptw_platform), waits
 # until it is ready, then runs `npm run test -w api -- --maxWorkers=2 "$@"` against it. The container is
-# removed on exit, failure, Ctrl-C and SIGTERM. No named volume, so nothing is left behind.
+# removed on exit, failure, Ctrl-C and SIGTERM. The container and its anonymous data volume are both removed (rm -v), so nothing is left behind.
 #
 # Redis (:6379) and OpenBao (:8200) are not started here; the Jest global setup fails clearly without them
 # (docker compose up -d redis openbao openbao-init). The passwords are throwaway values for this container
@@ -16,7 +16,7 @@ port="${PTW_TEST_PG_PORT:-55432}"
 name="ptw-test-pg-$$"
 ptw_pw=test_ptw_pw owner_pw=test_owner_pw api_pw=test_api_pw keycloak_pw=test_keycloak_pw
 
-trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+trap 'docker rm -fv "$name" >/dev/null 2>&1 || true' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
