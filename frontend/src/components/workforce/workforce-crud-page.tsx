@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { ApiError } from "@/lib/api";
-import { agenciesApi, competenciesApi, contractorsApi, employeesApi } from "@/lib/workforce/api";
-import type { CompetencyRecord, EntityField, WorkforceRecord } from "@/lib/workforce/types";
+import { agenciesApi, competenciesApi, contractorsApi, employeesApi, listTenantUserNames } from "@/lib/workforce/api";
+import type { CompetencyRecord, EntityField, TenantUser, WorkforceRecord } from "@/lib/workforce/types";
 import { loadEntitySelectOptions, type EntitySelectResource } from "@/lib/form-options";
 import { OrgStatusBadge, stateOf } from "@/components/organisation/org-status-badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { AdminPage, AdminPageHeader } from "@/components/layout/admin-page-heade
 import { NAME_HINT, NAME_PATTERN, PHONE_COUNTRIES, splitPhone } from "@/lib/validation";
 import { copyText } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
+import { useLeaveGuard } from "@/lib/leave-guard";
 
 const workforceApis = {
   employees: employeesApi,
@@ -25,6 +26,11 @@ const workforceApis = {
 
 export type WorkforceEntityResource = keyof typeof workforceApis;
 
+/** Set by a page that embeds this list (People): open the add form for this resource straight away. */
+export const WorkforceOpenAddContext = createContext<WorkforceEntityResource | null>(null);
+/** The person chosen in People's Everyone view: their list opens with them in the edit form. */
+export const WorkforceOpenEditContext = createContext<string | null>(null);
+
 type WorkforceItem = WorkforceRecord | CompetencyRecord;
 
 function emptyForm(fields: EntityField[]) {
@@ -32,7 +38,7 @@ function emptyForm(fields: EntityField[]) {
 }
 
 const INPUT_CLASS =
-  "h-9 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 user-invalid:border-destructive";
+  "h-11 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 user-invalid:border-destructive";
 const isDate = (key: string) => key.endsWith("Date");
 
 /** Country code plus a national number of the right length; stored as "+91 9876543210". */
@@ -82,9 +88,18 @@ export function WorkforceCrudPage({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(useContext(WorkforceOpenAddContext) === resource);
+  // An open form whose values changed since it opened asks before the page is left.
+  const [openedWith, setOpenedWith] = useState("");
+  if (formOpen && !openedWith) setOpenedWith(JSON.stringify(form));
+  if (!formOpen && openedWith) setOpenedWith("");
+  useLeaveGuard(formOpen && Boolean(openedWith) && JSON.stringify(form) !== openedWith);
   const [query, setQuery] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
+  const openEditId = useContext(WorkforceOpenEditContext);
+  const openedEditFor = useRef<string | null>(null);
+  // Sign-in accounts of this organisation, so an existing account is reused instead of retyped.
+  const [accounts, setAccounts] = useState<TenantUser[]>([]);
   const singular = title.replace(/ management$/i, "").replace(/ies$/, "y").replace(/s$/, "").toLowerCase();
   const parentField = fields.find((field) => field.select);
   const [createdLogin, setCreatedLogin] = useState<{
@@ -111,6 +126,12 @@ export function WorkforceCrudPage({
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (resource !== "employees" && resource !== "contractors") return;
+    // Only people allowed to list the organisation's accounts get the choice; others just type.
+    listTenantUserNames().then(setAccounts, () => setAccounts([]));
+  }, [resource]);
 
   useEffect(() => {
     if (selectResources.length === 0) {
@@ -186,6 +207,29 @@ export function WorkforceCrudPage({
     // parentOf only reads parentLabels
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, query, parentLabels]);
+
+  // The same person added twice is the usual duplicate; an exact email match is a reliable sign.
+  const typedEmail = form.email?.trim().toLowerCase();
+  const duplicate = typedEmail
+    ? items.find((item) => item.id !== editingId && "email" in item && item.email?.toLowerCase() === typedEmail)
+    : undefined;
+
+  // Opened from People's Everyone view with a person chosen: open that person, once.
+  useEffect(() => {
+    if (!openEditId || openedEditFor.current === openEditId) return;
+    const item = items.find((candidate) => candidate.id === openEditId);
+    if (!item) return;
+    openedEditFor.current = openEditId;
+    startEdit(item);
+    // startEdit only sets state from the item.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openEditId, items]);
+
+  const onList = new Set(items.map((item) => ("email" in item ? item.email?.toLowerCase() : undefined)).filter(Boolean));
+  const accountName = (account: TenantUser) =>
+    account.name || [account.firstName, account.lastName].filter(Boolean).join(" ") || account.email || account.username;
+  const reusable = accounts.filter((account) => account.email && !onList.has(account.email.toLowerCase()));
+  const existingAccount = typedEmail ? accounts.find((account) => account.email?.toLowerCase() === typedEmail) : undefined;
 
   function startEdit(item: WorkforceItem) {
     setEditingId(item.id);
@@ -263,6 +307,38 @@ export function WorkforceCrudPage({
       {formOpen ? (
       <form ref={formRef} onSubmit={handleSubmit} className="reveal-in grid scroll-mt-[calc(4.5rem+var(--page-head-h,0px))] gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
         <h2 className="font-semibold sm:col-span-2">{editingId ? `Edit ${form.name || singular}` : `New ${singular}`}</h2>
+        {duplicate ? (
+          <p role="status" className="rounded-lg bg-(--status-warning-bg) px-3 py-2 text-sm sm:col-span-2">
+            {duplicate.name} already has this email on this list. Edit that record instead of adding the same person twice.
+          </p>
+        ) : null}
+        {!editingId && reusable.length > 0 ? (
+          <label className="grid gap-1.5 text-sm sm:col-span-2">
+            <span className="font-medium">
+              Existing sign-in account <span className="font-normal text-muted-foreground">(optional)</span>
+            </span>
+            <select
+              value={existingAccount?.id ?? ""}
+              onChange={(e) => {
+                const account = reusable.find((a) => a.id === e.target.value);
+                if (account) setForm((p) => ({ ...p, name: p.name || accountName(account), email: account.email ?? "" }));
+              }}
+              className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
+            >
+              <option value="">Someone new: type their name and email below</option>
+              {reusable.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {accountName(account)} ({account.email})
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        {!editingId && existingAccount && !duplicate ? (
+          <p role="status" className="rounded-lg bg-muted px-3 py-2 text-sm sm:col-span-2">
+            {accountName(existingAccount)} already signs in with this email. They keep that sign-in; no new login or password is created.
+          </p>
+        ) : null}
         {fields.map((field) => (
           <label key={field.key} className="grid gap-1.5 text-sm">
             <span className="font-medium">
@@ -299,12 +375,13 @@ export function WorkforceCrudPage({
           </label>
         ))}
         <div className="flex flex-wrap gap-2 sm:col-span-2">
-          <Button type="submit" disabled={submitting}>
+          <Button type="submit" className="min-h-11" disabled={submitting}>
             {submitting ? "Saving…" : editingId ? "Save changes" : `Add ${singular}`}
           </Button>
           <Button
             type="button"
             variant="ghost"
+            className="min-h-11"
             onClick={() => {
               setFormOpen(false);
               setEditingId(null);

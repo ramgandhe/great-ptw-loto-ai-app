@@ -10,7 +10,7 @@ import { ApiError } from "@/lib/api";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { LOTOTO_LIBRARY_WRITE_ROLES } from "@/lib/auth/roles";
-import { listLototoProcedures } from "@/lib/lototo/api";
+import { listLototoProcedures, deactivateLototoProcedure, reactivateLototoProcedure, deleteLototoProcedure } from "@/lib/lototo/api";
 import type { LototoProcedureListItem } from "@/lib/lototo/types";
 import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
 
@@ -30,6 +30,33 @@ function ProcedureLibrary() {
       .then(setRows)
       .catch((err) => setError(err instanceof ApiError ? err.message : "Procedures could not be loaded."));
   }, [machineryId]);
+
+  async function reload() {
+    const next = await listLototoProcedures(machineryId ? { machineryId } : undefined);
+    setRows(next);
+  }
+
+  async function runAction(id: string, action: "deactivate" | "reactivate" | "delete") {
+    setError(null);
+    try {
+      if (action === "deactivate") {
+        if (!window.confirm("Deactivate this procedure? It will no longer be offered on new permits.")) {
+          return;
+        }
+        await deactivateLototoProcedure(id);
+      } else if (action === "reactivate") {
+        await reactivateLototoProcedure(id);
+      } else {
+        if (!window.confirm("Delete this unused procedure?")) {
+          return;
+        }
+        await deleteLototoProcedure(id);
+      }
+      await reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "That action could not be completed.");
+    }
+  }
 
   return (
     <main className="flex flex-1 flex-col gap-6 px-4 pb-8 sm:px-8">
@@ -64,6 +91,27 @@ function ProcedureLibrary() {
               reference={row.code}
               context={nameOf(lookups?.machinery, row.machineryId) ?? "Machinery"}
               status={<span className="text-sm capitalize">{row.status}</span>}
+              action={
+                canWrite ? (
+                  <div className="flex flex-wrap justify-end gap-1">
+                    {row.status === "published" ? (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => void runAction(row.id, "deactivate")}>
+                        Deactivate
+                      </Button>
+                    ) : null}
+                    {row.status === "inactive" ? (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => void runAction(row.id, "reactivate")}>
+                        Reactivate
+                      </Button>
+                    ) : null}
+                    {row.status !== "published" ? (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => void runAction(row.id, "delete")}>
+                        Delete
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null
+              }
             />
           ))}
         </RecordList>

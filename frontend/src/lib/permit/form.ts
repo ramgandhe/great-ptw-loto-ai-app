@@ -1,5 +1,12 @@
-import type { PermitTemplate } from "@/lib/organisation/templates";
-import type { FormAnswer, PermitDetail, PermitFormState, PermitLototoExtraInput, PermitLototoInput, SaveDraftPayload } from "./types";
+import { requiredForSubmit, type PermitTemplate } from "@/lib/organisation/templates";
+import type {
+  DraftFields,
+  FormAnswer,
+  PermitDetail,
+  PermitFormState,
+  PermitLototoExtraInput,
+  PermitLototoInput,
+} from "./types";
 
 /** "shared": either the issuer or the assigned executor fills it in. */
 export type WizardParticipant = "job-issuer" | "operator" | "shared";
@@ -12,6 +19,44 @@ export const PERMIT_WIZARD_STEPS = [
   { label: "Forms & check sheets", owner: "shared" satisfies WizardParticipant },
   { label: "Review & submit", owner: "job-issuer" satisfies WizardParticipant },
 ] as const;
+
+/**
+ * The editor's steps (one shown at a time), over the stored step indices above (the server, the journey page
+ * and the native app keep using those). `steps[0]` is what currentStep records for the section.
+ */
+export const PERMIT_EDITOR_SECTIONS = [
+  { id: "work", label: "Work", steps: [0] },
+  { id: "place", label: "Place and schedule", steps: [1] },
+  { id: "site", label: "Site safety", steps: [2] },
+  { id: "crew", label: "Crew", steps: [3] },
+  { id: "forms", label: "Forms and evidence", steps: [4] },
+  { id: "review", label: "Review", steps: [5] },
+] as const;
+export type PermitEditorSectionId = (typeof PERMIT_EDITOR_SECTIONS)[number]["id"];
+
+/** A short title suggested from the work scope: its first line or sentence, at most 120 characters. */
+export function titleFromScope(scope: string): string {
+  const first = scope.trim().split(/\n|(?<=[.!?])\s/)[0]?.trim().replace(/[.!?]+$/, "") ?? "";
+  if (first.length <= 120) return first;
+  const cut = first.slice(0, 120);
+  return cut.slice(0, cut.lastIndexOf(" ") > 60 ? cut.lastIndexOf(" ") : 120).trimEnd() + "…";
+}
+
+export function emptyPermitLototo(procedureId: string): PermitLototoInput {
+  return { procedureId, extraPoints: [], stepNa: [], crew: [], verifiers: [] };
+}
+
+export function emptyLototoExtraPoint(): PermitLototoExtraInput {
+  return {
+    pointCode: "",
+    energyType: "",
+    magnitude: "",
+    locationText: "",
+    action: "",
+    device: "",
+    verificationMethod: "",
+  };
+}
 
 export function getWizardStepOwner(step: number): WizardParticipant {
   return PERMIT_WIZARD_STEPS[step]?.owner ?? "job-issuer";
@@ -37,28 +82,6 @@ export function canRoleSubmitPermit(roles: string[]): boolean {
     roles.includes("tenant-admin") ||
     roles.includes("platform-admin")
   );
-}
-
-export function emptyLototoExtraPoint(): PermitLototoExtraInput {
-  return {
-    pointCode: "",
-    energyType: "",
-    magnitude: "",
-    locationText: "",
-    action: "",
-    device: "",
-    verificationMethod: "",
-  };
-}
-
-export function emptyLototoAttach(): PermitLototoInput {
-  return {
-    procedureId: "",
-    extraPoints: [],
-    stepNa: [],
-    crew: [{ workforceUserId: "" }],
-    verifiers: [{ workforceUserId: "" }],
-  };
 }
 
 export function createEmptyPermitForm(): PermitFormState {
@@ -136,31 +159,12 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
     lototo:
       lototo.length > 0
         ? lototo.map((item) => ({
-            procedureId: item.procedureId,
-            procedureVersionId: item.procedureVersionId,
+            ...emptyPermitLototo(item.procedureId),
             frozenAt: item.frozenAt ?? null,
-            extraPoints: (item.extraPoints ?? []).map((point) => ({
-              pointCode: point.pointCode,
-              energyType: point.energyType,
-              magnitude: point.magnitude ?? "",
-              locationText: point.locationText ?? "",
-              action: point.action ?? "",
-              device: point.device ?? "",
-              verificationMethod: point.verificationMethod ?? "",
-            })),
-            stepNa: (item.stepNa ?? []).map((row) => ({
-              basePointId: row.basePointId ?? "",
-              extraPointCode: row.extraPointCode ?? "",
-              reason: row.reason,
-            })),
-            crew:
-              item.crew.length > 0
-                ? item.crew.map((row) => ({ workforceUserId: row.workforceUserId }))
-                : [{ workforceUserId: "" }],
-            verifiers:
-              item.verifiers.length > 0
-                ? item.verifiers.map((row) => ({ workforceUserId: row.workforceUserId }))
-                : [{ workforceUserId: "" }],
+            extraPoints: item.extraPoints ?? [],
+            stepNa: item.stepNa ?? [],
+            crew: item.crew ?? [],
+            verifiers: item.verifiers ?? [],
           }))
         : [],
     gasTestingRequired: permit.gasTestingRequired === true,
@@ -190,7 +194,7 @@ function optionalUuid(value: string): string | undefined {
   return value.trim() ? value.trim() : undefined;
 }
 
-export function formToSavePayload(form: PermitFormState, options?: { executorOnly?: boolean }): SaveDraftPayload {
+export function formToSavePayload(form: PermitFormState, options?: { executorOnly?: boolean }): DraftFields {
   const payload = {
     permitTypeId: form.permitTypeId,
     title: form.title,
@@ -216,16 +220,30 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
       .filter((item) => item.procedureId.trim())
       .map((item) => ({
         procedureId: item.procedureId,
-        extraPoints: item.extraPoints.filter((point) => point.pointCode.trim()),
-        stepNa: item.stepNa
-          .filter((row) => row.basePointId || row.extraPointCode)
+        extraPoints: (item.extraPoints ?? [])
+          .filter((point) => point.pointCode.trim())
+          .map((point) => ({
+            pointCode: point.pointCode,
+            energyType: point.energyType,
+            magnitude: point.magnitude,
+            locationText: point.locationText,
+            action: point.action,
+            device: point.device,
+            verificationMethod: point.verificationMethod,
+          })),
+        stepNa: (item.stepNa ?? [])
+          .filter((row) => row.reason.trim())
           .map((row) => ({
             ...(row.basePointId ? { basePointId: row.basePointId } : {}),
             ...(row.extraPointCode ? { extraPointCode: row.extraPointCode } : {}),
             reason: row.reason,
           })),
-        crew: item.crew.filter((row) => row.workforceUserId.trim()),
-        verifiers: item.verifiers.filter((row) => row.workforceUserId.trim()),
+        crew: (item.crew ?? [])
+          .filter((row) => row.workforceUserId.trim())
+          .map((row) => ({ workforceUserId: row.workforceUserId })),
+        verifiers: (item.verifiers ?? [])
+          .filter((row) => row.workforceUserId.trim())
+          .map((row) => ({ workforceUserId: row.workforceUserId })),
       })),
     gasTestingRequired: form.gasTestingRequired,
     gasTesting: form.gasTesting.filter((item) => item.gasTestingCatalogueId.trim()),
@@ -274,7 +292,7 @@ export function missingRequired(template: PermitTemplate, form: PermitFormState)
   const answers = form.formResponses[template.id] ?? {};
   return (template.config?.sections ?? [])
     .flatMap((section) => section.fields)
-    .filter((field) => field.required && !isAnswered(answers[field.id]))
+    .filter((field) => requiredForSubmit(field) && !isAnswered(answers[field.id]))
     .map((field) => field.label);
 }
 
@@ -282,6 +300,20 @@ export function missingRequired(template: PermitTemplate, form: PermitFormState)
  * `templates`: the templates that apply to this permit (see applicableTemplates).
  * `machinery`: active machines; machinery is required when the chosen workstation has any.
  */
+/** The control each editor error belongs to, so its link and its message go to the field itself. */
+export const ERROR_FIELDS: Record<string, string> = {
+  "Title is required": "title",
+  "Department is required": "departmentId",
+  "Location is required": "locationId",
+  "Planned start date and time are required": "plannedStartAt",
+  "Planned end date and time are required": "plannedEndAt",
+  "Planned end must be after planned start": "plannedEndAt",
+  "Assign a primary executor before handing off on-site details": "primary-executor",
+  "Workstation is required": "workstationId",
+  "Machinery is required": "machineryId",
+  "Machinery is required when LOTOTO is required": "machineryId",
+};
+
 export function validateStep(
   form: PermitFormState,
   step: number,
@@ -326,17 +358,6 @@ export function validateStep(
       }
       if (!form.lototo.some((item) => item.procedureId.trim())) {
         errors.push("Select at least one LOTOTO procedure");
-      }
-      for (const item of form.lototo.filter((row) => row.procedureId.trim())) {
-        if (!item.crew.some((row) => row.workforceUserId.trim())) {
-          errors.push("Each LOTOTO procedure needs at least one crew member");
-        }
-        if (!item.verifiers.some((row) => row.workforceUserId.trim())) {
-          errors.push("Each LOTOTO procedure needs at least one verifier");
-        }
-        if (item.stepNa.some((row) => (row.basePointId || row.extraPointCode) && !row.reason.trim())) {
-          errors.push("N/A isolation steps require a reason");
-        }
       }
     }
     if (form.gasTestingRequired) {

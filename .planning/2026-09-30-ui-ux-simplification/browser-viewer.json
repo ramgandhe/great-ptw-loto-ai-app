@@ -1,0 +1,457 @@
+{
+  "role": "viewer",
+  "results": [
+    {
+      "title": "PermitWiseAI",
+      "url": "/dashboard",
+      "headings": [
+        "Good evening, Robert",
+        "Needs you",
+        "Your permits",
+        "Where your permits stand",
+        "Starting in the next 7 days"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n\nSafety\n\nLOTOTO\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\nR\nRobert Wilson\nViewer\nGood evening, Robert\n\nYou are all caught up.\n\nNeeds you\n\nGrouped by what you have to do. Urgent jobs glow.\n\nNothing needs you right now\n\nNew approvals, hand-offs and returned permits will appear here.\n\nYour permits\n\nWhat you are working on and what is coming up.\n\n0\n\nPermits you can see\n\n0\n\nApproved or in progress\n\nWhere your permits stand\n\nBy lifecycle stage.\n\nNo permits yet.\nStarting in the next 7 days\n\nNothing scheduled to start this week.",
+      "links": [
+        {
+          "text": "0Permits you can see",
+          "href": "/permits"
+        },
+        {
+          "text": "0Approved or in progress",
+          "href": "/permits?stage=live"
+        }
+      ],
+      "controls": [],
+      "overflow": false,
+      "route": "/dashboard",
+      "http": 200,
+      "mobile": {
+        "overflow": false,
+        "sticky": [
+          {
+            "text": "Good evening, RobertYou are all caught up.",
+            "height": 149
+          }
+        ]
+      }
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/permits",
+      "headings": [
+        "Permits"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n\nSafety\n\nLOTOTO\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\nR\nRobert Wilson\nViewer\nPermits\n\nEvery permit you can see. The ones waiting on you come first.\n\nSearch permits\nAll\n0\nNeeds you\n0\nExact statuses\n\nNo permits match these filters\n\nPermits you raise or are assigned will appear here.",
+      "links": [],
+      "controls": [
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search permits",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "All0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Needs you0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Exact statuses",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/permits",
+      "http": 200,
+      "mobile": {
+        "overflow": false,
+        "sticky": [
+          {
+            "text": "PermitsEvery permit you can see. The ones waiting on you come first.Search permitsAll0Needs you0Exact statuses",
+            "height": 225
+          }
+        ]
+      }
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/lototo",
+      "headings": [
+        "LOTOTO"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n\nSafety\n\nLOTOTO\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\nR\nRobert Wilson\nViewer\nLOTOTO\n\nLock-out, tag-out, try-out: plan the isolation of hazardous energy, apply it before work, and restore after.\n\nAll plans\n9\nReady and in execution\n2\nRestoration\n0\nDraft\n7\nReady\n1\nIn execution\n1\nCompleted\n0\n9\nPlans\n1\nReady to isolate\n1\nIn execution\n0\nAwaiting restoration\nPlan\nMachinery\nStatus\nNext step\nAPI iso check 1790660174748\n\nUpdated 2 days ago\n\nMain compressor\nDraft\nAPI iso check 1790659971472\n\nUpdated 2 days ago\n\nMain compressor\nDraft\nAPI iso check 1790659959287\n\nUpdated 2 days ago\n\nMain compressor\nDraft\nAPI iso check 1790659943180\n\nUpdated 2 days ago\n\nMain compressor\nDraft\nAPI iso check 1790659757605\n\nUpdated 2 days ago\n\nMain compressor\nDraft\nUI check: pump isolation\n\nUpdated 2 days ago\n\nMain compressor\nDraft\nCompressor electrical isolation (draft plan)\n\nLOTOTO-DEMO-001\nUpdated 4 days ago\n\nMain compressor\nDraft\nActive pump isolation — operator applying locks\n\nLOTOTO-DEMO-003\nUpdated 4 days ago\n\nCooling water pump\nIn execution\nIsolating\nContinue\nPump mechanical isolation (ready)\n\nLOTOTO-DEMO-002\nUpdated 4 days ago\n\nCooling water pump\nReady\nStart isolation",
+      "links": [
+        {
+          "text": "9Plans",
+          "href": "/lototo"
+        },
+        {
+          "text": "1Ready to isolate",
+          "href": "/lototo?view=active"
+        },
+        {
+          "text": "1In execution",
+          "href": "/lototo?view=active"
+        },
+        {
+          "text": "0Awaiting restoration",
+          "href": "/lototo?view=restoration"
+        },
+        {
+          "text": "API iso check 1790660174748",
+          "href": "/lototo/plans/140669ee-4aeb-49f0-b988-7991494ca500"
+        },
+        {
+          "text": "API iso check 1790659971472",
+          "href": "/lototo/plans/6027093e-c335-4260-b6da-37d10f4b2301"
+        },
+        {
+          "text": "API iso check 1790659959287",
+          "href": "/lototo/plans/4027cd8f-f568-4e4e-9333-960e2820458b"
+        },
+        {
+          "text": "API iso check 1790659943180",
+          "href": "/lototo/plans/8ed92b79-8bc7-4c87-8b29-80307c7eddcf"
+        },
+        {
+          "text": "API iso check 1790659757605",
+          "href": "/lototo/plans/4e105e7b-674e-4f22-bf91-a5d46fe287ea"
+        },
+        {
+          "text": "UI check: pump isolation",
+          "href": "/lototo/plans/6ecd26fb-dbe1-4a23-b671-66ef3fb8978a"
+        },
+        {
+          "text": "Compressor electrical isolation (draft plan)",
+          "href": "/lototo/plans/00000000-0000-4000-8000-000000000401"
+        },
+        {
+          "text": "Active pump isolation — operator applying locks",
+          "href": "/lototo/plans/00000000-0000-4000-8000-000000000403"
+        },
+        {
+          "text": "Continue",
+          "href": "/lototo/execute/00000000-0000-4000-8000-000000000403"
+        },
+        {
+          "text": "Pump mechanical isolation (ready)",
+          "href": "/lototo/plans/00000000-0000-4000-8000-000000000402"
+        },
+        {
+          "text": "Start isolation",
+          "href": "/lototo/execute/00000000-0000-4000-8000-000000000402"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "All plans9",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Ready and in execution2",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Restoration0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Draft7",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Ready1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "In execution1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Completed0",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/lototo",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/simops",
+      "headings": [
+        "SIMOPS"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n\nSafety\n\nLOTOTO\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\nR\nRobert Wilson\nViewer\nSIMOPS\n\nSimultaneous operations: work that clashes on place, equipment, time or permit type. Resolve high severity before work starts.\n\nNeeds resolving\n7\nResolved\n0\nHigh\n7\nMedium\n0\nLow\n0\nSame location\n1\nSame equipment\n6\n7\nOpen clashes\n7\nHigh severity\n7\nNot assessed yet\n0\nResolved\nClash\nDetected\nStatus\nNext step\nOverlapping permits share equipment during the same schedule window.\n\nSame equipment\n\n3 days ago\nHigh severity\nOpen\nOverlapping permits share equipment during the same schedule window.\n\nSame equipment\n\n3 days ago\nHigh severity\nOpen\nOverlapping permits share equipment during the same schedule window.\n\nSame equipment\n\n3 days ago\nHigh severity\nOpen\nOverlapping permits share equipment during the same schedule window.\n\nSame equipment\n\n3 days ago\nHigh severity\nOpen\nOverlapping permits share equipment during the same schedule window.\n\nSame equipment\n\n3 days ago\nHigh severity\nOpen\nOverlapping permits share equipment during the same schedule window.\n\nSame equipment\n\n3 days ago\nHigh severity\nOpen\nOverlapping hot work and excavation at tank farm\n\nSame location\n\n15 Aug 2026\nHigh severity\nOpen",
+      "links": [
+        {
+          "text": "7Open clashes",
+          "href": "/simops"
+        },
+        {
+          "text": "7High severity",
+          "href": "/simops?severity=high"
+        },
+        {
+          "text": "7Not assessed yet",
+          "href": "/simops"
+        },
+        {
+          "text": "0Resolved",
+          "href": "/simops?view=history"
+        },
+        {
+          "text": "Overlapping permits share equipment during the same schedule window.",
+          "href": "/simops/conflicts/8a6aaabc-fd02-4800-b080-51fb8d821439"
+        },
+        {
+          "text": "Overlapping permits share equipment during the same schedule window.",
+          "href": "/simops/conflicts/dd403dd2-e6fa-4930-a2d6-d41290c02bac"
+        },
+        {
+          "text": "Overlapping permits share equipment during the same schedule window.",
+          "href": "/simops/conflicts/b7eb20e0-43da-4add-9dd1-c4b12cc445b9"
+        },
+        {
+          "text": "Overlapping permits share equipment during the same schedule window.",
+          "href": "/simops/conflicts/ddaae05c-7063-4220-b3dc-2a4e7b3240f1"
+        },
+        {
+          "text": "Overlapping permits share equipment during the same schedule window.",
+          "href": "/simops/conflicts/01a6adeb-c576-4da9-88c2-82fc40abace7"
+        },
+        {
+          "text": "Overlapping permits share equipment during the same schedule window.",
+          "href": "/simops/conflicts/2a000458-eef3-482d-89f7-f374109876a9"
+        },
+        {
+          "text": "Overlapping hot work and excavation at tank farm",
+          "href": "/simops/conflicts/00000000-0000-4000-8000-000000000601"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Needs resolving7",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Resolved0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "High7",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Medium0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Low0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Same location1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Same equipment6",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/simops",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/incidents",
+      "headings": [
+        "Incidents"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n\nSafety\n\nLOTOTO\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\nR\nRobert Wilson\nViewer\nIncidents\n\nIncidents, near misses and unsafe conditions. The most serious open ones come first.\n\nNeeds follow-up\n12\nClosed\n1\nCritical\n0\nHigh\n1\nMedium\n11\nLow\n0\nIncident\n0\nNear miss\n11\nUnsafe condition\n1\nOpen\n1\nPending HOD decision\n4\nInvestigating\n7\n12\nOpen\n1\nCritical or high, open\n4\nAwaiting HOD decision\n1\nClosed\nIncident\nWhere and when\nStatus\nNext step\nNear-miss — dropped tool from scaffold\n\nINC-DEMO-002\nNear miss\nHigh priority\n\nTank farm scaffold\n10 Aug 2026\nPending HOD decision\nNear miss mumiga6m\n\nINC-2026-9A244249\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mumidzfb\n\nINC-2026-C35816B0\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mum9rjpn\n\nINC-2026-C7B34838\nNear miss\nMedium priority\n\n2 days ago\nInvestigating\nNear miss mum8idio\n\nINC-2026-83D5B160\nNear miss\nMedium priority\n\n2 days ago\nInvestigating\nNear miss mum8g72m\n\nINC-2026-26B56A9D\nNear miss\nMedium priority\n\n2 days ago\nInvestigating\nNear miss mum8crvf\n\nINC-2026-0D9925D2\nNear miss\nMedium priority\n\n2 days ago\nInvestigating\nNear miss mum83bgi\n\nINC-2026-629EAD91\nNear miss\nMedium priority\n\n2 days ago\nInvestigating\nUI check: loose grating\n\nINC-2026-A1340D97\nNear miss\nMedium priority\n\n2 days ago\nPending HOD decision\nUI check: loose grating\n\nINC-2026-73B1ECFE\nNear miss\nMedium priority\n\n2 days ago\nPending HOD decision\nUI check: loose grating\n\nINC-2026-8135E660\nNear miss\nMedium priority\n\n2 days ago\nPending HOD decision\nOpen — oil leak near work area\n\nINC-DEMO-001\nUnsafe condition\nMedium priority\n\nCompressor bay\n15 Aug 2026\nOpen",
+      "links": [
+        {
+          "text": "12Open",
+          "href": "/incidents"
+        },
+        {
+          "text": "1Critical or high, open",
+          "href": "/incidents?priority=critical,high"
+        },
+        {
+          "text": "4Awaiting HOD decision",
+          "href": "/incidents?status=pending_hod_decision"
+        },
+        {
+          "text": "1Closed",
+          "href": "/incidents?view=closed"
+        },
+        {
+          "text": "Near-miss — dropped tool from scaffold",
+          "href": "/incidents/00000000-0000-4000-8000-000000000502"
+        },
+        {
+          "text": "Near miss mumiga6m",
+          "href": "/incidents/0c225aaf-7e56-46bf-9be5-f04b0318c6b0"
+        },
+        {
+          "text": "Near miss mumidzfb",
+          "href": "/incidents/f57da014-6c11-4335-a199-84f1f497c589"
+        },
+        {
+          "text": "Near miss mum9rjpn",
+          "href": "/incidents/041540d6-0851-4902-a229-db6bf56e62ed"
+        },
+        {
+          "text": "Near miss mum8idio",
+          "href": "/incidents/2e7f400a-dc82-4a9b-af94-edca258f2dda"
+        },
+        {
+          "text": "Near miss mum8g72m",
+          "href": "/incidents/b84d9463-8e92-489d-9c30-f63759bf3ca1"
+        },
+        {
+          "text": "Near miss mum8crvf",
+          "href": "/incidents/d1955ee5-3696-4b97-b3dd-fce0997e652c"
+        },
+        {
+          "text": "Near miss mum83bgi",
+          "href": "/incidents/18df9138-610e-4c15-a172-ecb3623e0ddd"
+        },
+        {
+          "text": "UI check: loose grating",
+          "href": "/incidents/ff6e4874-8a15-4ad9-bff1-d4e6ba0e04ac"
+        },
+        {
+          "text": "UI check: loose grating",
+          "href": "/incidents/0ff2b7eb-2d78-4d12-8d4e-d9cb27152f69"
+        },
+        {
+          "text": "UI check: loose grating",
+          "href": "/incidents/3a8b2415-7612-402d-a6c0-a903f85fce81"
+        },
+        {
+          "text": "Open — oil leak near work area",
+          "href": "/incidents/00000000-0000-4000-8000-000000000501"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Needs follow-up12",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Closed1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Critical0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "High1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Medium11",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Low0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Incident0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Near miss11",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Unsafe condition1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Open1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Pending HOD decision4",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Investigating7",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/incidents",
+      "http": 200
+    }
+  ],
+  "errors": []
+}

@@ -69,6 +69,18 @@ export class LototoProcedureController {
   }
 
   @Roles(...LOTOTO_LIBRARY_WRITE_ROLES)
+  @Post(':id/deactivate')
+  deactivate(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.procedureService.deactivate(id, user);
+  }
+
+  @Roles(...LOTOTO_LIBRARY_WRITE_ROLES)
+  @Post(':id/reactivate')
+  reactivate(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.procedureService.reactivate(id, user);
+  }
+
+  @Roles(...LOTOTO_LIBRARY_WRITE_ROLES)
   @Post(':id/lockout-points/:pointId/photo')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
   uploadPhoto(

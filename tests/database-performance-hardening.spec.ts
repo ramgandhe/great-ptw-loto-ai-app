@@ -10,14 +10,15 @@ describe('Database performance hardening (PUS-218)', () => {
 
   beforeAll(async () => {
     pool = new Pool({ connectionString: testDatabaseUrl });
+    const db = drizzle(pool, { schema });
     try {
       await pool.query('SELECT 1');
       canConnect = true;
-      const db = drizzle(pool, { schema });
-      await migrate(db, { migrationsFolder });
     } catch {
       canConnect = false;
     }
+    // A failed migration fails the suite; it must never look like "no database".
+    if (canConnect) await migrate(db, { migrationsFolder });
   });
 
   afterAll(async () => {

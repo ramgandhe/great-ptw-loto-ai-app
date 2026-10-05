@@ -1,35 +1,36 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 import { router } from "expo-router";
+import { ActionBar, AppText, Banner, Button, Card, ChoiceGroup, DateTimeField, EmptyState, InfoList, PageHeader, Screen, TextField, ToggleRow } from "@/components/ui";
+import { CalendarClock, ChevronRight, Paperclip, Pencil, Plus, Save, Send } from "@/components/ui/icons";
+import { formatWindow } from "@/lib/format";
 import { ApiError } from "@/lib/api";
-import { createPermit, savePermitDraft, submitPermit, uploadPermitAttachment } from "@/lib/permit/api";
+import { createPermit, getPermit, isRevisionConflict, savePermitDraft, submitPermit, uploadPermitAttachment } from "@/lib/permit/api";
 import {
   createEmptyPermitForm,
   formToSavePayload,
   PERMIT_WIZARD_STEPS,
   permitDetailToForm,
   shouldSaveExecutorPayload,
+  toDateInputValue,
+  toStoredStep,
   validateStep,
 } from "@/lib/permit/form";
 import {
   isOfflineError,
+  isLocalPermitId,
   queuePermitMutation,
   saveLocalPermitDraft,
 } from "@/lib/permit/offline";
+import { countPendingSaves, getLocalIdMap } from "@/lib/offline";
 import type { PermitDetail, PermitFormState } from "@/lib/permit/types";
 import { isEditablePermitStatus } from "@/lib/permit/status";
 import * as DocumentPicker from "expo-document-picker";
 import { SelectField } from "@/components/ui/select-field";
-import { listLototoPlans } from "@/lib/lototo/api";
-import type { LototoPlan } from "@/lib/lototo/types";
+import { TemplateFormFill } from "@/components/permit/template-form-fill";
+import { applicableTemplates, missingFormAnswers, withPrefill, type TemplatePrefillSource } from "@/lib/permit/forms";
+import { listLototoProcedures } from "@/lib/lototo/api";
+import type { LototoProcedureListItem } from "@/lib/lototo/types";
 import { listGasTesting, type GasTestingRecord } from "@/lib/master-data/api";
 import {
   filterMachineryByWorkstation,
@@ -37,6 +38,8 @@ import {
   formatWorkforceOptionLabel,
   loadPermitFormOptions,
 } from "@/lib/permit/form-options";
+import { mergeAfterConflict, resolveConflict, type FieldConflict } from "@/lib/permit/conflict";
+import { useTheme } from "@/providers/theme-provider";
 
 type PermitWizardProps = {
   mode: "create" | "edit";
@@ -49,16 +52,8 @@ function createLocalId() {
   return `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-const inputStyle = {
-  borderWidth: 1,
-  borderColor: "#d1d5db",
-  borderRadius: 8,
-  paddingHorizontal: 12,
-  paddingVertical: 10,
-  fontSize: 14,
-} as const;
-
 export function PermitWizard({ mode, permitId, initialDetail, initialForm }: PermitWizardProps) {
+  const { tokens } = useTheme();
   const [form, setForm] = useState<PermitFormState>(
     initialForm ?? (initialDetail ? permitDetailToForm(initialDetail) : createEmptyPermitForm()),
   );
@@ -67,12 +62,18 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   const [message, setMessage] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [queuedOffline, setQueuedOffline] = useState(false);
+  // The revision this form was loaded or last saved at; the server refuses saves made against an older one.
+  const [revision, setRevision] = useState(initialDetail?.permit.draftRevision ?? 0);
+  // The form as last loaded or saved: the common ancestor when someone else's save has to be merged in.
+  const [base, setBase] = useState<PermitFormState>(() => (initialDetail ? permitDetailToForm(initialDetail) : initialForm ?? createEmptyPermitForm()));
+  // Values both people changed differently; each needs a choice before saving again.
+  const [conflicts, setConflicts] = useState<FieldConflict[]>([]);
   const [attachments, setAttachments] = useState(initialDetail?.attachments ?? []);
   const [formOptions, setFormOptions] = useState<Awaited<ReturnType<typeof loadPermitFormOptions>> | null>(
     null,
   );
   const [optionsLoading, setOptionsLoading] = useState(true);
-  const [machineryLototo, setMachineryLototo] = useState<LototoPlan[]>([]);
+  const [machineryLototo, setMachineryLototo] = useState<LototoProcedureListItem[]>([]);
   const [workstationGasTesting, setWorkstationGasTesting] = useState<GasTestingRecord[]>([]);
 
   const filteredMachinery = useMemo(
@@ -84,6 +85,14 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     loadPermitFormOptions()
       .then((options) => {
         setFormOptions(options);
+        // On a new permit, a list with one entry needs no choosing.
+        const only = (list: { id: string }[], id: string) => id || (mode === "create" && list.length === 1 ? list[0].id : "");
+        setForm((current) => ({
+          ...current,
+          plantId: only(options.plants, current.plantId),
+          departmentId: only(options.departments, current.departmentId),
+          locationId: only(options.locations, current.locationId),
+        }));
         setForm((current) => {
           if (current.executors.some((executor) => (executor.workforceUserId ?? "").trim())) {
             return current;
@@ -114,7 +123,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
       setMachineryLototo([]);
       return;
     }
-    listLototoPlans({ machineryId: form.machineryId })
+    listLototoProcedures({ machineryId: form.machineryId, published: true })
       .then(setMachineryLototo)
       .catch(() => setMachineryLototo([]));
   }, [form.machineryId]);
@@ -132,66 +141,142 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   const permitStatus = initialDetail?.permit.status ?? "draft";
   const isReadOnly = !isEditablePermitStatus(permitStatus);
 
-  const persistDraft = useCallback(async () => {
-    const payload = formToSavePayload(form, {
+  const forms = useMemo(() => applicableTemplates(formOptions?.templates ?? [], form.permitTypeId), [formOptions?.templates, form.permitTypeId]);
+  // What the permit already says, for the check sheets' "fill from permit" fields.
+  const prefillSources = useMemo((): Record<TemplatePrefillSource, string | number> => {
+    const nameOf = (list: { id: string; name: string }[] | undefined, id: string) => list?.find((row) => row.id === id)?.name ?? "";
+    const crew = form.executors
+      .map((e) => formOptions?.executors.find((o) => o.id === e.workforceUserId)?.name.replace(/ \(you\)$/, ""))
+      .filter((name): name is string => Boolean(name));
+    const place = [...new Set([nameOf(formOptions?.locations, form.locationId), nameOf(formOptions?.workstations, form.workstationId)].filter(Boolean))];
+    return {
+      department: nameOf(formOptions?.departments, form.departmentId),
+      location: place.join(", "),
+      equipment: nameOf(formOptions?.machinery, form.machineryId),
+      "job-description": [form.title, form.workScope].filter((v) => v.trim()).join("\n\n"),
+      "valid-from": form.plannedStartAt.slice(0, 10),
+      "valid-to": form.plannedEndAt.slice(0, 10),
+      "crew-names": crew.join(", "),
+      "crew-count": crew.length || "",
+    };
+  }, [form, formOptions]);
+  // Those answers are not asked again: they follow the permit and are saved with it.
+  const fromPermit = useMemo(
+    () => new Set((Object.keys(prefillSources) as TemplatePrefillSource[]).filter((key) => prefillSources[key] !== "")),
+    [prefillSources],
+  );
+  const prefilled = useMemo(() => ({ ...form, formResponses: withPrefill(form.formResponses, forms, prefillSources) }), [form, forms, prefillSources]);
+
+  const persistDraft = useCallback(async (): Promise<{ id: string; revision: number; queued: boolean }> => {
+    const payload = formToSavePayload(prefilled, {
       executorOnly: shouldSaveExecutorPayload(formOptions?.userRoles ?? []),
     });
+    let id = currentPermitId;
+    let baseRevision = revision;
+    // A permit created offline has a local id until its create syncs; then use the server id.
+    if (id && isLocalPermitId(id)) {
+      const serverId = (await getLocalIdMap()).get(id);
+      if (serverId) {
+        id = serverId;
+        setCurrentPermitId(serverId);
+      } else {
+        // Created offline at revision 0; each save queued behind the create adds one.
+        baseRevision = await countPendingSaves(`/permits/${id}`);
+      }
+    }
 
     try {
-      if (!currentPermitId) {
+      if (isLocalPermitId(id)) {
+        // Its create has not synced yet, so this save can only be queued behind it.
+        throw new TypeError("Network request failed");
+      }
+      if (!id) {
         const created = await createPermit({
-          permitTypeId: payload.permitTypeId!,
-          title: payload.title!,
-          workScope: payload.workScope,
-          currentStep: form.currentStep,
+          permitTypeId: form.permitTypeId,
+          title: form.title,
+          workScope: form.workScope || undefined,
+          currentStep: toStoredStep(form.currentStep),
         });
-        setCurrentPermitId(created.permit.id);
-        await savePermitDraft(created.permit.id, payload);
-        setQueuedOffline(false);
-        return created.permit.id;
+        // Keep the id before the follow-up save, so a failed save is retried as a save, not a second create.
+        id = created.permit.id;
+        baseRevision = created.permit.draftRevision;
+        setCurrentPermitId(id);
+        setRevision(baseRevision);
       }
 
-      await savePermitDraft(currentPermitId, payload);
+      if (conflicts.length) {
+        // Not the server's conflict code: this must not fetch and merge again.
+        throw new ApiError("Choose which value to keep for each one listed above, then save again.", "CONFLICT_UNRESOLVED");
+      }
+      const saved = await savePermitDraft(id, { ...payload, expectedRevision: baseRevision });
+      setBase(permitDetailToForm(saved));
+      setRevision(saved.permit.draftRevision);
       setQueuedOffline(false);
-      return currentPermitId;
+      return { id, revision: saved.permit.draftRevision, queued: false };
     } catch (error) {
+      if (isRevisionConflict(error) && id) {
+        // Merge in the other person's save: their unrelated changes are kept, this person's are kept,
+        // and values both changed are listed for a choice. Saving again stays an explicit step.
+        const latest = await getPermit(id);
+        const savedForm = permitDetailToForm(latest);
+        const result = mergeAfterConflict(base, form, savedForm);
+        setForm({ ...result.merged, currentStep: form.currentStep });
+        setBase(savedForm);
+        setConflicts(result.conflicts);
+        setRevision(latest.permit.draftRevision);
+        throw new ApiError(
+          result.conflicts.length
+            ? "Someone else saved this permit. Their other changes are now in the form and yours are kept. Choose which value to keep where you both changed it, then save again."
+            : "Someone else saved this permit. Their changes are now in the form and yours are kept. Save again to save both.",
+          "PERMIT_REVISION_CONFLICT",
+          409,
+        );
+      }
       if (!isOfflineError(error)) {
         throw error;
       }
 
-      const localId = currentPermitId ?? createLocalId();
-      await saveLocalPermitDraft(localId, payload.title ?? "Untitled permit", payload);
+      const localId = id ?? createLocalId();
+      await saveLocalPermitDraft(localId, form.title || "Untitled permit", payload);
 
-      if (!currentPermitId) {
-        await queuePermitMutation({
-          method: "POST",
-          path: "/permits",
-          payload,
-          localDraftId: localId,
-          title: form.title || "Untitled permit",
-        });
+      // A new permit is queued as one create with everything entered (it starts at revision 0).
+      // Saves carry the revision they were made against; on replay a newer server copy makes
+      // them fail visibly instead of overwriting it.
+      if (id) {
+        await queuePermitMutation({ method: "PATCH", path: `/permits/${id}`, payload: { ...payload, expectedRevision: baseRevision } });
       } else {
-        await queuePermitMutation({
-          method: "PATCH",
-          path: `/permits/${currentPermitId}`,
-          payload,
-          localDraftId: localId,
-          title: form.title || "Untitled permit",
-        });
+        await queuePermitMutation({ method: "POST", path: "/permits", payload, localRef: localId });
       }
 
       setCurrentPermitId(localId);
+      setRevision(id ? baseRevision + 1 : 0);
       setQueuedOffline(true);
-      return localId;
+      // A queued save bumps the revision once when it replays; a create leaves it at 0.
+      return { id: localId, revision: id ? baseRevision + 1 : 0, queued: true };
     }
-  }, [currentPermitId, form, formOptions?.userRoles]);
+  }, [currentPermitId, form, prefilled, formOptions?.userRoles, revision, base, conflicts.length]);
+
+  const conflictLabel = (key: string) => {
+    const [kind, a, b] = key.split(":");
+    if (kind === "field") return a.replace(/Id$/, "").replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+    const template = formOptions?.templates.find((t) => t.id === a);
+    return `${template?.name ?? "Form"}: ${template?.config?.sections.flatMap((s) => s.fields).find((f) => f.id === b)?.label ?? b}`;
+  };
+  const describeValue = (value: unknown): string => {
+    if (value === undefined || value === null || value === "") return "empty";
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (Array.isArray(value)) return value.length === 0 ? "none" : `${value.length} item${value.length === 1 ? "" : "s"}`;
+    if (typeof value === "object") return (value as { name?: string }).name ?? "set";
+    const lists: (readonly { id: string; name: string }[] | undefined)[] = [formOptions?.permitTypes, formOptions?.plants, formOptions?.departments, formOptions?.locations, formOptions?.workstations, formOptions?.machinery];
+    return lists.flatMap((list) => list ?? []).find((row) => row.id === value)?.name ?? String(value);
+  };
 
   const handleSaveDraft = async () => {
     setIsBusy(true);
     setMessage(null);
     try {
-      await persistDraft();
-      setMessage(queuedOffline ? "Draft saved offline and queued for sync" : "Draft saved");
+      const saved = await persistDraft();
+      setMessage(saved.queued ? "Draft saved on this phone. Pending server confirmation." : "Draft saved");
     } catch (error) {
       setMessage(error instanceof ApiError ? error.message : "Failed to save draft");
     } finally {
@@ -199,27 +284,6 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     }
   };
 
-  const handleNext = async () => {
-    const stepErrors = validateStep(form, form.currentStep);
-    setErrors(stepErrors);
-    if (stepErrors.length > 0) {
-      return;
-    }
-
-    setIsBusy(true);
-    setMessage(null);
-    try {
-      await persistDraft();
-      setForm((current) => ({
-        ...current,
-        currentStep: Math.min(current.currentStep + 1, PERMIT_WIZARD_STEPS.length - 1),
-      }));
-    } catch (error) {
-      setMessage(error instanceof ApiError ? error.message : "Failed to save progress");
-    } finally {
-      setIsBusy(false);
-    }
-  };
 
   const handlePickAttachment = async () => {
     if (!currentPermitId) {
@@ -255,7 +319,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   };
 
   const handleSubmit = async () => {
-    const allErrors = PERMIT_WIZARD_STEPS.flatMap((_, index) => validateStep(form, index));
+    const allErrors = [...PERMIT_WIZARD_STEPS.flatMap((_, index) => validateStep(form, index)), ...missingFormAnswers(forms, prefilled.formResponses)];
     setErrors(allErrors);
     if (allErrors.length > 0) {
       return;
@@ -264,20 +328,16 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     setIsBusy(true);
     setMessage(null);
     try {
-      const id = (await persistDraft())!;
-      if (queuedOffline) {
-        await queuePermitMutation({
-          method: "POST_SUBMIT",
-          path: `/permits/${id}/submit`,
-          localDraftId: id,
-          title: form.title,
-        });
-        setMessage("Permit queued for submission when online");
+      // Always save the current edits first; submit only after that save, at its revision.
+      const { id, revision: savedRevision, queued } = await persistDraft();
+      if (queued) {
+        await queuePermitMutation({ method: "POST", path: `/permits/${id}/submit`, payload: { expectedRevision: savedRevision } });
+        setMessage("Submission is waiting for the server. It is not submitted until it syncs.");
         router.replace("/permits");
         return;
       }
 
-      await submitPermit(id);
+      await submitPermit(id, savedRevision);
       router.replace(`/permits/${id}`);
     } catch (error) {
       if (error instanceof ApiError && Array.isArray(error.details)) {
@@ -290,495 +350,440 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   };
 
   const step = form.currentStep;
+  const last = PERMIT_WIZARD_STEPS.length - 1;
+  // Steps up to the furthest one reached can be revisited from the step bar; an existing permit opens all of them.
+  const [reached, setReached] = useState(mode === "edit" ? last : step);
+  const goTo = (next: number) => {
+    setErrors([]);
+    setReached((r) => Math.max(r, next));
+    setForm((current) => ({ ...current, currentStep: next }));
+  };
+  const handleNext = () => {
+    const stepErrors = isReadOnly ? [] : [...validateStep(form, step), ...(step === 4 ? missingFormAnswers(forms, prefilled.formResponses) : [])];
+    setErrors(stepErrors);
+    if (stepErrors.length === 0) goTo(step + 1);
+  };
+
+  const nameIn = (list: { id: string; name: string }[] | undefined, id: string) => list?.find((row) => row.id === id)?.name;
+  const hazardIds = form.hazards.map((h) => h.hazardCategoryId).filter(Boolean);
+  const ppeIds = form.ppe.map((p) => p.ppeCatalogueId).filter(Boolean);
+  const notSet = "Not set";
+  const crewNames = form.executors.map((e) => nameIn(formOptions?.executors, e.workforceUserId ?? "")).filter(Boolean).join(", ");
+  const reviewSections: { step: number; rows: [string, string][] }[] = [
+    { step: 0, rows: [["Type", nameIn(formOptions?.permitTypes, form.permitTypeId) ?? notSet], ["Title", form.title || notSet], ["Work", form.workScope || "—"]] },
+    {
+      step: 1,
+      rows: [
+        ["Location", [nameIn(formOptions?.locations, form.locationId), nameIn(formOptions?.workstations, form.workstationId)].filter(Boolean).join(", ") || notSet],
+        ["Machinery", nameIn(formOptions?.machinery, form.machineryId) ?? "—"],
+        ["When", formatWindow(form.plannedStartAt || null, form.plannedEndAt || null)],
+      ],
+    },
+    {
+      step: 2,
+      rows: [
+        ["Hazards", hazardIds.map((id) => nameIn(formOptions?.hazards, id)).join(", ") || notSet],
+        ["PPE", ppeIds.map((id) => nameIn(formOptions?.ppe, id)).join(", ") || notSet],
+        ["Isolation", form.lototoRequired ? `${form.lototo.filter((l) => l.procedureId).length} procedure(s)` : "Not needed"],
+        ["Gas testing", form.gasTestingRequired ? `${form.gasTesting.filter((g) => g.gasTestingCatalogueId).length} test(s)` : "Not needed"],
+      ],
+    },
+    { step: 3, rows: [["Crew", crewNames || notSet]] },
+    {
+      step: 4,
+      rows: forms.length
+        ? forms.map((t) => {
+            const left = missingFormAnswers([t], prefilled.formResponses).length ? "Answers missing" : "Done";
+            return [t.name, left] as [string, string];
+          })
+        : [["Check sheets", "None for this type"]],
+    },
+  ];
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{mode === "create" ? "Create permit" : "Edit draft"}</Text>
-      <Text style={styles.subtitle}>{PERMIT_WIZARD_STEPS[step]}</Text>
+    <Screen
+      key={step}
+      footer={
+        <ActionBar>
+          {step > 0 ? <Button label="Back" variant="outline" onPress={() => goTo(step - 1)} style={{ marginRight: "auto" }} /> : null}
+          {!isReadOnly ? <Button label="Save draft" variant="secondary" icon={Save} loading={isBusy} onPress={() => void handleSaveDraft()} /> : null}
+          {step < last ? (
+            <Button label="Next" icon={ChevronRight} onPress={handleNext} />
+          ) : !isReadOnly ? (
+            <Button label="Submit" icon={Send} disabled={isBusy} onPress={() => void handleSubmit()} />
+          ) : null}
+        </ActionBar>
+      }
+    >
+      <PageHeader
+        title={mode === "create" ? "Create permit" : "Edit permit"}
+        description={STEP_INTRO[step]}
+        back={{ label: "Permits", href: "/permits" }}
+      />
+      <StepBar step={step} reached={reached} onPick={goTo} />
 
-      {queuedOffline ? (
-        <Text style={styles.banner}>Offline mode — changes will sync when connected.</Text>
-      ) : null}
-
+      {queuedOffline ? <Banner tone="warning" title="Saved on this phone">Not sent yet: the permit reaches the server when the connection returns.</Banner> : null}
       {errors.length > 0 ? (
-        <View style={styles.errorBox}>
-          {errors.map((error) => (
-            <Text key={error} style={styles.errorText}>
-              • {error}
-            </Text>
-          ))}
-        </View>
+        <Banner tone="danger" title={step === last ? "Complete these before submitting" : "Complete this step to continue"}>
+          <View style={{ gap: 2 }}>
+            {errors.map((error) => (
+              <AppText key={error} variant="caption" tone="danger">{`• ${error}`}</AppText>
+            ))}
+          </View>
+        </Banner>
       ) : null}
-
-      {message ? <Text style={styles.message}>{message}</Text> : null}
-
-      {step === 0 ? (
-        <View style={styles.section}>
-          <SelectField
-            label="Permit type"
-            value={form.permitTypeId}
-            options={(formOptions?.permitTypes ?? []).map((item) => ({
-              value: item.id,
-              label: formatOrgOptionLabel(item),
-            }))}
-            placeholder="Select permit type"
-            required
-            disabled={isReadOnly || optionsLoading}
-            onChange={(permitTypeId) => setForm({ ...form, permitTypeId })}
-          />
-          <Text style={styles.label}>Title</Text>
-          <TextInput
-            style={inputStyle}
-            value={form.title}
-            onChangeText={(value) => setForm({ ...form, title: value })}
-          />
-          <Text style={styles.label}>Work scope</Text>
-          <TextInput
-            style={[inputStyle, styles.textArea]}
-            multiline
-            value={form.workScope}
-            onChangeText={(value) => setForm({ ...form, workScope: value })}
-          />
-        </View>
-      ) : null}
-
-      {step === 1 ? (
-        <View style={styles.section}>
-          <SelectField
-            label="Plant"
-            value={form.plantId}
-            options={(formOptions?.plants ?? []).map((item) => ({
-              value: item.id,
-              label: formatOrgOptionLabel(item),
-            }))}
-            placeholder="Select plant"
-            disabled={isReadOnly || optionsLoading}
-            onChange={(plantId) => setForm({ ...form, plantId })}
-          />
-          <SelectField
-            label="Department"
-            value={form.departmentId}
-            options={(formOptions?.departments ?? []).map((item) => ({
-              value: item.id,
-              label: formatOrgOptionLabel(item),
-            }))}
-            placeholder="Select department"
-            disabled={isReadOnly || optionsLoading}
-            onChange={(departmentId) => setForm({ ...form, departmentId })}
-          />
-          <SelectField
-            label="Location"
-            value={form.locationId}
-            options={(formOptions?.locations ?? []).map((item) => ({
-              value: item.id,
-              label: formatOrgOptionLabel(item),
-            }))}
-            placeholder="Select location"
-            disabled={isReadOnly || optionsLoading}
-            onChange={(locationId) => setForm({ ...form, locationId })}
-          />
-          <SelectField
-            label="Workstation"
-            value={form.workstationId}
-            options={(formOptions?.workstations ?? []).map((item) => ({
-              value: item.id,
-              label: formatOrgOptionLabel(item),
-            }))}
-            placeholder="Select workstation (optional)"
-            disabled={isReadOnly || optionsLoading}
-            onChange={(workstationId) =>
-              setForm({
-                ...form,
-                workstationId,
-                gasTesting: workstationId === form.workstationId ? form.gasTesting : [],
-                gasTestingRequired: workstationId ? form.gasTestingRequired : false,
-              })
-            }
-          />
-          <SelectField
-            label="Machinery"
-            value={form.machineryId}
-            options={filteredMachinery.map((item) => ({
-              value: item.id,
-              label: formatOrgOptionLabel(item),
-            }))}
-            placeholder="Select machinery (optional)"
-            disabled={isReadOnly || optionsLoading}
-            onChange={(machineryId) =>
-              setForm({
-                ...form,
-                machineryId,
-                lototo: machineryId === form.machineryId ? form.lototo : [],
-                lototoRequired: machineryId ? form.lototoRequired : false,
-              })
-            }
-          />
-          <Text style={styles.label}>Planned start (ISO datetime)</Text>
-          <TextInput
-            style={inputStyle}
-            value={form.plannedStartAt}
-            onChangeText={(value) => setForm({ ...form, plannedStartAt: value })}
-            placeholder="2026-07-28T09:00"
-          />
-          <Text style={styles.label}>Planned end (ISO datetime)</Text>
-          <TextInput
-            style={inputStyle}
-            value={form.plannedEndAt}
-            onChangeText={(value) => setForm({ ...form, plannedEndAt: value })}
-            placeholder="2026-07-28T17:00"
-          />
-        </View>
-      ) : null}
-
-      {step === 2 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Hazards</Text>
-          {form.hazards.map((hazard, index) => {
-            const selected = (formOptions?.hazards ?? []).find((item) => item.id === hazard.hazardCategoryId);
-            return (
-            <View key={`hazard-${index}`} style={styles.card}>
-              <SelectField
-                label="Hazard"
-                value={hazard.hazardCategoryId}
-                options={(formOptions?.hazards ?? []).map((item) => ({
-                  value: item.id,
-                  label: formatOrgOptionLabel(item),
-                }))}
-                placeholder="Select hazard"
-                disabled={isReadOnly || optionsLoading}
-                onChange={(hazardCategoryId) => {
-                  const hazards = [...form.hazards];
-                  hazards[index] = { hazardCategoryId, extraConsequences: [], extraControls: [] };
-                  setForm({ ...form, hazards });
+      {message ? <Banner tone="info">{message}</Banner> : null}
+      {conflicts.map((item) => (
+        <Banner key={item.key} tone="warning" title={conflictLabel(item.key)}>
+          <AppText variant="caption">{`Saved: ${describeValue(item.saved)}`}</AppText>
+          <AppText variant="caption">{`Yours: ${describeValue(item.yours)}`}</AppText>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space[2], marginTop: tokens.space[2] }}>
+            {(["yours", "saved"] as const).map((keep) => (
+              <Button
+                key={keep}
+                label={keep === "yours" ? "Keep mine" : "Use saved"}
+                variant={keep === "yours" ? "primary" : "outline"}
+                size="sm"
+                onPress={() => {
+                  setForm((current) => resolveConflict(current, item, keep));
+                  setConflicts((current) => current.filter((c) => c.key !== item.key));
                 }}
               />
-              {selected ? (
-                <View>
-                  <Text style={styles.summaryLine}>
-                    {selected.category || "—"} · {selected.severity ?? "medium"}
-                  </Text>
-                  {(selected.consequences ?? []).map((line) => (
-                    <Text key={line} style={styles.summaryLine}>
-                      {line}
-                    </Text>
-                  ))}
-                  {(selected.controls ?? []).map((line) => (
-                    <Text key={`c-${line}`} style={styles.summaryLine}>
-                      {line}
-                    </Text>
-                  ))}
-                </View>
-              ) : null}
-              {(hazard.extraConsequences.length ? hazard.extraConsequences : [""]).map((value, extraIndex) => (
-                <TextInput
-                  key={`xc-${extraIndex}`}
-                  style={inputStyle}
-                  placeholder="Extra consequence for this permit"
-                  value={value}
-                  onChangeText={(next) => {
-                    const extras = [...(hazard.extraConsequences.length ? hazard.extraConsequences : [""])];
-                    extras[extraIndex] = next;
-                    const hazards = [...form.hazards];
-                    hazards[index] = { ...hazard, extraConsequences: extras };
-                    setForm({ ...form, hazards });
-                  }}
-                />
-              ))}
-              {(hazard.extraControls.length ? hazard.extraControls : [""]).map((value, extraIndex) => (
-                <TextInput
-                  key={`ctrl-${extraIndex}`}
-                  style={inputStyle}
-                  placeholder="Extra control for this permit"
-                  value={value}
-                  onChangeText={(next) => {
-                    const extras = [...(hazard.extraControls.length ? hazard.extraControls : [""])];
-                    extras[extraIndex] = next;
-                    const hazards = [...form.hazards];
-                    hazards[index] = { ...hazard, extraControls: extras };
-                    setForm({ ...form, hazards });
-                  }}
-                />
-              ))}
-            </View>
-            );
-          })}
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() =>
-              setForm({
-                ...form,
-                hazards: [...form.hazards, { hazardCategoryId: "", extraConsequences: [], extraControls: [] }],
-              })
-            }
-          >
-            <Text style={styles.secondaryButtonText}>Add hazard</Text>
-          </Pressable>
+            ))}
+          </View>
+        </Banner>
+      ))}
 
-          <Text style={styles.sectionTitle}>PPE</Text>
-          {form.ppe.map((item, index) => (
-            <View key={`ppe-${index}`} style={styles.card}>
-              <SelectField
-                label="PPE item"
-                value={item.ppeCatalogueId}
-                options={(formOptions?.ppe ?? []).map((ppeItem) => ({
-                  value: ppeItem.id,
-                  label: formatOrgOptionLabel(ppeItem),
-                }))}
-                placeholder="Select PPE"
-                disabled={isReadOnly || optionsLoading}
-                onChange={(ppeCatalogueId) => {
-                  const ppe = [...form.ppe];
-                  ppe[index] = { ...item, ppeCatalogueId };
-                  setForm({ ...form, ppe });
-                }}
-              />
-            </View>
-          ))}
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() => setForm({ ...form, ppe: [...form.ppe, { ppeCatalogueId: "", quantity: 1 }] })}
-          >
-            <Text style={styles.secondaryButtonText}>Add PPE</Text>
-          </Pressable>
+      {optionsLoading ? <ActivityIndicator color={tokens.colors.primary} style={{ marginTop: tokens.space[6] }} /> : null}
 
-          <Pressable
-            style={styles.secondaryButton}
-            disabled={isReadOnly || !form.machineryId}
-            onPress={() =>
-              setForm({
-                ...form,
-                lototoRequired: !form.lototoRequired,
-                lototo: !form.lototoRequired ? form.lototo : [],
-              })
-            }
-          >
-            <Text style={styles.secondaryButtonText}>
-              {form.lototoRequired ? "LOTOTO required (on)" : "LOTOTO required (off)"}
-            </Text>
-          </Pressable>
-
-          {form.lototoRequired ? (
-            <>
-              {machineryLototo.length === 0 ? (
-                <Text style={styles.hint}>No LOTOTO procedures for this machinery.</Text>
-              ) : null}
-              {form.lototo.map((item, index) => (
-                <SelectField
-                  key={`lototo-${index}`}
-                  label="LOTOTO procedure"
-                  value={item.lototoPlanId}
-                  options={machineryLototo.map((plan) => ({
-                    value: plan.id,
-                    label: plan.title,
-                  }))}
-                  placeholder="Select LOTOTO"
-                  disabled={isReadOnly}
-                  onChange={(lototoPlanId) => {
-                    const lototo = [...form.lototo];
-                    lototo[index] = { lototoPlanId };
-                    setForm({ ...form, lototo });
-                  }}
-                />
-              ))}
-              <Pressable
-                style={styles.secondaryButton}
-                disabled={isReadOnly || machineryLototo.length === 0}
-                onPress={() =>
-                  setForm({ ...form, lototo: [...form.lototo, { lototoPlanId: "" }] })
-                }
-              >
-                <Text style={styles.secondaryButtonText}>Add LOTOTO</Text>
-              </Pressable>
-            </>
-          ) : null}
-
-          <Pressable
-            style={styles.secondaryButton}
-            disabled={isReadOnly || !form.workstationId}
-            onPress={() =>
-              setForm({
-                ...form,
-                gasTestingRequired: !form.gasTestingRequired,
-                gasTesting: !form.gasTestingRequired ? form.gasTesting : [],
-              })
-            }
-          >
-            <Text style={styles.secondaryButtonText}>
-              {form.gasTestingRequired ? "Gas testing required (on)" : "Gas testing required (off)"}
-            </Text>
-          </Pressable>
-
-          {form.gasTestingRequired ? (
-            <>
-              {workstationGasTesting.length === 0 ? (
-                <Text style={styles.hint}>No gas testing items for this workstation.</Text>
-              ) : null}
-              {form.gasTesting.map((item, index) => (
-                <SelectField
-                  key={`gas-testing-${index}`}
-                  label="Gas testing item"
-                  value={item.gasTestingCatalogueId}
-                  options={workstationGasTesting.map((row) => ({
-                    value: row.id,
-                    label: `${row.parameter} (${row.minimum}–${row.maximum} ${row.unit})`,
-                  }))}
-                  placeholder="Select gas testing"
-                  disabled={isReadOnly}
-                  onChange={(gasTestingCatalogueId) => {
-                    const gasTesting = [...form.gasTesting];
-                    gasTesting[index] = { gasTestingCatalogueId };
-                    setForm({ ...form, gasTesting });
-                  }}
-                />
-              ))}
-              <Pressable
-                style={styles.secondaryButton}
-                disabled={isReadOnly || workstationGasTesting.length === 0}
-                onPress={() =>
-                  setForm({
-                    ...form,
-                    gasTesting: [...form.gasTesting, { gasTestingCatalogueId: "" }],
-                  })
-                }
-              >
-                <Text style={styles.secondaryButtonText}>Add gas testing</Text>
-              </Pressable>
-            </>
-          ) : null}
-        </View>
+      {step === 0 && !optionsLoading ? (
+        <>
+          <StepCard title="Type of work" description="Choose the one that fits best. It decides the checks that follow.">
+            <ChoiceGroup
+              options={(formOptions?.permitTypes ?? []).map((item) => ({ key: item.id, label: item.name, color: item.color ?? undefined, swatch: item.color ?? undefined }))}
+              value={form.permitTypeId || null}
+              disabled={isReadOnly}
+              onChange={(permitTypeId) => setForm({ ...form, permitTypeId })}
+            />
+          </StepCard>
+          <StepCard title="The job">
+            <TextField label="Title" required value={form.title} editable={!isReadOnly} onChangeText={(value) => setForm({ ...form, title: value })} placeholder="For example: replace pump seal" />
+            <TextField label="What will be done" multiline value={form.workScope} editable={!isReadOnly} onChangeText={(value) => setForm({ ...form, workScope: value })} placeholder="The steps, tools and anything unusual" />
+          </StepCard>
+        </>
       ) : null}
 
-      {step === 3 ? (
-        <View style={styles.section}>
+      {step === 1 && !optionsLoading ? (
+        <>
+          <StepCard title="Where">
+            <SelectField
+              label="Location"
+              value={form.locationId}
+              options={(formOptions?.locations ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
+              placeholder="Choose location"
+              required
+              disabled={isReadOnly}
+              onChange={(locationId) => setForm({ ...form, locationId })}
+            />
+            <SelectField
+              label="Workstation"
+              value={form.workstationId}
+              options={(formOptions?.workstations ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
+              placeholder="Optional"
+              disabled={isReadOnly}
+              onChange={(workstationId) =>
+                setForm({
+                  ...form,
+                  workstationId,
+                  gasTesting: workstationId === form.workstationId ? form.gasTesting : [],
+                  gasTestingRequired: workstationId ? form.gasTestingRequired : false,
+                })
+              }
+            />
+            <SelectField
+              label="Machinery"
+              value={form.machineryId}
+              options={filteredMachinery.map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
+              placeholder="Optional: needed for isolation"
+              disabled={isReadOnly}
+              onChange={(machineryId) =>
+                setForm({
+                  ...form,
+                  machineryId,
+                  lototo: machineryId === form.machineryId ? form.lototo : [],
+                  lototoRequired: machineryId ? form.lototoRequired : false,
+                })
+              }
+            />
+            <SelectField
+              label="Plant"
+              value={form.plantId}
+              options={(formOptions?.plants ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
+              placeholder="Optional"
+              disabled={isReadOnly}
+              onChange={(plantId) => setForm({ ...form, plantId })}
+            />
+            <SelectField
+              label="Department"
+              value={form.departmentId}
+              options={(formOptions?.departments ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
+              placeholder="Optional"
+              disabled={isReadOnly}
+              onChange={(departmentId) => setForm({ ...form, departmentId })}
+            />
+          </StepCard>
+          <StepCard title="When" description="Pick a common window, or set the start and end yourself.">
+            {!isReadOnly ? (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space[2] }}>
+                {schedulePresets().map((preset) => (
+                  <Button key={preset.label} label={preset.label} variant="outline" size="sm" icon={CalendarClock} onPress={() => setForm({ ...form, plannedStartAt: preset.start, plannedEndAt: preset.end })} />
+                ))}
+              </View>
+            ) : null}
+            <DateTimeField label="Start" required value={form.plannedStartAt} disabled={isReadOnly} onChange={(value) => setForm({ ...form, plannedStartAt: value })} />
+            <DateTimeField label="End" required value={form.plannedEndAt} disabled={isReadOnly} onChange={(value) => setForm({ ...form, plannedEndAt: value })} />
+          </StepCard>
+        </>
+      ) : null}
+
+      {step === 2 && !optionsLoading ? (
+        <>
+          <StepCard title="Hazards" description="Tap every hazard present at this job.">
+            <ChoiceGroup
+              options={(formOptions?.hazards ?? []).map((item) => ({ key: item.id, label: item.name }))}
+              value={hazardIds}
+              disabled={isReadOnly}
+              onChange={(id) => setForm({ ...form, hazards: toggleRow(form.hazards, "hazardCategoryId", id, { description: "" }) })}
+            />
+            {form.hazards.filter((h) => h.hazardCategoryId).map((hazard) => (
+              <TextField
+                key={hazard.hazardCategoryId}
+                label={`How ${nameIn(formOptions?.hazards, hazard.hazardCategoryId)?.toLowerCase() ?? "it"} is controlled`}
+                hint="Optional"
+                value={hazard.description}
+                editable={!isReadOnly}
+                onChangeText={(description) => setForm({ ...form, hazards: form.hazards.map((h) => (h === hazard ? { ...h, description } : h)) })}
+              />
+            ))}
+          </StepCard>
+          <StepCard title="Protective equipment" description="Tap everything the crew must wear.">
+            <ChoiceGroup
+              options={(formOptions?.ppe ?? []).map((item) => ({ key: item.id, label: item.name }))}
+              value={ppeIds}
+              disabled={isReadOnly}
+              onChange={(id) => setForm({ ...form, ppe: toggleRow(form.ppe, "ppeCatalogueId", id, { quantity: 1 }) })}
+            />
+          </StepCard>
+          <StepCard title="Isolation and gas testing">
+            <ToggleRow
+              label="Isolation (LOTOTO) required"
+              description={form.machineryId ? "Lock out the machinery's energy before work starts." : "Choose machinery in the previous step first."}
+              value={form.lototoRequired}
+              disabled={isReadOnly || !form.machineryId}
+              onChange={(on) => setForm({ ...form, lototoRequired: on, lototo: on ? form.lototo : [] })}
+            />
+            {form.lototoRequired ? (
+              machineryLototo.length === 0 ? (
+                <AppText variant="caption">No LOTOTO procedures for this machinery.</AppText>
+              ) : (
+                <ChoiceGroup
+                  label="Procedures"
+                  options={machineryLototo.map((plan) => ({ key: plan.id, label: plan.title }))}
+                  value={form.lototo.map((l) => l.procedureId).filter(Boolean)}
+                  disabled={isReadOnly}
+                  onChange={(id) =>
+                    setForm({
+                      ...form,
+                      lototo: toggleRow(form.lototo, "procedureId", id, {
+                        extraPoints: [],
+                        stepNa: [],
+                        crew: [],
+                        verifiers: [],
+                      }),
+                    })
+                  }
+                />
+              )
+            ) : null}
+            <ToggleRow
+              label="Gas testing required"
+              description={form.workstationId ? "Test the atmosphere at the workstation before work starts." : "Choose a workstation in the previous step first."}
+              value={form.gasTestingRequired}
+              disabled={isReadOnly || !form.workstationId}
+              onChange={(on) => setForm({ ...form, gasTestingRequired: on, gasTesting: on ? form.gasTesting : [] })}
+            />
+            {form.gasTestingRequired ? (
+              workstationGasTesting.length === 0 ? (
+                <AppText variant="caption">No gas tests set up for this workstation.</AppText>
+              ) : (
+                <ChoiceGroup
+                  label="Gas tests"
+                  options={workstationGasTesting.map((row) => ({ key: row.id, label: `${row.parameter} (${row.minimum}–${row.maximum} ${row.unit})` }))}
+                  value={form.gasTesting.map((g) => g.gasTestingCatalogueId).filter(Boolean)}
+                  disabled={isReadOnly}
+                  onChange={(id) => setForm({ ...form, gasTesting: toggleRow(form.gasTesting, "gasTestingCatalogueId", id, {}) })}
+                />
+              )
+            ) : null}
+          </StepCard>
+        </>
+      ) : null}
+
+      {step === 3 && !optionsLoading ? (
+        <StepCard title="Who does the work" description="The first person leads the crew on site.">
           {form.executors.map((executor, index) => (
-            <View key={`executor-${index}`} style={styles.card}>
-              <SelectField
-                label="Executor"
-                value={executor.workforceUserId}
-                options={(formOptions?.executors ?? []).map((person) => ({
-                  value: person.id,
-                  label: formatWorkforceOptionLabel(person),
-                }))}
-                placeholder="Select executor"
-                disabled={isReadOnly || optionsLoading}
-                onChange={(workforceUserId) => {
-                  const executors = [...form.executors];
-                  executors[index] = { ...executor, workforceUserId };
-                  setForm({ ...form, executors });
-                }}
-              />
-            </View>
+            <SelectField
+              key={`executor-${index}`}
+              label={index === 0 ? "Crew lead" : `Crew member ${index}`}
+              value={executor.workforceUserId}
+              options={(formOptions?.executors ?? []).map((person) => ({ value: person.id, label: formatWorkforceOptionLabel(person) }))}
+              placeholder="Choose person"
+              required={index === 0}
+              disabled={isReadOnly}
+              onChange={(workforceUserId) => {
+                const executors = [...form.executors];
+                executors[index] = { ...executor, workforceUserId };
+                setForm({ ...form, executors });
+              }}
+            />
           ))}
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() =>
-              setForm({
-                ...form,
-                executors: [...form.executors, { workforceUserId: "", isPrimary: false }],
-              })
-            }
-          >
-            <Text style={styles.secondaryButtonText}>Add executor</Text>
-          </Pressable>
-        </View>
+          <Button label="Add crew member" variant="outline" size="sm" icon={Plus} disabled={isReadOnly} style={{ alignSelf: "flex-start" }} onPress={() => setForm({ ...form, executors: [...form.executors, { workforceUserId: "", isPrimary: false }] })} />
+        </StepCard>
       ) : null}
 
-      {step === 4 ? (
-        <View style={styles.section}>
-          <Text style={styles.summaryTitle}>{form.title}</Text>
-          <Text style={styles.summaryLine}>Type: {form.permitTypeId || "—"}</Text>
-          <Text style={styles.summaryLine}>Location: {form.locationId || "—"}</Text>
-          <Text style={styles.summaryLine}>
-            Hazards: {form.hazards.filter((h) => h.hazardCategoryId.trim()).length}
-          </Text>
-          <Text style={styles.summaryLine}>
-            Executors: {form.executors.filter((e) => (e.workforceUserId ?? "").trim()).length}
-          </Text>
-          <Text style={styles.sectionTitle}>Attachments</Text>
-          {attachments.length === 0 ? (
-            <Text style={styles.hint}>No attachments uploaded yet.</Text>
-          ) : (
-            attachments.map((attachment) => (
-              <Text key={attachment.id} style={styles.summaryLine}>
-                {attachment.fileName}
-              </Text>
-            ))
-          )}
-          {!isReadOnly && currentPermitId ? (
-            <Pressable
-              style={styles.secondaryButton}
-              onPress={() => void handlePickAttachment()}
-              disabled={isBusy}
-            >
-              <Text style={styles.secondaryButtonText}>Add attachment</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : null}
-
-      <View style={styles.actions}>
-        {step > 0 ? (
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() => setForm({ ...form, currentStep: step - 1 })}
-            disabled={isBusy}
-          >
-            <Text style={styles.secondaryButtonText}>Back</Text>
-          </Pressable>
-        ) : null}
-        <Pressable style={styles.secondaryButton} onPress={() => void handleSaveDraft()} disabled={isBusy}>
-          {isBusy ? <ActivityIndicator /> : <Text style={styles.secondaryButtonText}>Save draft</Text>}
-        </Pressable>
-        {step < PERMIT_WIZARD_STEPS.length - 1 ? (
-          <Pressable style={styles.primaryButton} onPress={() => void handleNext()} disabled={isBusy}>
-            <Text style={styles.primaryButtonText}>Next</Text>
-          </Pressable>
+      {step === 4 && !optionsLoading ? (
+        forms.length === 0 ? (
+          <EmptyState title="No check sheets for this type of work" body="Continue to review and submit." done />
         ) : (
-          <Pressable style={styles.primaryButton} onPress={() => void handleSubmit()} disabled={isBusy}>
-            <Text style={styles.primaryButtonText}>Submit</Text>
-          </Pressable>
-        )}
-      </View>
-    </ScrollView>
+          forms.map((template) => (
+            <TemplateFormFill
+              key={template.id}
+              name={template.name}
+              config={template.config!}
+              answers={prefilled.formResponses[template.id] ?? {}}
+              disabled={isReadOnly}
+              signerName={formOptions?.userName ?? ""}
+              fromPermit={fromPermit}
+              onChange={(answers) => setForm({ ...form, formResponses: { ...form.formResponses, [template.id]: answers } })}
+            />
+          ))
+        )
+      ) : null}
+
+      {step === last && !optionsLoading ? (
+        <>
+          {reviewSections.map((section) => (
+            <StepCard
+              key={section.step}
+              title={PERMIT_WIZARD_STEPS[section.step]}
+              action={isReadOnly ? undefined : <Button label="Change" variant="ghost" size="sm" icon={Pencil} onPress={() => goTo(section.step)} />}
+            >
+              <InfoList rows={section.rows} />
+            </StepCard>
+          ))}
+          <StepCard title="Attachments">
+            {attachments.length === 0 ? (
+              <AppText variant="caption">No attachments yet.</AppText>
+            ) : (
+              attachments.map((attachment) => (
+                <View key={attachment.id} style={{ flexDirection: "row", alignItems: "center", gap: tokens.space[2] }}>
+                  <Paperclip size={14} color={tokens.colors.mutedForeground} />
+                  <AppText variant="body">{attachment.fileName}</AppText>
+                </View>
+              ))
+            )}
+            {!isReadOnly ? (
+              currentPermitId ? (
+                <Button label="Add attachment" variant="outline" size="sm" icon={Paperclip} disabled={isBusy} style={{ alignSelf: "flex-start" }} onPress={() => void handlePickAttachment()} />
+              ) : (
+                <AppText variant="caption">Save the draft to add photos or documents.</AppText>
+              )
+            ) : null}
+          </StepCard>
+        </>
+      ) : null}
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 16, gap: 12 },
-  title: { fontSize: 22, fontWeight: "600" },
-  subtitle: { fontSize: 14, color: "#666" },
-  banner: {
-    backgroundColor: "#fef3c7",
-    color: "#92400e",
-    padding: 10,
-    borderRadius: 8,
-    fontSize: 13,
-  },
-  section: { gap: 10 },
-  sectionTitle: { fontSize: 16, fontWeight: "600", marginTop: 8 },
-  label: { fontSize: 13, fontWeight: "500" },
-  card: { gap: 8, padding: 10, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 8 },
-  textArea: { minHeight: 80, textAlignVertical: "top" },
-  errorBox: { backgroundColor: "#fee2e2", padding: 10, borderRadius: 8, gap: 4 },
-  errorText: { color: "#b91c1c", fontSize: 13 },
-  message: { color: "#2563eb", fontSize: 13 },
-  summaryTitle: { fontSize: 18, fontWeight: "600" },
-  summaryLine: { fontSize: 14, color: "#444" },
-  hint: { fontSize: 12, color: "#666" },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
-  primaryButton: {
-    backgroundColor: "#1f2937",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  primaryButtonText: { color: "#fff", fontWeight: "600" },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  secondaryButtonText: { color: "#111827", fontWeight: "500" },
-});
+const STEP_INTRO = [
+  "What kind of work, and what it is.",
+  "Where the work happens, and when.",
+  "The hazards on site and how the crew is protected.",
+  "The people doing the work.",
+  "The check sheets for this type of work. Answers the permit already gives are filled in for you.",
+  "Check everything, then submit for approval.",
+];
+
+const localInput = (date: Date) => toDateInputValue(date.toISOString());
+
+/** Tap-to-toggle over a list of rows keyed by one ID field; rows with no ID chosen yet are dropped. */
+function toggleRow<K extends string, R extends Record<K, string>>(rows: R[], key: K, id: string, rest: Omit<R, K>): R[] {
+  const chosen = rows.filter((row) => row[key]);
+  return chosen.some((row) => row[key] === id) ? chosen.filter((row) => row[key] !== id) : [...chosen, { ...rest, [key]: id } as R];
+}
+
+/** One-tap schedules for the common cases, as on the web. */
+function schedulePresets(now = new Date()): { label: string; start: string; end: string }[] {
+  const soon = new Date(now);
+  soon.setMinutes(soon.getMinutes() < 30 ? 30 : 60, 0, 0);
+  const soonEnd = new Date(soon.getTime() + 8 * 3_600_000);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(8, 0, 0, 0);
+  const tomorrowEnd = new Date(tomorrow);
+  tomorrowEnd.setHours(16, 0, 0, 0);
+  const weekEnd = new Date(tomorrowEnd);
+  weekEnd.setDate(weekEnd.getDate() + 4);
+  return [
+    { label: "Today, next 8 hours", start: localInput(soon), end: localInput(soonEnd) },
+    { label: "Tomorrow, 08:00–16:00", start: localInput(tomorrow), end: localInput(tomorrowEnd) },
+    { label: "5 days from tomorrow", start: localInput(tomorrow), end: localInput(weekEnd) },
+  ];
+}
+
+/** Where the person is in the form: done steps ticked, the current one ringed; reached steps can be tapped. */
+function StepBar({ step, reached, onPick }: { step: number; reached: number; onPick: (step: number) => void }) {
+  const { tokens } = useTheme();
+  const c = tokens.colors;
+  return (
+    <View style={{ gap: tokens.space[2] }}>
+      <View style={{ flexDirection: "row", gap: 4 }}>
+        {PERMIT_WIZARD_STEPS.map((name, index) => {
+          const current = index === step;
+          const done = index < step;
+          return (
+            <Pressable
+              key={name}
+              accessibilityRole="button"
+              accessibilityLabel={`Step ${index + 1}: ${name}${done ? ", done" : current ? ", current" : ""}`}
+              accessibilityState={{ selected: current, disabled: index > reached }}
+              disabled={index > reached || current}
+              onPress={() => onPick(index)}
+              hitSlop={{ top: 12, bottom: 12 }}
+              style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: done || current ? c.primaryFill : c.inputFill, borderWidth: done || current ? 0 : 1, borderColor: c.inputBorder }}
+            />
+          );
+        })}
+      </View>
+      <AppText variant="label" tone="secondary">{`Step ${step + 1} of ${PERMIT_WIZARD_STEPS.length}: ${PERMIT_WIZARD_STEPS[step]}`}</AppText>
+    </View>
+  );
+}
+
+/** One part of a step: a card with its title, an optional line under it and an optional action. */
+function StepCard({ title, description, action, children }: { title: string; description?: string; action?: React.ReactNode; children: React.ReactNode }) {
+  const { tokens } = useTheme();
+  return (
+    <Card style={{ gap: tokens.space[4] }}>
+      <View style={{ gap: tokens.space[1] }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: tokens.space[2] }}>
+          <AppText variant="title" style={{ flex: 1 }}>{title}</AppText>
+          {action}
+        </View>
+        {description ? <AppText variant="caption">{description}</AppText> : null}
+      </View>
+      {children}
+    </Card>
+  );
+}

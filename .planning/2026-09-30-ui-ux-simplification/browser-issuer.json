@@ -1,0 +1,1183 @@
+{
+  "role": "issuer",
+  "results": [
+    {
+      "title": "PermitWiseAI",
+      "url": "/dashboard",
+      "headings": [
+        "Good evening, Jane",
+        "Needs you",
+        "Sent back to you2",
+        "Drafts to finish5",
+        "Your permits",
+        "Where your permits stand",
+        "Starting in the next 7 days"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nGood evening, Jane\n\n7 items need your action.\n\nReport incident\nCreate permit\nNeeds you\n\nGrouped by what you have to do. Urgent jobs glow.\n\nSent back to you\n2\nRejected — inadequate controls\n\nRejected\nPTW-DEMO-005\nElectrical\nMain compressor\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nRevise\nDeferred — missing hazard assessment\n\nDeferred\nPTW-DEMO-004\nHot Work\nMain compressor\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nRevise\nDrafts to finish\n5\nDraft — tank inspection (incomplete)\n\nDraft\nPTW-DEMO-001\nCold Work\nMain compressor\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nContinue\nNI wizard check 1790696994305\n\nDraft\nHot Work\nCompressor Bay\n29 Sept 21:30 to 30 Sept 05:30 (1 day)\n\nContinue\nNI wizard check 1790696948691\n\nDraft\nHot Work\nCompressor Bay\n29 Sept 21:30 to 30 Sept 05:30 (1 day)\n\nContinue\nShow all 5\nYour permits\n\nWhat you are working on and what is coming up.\n\n23\n\nPermits you can see\n\n2\n\nApproved or in progress\n\nWhere your permits stand\n\nBy lifecycle stage.\n\nDraft\n5\nPending approval\n7\nDeferred\n1\nRejected\n1\nApproved\n2\nFinal sign-off\n1\nClosed\n1\nExpired\n4\nCancelled\n1\nStarting in the next 7 days\nAPI bug check 1790659741903\nWed 30 Sept, 10:59\nAPI bug check 1790659941455\nWed 30 Sept, 11:02\nAPI bug check 1790659957854\nWed 30 Sept, 11:02\nAPI bug check 1790659970038\nWed 30 Sept, 11:02\nAPI bug check 1790660173182\nWed 30 Sept, 11:06",
+      "links": [
+        {
+          "text": "Report incident",
+          "href": "/incidents?new=1"
+        },
+        {
+          "text": "Create permit",
+          "href": "/permits/new"
+        },
+        {
+          "text": "Rejected — inadequate controls",
+          "href": "/permits/00000000-0000-4000-8000-000000000205/edit"
+        },
+        {
+          "text": "Revise",
+          "href": "/permits/00000000-0000-4000-8000-000000000205/edit"
+        },
+        {
+          "text": "Deferred — missing hazard assessment",
+          "href": "/permits/00000000-0000-4000-8000-000000000204/edit"
+        },
+        {
+          "text": "Revise",
+          "href": "/permits/00000000-0000-4000-8000-000000000204/edit"
+        },
+        {
+          "text": "Draft — tank inspection (incomplete)",
+          "href": "/permits/00000000-0000-4000-8000-000000000201/edit"
+        },
+        {
+          "text": "Continue",
+          "href": "/permits/00000000-0000-4000-8000-000000000201/edit"
+        },
+        {
+          "text": "NI wizard check 1790696994305",
+          "href": "/permits/3c9b78ad-5118-4f0e-88f2-93b29dc58cfc/edit"
+        },
+        {
+          "text": "Continue",
+          "href": "/permits/3c9b78ad-5118-4f0e-88f2-93b29dc58cfc/edit"
+        },
+        {
+          "text": "NI wizard check 1790696948691",
+          "href": "/permits/3fdad3bf-c17b-49ef-abfd-f515ec444db1/edit"
+        },
+        {
+          "text": "Continue",
+          "href": "/permits/3fdad3bf-c17b-49ef-abfd-f515ec444db1/edit"
+        },
+        {
+          "text": "23Permits you can see",
+          "href": "/permits"
+        },
+        {
+          "text": "2Approved or in progress",
+          "href": "/permits?stage=live"
+        },
+        {
+          "text": "API bug check 1790659741903",
+          "href": "/permits/d82949a5-fa0b-4a84-a7c0-c7e273265672"
+        },
+        {
+          "text": "API bug check 1790659941455",
+          "href": "/permits/d07851d1-29d3-474c-a227-e986bb62c501"
+        },
+        {
+          "text": "API bug check 1790659957854",
+          "href": "/permits/da3ecb03-1862-4ab9-9ac2-9a777a5bc5af"
+        },
+        {
+          "text": "API bug check 1790659970038",
+          "href": "/permits/5a816f7f-4a4c-4a3a-a783-d102c80fdff6"
+        },
+        {
+          "text": "API bug check 1790660173182",
+          "href": "/permits/8016cd38-9c4f-4be2-aa23-c03fe261c4f5"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Show all 5",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/dashboard",
+      "http": 200,
+      "mobile": {
+        "overflow": false,
+        "sticky": [
+          {
+            "text": "Good evening, Jane7 items need your action.Report incidentCreate permit",
+            "height": 155
+          }
+        ]
+      }
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/permits",
+      "headings": [
+        "Permits"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nPermits\n\nEvery permit you can see. The ones waiting on you come first.\n\nCreate permit\nSearch permits\nAll\n23\nNeeds you\n7\nExact statuses\nDrafts\n5\nAwaiting approval\n7\nSent back\n2\nApproved\n2\nClosing\n1\nFinished\n6\nHot Work\n8\nCold Work\n8\nGeneral Work\n2\nExcavation\n2\nConfined Space\n1\nElectrical\n1\nWorking at Height\n1\nPermit\nType and place\nPlanned\nStatus\nNext step\nNI verify 1790699005292\n\nNo reference yet\nUpdated 21 h ago\n\nHot Work\n\nCompressor Bay\n\n29 Sept 22:00 to 30 Sept 06:00 (1 day)\n\nDraft\nContinue\nNI wizard check 1790696994305\n\nNo reference yet\nUpdated 22 h ago\n\nHot Work\n\nCompressor Bay\n\n29 Sept 21:30 to 30 Sept 05:30 (1 day)\n\nDraft\nContinue\nNI wizard check 1790696948691\n\nNo reference yet\nUpdated 22 h ago\n\nHot Work\n\nCompressor Bay\n\n29 Sept 21:30 to 30 Sept 05:30 (1 day)\n\nDraft\nContinue\nNI wizard check 1790696904371\n\nNo reference yet\nUpdated 22 h ago\n\nHot Work\n\nCompressor Bay\n\n29 Sept 21:30 to 30 Sept 05:30 (1 day)\n\nDraft\nContinue\nRejected — inadequate controls\n\nPTW-DEMO-005\nUpdated 3 days ago\n\nElectrical\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nRejected\nRevise\nDeferred — missing hazard assessment\n\nPTW-DEMO-004\nUpdated 3 days ago\n\nHot Work\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nDeferred\nRevise\nDraft — tank inspection (incomplete)\n\nPTW-DEMO-001\nUpdated 3 days ago\n\nCold Work\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nDraft\nContinue\nAPI bug check 1790660173182\n\nPTW-2026-000005\nUpdated 1 day ago\n\nCold Work\n\nCompressor Bay\n\nWed 30 Sept, 11:06 to 15:06\n\nPending approval\nAPI bug check 1790659970038\n\nPTW-2026-000004\nUpdated 1 day ago\n\nCold Work\n\nCompressor Bay\n\nWed 30 Sept, 11:02 to 15:02\n\nPending approval\nAPI bug check 1790659957854\n\nPTW-2026-000003\nUpdated 1 day ago\n\nCold Work\n\nCompressor Bay\n\nWed 30 Sept, 11:02 to 15:02\n\nPending approval\nAPI bug check 1790659941455\n\nPTW-2026-000002\nUpdated 1 day ago\n\nCold Work\n\nCompressor Bay\n\nWed 30 Sept, 11:02 to 15:02\n\nPending approval\nAPI bug check 1790659741903\n\nPTW-2026-000001\nUpdated 1 day ago\n\nCold Work\n\nCompressor Bay\n\nWed 30 Sept, 10:59 to 14:59\n\nPending approval\nActive — pump seal replacement\n\nPTW-DEMO-007\nUpdated 3 days ago\n\nCold Work\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nExpired\nPending HOD initial review — welding repair\n\nPTW-DEMO-002\nUpdated 3 days ago\n\nHot Work\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nPending approval\nPending HOD review — confined space entry\n\nPTW-DEMO-003\nUpdated 3 days ago\n\nConfined Space\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nPending approval\nPending closure — valve replacement complete\n\nPTW-DEMO-009\nUpdated 3 days ago\n\nGeneral Work\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nFinal sign-off\nApproved — compressor maintenance\n\nPTW-DEMO-006\nUpdated 3 days ago\n\nCold Work\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nApproved\nSIMOPS B — overlapping excavation\n\nPTW-DEMO-014\nUpdated 3 days ago\n\nExcavation\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nApproved\nCancelled — work no longer required\n\nPTW-DEMO-011\nUpdated 3 days ago\n\nGeneral Work\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nCancelled\nClosed — heat exchanger cleaning\n\nPTW-DEMO-010\nUpdated 3 days ago\n\nHot Work\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nClosed\nExpired — permit validity lapsed\n\nPTW-DEMO-012\nUpdated 3 days ago\n\nExcavation\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nExpired\nSuspended — weather hold\n\nPTW-DEMO-008\nUpdated 3 days ago\n\nWorking at Height\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nExpired\nSIMOPS A — shared tank farm work\n\nPTW-DEMO-013\nUpdated 3 days ago\n\nHot Work\n\nMain compressor\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nExpired",
+      "links": [
+        {
+          "text": "Create permit",
+          "href": "/permits/new"
+        },
+        {
+          "text": "NI verify 1790699005292",
+          "href": "/permits/bc20b64f-59aa-4788-9b1e-0454ddc6e62e"
+        },
+        {
+          "text": "Continue",
+          "href": "/permits/bc20b64f-59aa-4788-9b1e-0454ddc6e62e/edit"
+        },
+        {
+          "text": "NI wizard check 1790696994305",
+          "href": "/permits/3c9b78ad-5118-4f0e-88f2-93b29dc58cfc"
+        },
+        {
+          "text": "Continue",
+          "href": "/permits/3c9b78ad-5118-4f0e-88f2-93b29dc58cfc/edit"
+        },
+        {
+          "text": "NI wizard check 1790696948691",
+          "href": "/permits/3fdad3bf-c17b-49ef-abfd-f515ec444db1"
+        },
+        {
+          "text": "Continue",
+          "href": "/permits/3fdad3bf-c17b-49ef-abfd-f515ec444db1/edit"
+        },
+        {
+          "text": "NI wizard check 1790696904371",
+          "href": "/permits/bfad7d65-e9b9-442d-a51f-2c5ede460d11"
+        },
+        {
+          "text": "Continue",
+          "href": "/permits/bfad7d65-e9b9-442d-a51f-2c5ede460d11/edit"
+        },
+        {
+          "text": "Rejected — inadequate controls",
+          "href": "/permits/00000000-0000-4000-8000-000000000205"
+        },
+        {
+          "text": "Revise",
+          "href": "/permits/00000000-0000-4000-8000-000000000205/edit"
+        },
+        {
+          "text": "Deferred — missing hazard assessment",
+          "href": "/permits/00000000-0000-4000-8000-000000000204"
+        },
+        {
+          "text": "Revise",
+          "href": "/permits/00000000-0000-4000-8000-000000000204/edit"
+        },
+        {
+          "text": "Draft — tank inspection (incomplete)",
+          "href": "/permits/00000000-0000-4000-8000-000000000201"
+        },
+        {
+          "text": "Continue",
+          "href": "/permits/00000000-0000-4000-8000-000000000201/edit"
+        },
+        {
+          "text": "API bug check 1790660173182",
+          "href": "/permits/8016cd38-9c4f-4be2-aa23-c03fe261c4f5"
+        },
+        {
+          "text": "API bug check 1790659970038",
+          "href": "/permits/5a816f7f-4a4c-4a3a-a783-d102c80fdff6"
+        },
+        {
+          "text": "API bug check 1790659957854",
+          "href": "/permits/da3ecb03-1862-4ab9-9ac2-9a777a5bc5af"
+        },
+        {
+          "text": "API bug check 1790659941455",
+          "href": "/permits/d07851d1-29d3-474c-a227-e986bb62c501"
+        },
+        {
+          "text": "API bug check 1790659741903",
+          "href": "/permits/d82949a5-fa0b-4a84-a7c0-c7e273265672"
+        },
+        {
+          "text": "Active — pump seal replacement",
+          "href": "/permits/00000000-0000-4000-8000-000000000207"
+        },
+        {
+          "text": "Pending HOD initial review — welding repair",
+          "href": "/permits/00000000-0000-4000-8000-000000000202"
+        },
+        {
+          "text": "Pending HOD review — confined space entry",
+          "href": "/permits/00000000-0000-4000-8000-000000000203"
+        },
+        {
+          "text": "Pending closure — valve replacement complete",
+          "href": "/permits/00000000-0000-4000-8000-000000000209"
+        },
+        {
+          "text": "Approved — compressor maintenance",
+          "href": "/permits/00000000-0000-4000-8000-000000000206"
+        },
+        {
+          "text": "SIMOPS B — overlapping excavation",
+          "href": "/permits/00000000-0000-4000-8000-000000000214"
+        },
+        {
+          "text": "Cancelled — work no longer required",
+          "href": "/permits/00000000-0000-4000-8000-000000000211"
+        },
+        {
+          "text": "Closed — heat exchanger cleaning",
+          "href": "/permits/00000000-0000-4000-8000-000000000210"
+        },
+        {
+          "text": "Expired — permit validity lapsed",
+          "href": "/permits/00000000-0000-4000-8000-000000000212"
+        },
+        {
+          "text": "Suspended — weather hold",
+          "href": "/permits/00000000-0000-4000-8000-000000000208"
+        },
+        {
+          "text": "SIMOPS A — shared tank farm work",
+          "href": "/permits/00000000-0000-4000-8000-000000000213"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search permits",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "All23",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Needs you7",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Exact statuses",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Drafts5",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Awaiting approval7",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Sent back2",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Approved2",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Closing1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Finished6",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Hot Work8",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Cold Work8",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "General Work2",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Excavation2",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Confined Space1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Electrical1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Working at Height1",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/permits",
+      "http": 200,
+      "mobile": {
+        "overflow": false,
+        "sticky": [
+          {
+            "text": "PermitsEvery permit you can see. The ones waiting on you come first.Create permitSearch permitsAll23Needs you7Exact statusesDrafts5Awaiting approval7S",
+            "height": 499
+          },
+          {
+            "text": "PermitType and placePlannedStatusNext step",
+            "height": 0
+          }
+        ]
+      }
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/permits/new",
+      "headings": [
+        "Create permit",
+        "Repeat work? Start from a recent permit"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nBack to\nPermits\nCreate permit\n\nEnter core permit information, assign an executor, then hand off for on-site details.\n\nDraft permit\n\nChanges are saved as a draft until you submit for approval.\n\n1. Basic information\n2. Location & schedule\n3. On-site details\n4. Crew assignment\n5. Forms & check sheets\n6. Review & submit\nRepeat work? Start from a recent permit\n\nCopies the type, scope, place, crew and safety controls. You only set the new dates.\n\nAPI bug check 1790660173182\n1 day ago\nAPI bug check 1790659970038\n1 day ago\nAPI bug check 1790659957854\n1 day ago\nAPI bug check 1790659941455\n1 day ago\n\nPermit type\n\nHot Work\nCold Work\nConfined Space\nWorking at Height\nElectrical\nExcavation\nLifting Operations\nBreaking Containment\nGeneral Work\nHazardous Area Work\nMachine / Equipment Shifting\nTitle\nWork scope\nSave draft\nNext",
+      "links": [],
+      "controls": [],
+      "overflow": false,
+      "route": "/permits/new",
+      "http": 200,
+      "mobile": {
+        "overflow": false,
+        "sticky": []
+      }
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/permits/drafts",
+      "headings": [
+        "Draft permits",
+        "NI verify 1790699005292",
+        "NI wizard check 1790696994305",
+        "NI wizard check 1790696948691",
+        "NI wizard check 1790696904371",
+        "Draft — tank inspection (incomplete)"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nDraft permits\n\nResume incomplete permits before submission.\n\nCreate permit\nAll permits\nNI verify 1790699005292\nDraft\n\nUpdated Tue 29 Sept, 21:53\n\nPreview\nContinue editing\nNI wizard check 1790696994305\nDraft\n\nUpdated Tue 29 Sept, 21:19\n\nPreview\nContinue editing\nNI wizard check 1790696948691\nDraft\n\nUpdated Tue 29 Sept, 21:19\n\nPreview\nContinue editing\nNI wizard check 1790696904371\nDraft\n\nUpdated Tue 29 Sept, 21:18\n\nPreview\nContinue editing\nDraft — tank inspection (incomplete)\nDraft\n\nUpdated Sun 27 Sept, 10:59\n\nPreview\nContinue editing",
+      "links": [
+        {
+          "text": "Create permit",
+          "href": "/permits/new"
+        },
+        {
+          "text": "All permits",
+          "href": "/permits"
+        },
+        {
+          "text": "Preview",
+          "href": "/permits/bc20b64f-59aa-4788-9b1e-0454ddc6e62e/preview"
+        },
+        {
+          "text": "Continue editing",
+          "href": "/permits/bc20b64f-59aa-4788-9b1e-0454ddc6e62e/edit"
+        },
+        {
+          "text": "Preview",
+          "href": "/permits/3c9b78ad-5118-4f0e-88f2-93b29dc58cfc/preview"
+        },
+        {
+          "text": "Continue editing",
+          "href": "/permits/3c9b78ad-5118-4f0e-88f2-93b29dc58cfc/edit"
+        },
+        {
+          "text": "Preview",
+          "href": "/permits/3fdad3bf-c17b-49ef-abfd-f515ec444db1/preview"
+        },
+        {
+          "text": "Continue editing",
+          "href": "/permits/3fdad3bf-c17b-49ef-abfd-f515ec444db1/edit"
+        },
+        {
+          "text": "Preview",
+          "href": "/permits/bfad7d65-e9b9-442d-a51f-2c5ede460d11/preview"
+        },
+        {
+          "text": "Continue editing",
+          "href": "/permits/bfad7d65-e9b9-442d-a51f-2c5ede460d11/edit"
+        },
+        {
+          "text": "Preview",
+          "href": "/permits/00000000-0000-4000-8000-000000000201/preview"
+        },
+        {
+          "text": "Continue editing",
+          "href": "/permits/00000000-0000-4000-8000-000000000201/edit"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Create permit",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "All permits",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Preview",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Continue editing",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Preview",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Continue editing",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Preview",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Continue editing",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Preview",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Continue editing",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Preview",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Continue editing",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/permits/drafts",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/permits/process",
+      "headings": [
+        "Permit process",
+        "Stages at a glance"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nBack to\nPermit\nPermit process\n\nEvery stage a permit passes through, who moves it on, and where it can loop back. Numbers show how many of your permits sit at each stage now. Select a stage or an arrow for the detail.\n\nPrepare\nApprove\nExecute\nClose\nJob issuer\n\nRaises, revises, verifies\n\nJob executor\n\nSite details, does the work\n\nApprovers\n\nEach workflow stage\n\nHOD\n\nRevalidates, signs off\n\nSafety officer\n\nSuspends, can veto\n\nSystem\n\nValidity, incidents\n\nSubmit\nResubmit\nResubmit\nNext stage\nFinal approval\nDefer\nReject\nStart work\nSuspend\nSuspend\nResume\nRevalidate\nDeclare complete\nSend back\nVerify\nSend back\nClose\nStop work\nWindow ends\nSerious incident\nDraft\n5 now\nDeferred\n1 now\nRejected\n1 now\nPending approval\n7 now\nApproved\n2 now\nWork in progress\nSuspended\nWork finished\nFinal sign-off\n1 now\nClosed\n1 now\nSafety veto\nExpired\n4 now\nCancelled\n1 now\nMoves forward\nSends back\nStops or holds\nAutomatic or any time\nDecision point\nStages at a glance\nDraft\nJob issuer, with the executor adding on-site details\n5 now\nDeferred\nJob issuer\n1 now\nRejected\nJob issuer\n1 now\nPending approval\nThe approver for the active stage, or their delegate\n7 now\nApproved\nAn assigned executor\n2 now\nWork in progress\nThe primary executor\n0 now\nSuspended\nHOD or issuer revalidates; an executor or HOD resumes\n0 now\nWork finished\nJob issuer\n0 now\nFinal sign-off\nHOD, or an organisation admin\n1 now\nClosed\nNobody. The permit is complete\n1 now\nExpired\nJob issuer, by renewing as a new permit\n4 now\nCancelled\nNobody. Raise a new permit after the investigation\n1 now\n\n20 possible moves. A safety officer can stop any live permit with a veto.",
+      "links": [
+        {
+          "text": "Back to Permit",
+          "href": "/permits/drafts"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "DraftJob issuer, with the executor adding on-site details5 now",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "DeferredJob issuer1 now",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "RejectedJob issuer1 now",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Pending approvalThe approver for the active stage, or their delegate7 now",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "ApprovedAn assigned executor2 now",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Work in progressThe primary executor0 now",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "SuspendedHOD or issuer revalidates; an executor or HOD resumes0 now",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Work finishedJob issuer0 now",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Final sign-offHOD, or an organisation admin1 now",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "ClosedNobody. The permit is complete1 now",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "ExpiredJob issuer, by renewing as a new permit4 now",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "CancelledNobody. Raise a new permit after the investigation1 now",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/permits/process",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/active-permits",
+      "headings": [
+        "Active work"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nActive work\n\nMonitor active and suspended permit execution.\n\nNo active or suspended work.",
+      "links": [],
+      "controls": [],
+      "overflow": false,
+      "route": "/active-permits",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/execution",
+      "headings": [
+        "Active work",
+        "Ready to start 2"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nActive work\n\nSuspended work first, then what is in progress, then what is ready to start.\n\n0\n\nSuspended\n\n0\n\nIn progress\n\n2\n\nReady to start\n\nReady to start 2\n\nApproved. Start once isolations are in place.\n\nApproved — compressor maintenance\nApproved\n\nPTW-DEMO-006\nCold Work\nMain compressor\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nStart work\nSIMOPS B — overlapping excavation\nApproved\n\nPTW-DEMO-014\nExcavation\nMain compressor\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nStart work",
+      "links": [
+        {
+          "text": "Approved — compressor maintenance",
+          "href": "/execution/00000000-0000-4000-8000-000000000206"
+        },
+        {
+          "text": "Start work",
+          "href": "/execution/00000000-0000-4000-8000-000000000206"
+        },
+        {
+          "text": "SIMOPS B — overlapping excavation",
+          "href": "/execution/00000000-0000-4000-8000-000000000214"
+        },
+        {
+          "text": "Start work",
+          "href": "/execution/00000000-0000-4000-8000-000000000214"
+        }
+      ],
+      "controls": [],
+      "overflow": false,
+      "route": "/execution",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/approvals",
+      "headings": [
+        "Approvals"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nApprovals\n\nNothing is waiting for your decision.\n\nDeferred permits\n\nYou are all caught up. New permits routed to you will appear here.",
+      "links": [
+        {
+          "text": "Deferred permits",
+          "href": "/approvals/deferred"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deferred permits",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/approvals",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/approvals/deferred",
+      "headings": [
+        "Deferred permits"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nDeferred permits\n\nPermits returned for clarification before approval can continue.\n\nApproval queue\nTitle\tReference\tStatus\tUpdated\tActions\nDeferred — missing hazard assessment\tPTW-DEMO-004\t\nDeferred\tSun 27 Sept, 10:59\tView permit",
+      "links": [
+        {
+          "text": "Approval queue",
+          "href": "/approvals"
+        },
+        {
+          "text": "View permit",
+          "href": "/permits/00000000-0000-4000-8000-000000000204"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Approval queue",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/approvals/deferred",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/closure",
+      "headings": [
+        "Permit closure",
+        "Pending closure — valve replacement complete"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nPermit closure\n\nVerify completed work and close permits.\n\nView archive\nPending closure — valve replacement complete\nFinal sign-off\n\nPTW-DEMO-009\n\nVerify & close",
+      "links": [
+        {
+          "text": "View archive",
+          "href": "/closure/archive"
+        },
+        {
+          "text": "Verify & close",
+          "href": "/closure/00000000-0000-4000-8000-000000000209"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "View archive",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Verify & close",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/closure",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/closure/archive",
+      "headings": [
+        "Permit archive",
+        "Closed — heat exchanger cleaning"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nPermit archive\n\nSearch closed permits and review historical records.\n\nBack to closure\nSearch\nClosed from\nClosed to\nSearch archive\nClosed — heat exchanger cleaning\nClosed\n\nPTW-DEMO-010 · Closed Wed 1 Jul, 13:30\n\nView record",
+      "links": [
+        {
+          "text": "Back to closure",
+          "href": "/closure"
+        },
+        {
+          "text": "View record",
+          "href": "/closure/archive/00000000-0000-4000-8000-000000000210"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Back to closure",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "date",
+          "label": "Closed from",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "date",
+          "label": "Closed to",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "submit",
+          "label": "Search archive",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "View record",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/closure/archive",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/incidents",
+      "headings": [
+        "Incidents"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nIncidents\n\nIncidents, near misses and unsafe conditions. The most serious open ones come first.\n\nReport incident\nNeeds follow-up\n12\nClosed\n1\nCritical\n0\nHigh\n1\nMedium\n11\nLow\n0\nIncident\n0\nNear miss\n11\nUnsafe condition\n1\nOpen\n1\nPending HOD decision\n4\nInvestigating\n7\n12\nOpen\n1\nCritical or high, open\n4\nAwaiting HOD decision\n1\nClosed\nIncident\nWhere and when\nStatus\nNext step\nNear-miss — dropped tool from scaffold\n\nINC-DEMO-002\nNear miss\nHigh priority\n\nTank farm scaffold\n10 Aug 2026\nPending HOD decision\nNear miss mumiga6m\n\nINC-2026-9A244249\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mumidzfb\n\nINC-2026-C35816B0\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mum9rjpn\n\nINC-2026-C7B34838\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mum8idio\n\nINC-2026-83D5B160\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mum8g72m\n\nINC-2026-26B56A9D\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mum8crvf\n\nINC-2026-0D9925D2\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nNear miss mum83bgi\n\nINC-2026-629EAD91\nNear miss\nMedium priority\n\n1 day ago\nInvestigating\nUI check: loose grating\n\nINC-2026-A1340D97\nNear miss\nMedium priority\n\n2 days ago\nPending HOD decision\nUI check: loose grating\n\nINC-2026-73B1ECFE\nNear miss\nMedium priority\n\n2 days ago\nPending HOD decision\nUI check: loose grating\n\nINC-2026-8135E660\nNear miss\nMedium priority\n\n2 days ago\nPending HOD decision\nOpen — oil leak near work area\n\nINC-DEMO-001\nUnsafe condition\nMedium priority\n\nCompressor bay\n15 Aug 2026\nOpen",
+      "links": [
+        {
+          "text": "12Open",
+          "href": "/incidents"
+        },
+        {
+          "text": "1Critical or high, open",
+          "href": "/incidents?priority=critical,high"
+        },
+        {
+          "text": "4Awaiting HOD decision",
+          "href": "/incidents?status=pending_hod_decision"
+        },
+        {
+          "text": "1Closed",
+          "href": "/incidents?view=closed"
+        },
+        {
+          "text": "Near-miss — dropped tool from scaffold",
+          "href": "/incidents/00000000-0000-4000-8000-000000000502"
+        },
+        {
+          "text": "Near miss mumiga6m",
+          "href": "/incidents/0c225aaf-7e56-46bf-9be5-f04b0318c6b0"
+        },
+        {
+          "text": "Near miss mumidzfb",
+          "href": "/incidents/f57da014-6c11-4335-a199-84f1f497c589"
+        },
+        {
+          "text": "Near miss mum9rjpn",
+          "href": "/incidents/041540d6-0851-4902-a229-db6bf56e62ed"
+        },
+        {
+          "text": "Near miss mum8idio",
+          "href": "/incidents/2e7f400a-dc82-4a9b-af94-edca258f2dda"
+        },
+        {
+          "text": "Near miss mum8g72m",
+          "href": "/incidents/b84d9463-8e92-489d-9c30-f63759bf3ca1"
+        },
+        {
+          "text": "Near miss mum8crvf",
+          "href": "/incidents/d1955ee5-3696-4b97-b3dd-fce0997e652c"
+        },
+        {
+          "text": "Near miss mum83bgi",
+          "href": "/incidents/18df9138-610e-4c15-a172-ecb3623e0ddd"
+        },
+        {
+          "text": "UI check: loose grating",
+          "href": "/incidents/ff6e4874-8a15-4ad9-bff1-d4e6ba0e04ac"
+        },
+        {
+          "text": "UI check: loose grating",
+          "href": "/incidents/0ff2b7eb-2d78-4d12-8d4e-d9cb27152f69"
+        },
+        {
+          "text": "UI check: loose grating",
+          "href": "/incidents/3a8b2415-7612-402d-a6c0-a903f85fce81"
+        },
+        {
+          "text": "Open — oil leak near work area",
+          "href": "/incidents/00000000-0000-4000-8000-000000000501"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Report incident",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Needs follow-up12",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Closed1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Critical0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "High1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Medium11",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Low0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Incident0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Near miss11",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Unsafe condition1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Open1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Pending HOD decision4",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Investigating7",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/incidents",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/simops",
+      "headings": [
+        "SIMOPS"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nSIMOPS\n\nSimultaneous operations: work that clashes on place, equipment, time or permit type. Resolve high severity before work starts.\n\nCheck for clashes\nNeeds resolving\n7\nResolved\n0\nHigh\n7\nMedium\n0\nLow\n0\nSame location\n1\nSame equipment\n6\n7\nOpen clashes\n7\nHigh severity\n7\nNot assessed yet\n0\nResolved\nClash\nDetected\nStatus\nNext step\nOverlapping permits share equipment during the same schedule window.\n\nSame equipment\n\n3 days ago\nHigh severity\nOpen\nResolve\nOverlapping permits share equipment during the same schedule window.\n\nSame equipment\n\n3 days ago\nHigh severity\nOpen\nResolve\nOverlapping permits share equipment during the same schedule window.\n\nSame equipment\n\n3 days ago\nHigh severity\nOpen\nResolve\nOverlapping permits share equipment during the same schedule window.\n\nSame equipment\n\n3 days ago\nHigh severity\nOpen\nResolve\nOverlapping permits share equipment during the same schedule window.\n\nSame equipment\n\n3 days ago\nHigh severity\nOpen\nResolve\nOverlapping permits share equipment during the same schedule window.\n\nSame equipment\n\n3 days ago\nHigh severity\nOpen\nResolve\nOverlapping hot work and excavation at tank farm\n\nSame location\n\n15 Aug 2026\nHigh severity\nOpen\nResolve",
+      "links": [
+        {
+          "text": "7Open clashes",
+          "href": "/simops"
+        },
+        {
+          "text": "7High severity",
+          "href": "/simops?severity=high"
+        },
+        {
+          "text": "7Not assessed yet",
+          "href": "/simops"
+        },
+        {
+          "text": "0Resolved",
+          "href": "/simops?view=history"
+        },
+        {
+          "text": "Overlapping permits share equipment during the same schedule window.",
+          "href": "/simops/conflicts/8a6aaabc-fd02-4800-b080-51fb8d821439"
+        },
+        {
+          "text": "Resolve",
+          "href": "/simops/conflicts/8a6aaabc-fd02-4800-b080-51fb8d821439"
+        },
+        {
+          "text": "Overlapping permits share equipment during the same schedule window.",
+          "href": "/simops/conflicts/dd403dd2-e6fa-4930-a2d6-d41290c02bac"
+        },
+        {
+          "text": "Resolve",
+          "href": "/simops/conflicts/dd403dd2-e6fa-4930-a2d6-d41290c02bac"
+        },
+        {
+          "text": "Overlapping permits share equipment during the same schedule window.",
+          "href": "/simops/conflicts/b7eb20e0-43da-4add-9dd1-c4b12cc445b9"
+        },
+        {
+          "text": "Resolve",
+          "href": "/simops/conflicts/b7eb20e0-43da-4add-9dd1-c4b12cc445b9"
+        },
+        {
+          "text": "Overlapping permits share equipment during the same schedule window.",
+          "href": "/simops/conflicts/ddaae05c-7063-4220-b3dc-2a4e7b3240f1"
+        },
+        {
+          "text": "Resolve",
+          "href": "/simops/conflicts/ddaae05c-7063-4220-b3dc-2a4e7b3240f1"
+        },
+        {
+          "text": "Overlapping permits share equipment during the same schedule window.",
+          "href": "/simops/conflicts/01a6adeb-c576-4da9-88c2-82fc40abace7"
+        },
+        {
+          "text": "Resolve",
+          "href": "/simops/conflicts/01a6adeb-c576-4da9-88c2-82fc40abace7"
+        },
+        {
+          "text": "Overlapping permits share equipment during the same schedule window.",
+          "href": "/simops/conflicts/2a000458-eef3-482d-89f7-f374109876a9"
+        },
+        {
+          "text": "Resolve",
+          "href": "/simops/conflicts/2a000458-eef3-482d-89f7-f374109876a9"
+        },
+        {
+          "text": "Overlapping hot work and excavation at tank farm",
+          "href": "/simops/conflicts/00000000-0000-4000-8000-000000000601"
+        },
+        {
+          "text": "Resolve",
+          "href": "/simops/conflicts/00000000-0000-4000-8000-000000000601"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Check for clashes",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Needs resolving7",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Resolved0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "High7",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Medium0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Low0",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Same location1",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Same equipment6",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/simops",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/notifications",
+      "headings": [
+        "Messages"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n7\n\nSafety\n\nSIMOPS\nIncidents\n\nInsights\n\nPermit process\nSearch permits, pages and actions\nCtrl K\n6\nJ\nJane Doe\nJob Issuer\nMessages\n\nApprovals, clashes, reminders and incidents. Repeats are grouped; open one to go to its record.\n\n6 unread.\n\nSIMOPS conflict detected (high)\n(unread)\n\nOverlapping permits share equipment during the same schedule window.\n\n3 days ago\nMark read\n\nSIMOPS conflict detected (high)\n(unread)\n\nOverlapping permits share equipment during the same schedule window.\n\n3 days ago\nMark read\n\nSIMOPS conflict detected (high)\n(unread)\n\nOverlapping permits share equipment during the same schedule window.\n\n3 days ago\nMark read\n\nSIMOPS conflict detected (high)\n(unread)\n\nOverlapping permits share equipment during the same schedule window.\n\n3 days ago\nMark read\n\nSIMOPS conflict detected (high)\n(unread)\n\nOverlapping permits share equipment during the same schedule window.\n\n3 days ago\nMark read\n\nSIMOPS conflict detected (high)\n(unread)\n\nOverlapping permits share equipment during the same schedule window.\n\n3 days ago\nMark read",
+      "links": [
+        {
+          "text": "SIMOPS conflict detected (high)",
+          "href": "/simops/conflicts/8a6aaabc-fd02-4800-b080-51fb8d821439"
+        },
+        {
+          "text": "SIMOPS conflict detected (high)",
+          "href": "/simops/conflicts/dd403dd2-e6fa-4930-a2d6-d41290c02bac"
+        },
+        {
+          "text": "SIMOPS conflict detected (high)",
+          "href": "/simops/conflicts/b7eb20e0-43da-4add-9dd1-c4b12cc445b9"
+        },
+        {
+          "text": "SIMOPS conflict detected (high)",
+          "href": "/simops/conflicts/ddaae05c-7063-4220-b3dc-2a4e7b3240f1"
+        },
+        {
+          "text": "SIMOPS conflict detected (high)",
+          "href": "/simops/conflicts/01a6adeb-c576-4da9-88c2-82fc40abace7"
+        },
+        {
+          "text": "SIMOPS conflict detected (high)",
+          "href": "/simops/conflicts/2a000458-eef3-482d-89f7-f374109876a9"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Mark read",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Mark read",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Mark read",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Mark read",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Mark read",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Mark read",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/notifications",
+      "http": 200
+    }
+  ],
+  "errors": []
+}

@@ -96,6 +96,14 @@ export function reviseLototoProcedure(id: string) {
   return fetchApi<LototoProcedure>(`/lototo/procedures/${id}/revisions`, { method: "POST" });
 }
 
+export function deactivateLototoProcedure(id: string) {
+  return fetchApi<LototoProcedure>(`/lototo/procedures/${id}/deactivate`, { method: "POST" });
+}
+
+export function reactivateLototoProcedure(id: string) {
+  return fetchApi<LototoProcedure>(`/lototo/procedures/${id}/reactivate`, { method: "POST" });
+}
+
 export function deleteLototoProcedure(id: string) {
   return fetchApi<{ id: string; deleted: boolean }>(`/lototo/procedures/${id}`, { method: "DELETE" });
 }

@@ -5,10 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { getNotification, markNotificationRead } from "@/lib/notifications/api";
-import { getNotificationEntityHref } from "@/lib/notifications/routes";
+import { notificationTarget } from "@/lib/notifications/routes";
 import type { Notification } from "@/lib/notifications/types";
 import { NotificationPriorityLabel } from "@/components/notifications/notification-priority-label";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 
 const CATEGORY_LABELS: Record<Notification["category"], string> = {
@@ -43,7 +43,7 @@ export default function NotificationDetailPage() {
       .finally(() => setIsLoading(false));
   }, [params.id]);
 
-  const entityHref = notification ? getNotificationEntityHref(notification) : null;
+  const target = notification ? notificationTarget(notification) : null;
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
@@ -102,13 +102,13 @@ export default function NotificationDetailPage() {
             ) : null}
           </dl>
 
-          {entityHref ? (
-            <Link href={entityHref}>
-              <Button type="button" variant="outline">
-                Open related record
-              </Button>
+          {target ? (
+            <Link href={target.href} className={buttonVariants({ size: "lg" })}>
+              {target.label}
             </Link>
-          ) : null}
+          ) : (
+            <p className="text-sm text-muted-foreground">This message is not linked to a record.</p>
+          )}
         </article>
       ) : null}
     </main>

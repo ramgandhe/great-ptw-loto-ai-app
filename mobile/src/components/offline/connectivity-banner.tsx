@@ -1,7 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { View } from "react-native";
+import { CloudOff, RefreshCw } from "@/components/ui/icons";
+import { AppText } from "@/components/ui/text";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
 
+/** A strip at the top while offline or while saved changes wait for the server. */
 export function ConnectivityBanner() {
   const { isOnline, pendingCount, isSyncing } = useOffline();
   const { tokens } = useTheme();
@@ -11,39 +14,22 @@ export function ConnectivityBanner() {
   }
 
   const message = !isOnline
-    ? "Offline — changes will sync when connectivity returns."
+    ? "Offline. Changes are saved on this phone and sent when the connection returns."
     : isSyncing
-      ? "Syncing queued changes…"
-      : `${pendingCount} change${pendingCount === 1 ? "" : "s"} waiting to sync`;
+      ? "Sending saved changes…"
+      : `${pendingCount} change${pendingCount === 1 ? "" : "s"} waiting for the server`;
+  const Icon = isOnline ? RefreshCw : CloudOff;
+  const color = isOnline ? tokens.colors.info : tokens.colors.warning;
 
   return (
     <View
-      accessibilityRole="text"
-      style={[
-        styles.banner,
-        {
-          backgroundColor: !isOnline ? "#fef2f2" : tokens.colors.muted,
-          borderBottomColor: tokens.colors.border,
-        },
-      ]}
+      accessibilityRole="alert"
+      style={{ flexDirection: "row", alignItems: "center", gap: tokens.space[2], paddingHorizontal: tokens.space[4], paddingVertical: tokens.space[2], backgroundColor: isOnline ? tokens.colors.infoBg : tokens.colors.warningBg }}
     >
-      <Text
-        style={{
-          color: tokens.colors.foreground,
-          fontSize: tokens.typography.body - 1,
-          fontWeight: !isOnline ? "600" : "400",
-        }}
-      >
+      <Icon size={16} color={color} />
+      <AppText variant="caption" weight="semibold" style={{ color, flex: 1 }}>
         {message}
-      </Text>
+      </AppText>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  banner: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-});

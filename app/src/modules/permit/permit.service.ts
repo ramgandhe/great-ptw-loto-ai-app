@@ -6,6 +6,7 @@ import {
   NotFoundException,
   ConflictException,
   forwardRef,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { and, arrayContains, desc, eq, inArray, ne, or } from 'drizzle-orm';
@@ -13,6 +14,7 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { generatePermitReference } from '../../database/permit-reference';
 import {
+  auditLogs,
   permitAttachments,
   permitDrafts,
   permitExecutors,
@@ -36,14 +38,24 @@ import {
   tenantUsers,
 } from '../../database/schema';
 import { MailService } from '../../infrastructure/mail/mail.service';
+import { StorageService } from '../../infrastructure/storage/storage.service';
 import { AuditService } from '../logging/audit.service';
 import { ApprovalHistoryService } from '../approval/approval-history.service';
 import { SimopsService } from '../simops/simops.service';
 import { NotificationService } from '../approval/notification.service';
 import { WorkflowEngineService } from '../approval/workflow-engine.service';
 import { CreatePermitDto } from './dto/create-permit.dto';
-import { buildFormResponses, missingFormAnswers, type PermitFormResponse } from './permit-forms';
+import {
+  applyStageAnswers,
+  buildFormResponses,
+  diffFormAnswers,
+  formsToCheck,
+  keepLaterStageAnswers,
+  missingFormAnswers,
+  type PermitFormResponse,
+} from './permit-forms';
 import { RenewPermitDto } from './dto/renew-permit.dto';
+import { SaveDraftDto, StageAnswersDto, SubmitPermitDto } from './dto/save-draft.dto';
 import { UpdatePermitDto } from './dto/update-permit.dto';
 import { isEditablePermitStatus, isSubmittablePermitStatus } from './permit.constants';
 import {
@@ -65,6 +77,34 @@ import {
 import { PermitCacheService } from './permit-cache.service';
 import { PermitLogService } from './permit-log.service';
 import { PermitValidationService } from './permit-validation.service';
+import { resetStageAnswers } from './stage-reset';
+
+export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+export const REVISION_CONFLICT_CODE = 'PERMIT_REVISION_CONFLICT';
+
+/** Refuses a save or submit made against an older copy of the permit (HTTP 409). */
+function assertExpectedRevision(detail: PermitDetail, expectedRevision: number): void {
+  if (detail.permit.draftRevision !== expectedRevision) {
+    // `error` and `details` are what GlobalExceptionFilter passes to the client as code and details.
+    throw new ConflictException({
+      error: REVISION_CONFLICT_CODE,
+      message: 'This permit changed since you opened it. Your changes are still here.',
+      details: { currentRevision: detail.permit.draftRevision },
+    });
+  }
+}
+
+/** Refuses a final approval or closure while that stage's required form answers are empty. */
+export function assertStageAnswered(missing: string[], action: 'approving' | 'closing'): void {
+  if (missing.length) {
+    throw new BadRequestException({
+      error: 'STAGE_ANSWERS_MISSING',
+      message: `Complete these before ${action}: ${missing.join('; ')}`,
+      details: { missing },
+    });
+  }
+}
 
 export type PermitLototoDetail = {
   id: string;
@@ -113,13 +153,16 @@ export class PermitService {
     private readonly approvalNotifications: NotificationService,
     @Inject(forwardRef(() => SimopsService))
     private readonly simopsService: SimopsService,
+    // Optional so specs that build the service by hand need not provide storage.
+    @Optional() private readonly storageService?: StorageService,
   ) {}
 
   async create(rawDto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
     assertPermitCreateAllowed(user);
     const dto = sanitizeCreatePermitDto(user, rawDto);
     const tenantId = this.requireTenant(user);
-    const formResponses = dto.formResponses ? await this.resolveFormResponses(tenantId, dto.formResponses) : [];
+    // A new permit has no approval or closure signatures; only those decisions record them.
+    const formResponses = dto.formResponses ? keepLaterStageAnswers([], await this.resolveFormResponses(tenantId, dto.formResponses)) : [];
 
     const created = await this.db.transaction(async (tx) => {
       const [permit] = await tx
@@ -257,13 +300,20 @@ export class PermitService {
 
   async removeDraft(id: string, user: AuthenticatedUser): Promise<{ id: string; deleted: boolean }> {
     const tenantId = this.requireTenant(user);
-    const detail = await this.loadDetail(this.db, id, tenantId);
+    // Under the row lock, so a submit or an attachment upload cannot slip in between check and delete.
+    const detail = await this.db.transaction(async (tx) => {
+      const locked = await this.loadLockedDetail(tx, id, tenantId);
+      if (locked.permit.status !== 'draft') {
+        throw new ConflictException('Only draft permits can be deleted');
+      }
+      await tx.delete(permits).where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
+      return locked;
+    });
 
-    if (detail.permit.status !== 'draft') {
-      throw new ConflictException('Only draft permits can be deleted');
-    }
-
-    await this.db.delete(permits).where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
+    // Attachment rows went with the permit; their stored files are removed once that committed.
+    await Promise.all(
+      detail.attachments.map((attachment) => this.storageService?.deleteObject(attachment.storageKey).catch(() => undefined)),
+    );
 
     await this.auditService.log({
       action: 'permit.deleted',
@@ -287,35 +337,45 @@ export class PermitService {
 
   async update(
     id: string,
-    rawDto: UpdatePermitDto,
+    input: SaveDraftDto,
     user: AuthenticatedUser,
   ): Promise<PermitDetail> {
     const tenantId = this.requireTenant(user);
-    const existing = await this.loadDetail(this.db, id, tenantId);
-
-    if (!isEditablePermitStatus(existing.permit.status)) {
-      throw new ConflictException('Only draft, deferred or rejected permits can be updated');
-    }
-
+    const { expectedRevision, ...rawDto } = input;
     const dto = sanitizeDraftUpdateDto(user, rawDto);
-    assertDraftUpdateAllowed(user, existing, dto);
-    if (
-      isLototoFrozen(existing.lototo) &&
-      (dto.lototo !== undefined ||
-        dto.lototoRequired !== undefined ||
-        (dto.machineryId !== undefined && dto.machineryId !== existing.permit.machineryId))
-    ) {
-      assertLototoWritable(existing.lototo);
-    }
-
-    const previousExecutorIds = new Set(existing.executors.map((row) => row.workforceUserId));
     const formResponses =
       dto.formResponses !== undefined ? await this.resolveFormResponses(tenantId, dto.formResponses) : undefined;
+
+    let previousExecutorIds = new Set<string>();
     const updated = await this.db.transaction(async (tx) => {
+      const existing = await this.loadLockedDetail(tx, id, tenantId);
+      if (!isEditablePermitStatus(existing.permit.status)) {
+        throw new ConflictException('Only draft, deferred or rejected permits can be updated');
+      }
+      assertDraftUpdateAllowed(user, existing, dto);
+      assertExpectedRevision(existing, expectedRevision);
+      if (
+        isLototoFrozen(existing.lototo) &&
+        (dto.lototo !== undefined ||
+          dto.lototoRequired !== undefined ||
+          (dto.machineryId !== undefined && dto.machineryId !== existing.permit.machineryId))
+      ) {
+        assertLototoWritable(existing.lototo);
+      }
+      previousExecutorIds = new Set(existing.executors.map((row) => row.workforceUserId));
+      const revision = existing.permit.draftRevision + 1;
+
       const permitUpdates: Partial<typeof permits.$inferInsert> = {
         updatedBy: user.id,
+        updatedAt: new Date(),
+        draftRevision: revision,
       };
-      if (formResponses !== undefined) permitUpdates.formResponses = formResponses;
+      if (formResponses !== undefined) {
+        // Approval and closure fields are only written by those decisions, never by a draft save.
+        const kept = keepLaterStageAnswers(existing.permit.formResponses as PermitFormResponse[], formResponses);
+        permitUpdates.formResponses = kept;
+        await this.recordAnswerChanges(tx, existing, kept, revision, user.id, tenantId);
+      }
 
       if (dto.permitTypeId !== undefined) permitUpdates.permitTypeId = dto.permitTypeId;
       if (dto.title !== undefined) permitUpdates.title = dto.title;
@@ -330,12 +390,10 @@ export class PermitService {
       if (dto.plannedStartAt !== undefined) permitUpdates.plannedStartAt = dto.plannedStartAt;
       if (dto.plannedEndAt !== undefined) permitUpdates.plannedEndAt = dto.plannedEndAt;
 
-      if (Object.keys(permitUpdates).length > 1) {
-        await tx
-          .update(permits)
-          .set(permitUpdates)
-          .where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
-      }
+      await tx
+        .update(permits)
+        .set(permitUpdates)
+        .where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
 
       if (dto.currentStep !== undefined || dto.formSnapshot !== undefined) {
         await tx
@@ -504,50 +562,45 @@ export class PermitService {
     return updated;
   }
 
-  async submit(id: string, user: AuthenticatedUser): Promise<PermitDetail> {
+  async submit(id: string, dto: SubmitPermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
     assertPermitSubmitAllowed(user);
     const tenantId = this.requireTenant(user);
-    const detail = await this.loadDetail(this.db, id, tenantId);
 
-    if (!isSubmittablePermitStatus(detail.permit.status)) {
-      throw new ConflictException('Permit cannot be submitted in its current status');
-    }
+    // One transaction on the locked row: a competing save or a second submit waits, then sees
+    // the new revision or status and is refused, so approvals are never initialised twice.
+    const { reference, fromStatus, isResubmit } = await this.db.transaction(async (tx) => {
+      const detail = await this.loadLockedDetail(tx, id, tenantId);
+      if (!isSubmittablePermitStatus(detail.permit.status)) {
+        throw new ConflictException('Permit cannot be submitted in its current status');
+      }
+      assertExpectedRevision(detail, dto.expectedRevision);
 
-    const applicable = await this.db
-      .select({ id: permitTemplates.id, name: permitTemplates.name, config: permitTemplates.config })
-      .from(permitTemplates)
-      .where(
-        and(
-          eq(permitTemplates.tenantId, tenantId),
-          eq(permitTemplates.status, 'published'),
-          or(
-            eq(permitTemplates.appliesToAllTypes, true),
-            arrayContains(permitTemplates.permitTypeIds, [detail.permit.permitTypeId]),
-          ),
-        ),
+      const applicable = await this.applicableTemplates(tx, tenantId, detail.permit.permitTypeId);
+      this.validationService.validateForSubmit(
+        detail,
+        missingFormAnswers(applicable, detail.permit.formResponses as PermitFormResponse[]),
       );
-    this.validationService.validateForSubmit(
-      detail,
-      missingFormAnswers(applicable, detail.permit.formResponses as PermitFormResponse[]),
-    );
 
-    const isResubmit = detail.permit.status === 'deferred' || detail.permit.status === 'rejected';
-    const reference =
-      detail.permit.reference ?? (await generatePermitReference(this.db, tenantId));
-    const submittedAt = new Date();
-    const fromStatus = detail.permit.status;
+      const fromStatus = detail.permit.status;
+      const isResubmit = fromStatus === 'deferred' || fromStatus === 'rejected';
+      const reference = detail.permit.reference ?? (await generatePermitReference(tx, tenantId));
 
-    await this.db.transaction(async (tx) => {
+      // Bumping the revision here means a tab opened before submit cannot save over the permit
+      // after it is rejected or deferred back to an editable status.
       await tx
         .update(permits)
         .set({
           status: 'pending_approval',
           reference,
-          submittedAt,
+          submittedAt: new Date(),
           submittedBy: user.id,
           updatedBy: user.id,
+          updatedAt: new Date(),
+          draftRevision: detail.permit.draftRevision + 1,
         })
         .where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
+      // Signatures from an earlier approval or closure round do not carry into this one.
+      await resetStageAnswers(tx, { permitId: id, tenantId, toStatus: 'pending_approval', actorId: user.id });
 
       await this.approvalHistoryService.record(
         {
@@ -568,6 +621,7 @@ export class PermitService {
         user.id,
         tx,
       );
+      return { reference, fromStatus, isResubmit };
     });
 
     await this.auditService.log({
@@ -773,6 +827,96 @@ export class PermitService {
 
       return this.loadDetail(tx, renewal.id, tenantId);
     });
+  }
+
+  /**
+   * Records the template answers required at approval or closure, in the decision's transaction:
+   * locks the permit, checks its status (and the revision when answers are sent), writes the same
+   * per-answer audit as a draft save, and returns the stage's required answers still missing.
+   * The caller checks the person's role and refuses its decision while answers are missing.
+   */
+  async saveStageAnswers(
+    tx: Transaction,
+    params: {
+      permitId: string;
+      tenantId: string;
+      user: AuthenticatedUser;
+      stage: 'approval' | 'closure';
+      status: string;
+      input?: StageAnswersDto;
+    },
+  ): Promise<string[]> {
+    const { permitId, tenantId, user, stage, status, input } = params;
+    const userId = user.id;
+    const detail = await this.loadLockedDetail(tx, permitId, tenantId);
+    if (detail.permit.status !== status) {
+      throw new ConflictException('This permit moved on since you opened it. Reload to see where it is now.');
+    }
+    const applicable = await this.applicableTemplates(tx, tenantId, detail.permit.permitTypeId);
+    let responses = detail.permit.formResponses as PermitFormResponse[];
+    if (input?.formResponses.length) {
+      assertExpectedRevision(detail, input.expectedRevision);
+      const revision = detail.permit.draftRevision + 1;
+      const signer = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username;
+      responses = applyStageAnswers(responses, input.formResponses, applicable, stage, signer);
+      await this.recordAnswerChanges(tx, detail, responses, revision, userId, tenantId);
+      await tx
+        .update(permits)
+        .set({ formResponses: responses, draftRevision: revision, updatedBy: userId, updatedAt: new Date() })
+        .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
+    }
+    // Captured forms count as captured, whatever has since happened to their templates.
+    return missingFormAnswers(formsToCheck(responses, applicable), responses, stage);
+  }
+
+  private applicableTemplates(db: Pick<Database, 'select'>, tenantId: string, permitTypeId: string) {
+    return db
+      .select({ id: permitTemplates.id, name: permitTemplates.name, config: permitTemplates.config })
+      .from(permitTemplates)
+      .where(
+        and(
+          eq(permitTemplates.tenantId, tenantId),
+          eq(permitTemplates.status, 'published'),
+          or(eq(permitTemplates.appliesToAllTypes, true), arrayContains(permitTemplates.permitTypeIds, [permitTypeId])),
+        ),
+      );
+  }
+
+  /** Locks the tenant's permit row for the rest of the transaction, then loads it. */
+  private async loadLockedDetail(tx: Transaction, id: string, tenantId: string): Promise<PermitDetail> {
+    await tx
+      .select({ id: permits.id })
+      .from(permits)
+      .where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)))
+      .for('update');
+    return this.loadDetail(tx, id, tenantId);
+  }
+
+  /**
+   * One audit row per changed form answer, written in the save's transaction: if the audit
+   * insert fails, the answers are not saved either. Actor and time come from the server.
+   */
+  private async recordAnswerChanges(
+    tx: Transaction,
+    existing: PermitDetail,
+    formResponses: PermitFormResponse[],
+    revision: number,
+    userId: string,
+    tenantId: string,
+  ): Promise<void> {
+    const changes = diffFormAnswers(existing.permit.formResponses as PermitFormResponse[], formResponses);
+    if (changes.length === 0) return;
+    await tx.insert(auditLogs).values(
+      changes.map((change) => ({
+        action: 'permit.form_answer_changed',
+        entityType: 'permit',
+        entityId: existing.permit.id,
+        userId,
+        tenantId,
+        metadata: { revision, ...change },
+        createdBy: userId,
+      })),
+    );
   }
 
   private async loadDetail(

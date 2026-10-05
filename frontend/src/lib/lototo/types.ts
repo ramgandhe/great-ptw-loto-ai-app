@@ -138,7 +138,7 @@ export type LototoProcedure = {
   workstationId: string | null;
   code: string;
   title: string;
-  status: "draft" | "published";
+  status: "draft" | "published" | "inactive";
   publishedVersionId: string | null;
   versions: { id: string; versionNumber: number; publishedAt: string | null }[];
   publishedVersion: LototoProcedureVersion | null;
@@ -151,7 +151,7 @@ export type LototoProcedureListItem = {
   workstationId: string | null;
   code: string;
   title: string;
-  status: "draft" | "published";
+  status: "draft" | "published" | "inactive";
   publishedVersionId: string | null;
 };
 

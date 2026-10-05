@@ -1,12 +1,34 @@
-import type { PermitDetail, PermitFormState } from "./types";
+import type { DraftFields, PermitDetail, PermitFormState } from "./types";
 
+/** Same order and stored step index as the web editor's sections (0 work … 4 forms, 5 review). */
 export const PERMIT_WIZARD_STEPS = [
-  "Basic",
-  "Location",
-  "Hazards & PPE",
-  "Executors",
+  "Work",
+  "Place and time",
+  "Safety",
+  "Crew",
+  "Check sheets",
   "Review",
 ] as const;
+
+export function fromStoredStep(stored: number): number {
+  return Math.min(Math.max(stored, 0), PERMIT_WIZARD_STEPS.length - 1);
+}
+
+export function toStoredStep(step: number): number {
+  return fromStoredStep(step);
+}
+
+/**
+ * Stored instants are UTC; form fields hold local "YYYY-MM-DDTHH:mm" (converted back with
+ * toISOString on save). Slicing the UTC string would shift the time by the UTC offset on every save.
+ */
+export function toDateInputValue(value: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 export function createEmptyPermitForm(): PermitFormState {
   return {
@@ -27,6 +49,7 @@ export function createEmptyPermitForm(): PermitFormState {
     gasTestingRequired: false,
     gasTesting: [],
     executors: [{ workforceUserId: "", isPrimary: true }],
+    formResponses: {},
     currentStep: 0,
   };
 }
@@ -44,8 +67,8 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
     workstationId: permit.workstationId ?? "",
     machineryId: permit.machineryId ?? "",
     lototoRequired: permit.lototoRequired === true,
-    plannedStartAt: permit.plannedStartAt?.slice(0, 16) ?? "",
-    plannedEndAt: permit.plannedEndAt?.slice(0, 16) ?? "",
+    plannedStartAt: toDateInputValue(permit.plannedStartAt),
+    plannedEndAt: toDateInputValue(permit.plannedEndAt),
     hazards:
       hazards.length > 0
         ? hazards.map((h) => ({
@@ -63,7 +86,13 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
         : [{ ppeCatalogueId: "", quantity: 1 }],
     lototo:
       lototo.length > 0
-        ? lototo.map((item) => ({ lototoPlanId: item.lototoPlanId }))
+        ? lototo.map((item) => ({
+            procedureId: item.procedureId,
+            extraPoints: [],
+            stepNa: [],
+            crew: [],
+            verifiers: [],
+          }))
         : [],
     gasTestingRequired: permit.gasTestingRequired === true,
     gasTesting:
@@ -77,7 +106,8 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
             isPrimary: e.isPrimary ?? false,
           }))
         : [{ workforceUserId: "", isPrimary: true }],
-    currentStep: draft?.currentStep ?? 0,
+    formResponses: Object.fromEntries((permit.formResponses ?? []).map((response) => [response.templateId, response.answers])),
+    currentStep: fromStoredStep(draft?.currentStep ?? 0),
   };
 }
 
@@ -98,7 +128,7 @@ export function shouldSaveExecutorPayload(roles: string[]): boolean {
   return roles.includes("operator") && !canRoleSubmitPermit(roles);
 }
 
-export function formToSavePayload(form: PermitFormState, options?: { executorOnly?: boolean }) {
+export function formToSavePayload(form: PermitFormState, options?: { executorOnly?: boolean }): DraftFields {
   const payload = {
     permitTypeId: form.permitTypeId,
     title: form.title,
@@ -111,19 +141,14 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
     lototoRequired: form.lototoRequired,
     plannedStartAt: form.plannedStartAt ? new Date(form.plannedStartAt).toISOString() : undefined,
     plannedEndAt: form.plannedEndAt ? new Date(form.plannedEndAt).toISOString() : undefined,
-    currentStep: form.currentStep,
-    hazards: form.hazards
-      .filter((h) => h.hazardCategoryId.trim())
-      .map((h) => ({
-        hazardCategoryId: h.hazardCategoryId,
-        extraConsequences: h.extraConsequences.map((value) => value.trim()).filter(Boolean),
-        extraControls: h.extraControls.map((value) => value.trim()).filter(Boolean),
-      })),
+    currentStep: toStoredStep(form.currentStep),
+    hazards: form.hazards.filter((h) => h.hazardCategoryId.trim()),
     ppe: form.ppe.filter((p) => p.ppeCatalogueId.trim()),
-    lototo: form.lototo.filter((item) => item.lototoPlanId.trim()),
+    lototo: form.lototo.filter((item) => item.procedureId.trim()),
     gasTestingRequired: form.gasTestingRequired,
     gasTesting: form.gasTesting.filter((item) => item.gasTestingCatalogueId.trim()),
     executors: form.executors.filter((e) => (e.workforceUserId ?? "").trim()),
+    formResponses: Object.entries(form.formResponses).map(([templateId, answers]) => ({ templateId, answers })),
   };
 
   if (!options?.executorOnly) {
@@ -141,6 +166,7 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
     gasTestingRequired: payload.gasTestingRequired,
     gasTesting: payload.gasTesting,
     executors: payload.executors,
+    formResponses: payload.formResponses,
   };
 }
 
@@ -169,7 +195,7 @@ export function validateStep(form: PermitFormState, step: number): string[] {
       if (!form.machineryId.trim()) {
         errors.push("Machinery is required when LOTOTO is required");
       }
-      if (!form.lototo.some((item) => item.lototoPlanId.trim())) {
+      if (!form.lototo.some((item) => item.procedureId.trim())) {
         errors.push("Select at least one LOTOTO procedure");
       }
     }

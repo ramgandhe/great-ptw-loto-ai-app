@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { ConnectivityBanner } from "@/components/offline/connectivity-banner";
+import { router } from "expo-router";
+import { Activity, LogOut } from "@/components/ui/icons";
 import { SyncStatusPanel } from "@/components/offline/sync-status-panel";
 import { ThemeSettings } from "@/components/theme/theme-settings";
+import { Button, Card, PageHeader, Screen, SectionTitle } from "@/components/ui";
 import { getFailedSyncCount } from "@/lib/offline";
 import { useAuth } from "@/providers/auth-provider";
-import { useTheme } from "@/providers/theme-provider";
 
 export default function SettingsScreen() {
   const { signOut } = useAuth();
-  const { tokens } = useTheme();
   const [failedCount, setFailedCount] = useState(0);
 
   const refreshFailedCount = useCallback(async () => {
@@ -21,36 +20,20 @@ export default function SettingsScreen() {
   }, [refreshFailedCount]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: tokens.colors.background }}>
-      <ConnectivityBanner />
-      <ScrollView contentContainerStyle={[styles.container, { padding: tokens.spacing.lg }]}>
-        <Text style={[styles.title, { color: tokens.colors.foreground, fontSize: tokens.typography.title }]}>
-          Settings
-        </Text>
+    <Screen>
+      <PageHeader title="Settings" description="How the app looks on this phone, and the changes waiting to reach the server." />
 
+      <SectionTitle title="Appearance" />
+      <Card>
         <ThemeSettings />
+      </Card>
 
-        <SyncStatusPanel failedCount={failedCount} />
+      <SectionTitle title="Offline changes" />
+      <SyncStatusPanel failedCount={failedCount} />
 
-        <Pressable
-          style={[styles.button, { backgroundColor: tokens.colors.primary, borderRadius: tokens.radius }]}
-          onPress={() => signOut()}
-        >
-          <Text style={[styles.buttonText, { color: tokens.colors.primaryForeground }]}>Sign out</Text>
-        </Pressable>
-      </ScrollView>
-    </View>
+      {/* Versions, API health and storage live here, not on Home. */}
+      <Button label="Platform status and diagnostics" variant="outline" icon={Activity} onPress={() => router.push("/platform")} full />
+      <Button label="Sign out" variant="danger" icon={LogOut} onPress={() => void signOut()} full />
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { gap: 16 },
-  title: { fontWeight: "600" },
-  button: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginTop: 8,
-  },
-  buttonText: { fontWeight: "500" },
-});

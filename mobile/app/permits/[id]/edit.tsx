@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { ScreenState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { getPermit } from "@/lib/permit/api";
-import { getLocalPermitDraft } from "@/lib/permit/offline";
+import { getLocalPermitDraft, resolvePermitId } from "@/lib/permit/offline";
 import { createEmptyPermitForm } from "@/lib/permit/form";
-import type { PermitDetail, PermitFormState } from "@/lib/permit/types";
+import type { DraftFields, PermitDetail, PermitFormState } from "@/lib/permit/types";
 import { PermitWizard } from "@/components/permit/permit-wizard";
 
 export default function EditPermitScreen() {
@@ -19,33 +19,29 @@ export default function EditPermitScreen() {
       return;
     }
 
-    getPermit(id)
+    // A permit created offline keeps its local id in links until its create syncs.
+    resolvePermitId(id)
+      .then(getPermit)
       .then(setDetail)
       .catch(async (err) => {
         const local = await getLocalPermitDraft(id);
         if (local) {
-          const payload = JSON.parse(local.payload) as Partial<PermitFormState>;
-          setLocalForm({ ...createEmptyPermitForm(), ...payload, title: local.title });
+          const payload = JSON.parse(local.payload) as DraftFields;
+          // Saved in the request's shape: forms are a list there, keyed by template in the form.
+          setLocalForm({
+            ...createEmptyPermitForm(),
+            ...(payload as Partial<PermitFormState>),
+            title: local.title,
+            formResponses: Object.fromEntries((payload.formResponses ?? []).map((r) => [r.templateId, r.answers])),
+          });
           return;
         }
-        setError(err instanceof ApiError ? err.message : "Failed to load permit");
+        setError(err instanceof ApiError ? err.message : "The permit could not be loaded.");
       });
   }, [id]);
 
-  if (error) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 16 }}>
-        <Text style={{ color: "#b91c1c" }}>{error}</Text>
-      </View>
-    );
-  }
-
-  if (!detail && !localForm) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
-      </View>
-    );
+  if (error || (!detail && !localForm)) {
+    return <ScreenState error={error} back={{ label: "Permits", href: "/permits" }} />;
   }
 
   if (localForm && !detail) {

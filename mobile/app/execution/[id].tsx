@@ -1,15 +1,8 @@
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { View } from "react-native";
+import { ActionBar, AppText, Banner, Button, Card, ChipRow, PageHeader, PermitStatusChip, RefChip, Screen, ScreenState, SectionTitle, TextField } from "@/components/ui";
+import { Camera, CalendarDays, CloudOff, Images, ListChecks, Pause, Play, Save } from "@/components/ui/icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { ApiError } from "@/lib/api";
 import {
@@ -20,11 +13,13 @@ import {
   uploadEvidence,
 } from "@/lib/execution/api";
 import { initExecutionOfflineStorage, queueOfflineEvidence, queueOfflineProgress } from "@/lib/execution/offline";
-import { getPermit, getPermitLototoExecution } from "@/lib/permit/api";
+import { getPermit } from "@/lib/permit/api";
 import type { PermitDetail } from "@/lib/permit/types";
-import { PermitLototoExecution } from "@/components/permit/lototo-execution";
+import { useTheme } from "@/providers/theme-provider";
 
 export default function ExecutePermitScreen() {
+  const { tokens } = useTheme();
+  const [suspending, setSuspending] = useState(false);
   const { id } = useLocalSearchParams<{ id: string }>();
   const permitId = id ?? "";
   const [detail, setDetail] = useState<PermitDetail | null>(null);
@@ -34,23 +29,15 @@ export default function ExecutePermitScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [lototoIsolated, setLototoIsolated] = useState<boolean | null>(null);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
       await initExecutionOfflineStorage();
-      const permitDetail = await getPermit(permitId);
-      setDetail(permitDetail);
-      if (permitDetail.permit.lototoRequired) {
-        const board = await getPermitLototoExecution(permitId);
-        setLototoIsolated(board.isolated);
-      } else {
-        setLototoIsolated(true);
-      }
+      setDetail(await getPermit(permitId));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load permit");
+      setError(err instanceof ApiError ? err.message : "The permit could not be loaded.");
     } finally {
       setLoading(false);
     }
@@ -71,7 +58,7 @@ export default function ExecutePermitScreen() {
       setMessage(successMessage);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Action failed");
+      setError(err instanceof ApiError ? err.message : "That did not work. Try again.");
     } finally {
       setSubmitting(false);
     }
@@ -87,11 +74,12 @@ export default function ExecutePermitScreen() {
 
   async function handleSuspend() {
     if (!suspendReason.trim()) {
-      setError("Suspension reason is required");
+      setError("Say why the work is suspended.");
       return;
     }
     await runAction(() => suspendPermit(permitId, suspendReason.trim()), "Work suspended");
     setSuspendReason("");
+    setSuspending(false);
   }
 
   async function handleProgress(offline: boolean) {
@@ -106,7 +94,7 @@ export default function ExecutePermitScreen() {
     try {
       if (offline) {
         await queueOfflineProgress(permitId, summary.trim());
-        setMessage("Progress saved offline — sync from the list screen");
+        setMessage("Progress saved on this phone. It is not recorded until the server confirms it; send it from Work in progress.");
       } else {
         await addProgress(permitId, { summary: summary.trim() });
         setMessage("Progress recorded");
@@ -116,13 +104,13 @@ export default function ExecutePermitScreen() {
       if (!offline && err instanceof ApiError) {
         try {
           await queueOfflineProgress(permitId, summary.trim());
-          setMessage("Network error — progress queued offline");
+          setMessage("No connection. Progress saved on this phone; it is not recorded until the server confirms it.");
           setSummary("");
         } catch {
           setError(err.message);
         }
       } else {
-        setError(err instanceof ApiError ? err.message : "Failed to record progress");
+        setError(err instanceof ApiError ? err.message : "The progress could not be recorded.");
       }
     } finally {
       setSubmitting(false);
@@ -132,7 +120,7 @@ export default function ExecutePermitScreen() {
   async function handleCameraCapture() {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Camera permission required", "Enable camera access to capture evidence.");
+      setError("Allow camera access in the phone's settings to take evidence photos.");
       return;
     }
 
@@ -163,18 +151,15 @@ export default function ExecutePermitScreen() {
         fileName: file.name,
         contentType: file.type,
       });
-      setMessage("Upload failed — evidence queued for sync");
+      setMessage("Upload failed. Evidence saved on this phone; it is not attached until the server confirms it.");
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (loading) {
-    return <ActivityIndicator style={{ marginTop: 32 }} />;
-  }
-
-  if (!detail) {
-    return <Text style={styles.error}>{error ?? "Permit not found"}</Text>;
+  const back = { label: "Work in progress", href: "/execution" };
+  if (loading || !detail) {
+    return <ScreenState error={loading ? null : (error ?? "This permit was not found.")} back={back} />;
   }
 
   const { permit } = detail;
@@ -183,146 +168,74 @@ export default function ExecutePermitScreen() {
   const isSuspended = permit.status === "suspended";
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{permit.title}</Text>
-      <Text style={styles.meta}>{permit.status.replace(/_/g, " ")}</Text>
+    <Screen
+      footer={
+        isApproved || isSuspended ? (
+          <ActionBar>
+            <Button label={isApproved ? "Start work" : "Resume work"} icon={Play} size="lg" loading={submitting} onPress={() => void (isApproved ? handleActivate() : handleResume())} />
+          </ActionBar>
+        ) : undefined
+      }
+    >
+      <PageHeader title={permit.title} back={back}>
+        <ChipRow>
+          <PermitStatusChip status={permit.status} />
+          <RefChip reference={permit.reference} />
+        </ChipRow>
+      </PageHeader>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {message ? <Text style={styles.message}>{message}</Text> : null}
-
-      <View style={styles.actions}>
-        {isApproved ? (
-          <Pressable
-            style={styles.primaryButton}
-            onPress={handleActivate}
-            disabled={submitting || (Boolean(permit.lototoRequired) && lototoIsolated === false)}
-          >
-            <Text style={styles.primaryButtonText}>{submitting ? "Starting..." : "Start work"}</Text>
-          </Pressable>
-        ) : null}
-        {isApproved && permit.lototoRequired && lototoIsolated === false ? (
-          <Text style={styles.meta}>Isolation and try-out must be verified before work can start.</Text>
-        ) : null}
-        {isSuspended ? (
-          <Pressable style={styles.primaryButton} onPress={handleResume} disabled={submitting}>
-            <Text style={styles.primaryButtonText}>{submitting ? "Resuming..." : "Resume work"}</Text>
-          </Pressable>
-        ) : null}
-        {isActive || isSuspended ? (
-          <Pressable style={styles.secondaryButton} onPress={() => router.push(`/multi-day/${permitId}`)}>
-            <Text style={styles.secondaryButtonText}>Multi-day operations</Text>
-          </Pressable>
-        ) : null}
-      </View>
-
-      {permit.lototoRequired && (isApproved || isActive || permit.status === "execution_completed") ? (
-        <PermitLototoExecution
-          permitId={permitId}
-          onBoardChange={(board) => setLototoIsolated(board.isolated)}
-        />
-      ) : null}
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      {message ? <Banner tone="success">{message}</Banner> : null}
+      {isSuspended ? <Banner tone="warning" title="Work is suspended">Resume only once the reason for stopping is dealt with.</Banner> : null}
 
       {isActive ? (
         <>
-          <Text style={styles.sectionTitle}>Progress update</Text>
-          <TextInput
-            style={styles.input}
-            value={summary}
-            onChangeText={setSummary}
-            placeholder="Describe work progress..."
-            multiline
-          />
-          <Pressable
-            style={styles.primaryButton}
-            onPress={() => handleProgress(false)}
-            disabled={submitting || !summary.trim()}
-          >
-            <Text style={styles.primaryButtonText}>Save progress</Text>
-          </Pressable>
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() => handleProgress(true)}
-            disabled={submitting || !summary.trim()}
-          >
-            <Text style={styles.secondaryButtonText}>Save offline</Text>
-          </Pressable>
+          <View style={{ gap: tokens.space[3] }}>
+            <SectionTitle title="Progress update" />
+            <Card style={{ gap: tokens.space[3] }}>
+              <TextField label="What was done" multiline value={summary} onChangeText={setSummary} placeholder="Describe the work since the last update" />
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space[2] }}>
+                <Button label="Save progress" icon={Save} disabled={submitting || !summary.trim()} onPress={() => void handleProgress(false)} />
+                <Button label="Save offline" variant="secondary" icon={CloudOff} disabled={submitting || !summary.trim()} onPress={() => void handleProgress(true)} />
+              </View>
+            </Card>
+          </View>
 
-          <Text style={styles.sectionTitle}>Camera evidence</Text>
-          <Pressable style={styles.secondaryButton} onPress={handleCameraCapture} disabled={submitting}>
-            <Text style={styles.secondaryButtonText}>Capture photo</Text>
-          </Pressable>
+          <View style={{ gap: tokens.space[3] }}>
+            <SectionTitle title="Evidence" />
+            <Card>
+              <AppText variant="caption">A photo of the work, the area or the isolation. It is attached to this permit.</AppText>
+              <Button label="Take photo" variant="outline" icon={Camera} disabled={submitting} onPress={() => void handleCameraCapture()} style={{ alignSelf: "flex-start" }} />
+            </Card>
+          </View>
         </>
       ) : null}
+
+      <View style={{ gap: tokens.space[3] }}>
+        <SectionTitle title="Records" />
+        <Card style={{ gap: 0 }}>
+          <Button label="Progress timeline" variant="ghost" icon={ListChecks} onPress={() => router.push(`/execution/${permitId}/progress`)} style={{ alignSelf: "flex-start" }} />
+          <Button label="Evidence gallery" variant="ghost" icon={Images} onPress={() => router.push(`/execution/${permitId}/evidence`)} style={{ alignSelf: "flex-start" }} />
+          {isActive || isSuspended ? (
+            <Button label="Multi-day operations" variant="ghost" icon={CalendarDays} onPress={() => router.push(`/multi-day/${permitId}`)} style={{ alignSelf: "flex-start" }} />
+          ) : null}
+        </Card>
+      </View>
 
       {isActive ? (
-        <>
-          <Text style={styles.sectionTitle}>Suspend work</Text>
-          <TextInput
-            style={styles.input}
-            value={suspendReason}
-            onChangeText={setSuspendReason}
-            placeholder="Suspension reason..."
-            multiline
-          />
-          <Pressable
-            style={styles.dangerButton}
-            onPress={handleSuspend}
-            disabled={submitting || !suspendReason.trim()}
-          >
-            <Text style={styles.primaryButtonText}>Suspend work</Text>
-          </Pressable>
-        </>
+        suspending ? (
+          <Card accent={tokens.colors.danger} style={{ gap: tokens.space[3] }}>
+            <AppText variant="subheading">Suspend work</AppText>
+            <TextField label="Why the work stops" required multiline value={suspendReason} onChangeText={setSuspendReason} placeholder="For example: gas reading above limit" />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space[2] }}>
+              <Button label="Suspend work" variant="danger" icon={Pause} disabled={submitting || !suspendReason.trim()} onPress={() => void handleSuspend()} />
+              <Button label="Cancel" variant="ghost" onPress={() => setSuspending(false)} />
+            </View>
+          </Card>
+        ) : (
+          <Button label="Suspend work" variant="danger" icon={Pause} onPress={() => setSuspending(true)} style={{ alignSelf: "flex-start" }} />
+        )
       ) : null}
-
-      <View style={styles.links}>
-        <Pressable onPress={() => router.push(`/execution/${permitId}/progress`)}>
-          <Text style={styles.link}>Progress timeline</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push(`/execution/${permitId}/evidence`)}>
-          <Text style={styles.link}>Evidence gallery</Text>
-        </Pressable>
-      </View>
-    </ScrollView>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { padding: 16, gap: 10 },
-  title: { fontSize: 20, fontWeight: "600" },
-  meta: { fontSize: 13, color: "#666", textTransform: "capitalize" },
-  sectionTitle: { fontSize: 14, fontWeight: "600", marginTop: 8 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 10,
-    minHeight: 80,
-    textAlignVertical: "top",
-  },
-  actions: { gap: 8 },
-  primaryButton: {
-    backgroundColor: "#1f2937",
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-  },
-  primaryButtonText: { color: "#fff", fontWeight: "500" },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-  },
-  secondaryButtonText: { color: "#111827", fontWeight: "500" },
-  dangerButton: {
-    backgroundColor: "#b91c1c",
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-  },
-  links: { marginTop: 16, gap: 8 },
-  link: { color: "#2563eb", fontSize: 14 },
-  error: { color: "#b91c1c" },
-  message: { color: "#059669" },
-});

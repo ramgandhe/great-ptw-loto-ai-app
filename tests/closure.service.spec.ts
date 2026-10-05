@@ -41,16 +41,18 @@ describe('Closure services integration (PUS-146)', () => {
     try {
       await pool.query('SELECT 1');
       canConnect = true;
-      await migrate(db, { migrationsFolder });
     } catch {
       canConnect = false;
     }
+    // A failed migration fails the suite; it must never look like "no database".
+    if (canConnect) await migrate(db, { migrationsFolder });
 
     if (!canConnect) {
       return;
     }
 
     const permitService = {
+      saveStageAnswers: jest.fn(async () => []),
       findOne: jest.fn(async (permitId: string, user: AuthenticatedUser) => {
         const [permit] = await db
           .select()

@@ -1,0 +1,459 @@
+{
+  "method": "Same counting contract as P1: button/link = 1, native select open+choose = 2, typing/scrolling/sign-in excluded; screens = main views including the start. Seed draft is real (local DB); executor writes are intercepted and answered with the current permit, so no executor data is stored.",
+  "journey": {
+    "name": "P2 Executor preparation",
+    "start": "/dashboard",
+    "steps": [
+      {
+        "action": "Open assigned draft from Needs you",
+        "clicks": 1
+      },
+      {
+        "action": "Step: On-site details",
+        "clicks": 1
+      },
+      {
+        "action": "Select Workstation",
+        "clicks": 2
+      },
+      {
+        "action": "Select Machinery",
+        "clicks": 2
+      },
+      {
+        "action": "Select Hazard 1",
+        "clicks": 2
+      },
+      {
+        "action": "Add hazard",
+        "clicks": 1
+      },
+      {
+        "action": "Select Hazard 2",
+        "clicks": 2
+      },
+      {
+        "action": "Select PPE 1",
+        "clicks": 2
+      },
+      {
+        "action": "Add PPE",
+        "clicks": 1
+      },
+      {
+        "action": "Select PPE 2",
+        "clicks": 2
+      },
+      {
+        "action": "Add PPE",
+        "clicks": 1
+      },
+      {
+        "action": "Select PPE 3",
+        "clicks": 2
+      },
+      {
+        "action": "Next (saves)",
+        "clicks": 1
+      },
+      {
+        "action": "Add crew member",
+        "clicks": 1
+      },
+      {
+        "action": "Select Crew member 1",
+        "clicks": 2
+      },
+      {
+        "action": "Add crew member",
+        "clicks": 1
+      },
+      {
+        "action": "Select Crew member 2",
+        "clicks": 2
+      },
+      {
+        "action": "Next (saves)",
+        "clicks": 1
+      },
+      {
+        "action": "Type Permit issued to (contractor firm)",
+        "clicks": 0
+      },
+      {
+        "action": "Sign: contractor supervisor (Me, now)",
+        "clicks": 1
+      },
+      {
+        "action": "Type of work",
+        "clicks": 1
+      },
+      {
+        "action": "All yes (2 precaution checks)",
+        "clicks": 1
+      },
+      {
+        "action": "Save draft",
+        "clicks": 1
+      }
+    ],
+    "screens": [
+      "Dashboard (Needs you)",
+      "Location & schedule (issuer step, read-only)",
+      "On-site details",
+      "Crew assignment",
+      "Forms & check sheets"
+    ],
+    "typedFields": [
+      "Permit issued to (contractor firm)"
+    ],
+    "clicks": 31
+  },
+  "writes": [
+    {
+      "method": "PATCH",
+      "path": "/api/v1/permits/2eee82f5-79f3-41fe-a619-4972c9dab0f1",
+      "body": {
+        "workstationId": "00000000-0000-4000-8000-000000000110",
+        "machineryId": "00000000-0000-4000-8000-000000000111",
+        "currentStep": 2,
+        "hazards": [
+          {
+            "hazardCategoryId": "00000000-0000-4000-8000-000000000155",
+            "description": ""
+          },
+          {
+            "hazardCategoryId": "00000000-0000-4000-8000-000000000156",
+            "description": ""
+          }
+        ],
+        "ppe": [
+          {
+            "ppeCatalogueId": "00000000-0000-4000-8000-000000000160",
+            "quantity": 1
+          },
+          {
+            "ppeCatalogueId": "00000000-0000-4000-8000-000000000163",
+            "quantity": 1
+          },
+          {
+            "ppeCatalogueId": "00000000-0000-4000-8000-000000000128",
+            "quantity": 1
+          }
+        ],
+        "lototoRequired": false,
+        "lototo": [],
+        "gasTestingRequired": false,
+        "gasTesting": [],
+        "executors": [
+          {
+            "workforceUserId": "00000000-0000-4000-8000-000000000015",
+            "isPrimary": true
+          }
+        ],
+        "safetyOfficers": [],
+        "formResponses": [],
+        "expectedRevision": 1
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/permits/2eee82f5-79f3-41fe-a619-4972c9dab0f1",
+      "body": {
+        "workstationId": "00000000-0000-4000-8000-000000000110",
+        "machineryId": "00000000-0000-4000-8000-000000000111",
+        "currentStep": 3,
+        "hazards": [
+          {
+            "hazardCategoryId": "00000000-0000-4000-8000-000000000155",
+            "description": ""
+          },
+          {
+            "hazardCategoryId": "00000000-0000-4000-8000-000000000156",
+            "description": ""
+          }
+        ],
+        "ppe": [
+          {
+            "ppeCatalogueId": "00000000-0000-4000-8000-000000000160",
+            "quantity": 1
+          },
+          {
+            "ppeCatalogueId": "00000000-0000-4000-8000-000000000163",
+            "quantity": 1
+          },
+          {
+            "ppeCatalogueId": "00000000-0000-4000-8000-000000000128",
+            "quantity": 1
+          }
+        ],
+        "lototoRequired": false,
+        "lototo": [],
+        "gasTestingRequired": false,
+        "gasTesting": [],
+        "executors": [
+          {
+            "workforceUserId": "00000000-0000-4000-8000-000000000015",
+            "isPrimary": true
+          },
+          {
+            "workforceUserId": "d2801999-db2c-42ac-9581-d956ade2f2b2",
+            "isPrimary": false
+          },
+          {
+            "workforceUserId": "b6a07326-4396-44d8-b12e-2b9b2f36accd",
+            "isPrimary": false
+          }
+        ],
+        "safetyOfficers": [],
+        "formResponses": [],
+        "expectedRevision": 1
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/permits/2eee82f5-79f3-41fe-a619-4972c9dab0f1",
+      "body": {
+        "workstationId": "00000000-0000-4000-8000-000000000110",
+        "machineryId": "00000000-0000-4000-8000-000000000111",
+        "currentStep": 4,
+        "hazards": [
+          {
+            "hazardCategoryId": "00000000-0000-4000-8000-000000000155",
+            "description": ""
+          },
+          {
+            "hazardCategoryId": "00000000-0000-4000-8000-000000000156",
+            "description": ""
+          }
+        ],
+        "ppe": [
+          {
+            "ppeCatalogueId": "00000000-0000-4000-8000-000000000160",
+            "quantity": 1
+          },
+          {
+            "ppeCatalogueId": "00000000-0000-4000-8000-000000000163",
+            "quantity": 1
+          },
+          {
+            "ppeCatalogueId": "00000000-0000-4000-8000-000000000128",
+            "quantity": 1
+          }
+        ],
+        "lototoRequired": false,
+        "lototo": [],
+        "gasTestingRequired": false,
+        "gasTesting": [],
+        "executors": [
+          {
+            "workforceUserId": "00000000-0000-4000-8000-000000000015",
+            "isPrimary": true
+          },
+          {
+            "workforceUserId": "d2801999-db2c-42ac-9581-d956ade2f2b2",
+            "isPrimary": false
+          },
+          {
+            "workforceUserId": "b6a07326-4396-44d8-b12e-2b9b2f36accd",
+            "isPrimary": false
+          }
+        ],
+        "safetyOfficers": [],
+        "formResponses": [
+          {
+            "templateId": "aae729d4-b816-4a4d-8c47-ed0d2cf99361",
+            "answers": {
+              "permit-1": "Maintenance",
+              "permit-5": "David Brown, Role Check, Role Check",
+              "permit-6": 3,
+              "validity-1": "2026-10-02",
+              "validity-2": "2026-10-02",
+              "job-1": "Main compressor",
+              "job-3": "Compressor Bay, Compressor Bay",
+              "job-4": "P2 baseline 1790816304765\n\nInspect the marked walkway before routine work.",
+              "permit-2": "M/s Demo Contractors",
+              "permit-3": {
+                "name": "David Brown",
+                "date": "2026-10-01",
+                "time": "06:28"
+              },
+              "work-type-1": [
+                "Normal jobs or cold work at floor level"
+              ],
+              "precautions-1": "yes",
+              "precautions-2": "yes"
+            }
+          }
+        ],
+        "expectedRevision": 1
+      }
+    }
+  ],
+  "formFields": {
+    "onArrival": [
+      {
+        "id": "ff-permit-1",
+        "label": "Issuing department *",
+        "value": "Maintenance"
+      },
+      {
+        "id": "ff-permit-2",
+        "label": "Permit issued to (contractor firm) *",
+        "value": ""
+      },
+      {
+        "id": "ff-permit-3",
+        "label": "Contractor supervisor *",
+        "value": ""
+      },
+      {
+        "id": "ff-permit-5",
+        "label": "Persons covered *",
+        "value": "David Brown, Role Check, Role Check"
+      },
+      {
+        "id": "ff-permit-6",
+        "label": "Number of persons *",
+        "value": "3"
+      },
+      {
+        "id": "ff-validity-1",
+        "label": "Valid from *",
+        "value": "2026-10-02"
+      },
+      {
+        "id": "ff-validity-2",
+        "label": "Valid to *",
+        "value": "2026-10-02"
+      },
+      {
+        "id": "ff-job-3",
+        "label": "Location *",
+        "value": "Compressor Bay, Compressor Bay"
+      },
+      {
+        "id": "ff-job-4",
+        "label": "Description of the job *",
+        "value": "P2 baseline 1790816304765\n\nInspect the marked walkway before routine work."
+      },
+      {
+        "id": "ff-authorisation-1",
+        "label": "Job issued by *",
+        "value": ""
+      },
+      {
+        "id": "ff-authorisation-2",
+        "label": "HOD of job issuer *",
+        "value": ""
+      },
+      {
+        "id": "ff-authorisation-3",
+        "label": "Job authorised by *",
+        "value": ""
+      },
+      {
+        "id": "ff-completion-1",
+        "label": "Job completion accepted by *",
+        "value": ""
+      }
+    ],
+    "afterEntry": [
+      {
+        "id": "ff-permit-1",
+        "label": "Issuing department *",
+        "value": "Maintenance"
+      },
+      {
+        "id": "ff-permit-2",
+        "label": "Permit issued to (contractor firm) *",
+        "value": "M/s Demo Contractors"
+      },
+      {
+        "id": "ff-permit-3",
+        "label": "Contractor supervisor *",
+        "value": "David Brown"
+      },
+      {
+        "id": "ff-permit-5",
+        "label": "Persons covered *",
+        "value": "David Brown, Role Check, Role Check"
+      },
+      {
+        "id": "ff-permit-6",
+        "label": "Number of persons *",
+        "value": "3"
+      },
+      {
+        "id": "ff-validity-1",
+        "label": "Valid from *",
+        "value": "2026-10-02"
+      },
+      {
+        "id": "ff-validity-2",
+        "label": "Valid to *",
+        "value": "2026-10-02"
+      },
+      {
+        "id": "ff-job-3",
+        "label": "Location *",
+        "value": "Compressor Bay, Compressor Bay"
+      },
+      {
+        "id": "ff-job-4",
+        "label": "Description of the job *",
+        "value": "P2 baseline 1790816304765\n\nInspect the marked walkway before routine work."
+      },
+      {
+        "id": "ff-authorisation-1",
+        "label": "Job issued by *",
+        "value": ""
+      },
+      {
+        "id": "ff-authorisation-2",
+        "label": "HOD of job issuer *",
+        "value": ""
+      },
+      {
+        "id": "ff-authorisation-3",
+        "label": "Job authorised by *",
+        "value": ""
+      },
+      {
+        "id": "ff-completion-1",
+        "label": "Job completion accepted by *",
+        "value": ""
+      }
+    ],
+    "signaturesNotExecutors": [
+      "Job issued by",
+      "HOD of job issuer",
+      "Job authorised by",
+      "Job completion accepted by"
+    ]
+  },
+  "errors": [],
+  "lototoGas": {
+    "lototoEnabled": true,
+    "gasEnabled": true,
+    "note": "Not required for General Work; left unchecked."
+  },
+  "crewOptions": [
+    "Select executors",
+    "David Brown (you) · operator · Job executor",
+    "Role Check · role.1790659971612@ptw.local · Job executor",
+    "Role Check · role.1790660174865@ptw.local · Job executor",
+    "Tester mum83bgi · tester.mum83bgi@ptw.local · Job executor",
+    "Tester mum8crvf · tester.mum8crvf@ptw.local · Job executor",
+    "Tester mum8g72m · tester.mum8g72m@ptw.local · Job executor",
+    "Tester mum8idio · tester.mum8idio@ptw.local · Job executor",
+    "Tester mum9rjpn · tester.mum9rjpn@ptw.local · Job executor",
+    "Tester mumidzfb · tester.mumidzfb@ptw.local · Job executor",
+    "Tester mumiga6m · tester.mumiga6m@ptw.local · Job executor"
+  ],
+  "allYesAlternative": {
+    "individualAnswers": 2,
+    "allYes": 1,
+    "proposedWithConfirmation": 2
+  }
+}

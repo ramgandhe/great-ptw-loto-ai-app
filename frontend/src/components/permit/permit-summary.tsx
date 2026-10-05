@@ -5,7 +5,7 @@ import { ChevronRight, Paperclip, TriangleAlert, type LucideIcon } from "lucide-
 import { DOMAIN_ICONS } from "@/lib/domain-icons";
 import { PermitTypeChip } from "./permit-type-chip";
 import type { PermitAttachment, PermitFormState } from "@/lib/permit/types";
-import { gasTestingApi, masterDataApi, type HazardRecord } from "@/lib/master-data/api";
+import { gasTestingApi, masterDataApi, type GasTestingRecord, type HazardRecord } from "@/lib/master-data/api";
 import { getLototoProcedure, getLototoProcedureVersion, listLototoProcedures } from "@/lib/lototo/api";
 import type { LototoProcedureVersion } from "@/lib/lototo/types";
 import { formatWindow } from "@/lib/format";
@@ -16,7 +16,7 @@ type Catalogues = {
   hazards: Map<string, HazardRecord>;
   ppe: Map<string, string>;
   lototo: Map<string, string>;
-  gas: Map<string, string>;
+  gas: Map<string, GasTestingRecord>;
 };
 
 const named = <T extends { id: string }>(rows: T[], label: (row: T) => string) =>
@@ -136,7 +136,7 @@ export function PermitSummary({
         hazards: new Map(hazards.map((row) => [row.id, row])),
         ppe: named(ppe, (row) => row.name),
         lototo: named(lototo, (row) => `${row.code} ${row.title}`),
-        gas: named(gas, (row) => `${row.parameter} (${row.unit})`),
+        gas: new Map(gas.map((row) => [row.id, row])),
       }),
     );
   }, []);
@@ -188,9 +188,7 @@ export function PermitSummary({
   const ppe = form.ppe
     .filter((p) => p.ppeCatalogueId)
     .map((p) => `${pick(catalogues?.ppe, p.ppeCatalogueId)}${p.quantity > 1 ? ` × ${p.quantity}` : ""}`);
-  const gas = form.gasTesting
-    .filter((g) => g.gasTestingCatalogueId)
-    .map((g) => pick(catalogues?.gas, g.gasTestingCatalogueId));
+  const gasRows = form.gasTesting.filter((g) => g.gasTestingCatalogueId);
   const executors = form.executors.filter((e) => e.workforceUserId);
   const officers = form.safetyOfficers.filter((e) => e.workforceUserId).map((e) => person(e.workforceUserId));
   const viewers = form.viewers.filter((e) => e.workforceUserId).map((e) => person(e.workforceUserId));
@@ -271,10 +269,10 @@ export function PermitSummary({
                       <span className="font-normal text-muted-foreground">None listed</span>
                     )}
                   </Field>
-                  {item.extraConsequences.filter((line) => line.trim()).length ? (
+                  {(item.extraConsequences ?? []).filter((line) => line.trim()).length ? (
                     <Field label="Extra consequences (this permit)">
                       <ul className="list-disc pl-5 font-normal">
-                        {item.extraConsequences.filter((line) => line.trim()).map((line) => (
+                        {(item.extraConsequences ?? []).filter((line) => line.trim()).map((line) => (
                           <li key={line}>{line}</li>
                         ))}
                       </ul>
@@ -291,10 +289,10 @@ export function PermitSummary({
                       <span className="font-normal text-muted-foreground">None listed</span>
                     )}
                   </Field>
-                  {item.extraControls.filter((line) => line.trim()).length ? (
+                  {(item.extraControls ?? []).filter((line) => line.trim()).length ? (
                     <Field label="Extra controls (this permit)">
                       <ul className="list-disc pl-5 font-normal">
-                        {item.extraControls.filter((line) => line.trim()).map((line) => (
+                        {(item.extraControls ?? []).filter((line) => line.trim()).map((line) => (
                           <li key={line}>{line}</li>
                         ))}
                       </ul>
@@ -373,17 +371,17 @@ export function PermitSummary({
                           <span className="font-normal text-muted-foreground">None</span>
                         )}
                       </Field>
-                      {item.extraPoints.some((p) => p.pointCode) ? (
+                      {(item.extraPoints ?? []).some((p) => p.pointCode) ? (
                         <Field label="Extra points">
-                          {item.extraPoints
+                          {(item.extraPoints ?? [])
                             .filter((p) => p.pointCode)
                             .map((p) => `${p.pointCode} (${p.energyType})`)
                             .join(", ")}
                         </Field>
                       ) : null}
-                      {item.stepNa.some((row) => row.reason) ? (
+                      {(item.stepNa ?? []).some((row) => row.reason) ? (
                         <Field label="N/A">
-                          {item.stepNa
+                          {(item.stepNa ?? [])
                             .filter((row) => row.reason)
                             .map((row) => row.reason)
                             .join("; ")}
@@ -419,7 +417,24 @@ export function PermitSummary({
       </Section>
       <Section kind="gas" title="Gas testing">
         {form.gasTestingRequired ? (
-          <Chips items={gas} empty="Required, no tests selected" missing />
+          gasRows.length === 0 ? (
+            <span className="font-semibold text-(--status-danger)">Required, no tests selected</span>
+          ) : (
+            <div className="grid gap-3">
+              {gasRows.map((item) => {
+                const row = catalogues?.gas.get(item.gasTestingCatalogueId);
+                return (
+                  <div key={item.gasTestingCatalogueId} className="grid gap-1">
+                    <p className="font-medium">{row?.parameter ?? (catalogues ? "Unknown parameter" : loading)}</p>
+                    <Field label="Acceptable range">
+                      {row ? `${row.minimum}–${row.maximum}` : catalogues ? "—" : loading}
+                    </Field>
+                    <Field label="Unit">{row?.unit ?? (catalogues ? "—" : loading)}</Field>
+                  </div>
+                );
+              })}
+            </div>
+          )
         ) : (
           <span className="font-normal text-muted-foreground">Not required for this work</span>
         )}

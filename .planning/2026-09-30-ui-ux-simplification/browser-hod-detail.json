@@ -1,0 +1,206 @@
+{
+  "role": "hod",
+  "results": [
+    {
+      "title": "PermitWiseAI",
+      "url": "/approvals/00000000-0000-4000-8000-000000000203",
+      "headings": [
+        "Pending HOD review — confined space entry",
+        "Work",
+        "Where",
+        "When",
+        "Hazards",
+        "PPE",
+        "LOTOTO",
+        "Gas testing",
+        "People",
+        "Your decision",
+        "Approval route"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n8\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n11\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nBilling\nSearch permits, pages and actions\nCtrl K\n21\nM\nMichael Smith\nHod\nBack to\nPermits\nPending HOD review — confined space entry\nPending approval\n\nPTW-DEMO-003\nSubmitted Mon 10 Aug, 14:30\nOpen full permit\n\nNot provided yet: PPE, Executor.\n\nWork\n\nPermit type\n\nConfined Space\n\nDemo scenario: Pending HOD review — confined space entry\n\nWhere\n\nDemo Plant\nOperations\nCompressor Bay\nMain compressor\n\nWhen\n\n10 Aug 14:30 to 25 Aug 21:30 (15 days)\n\nHazards\nElectrical energy: Energised panel in adjacent room\nPPE\nNone recorded\nLOTOTO\nNot required for this work\nGas testing\nNot required for this work\nPeople\n\nExecutors\n\nNot assigned\nYour decision\n\nStage: HOD initial review\n\nApprove\nSend back for changes\nReject\nApproval route\nHistory\n\n1. HOD initial review\n\nHOD · active",
+      "links": [
+        {
+          "text": "Back to Permits",
+          "href": "/permits"
+        },
+        {
+          "text": "Open full permit",
+          "href": "/permits/00000000-0000-4000-8000-000000000203"
+        },
+        {
+          "text": "History",
+          "href": "/approvals/00000000-0000-4000-8000-000000000203/history"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Approve",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Send back for changes",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Reject",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/approvals/00000000-0000-4000-8000-000000000203",
+      "http": 200,
+      "mobile": {
+        "overflow": false,
+        "sticky": []
+      }
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/approvals/00000000-0000-4000-8000-000000000203/history",
+      "headings": [
+        "Approval history"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n8\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n11\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nBilling\nSearch permits, pages and actions\nCtrl K\n21\nM\nMichael Smith\nHod\nBack to\nApproval\nApproval history\nPending approval\n\nPending HOD review — confined space entry\n\nSla escalated\nTue 29 Sept, 19:30\n\nJob Issuer\n\nSla escalated\nMon 28 Sept, 18:44\n\nJob Issuer\n\nSla escalated\nSun 27 Sept, 11:30\n\nJob Issuer",
+      "links": [
+        {
+          "text": "Back to Approval",
+          "href": "/approvals/00000000-0000-4000-8000-000000000203"
+        }
+      ],
+      "controls": [],
+      "overflow": false,
+      "route": "/approvals/00000000-0000-4000-8000-000000000203/history",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/lototo/plans/140669ee-4aeb-49f0-b988-7991494ca500",
+      "headings": [
+        "API iso check 1790660174748",
+        "Isolation points",
+        "Personnel assignment",
+        "Isolation sequence"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n8\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n11\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nBilling\nSearch permits, pages and actions\nCtrl K\n21\nM\nMichael Smith\nHod\nBack to\nApproval\nAPI iso check 1790660174748\nDraft\n\nNo description · Machinery\n\nIsolation points\n\nDefine energy sources and isolation points.\n\nNo isolation points configured yet.\n\nIsolation number\nMachinery\nSelect machinery\nMain compressor (MC-COMP-01)\nCooling water pump (MC-PUMP-01)\nFeed pump (MC-FEED-01)\nHeat exchanger (MC-HX-01)\nAgitator motor (MC-AGIT-01)\nConveyor drive (MC-CONV-01)\nEnergy source type\nSelect…\nElectrical\nMechanical\nHydraulic\nPneumatic\nThermal\nChemical\nGravitational\nDescription\nAdd isolation point\nPersonnel assignment\n\nAssign isolation officers and verifiers.\n\nNo personnel assigned yet.\n\nWorkforce member\nSelect workforce member\nArjun Singh · arjun.singh@contractor.local · contractor\nField Operator · operator@ptw.local · employee\nHead of Department · hod@ptw.local · employee\nJob Issuer · issuer@ptw.local · employee\nKaran Desai · karan.desai@contractor.local · contractor\nLead Electrician · lead.electrician@ptw.local · employee\nMaintenance Supervisor · maintenance.supervisor@ptw.local · employee\nMeera Patel · meera.patel@contractor.local · contractor\nPriya Nair · priya.nair@contractor.local · contractor\nRavi Sharma · ravi.sharma@contractor.local · contractor\nSafety Officer · safety@ptw.local · employee\nSneha Iyer · sneha.iyer@contractor.local · contractor\nTester mum83bgi · tester.mum83bgi@ptw.local · employee\nTester mum8crvf · tester.mum8crvf@ptw.local · employee\nTester mum8g72m · tester.mum8g72m@ptw.local · employee\nTester mum8idio · tester.mum8idio@ptw.local · employee\nTester mum9rjpn · tester.mum9rjpn@ptw.local · employee\nTester mumidzfb · tester.mumidzfb@ptw.local · employee\nTester mumiga6m · tester.mumiga6m@ptw.local · employee\nAssignment role\nSelect…\nJob executor\nSafety officer\nHead of Department\nAssign personnel\nIsolation sequence\n\nOrder follows the isolation points list. Saving marks the plan Ready.\n\nSave sequence",
+      "links": [
+        {
+          "text": "Back to Approval",
+          "href": "/approvals/00000000-0000-4000-8000-000000000203/history"
+        },
+        {
+          "text": "Machinery",
+          "href": "/organisation/machinery"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Isolation number",
+          "disabled": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Machinery",
+          "disabled": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Energy source type",
+          "disabled": false
+        },
+        {
+          "tag": "TEXTAREA",
+          "type": "textarea",
+          "label": "Description",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "submit",
+          "label": "Add isolation point",
+          "disabled": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Workforce member",
+          "disabled": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Assignment role",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "submit",
+          "label": "Assign personnel",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Save sequence",
+          "disabled": true
+        }
+      ],
+      "overflow": false,
+      "route": "/lototo/plans/140669ee-4aeb-49f0-b988-7991494ca500",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/lototo/execute/140669ee-4aeb-49f0-b988-7991494ca500",
+      "headings": [
+        "Isolation execution"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n8\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n11\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nBilling\nSearch permits, pages and actions\nCtrl K\n21\nM\nMichael Smith\nHod\nBack to\nLOTOTO plan\nIsolation execution\n\nNo isolation execution has been started for this plan.\n\nStart isolation execution",
+      "links": [
+        {
+          "text": "Back to LOTOTO plan",
+          "href": "/lototo/plans/140669ee-4aeb-49f0-b988-7991494ca500"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Start isolation execution",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/lototo/execute/140669ee-4aeb-49f0-b988-7991494ca500",
+      "http": 200
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/lototo/history/140669ee-4aeb-49f0-b988-7991494ca500",
+      "headings": [
+        "LOTOTO history"
+      ],
+      "text": "PermitWiseAI\nHome\nPermits\n8\n\nSafety\n\nLOTOTO\nSIMOPS\n7\nIncidents\n11\n\nInsights\n\nPermit process\nAnalytics\nReports\n\nAdministration\n\nBilling\nSearch permits, pages and actions\nCtrl K\n21\nM\nMichael Smith\nHod\nBack to\nLOTOTO\nLOTOTO history\n\nAppend-only audit trail for this plan.\n\nNo history recorded yet.",
+      "links": [
+        {
+          "text": "Back to LOTOTO",
+          "href": "/lototo/execute/140669ee-4aeb-49f0-b988-7991494ca500"
+        }
+      ],
+      "controls": [],
+      "overflow": false,
+      "route": "/lototo/history/140669ee-4aeb-49f0-b988-7991494ca500",
+      "http": 200
+    }
+  ],
+  "errors": []
+}

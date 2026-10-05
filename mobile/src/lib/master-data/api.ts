@@ -4,6 +4,8 @@ export type MasterDataRecord = {
   id: string;
   code?: string | null;
   name: string;
+  /** Permit types: the colour the organisation chose. */
+  color?: string | null;
 };
 
 export type HazardRecord = MasterDataRecord & {

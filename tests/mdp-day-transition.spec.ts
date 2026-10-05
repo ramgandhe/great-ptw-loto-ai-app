@@ -35,10 +35,11 @@ describe('MDP day-transition and renewal (SP-09.03 / FR-MDP-009)', () => {
     try {
       await pool.query('SELECT 1');
       canConnect = true;
-      await migrate(db, { migrationsFolder });
     } catch {
       canConnect = false;
     }
+    // A failed migration fails the suite; it must never look like "no database".
+    if (canConnect) await migrate(db, { migrationsFolder });
 
     if (!canConnect) {
       return;

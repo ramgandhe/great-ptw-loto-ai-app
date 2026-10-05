@@ -228,6 +228,50 @@ describe('LOTOTO procedure library HTTP', () => {
     expect(after.body.data.draftVersion.lockoutPoints[0].pointCode).toBe('EMP-2');
   });
 
+  httpTest('deactivates a published procedure, hides it from the picker, then reactivates and deletes it', async () => {
+    const machinery = await seedMachinery();
+    const created = await request(adminApp.getHttpServer())
+      .post('/api/v1/lototo/procedures')
+      .send({
+        machineryId: machinery.id,
+        code: `OFF-${randomUUID().slice(0, 8)}`,
+        title: 'Idle lockout',
+        lockoutPoints: [{ sortOrder: 1, pointCode: 'OFF-1', energyType: 'Electrical' }],
+      })
+      .expect(201);
+
+    await request(adminApp.getHttpServer())
+      .post(`/api/v1/lototo/procedures/${created.body.data.id}/publish`)
+      .expect(201);
+
+    const deactivated = await request(adminApp.getHttpServer())
+      .post(`/api/v1/lototo/procedures/${created.body.data.id}/deactivate`)
+      .expect(201);
+    expect(deactivated.body.data.status).toBe('inactive');
+
+    const publishedOnly = await request(adminApp.getHttpServer())
+      .get(`/api/v1/lototo/procedures?machineryId=${machinery.id}&published=true`)
+      .expect(200);
+    expect(publishedOnly.body.data).toEqual([]);
+
+    await request(adminApp.getHttpServer())
+      .post(`/api/v1/lototo/procedures/${created.body.data.id}/revisions`)
+      .expect(409);
+
+    const reactivated = await request(adminApp.getHttpServer())
+      .post(`/api/v1/lototo/procedures/${created.body.data.id}/reactivate`)
+      .expect(201);
+    expect(reactivated.body.data.status).toBe('published');
+
+    await request(adminApp.getHttpServer())
+      .post(`/api/v1/lototo/procedures/${created.body.data.id}/deactivate`)
+      .expect(201);
+
+    await request(adminApp.getHttpServer())
+      .delete(`/api/v1/lototo/procedures/${created.body.data.id}`)
+      .expect(200);
+  });
+
   httpTest('rejects HOD creating a library procedure', async () => {
     const machinery = await seedMachinery();
     await request(hodApp.getHttpServer())

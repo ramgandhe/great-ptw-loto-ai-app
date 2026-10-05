@@ -142,6 +142,7 @@ export class LototoProcedureService {
   async update(id: string, dto: UpdateLototoProcedureDto, user: AuthenticatedUser) {
     const tenantId = this.validationService.requireTenant(user);
     const procedure = await this.requireProcedure(id, tenantId);
+    this.assertMutable(procedure);
     if (dto.machineryId) {
       await this.validationService.assertMachineryExists(tenantId, dto.machineryId);
     }
@@ -208,6 +209,7 @@ export class LototoProcedureService {
   async publish(id: string, user: AuthenticatedUser) {
     const tenantId = this.validationService.requireTenant(user);
     const procedure = await this.requireProcedure(id, tenantId);
+    this.assertMutable(procedure);
     const draft = await this.latestUnpublishedVersion(procedure.id);
     if (!draft) {
       throw new ConflictException('No unpublished version to publish');
@@ -247,6 +249,7 @@ export class LototoProcedureService {
   async createRevision(id: string, user: AuthenticatedUser) {
     const tenantId = this.validationService.requireTenant(user);
     const procedure = await this.requireProcedure(id, tenantId);
+    this.assertMutable(procedure);
     if (!procedure.publishedVersionId) {
       throw new ConflictException('Publish the procedure before creating a revision');
     }
@@ -352,6 +355,63 @@ export class LototoProcedureService {
     return this.assemble(this.db, procedure.id, tenantId);
   }
 
+  async deactivate(id: string, user: AuthenticatedUser) {
+    const tenantId = this.validationService.requireTenant(user);
+    const procedure = await this.requireProcedure(id, tenantId);
+    if (procedure.status !== 'published') {
+      throw new ConflictException('Only a published procedure can be deactivated');
+    }
+
+    await this.db
+      .update(lototoProcedures)
+      .set({
+        status: 'inactive',
+        updatedBy: optionalUuid(user.id),
+        updatedAt: new Date(),
+      })
+      .where(eq(lototoProcedures.id, procedure.id));
+
+    await this.auditService.log({
+      action: 'lototo.procedure.deactivated',
+      entityType: 'lototo_procedure',
+      entityId: procedure.id,
+      userId: optionalUuid(user.id),
+      tenantId,
+    });
+
+    return this.assemble(this.db, procedure.id, tenantId);
+  }
+
+  async reactivate(id: string, user: AuthenticatedUser) {
+    const tenantId = this.validationService.requireTenant(user);
+    const procedure = await this.requireProcedure(id, tenantId);
+    if (procedure.status !== 'inactive') {
+      throw new ConflictException('Only an inactive procedure can be reactivated');
+    }
+    if (!procedure.publishedVersionId) {
+      throw new ConflictException('Cannot reactivate a procedure that was never published');
+    }
+
+    await this.db
+      .update(lototoProcedures)
+      .set({
+        status: 'published',
+        updatedBy: optionalUuid(user.id),
+        updatedAt: new Date(),
+      })
+      .where(eq(lototoProcedures.id, procedure.id));
+
+    await this.auditService.log({
+      action: 'lototo.procedure.reactivated',
+      entityType: 'lototo_procedure',
+      entityId: procedure.id,
+      userId: optionalUuid(user.id),
+      tenantId,
+    });
+
+    return this.assemble(this.db, procedure.id, tenantId);
+  }
+
   async remove(id: string, user: AuthenticatedUser) {
     const tenantId = this.validationService.requireTenant(user);
     const procedure = await this.requireProcedure(id, tenantId);
@@ -388,6 +448,7 @@ export class LototoProcedureService {
     }
 
     const procedure = await this.requireProcedure(procedureId, tenantId);
+    this.assertMutable(procedure);
     const draft = await this.latestUnpublishedVersion(procedure.id);
     if (!draft) {
       throw new ConflictException('Create a new revision before adding photos to a published procedure');
@@ -433,6 +494,7 @@ export class LototoProcedureService {
   async removePointPhoto(procedureId: string, pointId: string, user: AuthenticatedUser) {
     const tenantId = this.validationService.requireTenant(user);
     const procedure = await this.requireProcedure(procedureId, tenantId);
+    this.assertMutable(procedure);
     const draft = await this.latestUnpublishedVersion(procedure.id);
     if (!draft) {
       throw new ConflictException('Create a new revision before changing photos on a published procedure');
@@ -470,6 +532,12 @@ export class LototoProcedureService {
       throw new NotFoundException('LOTOTO procedure not found');
     }
     return procedure;
+  }
+
+  private assertMutable(procedure: { status: string }) {
+    if (procedure.status === 'inactive') {
+      throw new ConflictException('Reactivate the procedure before changing it');
+    }
   }
 
   private async latestUnpublishedVersion(procedureId: string) {

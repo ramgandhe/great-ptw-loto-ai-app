@@ -6,6 +6,8 @@ export type FormAnswers = Record<string, FormAnswer>;
 
 /** A permit template filled in on a permit, with the form as it was when filled in. */
 export type StoredFormResponse = { templateId: string; name: string; config: TemplateConfig; answers: FormAnswers };
+/** Answers to fields signed at approval or closure, sent with that decision. */
+export type StageAnswersPayload = { expectedRevision: number; formResponses: { templateId: string; answers: FormAnswers }[] };
 
 export type PermitRecord = {
   id: string;
@@ -29,12 +31,15 @@ export type PermitRecord = {
   createdBy?: string | null;
   updatedBy?: string | null;
   formResponses?: StoredFormResponse[];
+  /** Send back on every save and submit; the server refuses an older one with PERMIT_REVISION_CONFLICT. */
+  draftRevision: number;
   createdAt: string;
   updatedAt: string;
 };
 
 export type PermitHazardInput = {
   hazardCategoryId: string;
+  description?: string;
   extraConsequences: string[];
   extraControls: string[];
 };
@@ -166,7 +171,8 @@ export type CreatePermitPayload = {
   formResponses?: { templateId: string; answers: FormAnswers }[];
 };
 
-export type SaveDraftPayload = Partial<CreatePermitPayload>;
+export type DraftFields = Partial<CreatePermitPayload>;
+export type SaveDraftPayload = DraftFields & { expectedRevision: number };
 
 export type PermitLototoPointStatus = "na" | "pending_crew" | "pending_verify" | "failed" | "passed";
 

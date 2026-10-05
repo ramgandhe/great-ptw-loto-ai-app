@@ -23,10 +23,11 @@ describe('Isolation execution schema (PUS-159)', () => {
     try {
       await pool.query('SELECT 1');
       canConnect = true;
-      await migrate(db, { migrationsFolder: './src/database/migrations' });
     } catch {
       canConnect = false;
     }
+    // A failed migration fails the suite; it must never look like "no database".
+    if (canConnect) await migrate(db, { migrationsFolder: './src/database/migrations' });
   });
 
   afterAll(async () => {

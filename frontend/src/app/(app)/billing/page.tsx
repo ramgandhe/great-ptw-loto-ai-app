@@ -223,9 +223,12 @@ export default function BillingPage() {
               ) : null}
             </section>
           ) : isAdmin && alternatePlans.length > 0 ? (
-            <section>
-              <h2 className="mb-3 text-sm font-semibold">Change plan</h2>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            // Other plans open on request; the current subscription stays the first thing on the page.
+            <details className="rounded-lg border border-border p-5">
+              <summary className="cursor-pointer text-sm font-semibold">
+                Change plan ({alternatePlans.length} other {alternatePlans.length === 1 ? "plan" : "plans"})
+              </summary>
+              <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {alternatePlans.map((plan) => (
                   <PlanCard
                     key={plan.id}
@@ -237,7 +240,7 @@ export default function BillingPage() {
                   />
                 ))}
               </div>
-            </section>
+            </details>
           ) : !isAdmin ? (
             <p className="text-xs text-muted-foreground">
               Plan changes require organisation administrator access.

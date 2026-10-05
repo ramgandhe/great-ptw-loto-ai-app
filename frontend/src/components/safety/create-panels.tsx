@@ -16,11 +16,11 @@ import type { PermitRecord } from "@/lib/permit/types";
 
 /** Same field look as the organisation "Add" forms. */
 const FIELD =
-  "rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "w-full min-w-0 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 function Field({ label, optional, wide, children }: { label: string; optional?: boolean; wide?: boolean; children: React.ReactNode }) {
   return (
-    <label className={`grid gap-1.5 text-sm ${wide ? "sm:col-span-2" : ""}`}>
+    <label className={`grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5 text-sm ${wide ? "sm:col-span-2" : ""}`}>
       <span className="font-medium">
         {label}
         {optional ? <span className="font-normal text-muted-foreground"> (optional)</span> : null}
@@ -34,7 +34,7 @@ function Panel({ title, error, onSubmit, children }: { title: string; error: str
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), []);
   return (
-    <form ref={ref} onSubmit={onSubmit} className="reveal-in grid scroll-mt-48 gap-4 rounded-xl border border-border bg-card p-5 shadow-(--shadow-lg) sm:grid-cols-2">
+    <form ref={ref} onSubmit={onSubmit} className="reveal-in grid scroll-mt-48 grid-cols-[minmax(0,1fr)] gap-4 rounded-xl border border-border bg-card p-5 shadow-(--shadow-lg) sm:grid-cols-2">
       <h2 className="font-heading text-lg font-semibold sm:col-span-2">{title}</h2>
       {error ? (
         <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive sm:col-span-2">
@@ -180,7 +180,7 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
           value={incidentType}
           onChange={setIncidentType}
           options={(Object.keys(INCIDENT_TYPES) as IncidentType[]).map((key) => ({ value: key, label: INCIDENT_TYPES[key].label }))}
-          className="self-start"
+          className="max-w-full self-start overflow-x-auto"
         />
       </div>
       <Field label="Title" wide>

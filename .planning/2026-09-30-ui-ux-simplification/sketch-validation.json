@@ -1,0 +1,25 @@
+{
+  "artifactOnly": true,
+  "interactions": [
+    "title derivation",
+    "plant from location",
+    "flow switch",
+    "setup open/back",
+    "phone preview"
+  ],
+  "checks": [
+    {
+      "flow": "permit",
+      "overflow": false
+    },
+    {
+      "flow": "setup",
+      "overflow": false
+    },
+    {
+      "flow": "people",
+      "overflow": false
+    }
+  ],
+  "errors": []
+}

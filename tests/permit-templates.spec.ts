@@ -36,6 +36,18 @@ describe('Permit template reference library', () => {
     );
     expect(errors.map((e) => e.property)).toEqual(['config']);
   });
+
+  it('rejects an unknown required-at stage', async () => {
+    const errors = await validate(
+      plainToInstance(UpdatePermitTemplateDto, {
+        config: {
+          kind: 'permit',
+          sections: [{ id: 's', title: 'S', fields: [{ id: 'f', label: 'F', type: 'signature', required: true, requiredAt: 'execution' }] }],
+        },
+      }),
+    );
+    expect(errors.map((e) => e.property)).toEqual(['config']);
+  });
 });
 
 describe('Permit templates against the database', () => {

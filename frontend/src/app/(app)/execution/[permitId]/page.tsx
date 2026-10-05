@@ -4,7 +4,8 @@ import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
 import { formatWindow } from "@/lib/format";
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { PermitPageShell, useInPermitWorkspace, usePermitPageId } from "@/lib/permit/workspace";
 import { ApiError } from "@/lib/api";
 import {
   activatePermit,
@@ -46,7 +47,8 @@ const PROGRESS_PHRASES = [
 ];
 
 export default function PermitExecutionPage() {
-  const params = useParams<{ permitId: string }>();
+  const permitId = usePermitPageId("permitId");
+  const embedded = useInPermitWorkspace();
   const router = useRouter();
   const { roles } = useAuthProfile();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
@@ -72,11 +74,11 @@ export default function PermitExecutionPage() {
   });
 
   async function loadData() {
-    const permitDetail = await getPermit(params.permitId);
+    const permitDetail = await getPermit(permitId);
     setDetail(permitDetail);
 
     if (permitDetail.permit.lototoRequired) {
-      const board = await getPermitLototoExecution(params.permitId);
+      const board = await getPermitLototoExecution(permitId);
       setLototoIsolated(board.isolated);
     } else {
       setLototoIsolated(true);
@@ -84,8 +86,8 @@ export default function PermitExecutionPage() {
 
     if (permitDetail.permit.status === "active" || permitDetail.permit.status === "suspended") {
       const [progressItems, evidenceItems] = await Promise.all([
-        listProgress(params.permitId),
-        listEvidence(params.permitId),
+        listProgress(permitId),
+        listEvidence(permitId),
       ]);
       setProgress(progressItems);
       setEvidence(evidenceItems);
@@ -96,13 +98,13 @@ export default function PermitExecutionPage() {
     loadData().catch((err) => {
       setError(err instanceof ApiError ? err.message : "Failed to load permit");
     });
-  }, [params.permitId]);
+  }, [permitId]);
 
   async function handleActivate() {
     setIsSubmitting(true);
     setActionError(null);
     try {
-      const result = await activatePermit(params.permitId);
+      const result = await activatePermit(permitId);
       setDetail((current) =>
         current ? { ...current, permit: result.permit } : current,
       );
@@ -125,8 +127,8 @@ export default function PermitExecutionPage() {
     setIsSubmitting(true);
     setActionError(null);
     try {
-      await revalidatePermitAfterSuspension(params.permitId);
-      router.push(`/approvals/${params.permitId}`);
+      await revalidatePermitAfterSuspension(permitId);
+      router.push(`/approvals/${permitId}`);
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Revalidation failed");
     } finally {
@@ -138,7 +140,7 @@ export default function PermitExecutionPage() {
     setIsSubmitting(true);
     setSuspendError(null);
     try {
-      const result = await suspendPermit(params.permitId, suspendReason);
+      const result = await suspendPermit(permitId, suspendReason);
       setDetail((current) =>
         current ? { ...current, permit: result.permit } : current,
       );
@@ -161,7 +163,7 @@ export default function PermitExecutionPage() {
     setIsSubmitting(true);
     setActionError(null);
     try {
-      const updated = await completeExecution(params.permitId, {
+      const updated = await completeExecution(permitId, {
         comment: completeComment.trim(),
         checklist: completeChecklist,
       });
@@ -182,7 +184,7 @@ export default function PermitExecutionPage() {
     setIsSubmitting(true);
     setActionError(null);
     try {
-      const record = await addProgress(params.permitId, { summary: progressSummary.trim() });
+      const record = await addProgress(permitId, { summary: progressSummary.trim() });
       setProgress((items) => [...items, record]);
       setProgressSummary("");
     } catch (err) {
@@ -196,7 +198,7 @@ export default function PermitExecutionPage() {
     setIsUploading(true);
     setUploadError(null);
     try {
-      const record = await uploadEvidence(params.permitId, file, {
+      const record = await uploadEvidence(permitId, file, {
         comment: comment.trim() || undefined,
       });
       setEvidence((items) => [...items, record]);
@@ -226,7 +228,8 @@ export default function PermitExecutionPage() {
   const isSuspended = permit.status === "suspended";
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+    <PermitPageShell>
+      {embedded ? null : (
       <div>
         <BackLink href="/permits" label="Permits" />
         <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -246,6 +249,7 @@ export default function PermitExecutionPage() {
           ) : null}
         </nav>
       </div>
+      )}
 
       {actionError ? (
         <div role="alert" className="text-sm text-destructive">
@@ -406,7 +410,8 @@ export default function PermitExecutionPage() {
       )}
 
       {/* Once work is under way the crew knows the permit; keep it one tap away instead of in the way. */}
-      <details open={isApproved} className="group rounded-xl border border-border bg-card open:border-transparent open:bg-transparent">
+      {/* In the workspace the Preparation tab has the permit, so it starts closed there. */}
+      <details open={isApproved && !embedded} className="group rounded-xl border border-border bg-card open:border-transparent open:bg-transparent">
         <summary className="cursor-pointer list-none px-5 py-3 text-sm font-semibold group-open:px-0 group-open:pb-3">
           Permit details <span className="font-normal text-muted-foreground group-open:hidden">(tap to open)</span>
         </summary>
@@ -431,6 +436,6 @@ export default function PermitExecutionPage() {
           }
         }}
       />
-    </main>
+    </PermitPageShell>
   );
 }

@@ -1,0 +1,316 @@
+{
+  "method": "UI replay; all business writes intercepted in browser memory. One button/link=1 activation; native select open+choose=2. Text focus, keystrokes, scrolling and login excluded. Save receipts are simulated, not backend verification.",
+  "journeys": [
+    {
+      "name": "P1 New permit issuer preparation",
+      "start": "/permits",
+      "steps": [
+        {
+          "action": "New permit",
+          "clicks": 1
+        },
+        {
+          "action": "General Work type",
+          "clicks": 1
+        },
+        {
+          "action": "Type Title",
+          "clicks": 0
+        },
+        {
+          "action": "Type Work scope",
+          "clicks": 0
+        },
+        {
+          "action": "Next",
+          "clicks": 1
+        },
+        {
+          "action": "Select Plant",
+          "clicks": 2
+        },
+        {
+          "action": "Select Department",
+          "clicks": 2
+        },
+        {
+          "action": "Select Location",
+          "clicks": 2
+        },
+        {
+          "action": "Select Primary executor",
+          "clicks": 2
+        },
+        {
+          "action": "Tomorrow schedule",
+          "clicks": 1
+        },
+        {
+          "action": "Save draft",
+          "clicks": 1
+        }
+      ],
+      "screens": [
+        "Permit list",
+        "Basic information",
+        "Location and schedule"
+      ],
+      "typedFields": [
+        "Title",
+        "Work scope"
+      ],
+      "clicks": 13
+    },
+    {
+      "name": "H1 Four-record site hierarchy",
+      "start": "/organisation/setup?step=profile",
+      "steps": [
+        {
+          "action": "Plants step",
+          "clicks": 1
+        },
+        {
+          "action": "Open Plant",
+          "clicks": 1
+        },
+        {
+          "action": "Type Plant name",
+          "clicks": 0
+        },
+        {
+          "action": "Save Plant",
+          "clicks": 1
+        },
+        {
+          "action": "Next Department",
+          "clicks": 1
+        },
+        {
+          "action": "Open Department",
+          "clicks": 1
+        },
+        {
+          "action": "Type Department name",
+          "clicks": 0
+        },
+        {
+          "action": "Select Plant",
+          "clicks": 2
+        },
+        {
+          "action": "Save Department",
+          "clicks": 1
+        },
+        {
+          "action": "Next Location",
+          "clicks": 1
+        },
+        {
+          "action": "Open Location",
+          "clicks": 1
+        },
+        {
+          "action": "Type Location name",
+          "clicks": 0
+        },
+        {
+          "action": "Select Plant",
+          "clicks": 2
+        },
+        {
+          "action": "Save Location",
+          "clicks": 1
+        },
+        {
+          "action": "Next Workstation",
+          "clicks": 1
+        },
+        {
+          "action": "Open Workstation",
+          "clicks": 1
+        },
+        {
+          "action": "Type Workstation name",
+          "clicks": 0
+        },
+        {
+          "action": "Select Location",
+          "clicks": 2
+        },
+        {
+          "action": "Save Workstation",
+          "clicks": 1
+        }
+      ],
+      "screens": [
+        "Setup profile",
+        "Plant form step",
+        "Department form step",
+        "Location form step",
+        "Workstation form step"
+      ],
+      "typedFields": [
+        "Plant name",
+        "Department name",
+        "Location name",
+        "Workstation name"
+      ],
+      "clicks": 18
+    },
+    {
+      "name": "E1 New employee with department",
+      "start": "/workforce/directory",
+      "steps": [
+        {
+          "action": "Back to workforce",
+          "clicks": 1
+        },
+        {
+          "action": "Employees",
+          "clicks": 1
+        },
+        {
+          "action": "Add employee",
+          "clicks": 1
+        },
+        {
+          "action": "Type Full name",
+          "clicks": 0
+        },
+        {
+          "action": "Type Email",
+          "clicks": 0
+        },
+        {
+          "action": "Select Department",
+          "clicks": 2
+        },
+        {
+          "action": "Save employee",
+          "clicks": 1
+        }
+      ],
+      "screens": [
+        "Directory",
+        "Workforce hub",
+        "Employees"
+      ],
+      "typedFields": [
+        "Full name",
+        "Email"
+      ],
+      "clicks": 6
+    }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "path": "/permits",
+      "keys": [
+        "permitTypeId",
+        "title",
+        "workScope",
+        "currentStep"
+      ],
+      "simulated": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/permits/00000000-0000-4000-8000-000000000700",
+      "keys": [
+        "permitTypeId",
+        "title",
+        "workScope",
+        "plantId",
+        "departmentId",
+        "locationId",
+        "plannedStartAt",
+        "plannedEndAt",
+        "currentStep",
+        "hazards",
+        "ppe",
+        "lototoRequired",
+        "lototo",
+        "gasTestingRequired",
+        "gasTesting",
+        "executors",
+        "viewers",
+        "safetyOfficers",
+        "formResponses"
+      ],
+      "simulated": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/organisations/41325080-201e-4986-8f04-31591b7157fb",
+      "keys": [
+        "setupProgress"
+      ],
+      "simulated": true
+    },
+    {
+      "method": "POST",
+      "path": "/plants",
+      "keys": [
+        "name",
+        "code"
+      ],
+      "simulated": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/organisations/41325080-201e-4986-8f04-31591b7157fb",
+      "keys": [
+        "setupProgress"
+      ],
+      "simulated": true
+    },
+    {
+      "method": "POST",
+      "path": "/departments",
+      "keys": [
+        "name",
+        "code",
+        "plantId"
+      ],
+      "simulated": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/organisations/41325080-201e-4986-8f04-31591b7157fb",
+      "keys": [
+        "setupProgress"
+      ],
+      "simulated": true
+    },
+    {
+      "method": "POST",
+      "path": "/locations",
+      "keys": [
+        "name",
+        "code",
+        "plantId"
+      ],
+      "simulated": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/organisations/41325080-201e-4986-8f04-31591b7157fb",
+      "keys": [
+        "setupProgress"
+      ],
+      "simulated": true
+    },
+    {
+      "method": "POST",
+      "path": "/workstations",
+      "keys": [
+        "name",
+        "code",
+        "locationId"
+      ],
+      "simulated": true
+    }
+  ],
+  "errors": []
+}

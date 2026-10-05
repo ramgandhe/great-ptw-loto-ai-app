@@ -1,3 +1,4 @@
+import type { StageAnswersPayload } from "@/lib/permit/types";
 import { fetchApi } from "@/lib/api";
 import type {
   ApprovalHistoryEntry,
@@ -13,10 +14,10 @@ export function getApprovalReview(permitId: string) {
   return fetchApi<ApprovalReview>(`/approvals/${permitId}`);
 }
 
-export function approvePermit(permitId: string, comment?: string) {
+export function approvePermit(permitId: string, comment?: string, stageAnswers?: StageAnswersPayload) {
   return fetchApi<ApprovalReview>(`/approvals/${permitId}/approve`, {
     method: "POST",
-    body: JSON.stringify({ comment: comment?.trim() || undefined }),
+    body: JSON.stringify({ comment: comment?.trim() || undefined, stageAnswers }),
   });
 }
 

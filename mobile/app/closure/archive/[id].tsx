@@ -1,19 +1,24 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import { View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { AppText, Banner, Card, ChipRow, FileRow, InfoList, PageHeader, PermitStatusChip, RefChip, Screen, ScreenState, SectionTitle } from "@/components/ui";
+import { formatDateTime, formatWindow } from "@/lib/format";
 import { ApiError } from "@/lib/api";
 import { getArchivedPermit, getArchiveAttachmentDownloadUrl } from "@/lib/closure/api";
 import type { ArchivedPermitDetail } from "@/lib/closure/types";
 import { openPresignedDownload } from "@/lib/download";
 import { getEvidenceDownloadUrl, listEvidence, listProgress } from "@/lib/execution/api";
 import type { EvidenceRecord } from "@/lib/execution/types";
+import { useTheme } from "@/providers/theme-provider";
 
 export default function HistoricalPermitScreen() {
+  const { tokens } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const permitId = id ?? "";
   const [detail, setDetail] = useState<ArchivedPermitDetail | null>(null);
-  const [progressCount, setProgressCount] = useState(0);
-  const [evidence, setEvidence] = useState<EvidenceRecord[]>([]);
+  // null: could not be loaded (shown as such, never as none).
+  const [progressCount, setProgressCount] = useState<number | null>(0);
+  const [evidence, setEvidence] = useState<EvidenceRecord[] | null>([]);
   const [error, setError] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -24,16 +29,15 @@ export default function HistoricalPermitScreen() {
     }
     Promise.all([
       getArchivedPermit(permitId),
-      listProgress(permitId).catch(() => []),
-      listEvidence(permitId).catch(() => []),
+      listProgress(permitId).catch(() => null),
+      listEvidence(permitId).catch(() => null),
     ])
       .then(([archived, progress, evidenceItems]) => {
         setDetail(archived);
-        setProgressCount(progress.length);
+        setProgressCount(progress ? progress.length : null);
         setEvidence(evidenceItems);
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load record"))
-      ;
+      .catch((err) => setError(err instanceof ApiError ? err.message : "The record could not be loaded."));
   }, [permitId]);
 
   async function handleEvidenceDownload(evidenceId: string) {
@@ -42,7 +46,7 @@ export default function HistoricalPermitScreen() {
     try {
       await openPresignedDownload(() => getEvidenceDownloadUrl(permitId, evidenceId));
     } catch (err) {
-      setDownloadError(err instanceof ApiError ? err.message : "Download failed");
+      setDownloadError(err instanceof ApiError ? err.message : "The file could not be opened.");
     } finally {
       setDownloadingId(null);
     }
@@ -54,91 +58,62 @@ export default function HistoricalPermitScreen() {
     try {
       await openPresignedDownload(() => getArchiveAttachmentDownloadUrl(permitId, attachmentId));
     } catch (err) {
-      setDownloadError(err instanceof ApiError ? err.message : "Download failed");
+      setDownloadError(err instanceof ApiError ? err.message : "The file could not be opened.");
     } finally {
       setDownloadingId(null);
     }
   }
 
-  if (error) {
-    return <Text style={styles.error}>{error}</Text>;
-  }
-
-  if (!detail) {
-    return <ActivityIndicator style={{ marginTop: 32 }} />;
+  const back = { label: "Archive", href: "/closure/archive" };
+  if (error || !detail) {
+    return <ScreenState error={error} back={back} />;
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{detail.permit.title}</Text>
-      <Text style={styles.meta}>Status: {detail.permit.status.replace(/_/g, " ")}</Text>
-      <Text style={styles.meta}>{detail.permit.workScope ?? "No work scope recorded"}</Text>
-      <Text style={styles.section}>Execution summary</Text>
-      <Text style={styles.meta}>{progressCount} progress update(s)</Text>
-      <Text style={styles.meta}>{evidence.length} evidence file(s)</Text>
-      {downloadError ? <Text style={styles.error}>{downloadError}</Text> : null}
+    <Screen>
+      <PageHeader title={detail.permit.title} description="Closed permits are kept as they were; this record is read-only." back={back}>
+        <ChipRow>
+          <PermitStatusChip status={detail.permit.status} />
+          <RefChip reference={detail.permit.reference} />
+        </ChipRow>
+      </PageHeader>
+
+      <Card>
+        <InfoList
+          rows={[
+            ["Work", detail.permit.workScope ?? "No work scope recorded"],
+            ["Planned", formatWindow(detail.permit.plannedStartAt, detail.permit.plannedEndAt)],
+            ["Progress updates", progressCount === null ? "Could not be loaded" : String(progressCount)],
+            ["Evidence files", evidence === null ? "Could not be loaded" : String(evidence.length)],
+            ["Closed", detail.closure ? formatDateTime(detail.closure.closedAt) : null],
+          ]}
+        />
+      </Card>
+
+      {downloadError ? <Banner tone="danger">{downloadError}</Banner> : null}
+
       {detail.attachments.length > 0 ? (
-        <>
-          <Text style={styles.section}>Attachments</Text>
-          {detail.attachments.map((item) => (
-            <Pressable
-              key={item.id}
-              style={styles.downloadRow}
-              disabled={downloadingId === item.id}
-              onPress={() => void handleAttachmentDownload(item.id)}
-            >
-              <Text style={styles.meta}>{item.fileName}</Text>
-              <Text style={styles.link}>
-                {downloadingId === item.id ? "Opening..." : "Download"}
-              </Text>
-            </Pressable>
-          ))}
-        </>
+        <View style={{ gap: tokens.space[3] }}>
+          <SectionTitle title="Attachments" count={detail.attachments.length} />
+          <Card style={{ gap: 0 }}>
+            {detail.attachments.map((item) => (
+              <FileRow key={item.id} name={item.fileName} busy={downloadingId === item.id} onOpen={() => void handleAttachmentDownload(item.id)} />
+            ))}
+          </Card>
+        </View>
       ) : null}
-      {evidence.length > 0 ? (
-        <>
-          <Text style={styles.section}>Evidence</Text>
-          {evidence.map((item) => (
-            <Pressable
-              key={item.id}
-              style={styles.downloadRow}
-              disabled={downloadingId === item.id}
-              onPress={() => void handleEvidenceDownload(item.id)}
-            >
-              <Text style={styles.meta}>{item.fileName}</Text>
-              <Text style={styles.link}>
-                {downloadingId === item.id ? "Opening..." : "Download"}
-              </Text>
-            </Pressable>
-          ))}
-        </>
+
+      {evidence && evidence.length > 0 ? (
+        <View style={{ gap: tokens.space[3] }}>
+          <SectionTitle title="Evidence" count={evidence.length} />
+          <Card style={{ gap: 0 }}>
+            {evidence.map((item) => (
+              <FileRow key={item.id} name={item.fileName} busy={downloadingId === item.id} onOpen={() => void handleEvidenceDownload(item.id)} />
+            ))}
+          </Card>
+        </View>
       ) : null}
-      {detail.closure ? (
-        <>
-          <Text style={styles.section}>Closure</Text>
-          <Text style={styles.meta}>
-            Closed {new Date(detail.closure.closedAt).toLocaleString()}
-          </Text>
-        </>
-      ) : null}
-      <Text style={styles.note}>This archived record is read-only.</Text>
-    </ScrollView>
+      {evidence === null ? <AppText variant="caption">Evidence could not be loaded.</AppText> : null}
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { padding: 16, gap: 8 },
-  title: { fontSize: 20, fontWeight: "600" },
-  meta: { fontSize: 14, color: "#666" },
-  section: { fontSize: 14, fontWeight: "600", marginTop: 12 },
-  downloadRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 6,
-  },
-  link: { fontSize: 14, color: "#2563eb", fontWeight: "500" },
-  note: { fontSize: 12, color: "#888", marginTop: 16 },
-  error: { color: "#b91c1c", padding: 16 },
-});

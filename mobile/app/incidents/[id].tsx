@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+import { ActionBar, AppText, Banner, Button, Card, Chip, ChipRow, InfoList, PageHeader, RefChip, SafetyStatusChip, Screen, ScreenState, TextField } from "@/components/ui";
+import { Check, Lock, Plus, Send, UserCheck } from "@/components/ui/icons";
+import { formatDateTime } from "@/lib/format";
+import { INCIDENT_STATUS, INCIDENT_TYPE_LABELS } from "@/lib/safety-status";
 import { ApiError } from "@/lib/api";
 import {
   assignInvestigation,
@@ -13,10 +17,13 @@ import {
 } from "@/lib/incidents/api";
 import { queueOfflineIncidentSubmit } from "@/lib/incidents/offline";
 import type { IncidentDetail } from "@/lib/incidents/types";
+import { listTenantUserNames } from "@/lib/workforce/api";
+import { SelectField } from "@/components/ui/select-field";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
 
 export default function IncidentDetailScreen() {
+  const [message, setMessage] = useState<string | null>(null);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { tokens } = useTheme();
   const { isOnline } = useOffline();
@@ -27,6 +34,19 @@ export default function IncidentDetailScreen() {
   const [rootCause, setRootCause] = useState("");
   const [correctiveTitle, setCorrectiveTitle] = useState("");
   const [ownerId, setOwnerId] = useState("");
+  // People by name: the investigator and owners are sign-in accounts, so the work reaches their queue.
+  const [people, setPeople] = useState<{ value: string; label: string }[]>([]);
+  useEffect(() => {
+    listTenantUserNames()
+      .then((users) =>
+        setPeople(
+          users
+            .map((u) => ({ value: u.id, label: u.name || [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email || u.username }))
+            .sort((a, b) => a.label.localeCompare(b.label)),
+        ),
+      )
+      .catch(() => setPeople([]));
+  }, []);
 
   const load = useCallback(() => {
     if (!id) return Promise.resolve();
@@ -35,7 +55,7 @@ export default function IncidentDetailScreen() {
 
   useEffect(() => {
     load()
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load"))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "The incident could not be loaded."))
       .finally(() => setLoading(false));
   }, [load]);
 
@@ -45,124 +65,95 @@ export default function IncidentDetailScreen() {
       await action();
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Action failed");
+      setError(err instanceof ApiError ? err.message : "That did not work. Try again.");
     }
   }
 
-  if (loading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: tokens.colors.background }]}>
-        <ActivityIndicator color={tokens.colors.primary} />
-      </View>
-    );
-  }
-
-  if (!detail) {
-    return (
-      <View style={[styles.centered, { backgroundColor: tokens.colors.background }]}>
-        <Text style={styles.error}>{error ?? "Incident not found"}</Text>
-      </View>
-    );
+  const back = { label: "Incidents", href: "/incidents" };
+  if (loading || !detail) {
+    return <ScreenState error={loading ? null : (error ?? "This incident was not found.")} back={back} />;
   }
 
   const { incident } = detail;
-  const inputStyle = [styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }];
+  const open = incident.status !== "draft" && incident.status !== "closed";
+  const step = { gap: tokens.space[3], padding: tokens.space[3], borderRadius: tokens.radii.md, borderWidth: 1, borderColor: tokens.colors.border };
 
   return (
-    <ScrollView style={{ backgroundColor: tokens.colors.background }} contentContainerStyle={styles.container}>
-      <Pressable onPress={() => router.back()}>
-        <Text style={{ color: tokens.colors.primary, marginBottom: 8 }}>Back</Text>
-      </Pressable>
+    <Screen
+      footer={
+        incident.status === "draft" ? (
+          <ActionBar>
+            <Button
+              label="Submit incident"
+              icon={Send}
+              onPress={async () => {
+                if (!isOnline && id) {
+                  await queueOfflineIncidentSubmit(id);
+                  setMessage("Submission saved on this phone. It is not reported until the server confirms it.");
+                  return;
+                }
+                await runAction(() => submitIncident(incident.id));
+              }}
+            />
+          </ActionBar>
+        ) : open ? (
+          <ActionBar>
+            <Button label="Close incident" variant="secondary" icon={Lock} onPress={() => void runAction(() => closeIncident(incident.id))} />
+            <Button label="Verify" icon={Check} onPress={() => void runAction(() => verifyIncident(incident.id, { correctiveActionsConfirmed: true, preventiveActionsReviewed: true }))} />
+          </ActionBar>
+        ) : undefined
+      }
+    >
+      <PageHeader title={incident.title} back={back}>
+        <ChipRow>
+          <SafetyStatusChip map={INCIDENT_STATUS} status={incident.status} />
+          <RefChip reference={incident.reference} />
+          <Chip label={INCIDENT_TYPE_LABELS[incident.incidentType] ?? incident.incidentType} color={incident.incidentType === "incident" ? tokens.colors.danger : tokens.colors.warning} square />
+        </ChipRow>
+      </PageHeader>
 
-      <Text style={[styles.title, { color: tokens.colors.foreground }]}>{incident.title}</Text>
-      <Text style={{ color: tokens.colors.mutedForeground }}>
-        {incident.reference} · {incident.status.replace(/_/g, " ")}
-      </Text>
-      <Text style={{ color: tokens.colors.foreground, marginTop: 8 }}>{incident.description}</Text>
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      {message ? <Banner tone="warning">{message}</Banner> : null}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Card>
+        <InfoList
+          rows={[
+            ["What happened", incident.description || "Not described"],
+            ["When", formatDateTime(incident.occurredAt)],
+            ["Evidence", detail.evidence.length ? `${detail.evidence.length} files` : "None"],
+          ]}
+        />
+      </Card>
 
-      {incident.status === "draft" ? (
-        <Pressable
-          style={[styles.primaryButton, { backgroundColor: tokens.colors.primary }]}
-          onPress={async () => {
-            if (!isOnline && id) {
-              await queueOfflineIncidentSubmit(id);
-              return;
-            }
-            await runAction(() => submitIncident(incident.id));
-          }}
-        >
-          <Text style={styles.primaryButtonText}>Submit incident</Text>
-        </Pressable>
+      {open ? (
+        <Card style={{ gap: tokens.space[4] }}>
+          <AppText variant="title">Investigation</AppText>
+          <View style={step}>
+            <AppText variant="label">1. Lead investigator</AppText>
+            <SelectField label="Person" value={investigatorId} options={people} placeholder="Choose a person" onChange={setInvestigatorId} />
+            <Button label="Assign" variant="outline" icon={UserCheck} disabled={!investigatorId} style={{ alignSelf: "flex-start" }} onPress={() => void runAction(() => assignInvestigation(incident.id, { investigatorId: investigatorId.trim() }))} />
+          </View>
+          <View style={step}>
+            <AppText variant="label">2. Root cause</AppText>
+            <TextField label="Why it happened" multiline value={rootCause} onChangeText={setRootCause} />
+            <Button label="Record root cause" variant="outline" disabled={!rootCause.trim()} style={{ alignSelf: "flex-start" }} onPress={() => void runAction(() => recordRootCause(incident.id, { description: rootCause.trim() }))} />
+          </View>
+          <View style={step}>
+            <AppText variant="label">3. Corrective action</AppText>
+            <TextField label="Action" value={correctiveTitle} onChangeText={setCorrectiveTitle} placeholder="For example: replace the worn gasket" />
+            <SelectField label="Owner" value={ownerId} options={people} placeholder="Choose a person" onChange={setOwnerId} />
+            <AppText variant="caption">Due in seven days.</AppText>
+            <Button
+              label="Add corrective action"
+              variant="outline"
+              icon={Plus}
+              disabled={!correctiveTitle.trim() || !ownerId}
+              style={{ alignSelf: "flex-start" }}
+              onPress={() => void runAction(() => createCorrectiveAction(incident.id, { title: correctiveTitle.trim(), ownerId: ownerId.trim(), dueDate: new Date(Date.now() + 7 * 86400000).toISOString() }))}
+            />
+          </View>
+        </Card>
       ) : null}
-
-      {incident.status !== "draft" && incident.status !== "closed" ? (
-        <View style={[styles.card, { borderColor: tokens.colors.border }]}>
-          <Text style={{ fontWeight: "600", color: tokens.colors.foreground }}>Investigation</Text>
-          <TextInput style={inputStyle} value={investigatorId} onChangeText={setInvestigatorId} placeholder="Investigator ID" placeholderTextColor={tokens.colors.mutedForeground} />
-          <Pressable
-            style={[styles.secondaryButton, { borderColor: tokens.colors.border }]}
-            onPress={() => runAction(() => assignInvestigation(incident.id, { investigatorId: investigatorId.trim() }))}
-          >
-            <Text style={{ color: tokens.colors.foreground }}>Assign</Text>
-          </Pressable>
-          <TextInput style={inputStyle} multiline value={rootCause} onChangeText={setRootCause} placeholder="Root cause" placeholderTextColor={tokens.colors.mutedForeground} />
-          <Pressable
-            style={[styles.secondaryButton, { borderColor: tokens.colors.border }]}
-            onPress={() => runAction(() => recordRootCause(incident.id, { description: rootCause.trim() }))}
-          >
-            <Text style={{ color: tokens.colors.foreground }}>Record root cause</Text>
-          </Pressable>
-          <TextInput style={inputStyle} value={correctiveTitle} onChangeText={setCorrectiveTitle} placeholder="Corrective action title" placeholderTextColor={tokens.colors.mutedForeground} />
-          <TextInput style={inputStyle} value={ownerId} onChangeText={setOwnerId} placeholder="Owner ID" placeholderTextColor={tokens.colors.mutedForeground} />
-          <Pressable
-            style={[styles.secondaryButton, { borderColor: tokens.colors.border }]}
-            onPress={() =>
-              runAction(() =>
-                createCorrectiveAction(incident.id, {
-                  title: correctiveTitle.trim(),
-                  ownerId: ownerId.trim(),
-                  dueDate: new Date(Date.now() + 7 * 86400000).toISOString(),
-                }),
-              )
-            }
-          >
-            <Text style={{ color: tokens.colors.foreground }}>Add corrective action</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.primaryButton, { backgroundColor: tokens.colors.primary }]}
-            onPress={() =>
-              runAction(() =>
-                verifyIncident(incident.id, {
-                  correctiveActionsConfirmed: true,
-                  preventiveActionsReviewed: true,
-                }),
-              )
-            }
-          >
-            <Text style={styles.primaryButtonText}>Verify</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.secondaryButton, { borderColor: tokens.colors.border }]}
-            onPress={() => runAction(() => closeIncident(incident.id))}
-          >
-            <Text style={{ color: tokens.colors.foreground }}>Close incident</Text>
-          </Pressable>
-        </View>
-      ) : null}
-    </ScrollView>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  container: { padding: 16, gap: 8 },
-  title: { fontSize: 22, fontWeight: "600" },
-  card: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 12, gap: 8 },
-  input: { borderWidth: 1, borderRadius: 8, padding: 10, minHeight: 44, textAlignVertical: "top" },
-  primaryButton: { borderRadius: 8, padding: 12, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "600" },
-  secondaryButton: { borderWidth: 1, borderRadius: 8, padding: 12, alignItems: "center" },
-  error: { color: "#b91c1c" },
-});

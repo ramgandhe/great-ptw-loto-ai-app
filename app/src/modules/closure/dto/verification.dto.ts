@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsString, MinLength, ValidateNested } from 'class-validator';
+import { IsBoolean, IsString, MinLength, ValidateNested, IsOptional } from 'class-validator';
+import { StageAnswersDto } from '../../permit/dto/save-draft.dto';
 
 export class VerificationChecklistDto {
   @IsBoolean()
@@ -23,4 +24,9 @@ export class VerificationDto {
   @ValidateNested()
   @Type(() => VerificationChecklistDto)
   checklist!: VerificationChecklistDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => StageAnswersDto)
+  stageAnswers?: StageAnswersDto;
 }

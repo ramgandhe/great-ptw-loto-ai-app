@@ -4,12 +4,16 @@ module.exports = {
   roots: ['<rootDir>/src', '<rootDir>/../tests'],
   testMatch: ['<rootDir>/../tests/**/*.spec.ts'],
   testTimeout: 30000,
+  // A run that cannot reach the database fails instead of passing with database tests skipped.
+  globalSetup: '<rootDir>/../tests/helpers/require-database.js',
   maxWorkers: process.env.CI ? 1 : '50%',
   transform: {
     '^.+\\.(t|j)s$': [
       'ts-jest',
       {
         tsconfig: '<rootDir>/tsconfig.spec.json',
+        // Web modules are type-checked by the web app's own tsc (browser types); here they only run.
+        diagnostics: { exclude: ['**/frontend/src/**'] },
       },
     ],
   },
@@ -23,5 +27,7 @@ module.exports = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@ptw/shared$': '<rootDir>/../packages/shared/src/index.ts',
+    // Web app modules under test use its "@/" alias (the API itself never does).
+    '^@/(.*)$': '<rootDir>/../frontend/src/$1',
   },
 };

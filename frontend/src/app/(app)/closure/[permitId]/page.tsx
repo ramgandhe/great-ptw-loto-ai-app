@@ -2,36 +2,42 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { closePermit, getPermitAudit, getPermitHistory, getPermitVerification, verifyPermit } from "@/lib/closure/api";
 import { sendBackToExecutor, sendBackToIssuer } from "@/lib/execution/api";
 import type { AuditLogEntry, PermitHistoryEntry, PermitVerification } from "@/lib/closure/types";
 import { getEvidenceDownloadUrl, listEvidence, listProgress } from "@/lib/execution/api";
 import type { EvidenceRecord, ProgressRecord } from "@/lib/execution/types";
-import { PermitLototoExecution } from "@/components/permit/lototo-execution";
-import { getPermit } from "@/lib/permit/api";
-import type { PermitDetail, PermitLototoExecutionBoard } from "@/lib/permit/types";
+import { getPermit, isRevisionConflict } from "@/lib/permit/api";
+import { PermitPageShell, useInPermitWorkspace, usePermitPageId } from "@/lib/permit/workspace";
+import type { PermitDetail } from "@/lib/permit/types";
 import { AuditTimeline } from "@/components/closure/audit-timeline";
 import { ClosureDialog } from "@/components/closure/closure-dialog";
 import { HistoryTimeline } from "@/components/closure/history-timeline";
-import { ReadonlyPermitViewer } from "@/components/closure/readonly-permit-viewer";
+import { PermitLototoExecution } from "@/components/permit/lototo-execution";
 import {
   defaultVerificationChecklist,
   isChecklistComplete,
   VerificationChecklistPanel,
 } from "@/components/closure/verification-checklist";
 import { ProgressFeed } from "@/components/execution/progress-feed";
+import { StageAnswers, stageAnswersLeft, stageAnswersPayload, type StageAnswerEdits } from "@/components/permit/stage-answers";
 import { Button } from "@/components/ui/button";
 import { openPresignedDownload } from "@/lib/download";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { formatDateTime } from "@/lib/format";
 
+const CONFLICT_MESSAGE = "Someone else updated this permit. It has been reloaded with your entries kept. Check it and confirm again.";
+
 export default function PermitClosurePage() {
-  const params = useParams<{ permitId: string }>();
+  const permitId = usePermitPageId("permitId");
+  const embedded = useInPermitWorkspace();
   const router = useRouter();
-  const { roles } = useAuthProfile();
+  const { roles, profile } = useAuthProfile();
+  const signerName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || profile?.displayName || "";
+  const [stageEdits, setStageEdits] = useState<StageAnswerEdits>({});
   const [detail, setDetail] = useState<PermitDetail | null>(null);
   const [verification, setVerification] = useState<PermitVerification | null>(null);
   const [history, setHistory] = useState<PermitHistoryEntry[]>([]);
@@ -49,16 +55,15 @@ export default function PermitClosurePage() {
   const [closeError, setCloseError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [downloadingEvidenceId, setDownloadingEvidenceId] = useState<string | null>(null);
-  const [lototoBoard, setLototoBoard] = useState<PermitLototoExecutionBoard | null>(null);
 
   useEffect(() => {
     Promise.all([
-      getPermit(params.permitId),
-      getPermitVerification(params.permitId).catch(() => null),
-      getPermitHistory(params.permitId).catch(() => []),
-      getPermitAudit(params.permitId).catch(() => []),
-      listProgress(params.permitId).catch(() => []),
-      listEvidence(params.permitId).catch(() => []),
+      getPermit(permitId),
+      getPermitVerification(permitId).catch(() => null),
+      getPermitHistory(permitId).catch(() => []),
+      getPermitAudit(permitId).catch(() => []),
+      listProgress(permitId).catch(() => []),
+      listEvidence(permitId).catch(() => []),
     ])
       .then(([permitDetail, verificationRecord, historyItems, auditItems, progressItems, evidenceItems]) => {
         setDetail(permitDetail);
@@ -71,12 +76,12 @@ export default function PermitClosurePage() {
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : "Failed to load permit");
       });
-  }, [params.permitId]);
+  }, [permitId]);
 
   async function handleEvidenceDownload(evidenceId: string) {
     setDownloadingEvidenceId(evidenceId);
     try {
-      await openPresignedDownload(() => getEvidenceDownloadUrl(params.permitId, evidenceId));
+      await openPresignedDownload(() => getEvidenceDownloadUrl(permitId, evidenceId));
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Download failed");
     } finally {
@@ -97,13 +102,21 @@ export default function PermitClosurePage() {
     setIsSubmitting(true);
     setActionError(null);
     try {
-      const result = await verifyPermit(params.permitId, {
+      const result = await verifyPermit(permitId, {
         checklist,
         comment: comment.trim(),
+        stageAnswers: stageAnswersPayload(stageEdits, detail!.permit.draftRevision),
       });
       setVerification(result.verification);
-      setDetail((current) => (current ? { ...current, permit: result.permit } : current));
+      // Reload so the permit carries the signed answers and its new revision.
+      setDetail(await getPermit(permitId));
+      setStageEdits({});
     } catch (err) {
+      if (isRevisionConflict(err)) {
+        await reloadAfterConflict();
+        setActionError(CONFLICT_MESSAGE);
+        return;
+      }
       setActionError(err instanceof ApiError ? err.message : "Verification failed");
     } finally {
       setIsSubmitting(false);
@@ -118,17 +131,28 @@ export default function PermitClosurePage() {
     setIsSubmitting(true);
     setCloseError(null);
     try {
-      await closePermit(params.permitId, {
+      await closePermit(permitId, {
         comment: closureComment.trim(),
         checklist: closeChecklist,
+        stageAnswers: stageAnswersPayload(stageEdits, detail!.permit.draftRevision),
       });
       setCloseOpen(false);
       router.push("/closure/archive");
     } catch (err) {
+      if (isRevisionConflict(err)) {
+        await reloadAfterConflict();
+        setCloseError(CONFLICT_MESSAGE);
+        return;
+      }
       setCloseError(err instanceof ApiError ? err.message : "Closure failed");
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  /** Someone signed or changed the form meanwhile: reload it, keep what this person entered. */
+  async function reloadAfterConflict() {
+    setDetail(await getPermit(permitId).catch(() => detail));
   }
 
   async function handleSendBackToExecutor() {
@@ -139,7 +163,7 @@ export default function PermitClosurePage() {
     setIsSubmitting(true);
     setActionError(null);
     try {
-      const updated = await sendBackToExecutor(params.permitId, sendBackComment.trim());
+      const updated = await sendBackToExecutor(permitId, sendBackComment.trim());
       setDetail(updated);
       setVerification(null);
     } catch (err) {
@@ -157,7 +181,7 @@ export default function PermitClosurePage() {
     setIsSubmitting(true);
     setActionError(null);
     try {
-      const updated = await sendBackToIssuer(params.permitId, sendBackComment.trim());
+      const updated = await sendBackToIssuer(permitId, sendBackComment.trim());
       setDetail(updated);
       setVerification(null);
     } catch (err) {
@@ -179,16 +203,27 @@ export default function PermitClosurePage() {
     return <p className="p-8 text-sm text-muted-foreground">Loading permit closure...</p>;
   }
 
-  const lototoRestored = !detail.permit.lototoRequired || lototoBoard?.restored === true;
-  const canVerify =
-    detail.permit.status === "execution_completed" &&
-    hasAnyRole(roles, ["job-issuer", "tenant-owner", "tenant-admin", "platform-admin"]);
+  const canVerify = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["job-issuer", "tenant-owner", "tenant-admin", "platform-admin"]);
   const canSendBackToExecutor = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["job-issuer", "tenant-owner", "tenant-admin", "platform-admin"]);
   const canClose = Boolean(verification) && detail.permit.status === "pending_closure" && hasAnyRole(roles, ["hod", "tenant-owner", "tenant-admin", "platform-admin"]);
+  const stageLeft = stageAnswersLeft(detail.permit.formResponses ?? [], "closure", stageEdits);
+  const stageFields = (
+    <StageAnswers
+      responses={detail.permit.formResponses ?? []}
+      stage="closure"
+      edits={stageEdits}
+      onChange={setStageEdits}
+      signerName={signerName}
+      disabled={isSubmitting}
+    />
+  );
   const canSendBackToIssuer = detail.permit.status === "pending_closure" && hasAnyRole(roles, ["hod", "tenant-owner", "tenant-admin", "platform-admin"]);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+    <PermitPageShell>
+      {/* Inside the permit workspace, its header, the permit record and the history tab cover these. */}
+      {embedded ? null : (
+      <>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-heading text-3xl font-bold tracking-tight">Verify & close</h1>
@@ -200,10 +235,9 @@ export default function PermitClosurePage() {
       </div>
 
       <ReadonlyPermitViewer detail={detail} verification={verification} />
-
-      {detail.permit.lototoRequired ? (
-        <PermitLototoExecution permitId={detail.permit.id} onBoardChange={setLototoBoard} />
-      ) : null}
+      {detail.permit.lototoRequired ? <PermitLototoExecution permitId={detail.permit.id} /> : null}
+      </>
+      )}
 
       <section className="grid gap-3">
         <h2 className="text-sm font-semibold">Execution progress</h2>
@@ -245,6 +279,7 @@ export default function PermitClosurePage() {
             disabled={isSubmitting}
             onChange={setChecklist}
           />
+          {stageFields}
           <textarea
             value={comment}
             disabled={isSubmitting}
@@ -258,13 +293,7 @@ export default function PermitClosurePage() {
               {actionError}
             </p>
           ) : null}
-          {!lototoRestored ? (
-            <p className="text-sm text-muted-foreground">LOTOTO restoration must be verified before issuer verification.</p>
-          ) : null}
-          <Button
-            onClick={handleVerify}
-            disabled={isSubmitting || !isChecklistComplete(checklist) || !comment.trim() || !lototoRestored}
-          >
+          <Button onClick={handleVerify} disabled={isSubmitting || !isChecklistComplete(checklist) || !comment.trim()}>
             {isSubmitting ? "Submitting..." : "Submit verification"}
           </Button>
         </section>
@@ -317,12 +346,16 @@ export default function PermitClosurePage() {
             disabled={isSubmitting}
             onChange={setCloseChecklist}
           />
-          <Button onClick={() => setCloseOpen(true)} disabled={isSubmitting || !isChecklistComplete(closeChecklist)}>
+          {stageFields}
+          {stageLeft ? <p className="text-sm text-muted-foreground">{stageLeft} left to sign before closing.</p> : null}
+          <Button onClick={() => setCloseOpen(true)} disabled={isSubmitting || !isChecklistComplete(closeChecklist) || stageLeft > 0}>
             Close permit
           </Button>
         </section>
       ) : null}
 
+      {embedded ? null : (
+      <>
       <section className="grid gap-3">
         <h2 className="text-sm font-semibold">Lifecycle history</h2>
         <HistoryTimeline entries={history} />
@@ -332,6 +365,8 @@ export default function PermitClosurePage() {
         <h2 className="text-sm font-semibold">Audit log</h2>
         <AuditTimeline entries={audit} />
       </section>
+      </>
+      )}
 
       <ClosureDialog
         open={closeOpen}
@@ -347,6 +382,6 @@ export default function PermitClosurePage() {
           }
         }}
       />
-    </main>
+    </PermitPageShell>
   );
 }

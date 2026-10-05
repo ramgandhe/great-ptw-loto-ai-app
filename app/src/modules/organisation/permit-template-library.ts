@@ -29,6 +29,14 @@ export const TEMPLATE_PREFILL_SOURCES = [
 ] as const;
 export type TemplatePrefillSource = (typeof TEMPLATE_PREFILL_SOURCES)[number];
 
+/**
+ * When a required field must be answered. Absent means 'submit' (the permit cannot be submitted
+ * without it); 'approval' and 'closure' fields, such as the HOD's or the completion signature,
+ * belong to later stages and do not block submission.
+ */
+export const TEMPLATE_REQUIRED_STAGES = ['submit', 'approval', 'closure'] as const;
+export type TemplateRequiredStage = (typeof TEMPLATE_REQUIRED_STAGES)[number];
+
 export const TEMPLATE_KINDS = ['permit', 'check-sheet'] as const;
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
@@ -41,6 +49,7 @@ export type TemplateField = {
   unit?: string;
   options?: string[];
   prefill?: TemplatePrefillSource;
+  requiredAt?: TemplateRequiredStage;
 };
 
 export type TemplateSection = { id: string; title: string; fields: TemplateField[] };
@@ -158,11 +167,15 @@ export const REFERENCE_TEMPLATES: ReferenceTemplate[] = [
         ]),
         section('authorisation', 'Authorisation', [
           ['Job issued by', 'signature', { required: true }],
-          ['HOD of job issuer', 'signature', { required: true }],
+          ['HOD of job issuer', 'signature', { required: true, requiredAt: 'approval' }],
           [
             'Job authorised by',
             'signature',
-            { required: true, help: 'In the absence of the Safety Officer, the Factory Manager or Shift In-charge can authorise.' },
+            {
+              required: true,
+              requiredAt: 'approval',
+              help: 'In the absence of the Safety Officer, the Factory Manager or Shift In-charge can authorise.',
+            },
           ],
         ]),
         section('extension', 'Extension beyond 16:30', [
@@ -172,7 +185,9 @@ export const REFERENCE_TEMPLATES: ReferenceTemplate[] = [
           ['Shift in-charge', 'signature'],
           ['Area concerned personnel', 'signature'],
         ]),
-        section('completion', 'Completion', [['Job completion accepted by', 'signature', { required: true }]]),
+        section('completion', 'Completion', [
+          ['Job completion accepted by', 'signature', { required: true, requiredAt: 'closure' }],
+        ]),
       ],
     },
   },
@@ -260,7 +275,7 @@ export const REFERENCE_TEMPLATES: ReferenceTemplate[] = [
             'signature',
             { required: true, help: 'Areas where sparks and heat may spread are inspected during the watch and found safe.' },
           ],
-          ['Fire watch: three hours after completion', 'signature', { required: true }],
+          ['Fire watch: three hours after completion', 'signature', { required: true, requiredAt: 'closure' }],
         ]),
         signOff(),
       ],

@@ -46,6 +46,7 @@ export function TrendArea({
   const total = data.reduce((sum, row) => sum + series.reduce((s, x) => s + Number(row[x.key] ?? 0), 0), 0);
   if (total === 0) return <EmptyChart message="Nothing recorded in this period." />;
   return (
+    <>
     <div style={{ height }} role="img" aria-label={series.map((s) => `${s.label}: ${data.reduce((n, r) => n + Number(r[s.key] ?? 0), 0)}`).join(", ")}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
@@ -77,6 +78,37 @@ export function TrendArea({
         </AreaChart>
       </ResponsiveContainer>
     </div>
+    {/* The numbers behind the chart, for reading exact values and for screen readers. */}
+    <details className="mt-2 text-sm">
+      <summary className="cursor-pointer text-muted-foreground">Show values</summary>
+      <table className="mt-2 w-full text-left tabular-nums">
+        <thead className="text-xs text-muted-foreground">
+          <tr>
+            <th className="py-1 font-medium">Day</th>
+            {series.map((s) => (
+              <th key={s.key} className="py-1 font-medium">
+                {s.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data
+            .filter((row) => series.some((s) => Number(row[s.key] ?? 0) > 0))
+            .map((row) => (
+              <tr key={String(row.day)} className="border-t border-border">
+                <td className="py-1">{shortDay(String(row.day))}</td>
+                {series.map((s) => (
+                  <td key={s.key} className="py-1">
+                    {Number(row[s.key] ?? 0)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </details>
+    </>
   );
 }
 

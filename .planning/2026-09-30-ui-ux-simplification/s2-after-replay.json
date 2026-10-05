@@ -1,0 +1,208 @@
+{
+  "method": "Same counting contract as journey-baselines.md.",
+  "journeys": [
+    {
+      "name": "P1 New permit issuer preparation (S2)",
+      "start": "/permits",
+      "steps": [
+        {
+          "action": "New permit",
+          "clicks": 1
+        },
+        {
+          "action": "General Work type",
+          "clicks": 1
+        },
+        {
+          "action": "Type Work scope",
+          "clicks": 0
+        },
+        {
+          "action": "Select Location",
+          "clicks": 2
+        },
+        {
+          "action": "Select Department",
+          "clicks": 2
+        },
+        {
+          "action": "Select Primary executor",
+          "clicks": 2
+        },
+        {
+          "action": "Tomorrow schedule",
+          "clicks": 1
+        },
+        {
+          "action": "Save draft",
+          "clicks": 1
+        }
+      ],
+      "screens": [
+        "Permit list",
+        "Permit editor"
+      ],
+      "typedFields": [
+        "Work scope"
+      ],
+      "clicks": 10
+    },
+    {
+      "name": "P2 Executor preparation (S2)",
+      "start": "/dashboard",
+      "steps": [
+        {
+          "action": "Open assigned draft from Needs you",
+          "clicks": 1
+        },
+        {
+          "action": "Select Workstation",
+          "clicks": 2
+        },
+        {
+          "action": "Select Machinery",
+          "clicks": 2
+        },
+        {
+          "action": "Hazard 1",
+          "clicks": 1
+        },
+        {
+          "action": "Hazard 2",
+          "clicks": 1
+        },
+        {
+          "action": "PPE 1",
+          "clicks": 1
+        },
+        {
+          "action": "PPE 2",
+          "clicks": 1
+        },
+        {
+          "action": "PPE 3",
+          "clicks": 1
+        },
+        {
+          "action": "Select Crew member 1",
+          "clicks": 2
+        },
+        {
+          "action": "Select Crew member 2",
+          "clicks": 2
+        },
+        {
+          "action": "Type Permit issued to (contractor firm)",
+          "clicks": 0
+        },
+        {
+          "action": "Sign: contractor supervisor (Me, now)",
+          "clicks": 1
+        },
+        {
+          "action": "Type of work",
+          "clicks": 1
+        },
+        {
+          "action": "Confirm unanswered checks (opens confirmation)",
+          "clicks": 1
+        },
+        {
+          "action": "I confirm these 2 checks are Yes",
+          "clicks": 1
+        },
+        {
+          "action": "Save preparation",
+          "clicks": 1
+        }
+      ],
+      "screens": [
+        "Dashboard (Needs you)",
+        "Permit editor"
+      ],
+      "typedFields": [
+        "Permit issued to (contractor firm)"
+      ],
+      "clicks": 19
+    }
+  ],
+  "checks": [
+    {
+      "name": "P1 title suggested from the scope",
+      "ok": true,
+      "detail": "S2 after 1790822639841: inspect the marked walkway before routine work"
+    },
+    {
+      "name": "P1 plant shown from the location",
+      "ok": true
+    },
+    {
+      "name": "P1 save succeeded",
+      "ok": true
+    },
+    {
+      "name": "P1 stored plant derived from location",
+      "ok": true,
+      "detail": {
+        "plantId": "00000000-0000-4000-8000-000000000103",
+        "locationId": "00000000-0000-4000-8000-000000000105"
+      }
+    },
+    {
+      "name": "P1 stored department, schedule and executor",
+      "ok": true,
+      "detail": {
+        "departmentId": "00000000-0000-4000-8000-000000000104",
+        "start": "2026-10-02 02:30:00+00",
+        "executors": "1"
+      }
+    },
+    {
+      "name": "P2 editor opens at Site and crew",
+      "ok": true,
+      "detail": 263.515625
+    },
+    {
+      "name": "P2 confirmation lists the exact checks",
+      "ok": true
+    },
+    {
+      "name": "P2 only the issuer signature is left on the form",
+      "ok": true,
+      "detail": {
+        "formHeader": "Safe work permit\n\nFormat SOP/ES/023-F1\n\n13 of 28 answered · 1 required left",
+        "review": "Review\n\nJob issuer\n\nForms and evidence: Safe work permit: answer “Job issued by”\n\nSave preparation when you are done. The job issuer reviews the permit and submits it for approval."
+      }
+    },
+    {
+      "name": "P2 save carries revision and only executor fields",
+      "ok": true,
+      "detail": [
+        "workstationId",
+        "machineryId",
+        "currentStep",
+        "hazards",
+        "ppe",
+        "lototoRequired",
+        "lototo",
+        "gasTestingRequired",
+        "gasTesting",
+        "executors",
+        "safetyOfficers",
+        "formResponses",
+        "expectedRevision"
+      ]
+    },
+    {
+      "name": "P2 save holds 2 hazards, 3 PPE, 3 crew",
+      "ok": true,
+      "detail": {
+        "hazards": 2,
+        "ppe": 3,
+        "executors": 3
+      }
+    }
+  ],
+  "errors": [],
+  "p2Writes": 1
+}

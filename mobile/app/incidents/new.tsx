@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
+import { ActionBar, Banner, Button, Card, ChoiceGroup, PageHeader, Screen, TextField } from "@/components/ui";
+import { Save, Send } from "@/components/ui/icons";
 import { ApiError } from "@/lib/api";
 import { createIncident } from "@/lib/incidents/api";
 import { queueOfflineIncidentReport } from "@/lib/incidents/offline";
 import type { IncidentType } from "@/lib/incidents/types";
 import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
+import { INCIDENT_TYPE_LABELS } from "@/lib/safety-status";
 
 export default function NewIncidentScreen() {
   const { tokens } = useTheme();
@@ -14,69 +16,55 @@ export default function NewIncidentScreen() {
   const [incidentType, setIncidentType] = useState<IncidentType>("incident");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [tried, setTried] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   async function handleSubmit(submit: boolean) {
     setError(null);
-    const payload = {
-      incidentType,
-      title: title.trim(),
-      description: description.trim(),
-      occurredAt: new Date().toISOString(),
-      submit,
-    };
+    setTried(true);
+    if (!title.trim() || (submit && !description.trim())) return;
+    const payload = { incidentType, title: title.trim(), description: description.trim(), occurredAt: new Date().toISOString(), submit };
+    setBusy(true);
     try {
       if (!isOnline) {
         await queueOfflineIncidentReport(payload);
-        setMessage("Report queued for sync");
+        setMessage("Report saved on this phone. It is not reported until the server confirms it.");
         return;
       }
       const incident = await createIncident(payload);
       router.replace(`/incidents/${incident.id}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to report incident");
+      setError(err instanceof ApiError ? err.message : "The report could not be sent.");
+    } finally {
+      setBusy(false);
     }
   }
 
-  const inputStyle = [styles.input, { borderColor: tokens.colors.border, color: tokens.colors.foreground }];
-
+  const c = tokens.colors;
   return (
-    <ScrollView style={{ backgroundColor: tokens.colors.background }} contentContainerStyle={styles.container}>
-      <Text style={[styles.title, { color: tokens.colors.foreground }]}>Report incident</Text>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {message ? <Text style={{ color: tokens.colors.mutedForeground }}>{message}</Text> : null}
-
-      <View style={styles.row}>
-        {(["incident", "near_miss", "unsafe_condition"] as IncidentType[]).map((type) => (
-          <Pressable key={type} onPress={() => setIncidentType(type)}>
-            <Text style={{ color: incidentType === type ? tokens.colors.primary : tokens.colors.foreground }}>
-              {type.replace(/_/g, " ")}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <TextInput style={inputStyle} value={title} onChangeText={setTitle} placeholder="Title" placeholderTextColor={tokens.colors.mutedForeground} />
-      <TextInput style={inputStyle} multiline value={description} onChangeText={setDescription} placeholder="Description" placeholderTextColor={tokens.colors.mutedForeground} />
-
-      <Pressable style={[styles.primaryButton, { backgroundColor: tokens.colors.primary }]} onPress={() => handleSubmit(true)}>
-        <Text style={styles.primaryButtonText}>Submit report</Text>
-      </Pressable>
-      <Pressable style={[styles.secondaryButton, { borderColor: tokens.colors.border }]} onPress={() => handleSubmit(false)}>
-        <Text style={{ color: tokens.colors.foreground }}>Save draft</Text>
-      </Pressable>
-    </ScrollView>
+    <Screen
+      footer={
+        <ActionBar>
+          <Button label="Save draft" variant="secondary" icon={Save} disabled={busy} onPress={() => void handleSubmit(false)} />
+          <Button label="Submit report" icon={Send} loading={busy} onPress={() => void handleSubmit(true)} />
+        </ActionBar>
+      }
+    >
+      <PageHeader title="Report incident" description="Say what happened now; details and evidence can be added after." back={{ label: "Incidents", href: "/incidents" }} />
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      {message ? <Banner tone="warning" title="Saved on this phone">{message}</Banner> : null}
+      <Card style={{ gap: tokens.space[4] }}>
+        <ChoiceGroup
+          label="What kind"
+          options={(["incident", "near_miss", "unsafe_condition"] as IncidentType[]).map((key) => ({ key, label: INCIDENT_TYPE_LABELS[key], color: key === "incident" ? c.danger : c.warning }))}
+          value={incidentType}
+          onChange={setIncidentType}
+        />
+        <TextField label="Title" required value={title} onChangeText={setTitle} placeholder="For example: Oil leak near pump P-101" error={tried && !title.trim() ? "Give the report a title." : null} />
+        <TextField label="What happened" required multiline value={description} onChangeText={setDescription} placeholder="Where, who was involved, what was done straight away" error={tried && !description.trim() ? "Describe what happened before submitting." : null} />
+      </Card>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { padding: 16, gap: 10 },
-  title: { fontSize: 22, fontWeight: "600" },
-  input: { borderWidth: 1, borderRadius: 8, padding: 10, minHeight: 44, textAlignVertical: "top" },
-  row: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  primaryButton: { borderRadius: 8, padding: 12, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "600" },
-  secondaryButton: { borderWidth: 1, borderRadius: 8, padding: 12, alignItems: "center" },
-  error: { color: "#b91c1c" },
-});

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import {
@@ -25,6 +25,7 @@ import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader } from "@/components/layout/admin-page-header";
 import { formatDateTime } from "@/lib/format";
 import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
+import { useLeaveGuard } from "@/lib/leave-guard";
 
 /** Lists whose archived records the API can return (see listArchived). */
 const ARCHIVE_VIEW: readonly string[] = ["plants", "departments", "locations", "workflows"];
@@ -43,6 +44,18 @@ const entityApis = {
 } as const;
 
 export type OrganisationEntityResource = keyof typeof entityApis;
+
+/**
+ * Lets a page that shows several lists together (setup's Sites and equipment) carry context between
+ * them: new records start with `defaults` (e.g. the plant just added), `onSaved` reports each new
+ * record, and a changed `version` reloads the parent pickers so a just-added parent is offered.
+ * Absent on the standalone pages.
+ */
+export const EntityParentContext = createContext<{
+  defaults: Partial<Record<OrganisationEntityResource, Record<string, string>>>;
+  onSaved: (resource: OrganisationEntityResource, record: OrgRecord) => void;
+  version: number;
+} | null>(null);
 
 type EntityApi = (typeof entityApis)[OrganisationEntityResource];
 
@@ -82,6 +95,7 @@ export function EntityCrudPage({
   nameField = "name",
 }: EntityCrudPageProps) {
   const api = entityApis[resource] as EntityApi;
+  const parentContext = useContext(EntityParentContext);
   const [items, setItems] = useState<OrgRecord[]>([]);
   const [form, setForm] = useState<Record<string, string>>(() => emptyForm(fields));
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -89,6 +103,11 @@ export function EntityCrudPage({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  // An open form whose values changed since it opened asks before the page is left.
+  const [openedWith, setOpenedWith] = useState("");
+  if (formOpen && !openedWith) setOpenedWith(JSON.stringify(form));
+  if (!formOpen && openedWith) setOpenedWith("");
+  useLeaveGuard(formOpen && Boolean(openedWith) && JSON.stringify(form) !== openedWith);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"active" | "archived">("active");
   const [archivedItems, setArchivedItems] = useState<OrgRecord[] | null>(null);
@@ -136,7 +155,7 @@ export function EntityCrudPage({
     loadEntitySelectOptions(selectResources)
       .then(setSelectOptions)
       .catch(() => setSelectOptions({}));
-  }, [selectResources.join(",")]);
+  }, [selectResources.join(","), parentContext?.version]);
 
   function resetForm() {
     setForm(emptyForm(fields));
@@ -145,7 +164,7 @@ export function EntityCrudPage({
   }
 
   function openCreate() {
-    setForm(emptyForm(fields));
+    setForm({ ...emptyForm(fields), ...(parentContext?.defaults[resource] ?? {}) });
     setEditingId(null);
     setFormOpen(true);
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
@@ -187,7 +206,8 @@ export function EntityCrudPage({
       if (editingId) {
         await api.update(editingId, payload);
       } else {
-        await api.create(payload);
+        const created = await api.create(payload);
+        parentContext?.onSaved(resource, created);
       }
       const savedName = form[String(nameField)] || form.name || singular;
       toast(`${savedName} ${editingId ? "saved" : "added"}`);
@@ -385,15 +405,15 @@ export function EntityCrudPage({
             </label>
           ))}
           <div className="flex flex-wrap gap-2 sm:col-span-2">
-            <Button type="submit" disabled={submitting} onClick={() => (addAnother.current = false)}>
+            <Button type="submit" className="min-h-11" disabled={submitting} onClick={() => (addAnother.current = false)}>
               {submitting ? "Saving…" : editingId ? "Save changes" : `Add ${singular}`}
             </Button>
             {!editingId ? (
-              <Button type="submit" variant="outline" disabled={submitting} onClick={() => (addAnother.current = true)}>
+              <Button type="submit" variant="outline" className="min-h-11" disabled={submitting} onClick={() => (addAnother.current = true)}>
                 Add and add another
               </Button>
             ) : null}
-            <Button type="button" variant="ghost" onClick={resetForm}>
+            <Button type="button" variant="ghost" className="min-h-11" onClick={resetForm}>
               Cancel
             </Button>
           </div>

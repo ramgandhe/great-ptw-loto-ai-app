@@ -14,7 +14,7 @@ import { machineryCatalogue, workstationCatalogue } from './master-data';
 import { lototoPlans } from './lototo';
 import { permits } from './permit';
 
-export const LOTOTO_PROCEDURE_STATUSES = ['draft', 'published'] as const;
+export const LOTOTO_PROCEDURE_STATUSES = ['draft', 'published', 'inactive'] as const;
 export type LototoProcedureStatus = (typeof LOTOTO_PROCEDURE_STATUSES)[number];
 
 export const LOTOTO_SEQUENCE_PHASES = ['apply', 'remove'] as const;

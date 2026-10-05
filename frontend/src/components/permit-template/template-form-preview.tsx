@@ -1,6 +1,6 @@
 "use client";
 
-import type { TemplateConfig, TemplateField } from "@/lib/organisation/templates";
+import { laterStageNote, requiredForSubmit, type TemplateConfig, type TemplateField } from "@/lib/organisation/templates";
 
 const CONTROL = "h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-muted-foreground";
 
@@ -69,7 +69,8 @@ export function TemplateFormPreview({ name, config }: { name: string; config: Te
                 <li key={field.id} className={field.type === "check" ? "flex flex-wrap items-center justify-between gap-2" : "grid gap-1.5"}>
                   <span className="text-sm">
                     {field.label || "Untitled field"}
-                    {field.required ? <span className="text-destructive"> *</span> : null}
+                    {requiredForSubmit(field) ? <span className="text-destructive"> *</span> : null}
+                    {laterStageNote(field) ? <span className="block text-xs text-muted-foreground">{laterStageNote(field)}</span> : null}
                     {field.help ? <span className="block text-xs text-muted-foreground">{field.help}</span> : null}
                   </span>
                   <FieldControl field={field} />

@@ -82,7 +82,13 @@ export default function AnalyticsPage() {
       ) : null}
 
       {!data ? (
-        <p className="text-sm text-muted-foreground">Loading analytics…</p>
+        error ? (
+          <Button type="button" variant="outline" className="justify-self-start" onClick={() => setReloadKey((k) => k + 1)}>
+            Retry
+          </Button>
+        ) : (
+          <p className="text-sm text-muted-foreground">Loading analytics…</p>
+        )
       ) : (
         <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="flex flex-col gap-10">
           <Section title="Needs attention" description="Anything above zero here is waiting on someone.">
@@ -92,7 +98,7 @@ export default function AnalyticsPage() {
               <AttentionTile label="High-severity SIMOPS clashes" value={data.attention.highSeverityConflicts} href="/simops/conflicts" tone="danger" />
               <AttentionTile label="Serious incidents open" value={data.attention.criticalIncidentsOpen} href="/incidents" tone="danger" />
               <AttentionTile label="Corrective actions overdue" value={data.attention.overdueCorrectiveActions} href="/incidents" tone="warning" />
-              <AttentionTile label="Suspended permits" value={data.attention.suspendedPermits} href="/permits?stage=live" tone="warning" />
+              <AttentionTile label="Suspended permits" value={data.attention.suspendedPermits} href="/permits?view=live&status=suspended" tone="warning" />
             </motion.div>
           </Section>
 

@@ -6,6 +6,7 @@ import {
   permits,
   type PermitStatusHistoryAction,
 } from '../../database/schema';
+import { resetStageAnswers } from '../permit/stage-reset';
 
 export interface StatusTransitionEntry {
   permitId: string;
@@ -19,7 +20,7 @@ export interface StatusTransitionEntry {
   metadata?: Record<string, unknown>;
 }
 
-type DbClient = Pick<Database, 'insert' | 'update'>;
+type DbClient = Pick<Database, 'insert' | 'update' | 'select'>;
 
 @Injectable()
 export class StatusTransitionService {
@@ -47,6 +48,9 @@ export class StatusTransitionService {
         createdBy: entry.actorId,
       })
       .returning();
+
+    // A new approval or closure round needs fresh signatures from that round's decision-makers.
+    await resetStageAnswers(client, { permitId: entry.permitId, tenantId: entry.tenantId, toStatus: entry.toStatus, actorId: entry.actorId });
 
     return history;
   }

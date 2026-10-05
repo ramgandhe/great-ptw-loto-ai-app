@@ -1,3 +1,4 @@
+import type { StageAnswersPayload } from "@/lib/permit/forms";
 import { fetchApi } from "@/lib/api/client";
 import type {
   ArchivedPermitDetail,
@@ -29,7 +30,7 @@ export function getArchiveAttachmentDownloadUrl(permitId: string, attachmentId: 
 
 export function verifyPermit(
   permitId: string,
-  payload: { comment?: string; checklist: VerificationChecklist },
+  payload: { comment?: string; checklist: VerificationChecklist; stageAnswers?: StageAnswersPayload },
 ) {
   return fetchApi<VerifyPermitResult>(`/permits/${permitId}/verify`, {
     method: "POST",
@@ -39,11 +40,11 @@ export function verifyPermit(
 
 export function closePermit(
   permitId: string,
-  payload?: { comment?: string; actualEndAt?: string },
+  payload: { comment: string; checklist: VerificationChecklist; actualEndAt?: string; stageAnswers?: StageAnswersPayload },
 ) {
   return fetchApi<ClosePermitResult>(`/permits/${permitId}/close`, {
     method: "POST",
-    body: JSON.stringify(payload ?? {}),
+    body: JSON.stringify(payload),
   });
 }
 

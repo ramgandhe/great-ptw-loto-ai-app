@@ -1,15 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { ActionBar, AppText, Banner, Button, Card, CheckRow, ChipRow, PageHeader, PermitStatusChip, RefChip, Screen, ScreenState, SectionTitle, TextField } from "@/components/ui";
+import { CloudOff, Lock, ShieldCheck } from "@/components/ui/icons";
 import { ApiError } from "@/lib/api";
 import { closePermit, getPermitVerification, verifyPermit } from "@/lib/closure/api";
 import { initClosureOfflineStorage, queueOfflineVerification } from "@/lib/closure/offline";
@@ -19,8 +12,11 @@ import {
 } from "@/lib/closure/types";
 import { listEvidence, listProgress } from "@/lib/execution/api";
 import { getPermit } from "@/lib/permit/api";
-import type { PermitDetail, PermitLototoExecutionBoard } from "@/lib/permit/types";
-import { PermitLototoExecution } from "@/components/permit/lototo-execution";
+import { isOfflineError } from "@/lib/permit/offline";
+import { stageAnswersLeft, stageAnswersPayload, type StageAnswerEdits } from "@/lib/permit/forms";
+import { StageAnswers, useSignerName } from "@/components/permit/stage-answers";
+import type { PermitDetail } from "@/lib/permit/types";
+import { useTheme } from "@/providers/theme-provider";
 
 const checklistLabels: Record<keyof VerificationChecklist, string> = {
   workCompleted: "Work completed as described",
@@ -34,11 +30,13 @@ function isChecklistComplete(checklist: VerificationChecklist): boolean {
 }
 
 export default function PermitVerificationScreen() {
+  const { tokens } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const permitId = id ?? "";
   const [detail, setDetail] = useState<PermitDetail | null>(null);
-  const [progressCount, setProgressCount] = useState(0);
-  const [evidenceCount, setEvidenceCount] = useState(0);
+  // null: could not be loaded (shown as such, never as zero).
+  const [progressCount, setProgressCount] = useState<number | null>(0);
+  const [evidenceCount, setEvidenceCount] = useState<number | null>(0);
   const [checklist, setChecklist] = useState(defaultVerificationChecklist);
   const [comment, setComment] = useState("");
   const [verified, setVerified] = useState(false);
@@ -46,7 +44,10 @@ export default function PermitVerificationScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [lototoBoard, setLototoBoard] = useState<PermitLototoExecutionBoard | null>(null);
+  const [closeChecklist, setCloseChecklist] = useState(defaultVerificationChecklist);
+  const [closeComment, setCloseComment] = useState("");
+  const [stageEdits, setStageEdits] = useState<StageAnswerEdits>({});
+  const signerName = useSignerName();
 
   useEffect(() => {
     if (!permitId) {
@@ -56,16 +57,16 @@ export default function PermitVerificationScreen() {
       initClosureOfflineStorage(),
       getPermit(permitId),
       getPermitVerification(permitId).catch(() => null),
-      listProgress(permitId).catch(() => []),
-      listEvidence(permitId).catch(() => []),
+      listProgress(permitId).catch(() => null),
+      listEvidence(permitId).catch(() => null),
     ])
       .then(([, permitDetail, verificationRecord, progress, evidence]) => {
         setDetail(permitDetail);
         setVerified(Boolean(verificationRecord));
-        setProgressCount(progress.length);
-        setEvidenceCount(evidence.length);
+        setProgressCount(progress ? progress.length : null);
+        setEvidenceCount(evidence ? evidence.length : null);
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load permit"))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "The permit could not be loaded."))
       .finally(() => setLoading(false));
   }, [permitId]);
 
@@ -74,8 +75,8 @@ export default function PermitVerificationScreen() {
   }
 
   async function handleVerify(offline: boolean) {
-    if (!isChecklistComplete(checklist)) {
-      setError("Complete all checklist items");
+    if (!isChecklistComplete(checklist) || !comment.trim()) {
+      setError("Tick every check and add a comment.");
       return;
     }
 
@@ -86,22 +87,26 @@ export default function PermitVerificationScreen() {
     try {
       if (offline) {
         await queueOfflineVerification(permitId, checklist, comment.trim() || undefined);
-        setMessage("Inspection saved offline");
+        setMessage("Inspection saved on this phone. It is not verified until it reaches the server.");
       } else {
         await verifyPermit(permitId, {
           checklist,
-          comment: comment.trim() || undefined,
+          comment: comment.trim(),
+          stageAnswers: detail ? stageAnswersPayload(stageEdits, detail.permit.draftRevision) : undefined,
         });
         setVerified(true);
+        setStageEdits({});
+        setDetail(await getPermit(permitId));
         setMessage("Verification submitted");
       }
     } catch (err) {
-      if (!offline && err instanceof ApiError) {
+      // Only a lost connection is queued; a refusal from the server is shown, never queued.
+      if (!offline && isOfflineError(err)) {
         try {
           await queueOfflineVerification(permitId, checklist, comment.trim() || undefined);
-          setMessage("Network error — inspection queued offline");
+          setMessage("No connection. Inspection saved on this phone; it is not verified until it reaches the server.");
         } catch {
-          setError(err.message);
+          setError("The inspection could not be saved offline.");
         }
       } else {
         setError(err instanceof ApiError ? err.message : "Verification failed");
@@ -112,10 +117,18 @@ export default function PermitVerificationScreen() {
   }
 
   async function handleClose() {
+    if (!isChecklistComplete(closeChecklist) || !closeComment.trim()) {
+      setError("Tick every check and add a closure comment.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
-      await closePermit(permitId);
+      await closePermit(permitId, {
+        comment: closeComment.trim(),
+        checklist: closeChecklist,
+        stageAnswers: detail ? stageAnswersPayload(stageEdits, detail.permit.draftRevision) : undefined,
+      });
       router.replace(`/closure/archive/${permitId}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Closure failed");
@@ -124,121 +137,78 @@ export default function PermitVerificationScreen() {
     }
   }
 
-  if (loading) {
-    return <ActivityIndicator style={{ marginTop: 32 }} />;
+  const back = { label: "Closure", href: "/closure" };
+  if (loading || !detail) {
+    return <ScreenState error={loading ? null : (error ?? "This permit was not found.")} back={back} />;
   }
 
-  if (!detail) {
-    return <Text style={styles.error}>{error ?? "Permit not found"}</Text>;
-  }
+  const closureLeft = stageAnswersLeft(detail.permit.formResponses ?? [], "closure", stageEdits);
+  const keys = Object.keys(checklistLabels) as Array<keyof VerificationChecklist>;
+  const list = verified ? closeChecklist : checklist;
+  const setItem = (key: keyof VerificationChecklist, value: boolean) =>
+    verified ? setCloseChecklist((c) => ({ ...c, [key]: value })) : toggleChecklist(key, value);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{detail.permit.title}</Text>
-      <Text style={styles.meta}>
-        {progressCount} progress update(s) · {evidenceCount} evidence file(s)
-      </Text>
+    <Screen
+      footer={
+        <ActionBar>
+          {verified ? (
+            <Button
+              label="Close permit"
+              icon={Lock}
+              loading={submitting}
+              disabled={closureLeft > 0 || !isChecklistComplete(closeChecklist) || !closeComment.trim()}
+              onPress={() => void handleClose()}
+            />
+          ) : (
+            <>
+              <Button label="Save offline" variant="secondary" icon={CloudOff} disabled={submitting || !isChecklistComplete(checklist)} onPress={() => void handleVerify(true)} />
+              <Button label="Submit verification" icon={ShieldCheck} loading={submitting} disabled={!isChecklistComplete(checklist) || !comment.trim()} onPress={() => void handleVerify(false)} />
+            </>
+          )}
+        </ActionBar>
+      }
+    >
+      <PageHeader
+        title={detail.permit.title}
+        description={`${progressCount ?? "Could not load"} progress update${progressCount === 1 ? "" : "s"} · ${evidenceCount ?? "could not load"} evidence file${evidenceCount === 1 ? "" : "s"}`}
+        back={back}
+      >
+        <ChipRow>
+          <PermitStatusChip status={detail.permit.status} />
+          <RefChip reference={detail.permit.reference} />
+        </ChipRow>
+      </PageHeader>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {message ? <Text style={styles.message}>{message}</Text> : null}
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      {message ? <Banner tone="success">{message}</Banner> : null}
+      {verified ? <Banner tone="info" title="Verified">The head of department signs off and closes the permit.</Banner> : null}
 
-      {detail.permit.lototoRequired ? (
-        <PermitLototoExecution permitId={permitId} onBoardChange={setLototoBoard} />
-      ) : null}
-
-      {!verified ? (
-        <>
-          <Text style={styles.sectionTitle}>Final inspection</Text>
-          {(Object.keys(checklistLabels) as Array<keyof VerificationChecklist>).map((key) => (
-            <View key={key} style={styles.row}>
-              <Text style={styles.rowLabel}>{checklistLabels[key]}</Text>
-              <Switch
-                value={checklist[key]}
-                onValueChange={(value) => toggleChecklist(key, value)}
-              />
-            </View>
+      <View style={{ gap: tokens.space[3] }}>
+        <SectionTitle title={verified ? "Final sign-off" : "Final inspection"} description={verified ? "Confirm each check before closing." : "Confirm on site, then submit."} />
+        <Card style={{ gap: tokens.space[1] }}>
+          {keys.map((key) => (
+            <CheckRow key={key} label={checklistLabels[key]} value={list[key]} onChange={(value) => setItem(key, value)} disabled={submitting} />
           ))}
-          <TextInput
-            style={styles.input}
-            value={comment}
-            onChangeText={setComment}
-            placeholder="Verification comments..."
-            multiline
-          />
-          <Pressable
-            style={styles.primaryButton}
-            onPress={() => handleVerify(false)}
-            disabled={
-              submitting ||
-              !isChecklistComplete(checklist) ||
-              (Boolean(detail.permit.lototoRequired) && lototoBoard?.restored !== true)
-            }
-          >
-            <Text style={styles.primaryButtonText}>Submit verification</Text>
-          </Pressable>
-          {detail.permit.lototoRequired && lototoBoard?.restored !== true ? (
-            <Text style={styles.meta}>LOTOTO restoration must be verified first.</Text>
-          ) : null}
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() => handleVerify(true)}
-            disabled={
-              submitting ||
-              !isChecklistComplete(checklist) ||
-              (Boolean(detail.permit.lototoRequired) && lototoBoard?.restored !== true)
-            }
-          >
-            <Text style={styles.secondaryButtonText}>Save offline</Text>
-          </Pressable>
-        </>
-      ) : (
-        <>
-          <Text style={styles.message}>Verification complete. You can now close this permit.</Text>
-          <Pressable style={styles.primaryButton} onPress={handleClose} disabled={submitting}>
-            <Text style={styles.primaryButtonText}>{submitting ? "Closing..." : "Close permit"}</Text>
-          </Pressable>
-        </>
-      )}
-    </ScrollView>
+        </Card>
+      </View>
+
+      <Card style={{ gap: tokens.space[4] }}>
+        <StageAnswers
+          responses={detail.permit.formResponses ?? []}
+          stage="closure"
+          edits={stageEdits}
+          onChange={setStageEdits}
+          signerName={signerName}
+          disabled={submitting}
+        />
+        {verified && closureLeft > 0 ? <AppText variant="caption" tone="warning" weight="semibold">{`${closureLeft} left to sign before closing.`}</AppText> : null}
+        {verified ? (
+          <TextField label="Closure comment" required multiline value={closeComment} onChangeText={setCloseComment} placeholder="What was checked before closing" />
+        ) : (
+          <TextField label="Verification comment" required multiline value={comment} onChangeText={setComment} placeholder="What you saw on site" />
+        )}
+      </Card>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { padding: 16, gap: 10 },
-  title: { fontSize: 20, fontWeight: "600" },
-  meta: { fontSize: 13, color: "#666" },
-  sectionTitle: { fontSize: 14, fontWeight: "600", marginTop: 8 },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 6,
-  },
-  rowLabel: { flex: 1, fontSize: 14 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 10,
-    minHeight: 80,
-    textAlignVertical: "top",
-  },
-  primaryButton: {
-    backgroundColor: "#1f2937",
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-  },
-  primaryButtonText: { color: "#fff", fontWeight: "500" },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-  },
-  secondaryButtonText: { color: "#111827", fontWeight: "500" },
-  error: { color: "#b91c1c" },
-  message: { color: "#059669" },
-});

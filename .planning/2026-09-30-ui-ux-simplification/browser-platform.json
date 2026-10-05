@@ -1,0 +1,466 @@
+{
+  "role": "platform",
+  "results": [
+    {
+      "title": "PermitWiseAI",
+      "url": "/dashboard",
+      "headings": [
+        "Good evening, James",
+        "Site at a glance",
+        "Needs you"
+      ],
+      "text": "PermitWiseAI\nHome\n\nInsights\n\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nTenants\nBilling\nSearch permits, pages and actions\nCtrl K\nJ\nJames Anderson\nPlatform Owner\nGood evening, James\n\nChecking your work…\n\nReport incident\nSite at a glance\n\nLast 30 days. Anything above zero needs someone's attention.\n\nOpen analytics\n\nLoading site figures…\n\nNeeds you\n\nGrouped by what you have to do. Urgent jobs glow.\n\nChecking what needs you…",
+      "links": [
+        {
+          "text": "Report incident",
+          "href": "/incidents?new=1"
+        },
+        {
+          "text": "Open analytics",
+          "href": "/analytics"
+        }
+      ],
+      "controls": [],
+      "overflow": false,
+      "route": "/dashboard",
+      "http": 200,
+      "mobile": {
+        "overflow": false,
+        "sticky": [
+          {
+            "text": "Good evening, JamesYou are all caught up.Report incident",
+            "height": 142
+          }
+        ]
+      }
+    },
+    {
+      "title": "PermitWiseAI",
+      "url": "/platform/tenants",
+      "headings": [
+        "Tenants"
+      ],
+      "text": "PermitWiseAI\nHome\n\nInsights\n\nAnalytics\nReports\n\nAdministration\n\nOrganisation\nWorkforce\nTenants\nBilling\nSearch permits, pages and actions\nCtrl K\nJ\nJames Anderson\nPlatform Owner\nBack to\nHome\nTenants\n\nInvite an organisation owner. They get the organisation-admin role and choose their own password on first sign-in.\n\nInvite organisation\nOrganisations\n32\nAccess requests\n2\nSearch organisations\nName\tOwner email\tInvite\tStatus\t\nActions\n\nAcme Industrial\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nIntegration Corp\t\t\tActive\t\nDeactivate\nDelete\n\nAcme Industrial\t\t\tActive\t\nDeactivate\nDelete\n\nMS02 Org 7a18bb40\t\t\tActive\t\nDeactivate\nDelete\n\nMS02 Org 91e694c9\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nAcme Industrial\t\t\tActive\t\nDeactivate\nDelete\n\nAcme Industrial\t\t\tActive\t\nDeactivate\nDelete\n\nIntegration Corp\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nTest Org\t\t\tActive\t\nDeactivate\nDelete\n\nAcme Industrial\t\t\tActive\t\nDeactivate\nDelete\n\nMS02 Org fed1f2b6\t\t\tActive\t\nDeactivate\nDelete\n\nIntegration Corp\t\t\tActive\t\nDeactivate\nDelete\n\nDemo Organisation\t\t\tActive\t\nDeactivate\nDelete",
+      "links": [
+        {
+          "text": "Back to Home",
+          "href": "/dashboard"
+        }
+      ],
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Invite organisation",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Organisations32",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Access requests2",
+          "disabled": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "search",
+          "label": "Search organisations",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Deactivate",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "type": "button",
+          "label": "Delete",
+          "disabled": false
+        }
+      ],
+      "overflow": false,
+      "route": "/platform/tenants",
+      "http": 200
+    }
+  ],
+  "errors": []
+}

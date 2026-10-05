@@ -6,6 +6,7 @@ import { CircleCheck, TriangleAlert } from "lucide-react";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { PermitTypeChip } from "@/components/permit/permit-type-chip";
 import { ActionLink } from "@/components/work/action-link";
+import { Button } from "@/components/ui/button";
 import { permitStatusColor } from "@/lib/permit/status";
 import { formatWindow } from "@/lib/format";
 import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
@@ -78,8 +79,25 @@ function WorkRow({ item, alike, lookups }: { item: WorkItem; alike: number; look
   );
 }
 
+/** Shown while part of the queue could not be read, so a gap never looks like an empty queue. */
+export function WorkQueueUnavailable() {
+  const { failed, retry } = useWorkQueue();
+  if (failed.length === 0) return null;
+  return (
+    <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-(--status-warning) bg-(--status-warning-bg) px-5 py-3 text-sm">
+      <TriangleAlert className="size-4 text-(--status-warning)" aria-hidden />
+      <p className="flex-1">
+        Could not check your {failed.join(", ")}. What needs you may be missing from this list.
+      </p>
+      <Button type="button" variant="outline" size="sm" onClick={retry}>
+        Retry
+      </Button>
+    </div>
+  );
+}
+
 export function WorkQueuePanel({ emptyAction }: { emptyAction?: React.ReactNode }) {
-  const { items, loaded } = useWorkQueue();
+  const { items, loaded, failed } = useWorkQueue();
   const [lookups, setLookups] = useState<Lookups | null>(null);
   const [expanded, setExpanded] = useState<Set<WorkAction>>(new Set());
 
@@ -92,6 +110,7 @@ export function WorkQueuePanel({ emptyAction }: { emptyAction?: React.ReactNode 
   }
 
   if (items.length === 0) {
+    if (failed.length) return <WorkQueueUnavailable />;
     return (
       <div className="flex flex-wrap items-center gap-4 rounded-xl border border-dashed border-border px-5 py-6">
         <CircleCheck className="size-6 text-(--status-success)" aria-hidden />
@@ -109,6 +128,8 @@ export function WorkQueuePanel({ emptyAction }: { emptyAction?: React.ReactNode 
     .filter((group) => group.rows.length > 0);
 
   return (
+    <div className="grid gap-3">
+    <WorkQueueUnavailable />
     <div className="divide-y divide-border rounded-xl border border-border bg-card">
       {groups.map(({ action, rows }) => {
         const showAll = expanded.has(action);
@@ -149,6 +170,7 @@ export function WorkQueuePanel({ emptyAction }: { emptyAction?: React.ReactNode 
           </section>
         );
       })}
+    </div>
     </div>
   );
 }

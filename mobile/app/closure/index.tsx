@@ -1,36 +1,43 @@
-import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator } from "react-native";
 import { router } from "expo-router";
+import { PermitCard } from "@/components/permit/permit-card";
+import { Banner, Button, EmptyState, PageHeader, Screen } from "@/components/ui";
+import { Archive, RefreshCw } from "@/components/ui/icons";
 import { ApiError } from "@/lib/api";
 import { countPendingClosureItems, initClosureOfflineStorage } from "@/lib/closure/offline";
 import { syncClosureQueue } from "@/lib/closure/api";
 import { listPermits } from "@/lib/permit/api";
+import { useOrgNames } from "@/lib/permit/names";
 import type { PermitRecord } from "@/lib/permit/types";
+import { useTheme } from "@/providers/theme-provider";
 
 export default function ClosureQueueScreen() {
+  const { tokens } = useTheme();
+  const names = useOrgNames();
   const [permits, setPermits] = useState<PermitRecord[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
-    setLoading(true);
+  const load = useCallback(async () => {
     setError(null);
     try {
       await initClosureOfflineStorage();
       setPermits(await listPermits("active"));
       setPendingCount(await countPendingClosureItems());
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load permits");
+      setError(err instanceof ApiError ? err.message : "Permits could not be loaded.");
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   async function handleSync() {
     setSyncing(true);
@@ -43,60 +50,47 @@ export default function ClosureQueueScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.subtitle}>Verify completed work and close permits</Text>
+    <Screen
+      refreshing={refreshing}
+      onRefresh={async () => {
+        setRefreshing(true);
+        await load();
+        setRefreshing(false);
+      }}
+    >
+      <PageHeader
+        title="Closure"
+        description="Verify finished work on site and close the permit."
+        back={{ label: "Home", href: "/" }}
+        actions={<Button label="Archive" variant="outline" icon={Archive} onPress={() => router.push("/closure/archive")} />}
+      />
+
       {pendingCount > 0 ? (
-        <Pressable style={styles.banner} onPress={handleSync} disabled={syncing}>
-          <Text style={styles.bannerText}>
-            {syncing
-              ? "Syncing offline inspections..."
-              : `${pendingCount} offline inspection(s) pending`}
-          </Text>
-        </Pressable>
+        <Banner
+          tone="warning"
+          title={`${pendingCount} inspection${pendingCount === 1 ? "" : "s"} saved on this phone`}
+          action={<Button label={syncing ? "Sending…" : "Send now"} variant="ghost" size="sm" icon={RefreshCw} loading={syncing} onPress={() => void handleSync()} />}
+        >
+          Not closed until the server confirms them.
+        </Banner>
       ) : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Banner tone="danger" title="Could not load permits" action={<Button label="Retry" variant="ghost" size="sm" onPress={() => void load()} />}>{error}</Banner> : null}
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 24 }} />
+        <ActivityIndicator color={tokens.colors.primary} style={{ marginTop: tokens.space[6] }} />
+      ) : error ? null : permits.length === 0 ? (
+        <EmptyState done title="Nothing to close" body="Permits with work in progress appear here when they are ready to verify." />
       ) : (
-        <FlatList
-          data={permits}
-          keyExtractor={(item) => item.id}
-          ListEmptyComponent={<Text style={styles.empty}>No active permits awaiting closure.</Text>}
-          ListHeaderComponent={
-            <Pressable style={styles.linkRow} onPress={() => router.push("/closure/archive")}>
-              <Text style={styles.link}>View archive</Text>
-            </Pressable>
-          }
-          renderItem={({ item }) => (
-            <Pressable style={styles.card} onPress={() => router.push(`/closure/${item.id}`)}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardMeta}>
-                {item.reference ?? item.id.slice(0, 8)} · {item.status.replace(/_/g, " ")}
-              </Text>
-            </Pressable>
-          )}
-        />
+        permits.map((item) => (
+          <PermitCard
+            key={item.id}
+            permit={item}
+            names={names}
+            accent={tokens.status[item.status]}
+            onPress={() => router.push(`/closure/${item.id}`)}
+            action={{ label: "Verify", color: tokens.action.decide, onPress: () => router.push(`/closure/${item.id}`) }}
+          />
+        ))
       )}
-    </View>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, gap: 8 },
-  subtitle: { fontSize: 14, color: "#666" },
-  banner: { backgroundColor: "#fef3c7", borderRadius: 8, padding: 10 },
-  bannerText: { fontSize: 13, color: "#92400e" },
-  linkRow: { marginBottom: 8 },
-  link: { color: "#2563eb", fontSize: 14 },
-  card: {
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
-  },
-  cardTitle: { fontSize: 16, fontWeight: "600" },
-  cardMeta: { fontSize: 12, color: "#666", marginTop: 4 },
-  empty: { color: "#666", marginTop: 16 },
-  error: { color: "#b91c1c" },
-});

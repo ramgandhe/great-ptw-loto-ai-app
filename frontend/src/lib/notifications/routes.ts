@@ -1,25 +1,28 @@
 import type { Notification } from "./types";
+import { workspaceHref } from "@/lib/permit/workspace-tabs";
 
-export function getNotificationEntityHref(notification: Notification): string | null {
-  if (!notification.entityType || !notification.entityId) {
-    return null;
-  }
-
+/** The record a message is about and the button that opens it; null when it has no linked record. */
+export function notificationTarget(notification: Notification): { href: string; label: string } | null {
+  const id = notification.entityId;
+  if (!notification.entityType || !id) return null;
   switch (notification.entityType) {
     case "permit":
-      return `/permits/${notification.entityId}`;
-    case "incident":
-      return `/incidents/${notification.entityId}`;
+      return { href: workspaceHref(id), label: "Open permit" };
     case "approval":
-      return `/approvals/${notification.entityId}`;
+      return { href: workspaceHref(id, "review"), label: "Open review" };
     case "execution":
-      return `/execution/${notification.entityId}`;
-    case "lototo_plan":
-      return `/lototo/${notification.entityId}`;
-    case "simops_conflict":
-      return `/simops/${notification.entityId}`;
+      return { href: workspaceHref(id, "work"), label: "Open work" };
     case "closure":
-      return `/closure/${notification.entityId}`;
+      return { href: workspaceHref(id, "review"), label: "Open closure" };
+    case "incident":
+      return { href: `/incidents/${id}`, label: "Open incident" };
+    case "lototo_plan":
+      return { href: `/lototo/plans/${id}`, label: "Open LOTOTO plan" };
+    case "simops_conflict":
+    case "conflict":
+      return { href: `/simops/conflicts/${id}`, label: "Open clash" };
+    case "tenant_subscription":
+      return { href: "/billing", label: "Open billing" };
     default:
       return null;
   }

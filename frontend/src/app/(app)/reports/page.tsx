@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { PermitTypeChip } from "@/components/permit/permit-type-chip";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { MultiToggle, SegmentedToggle } from "@/components/ui/toggle-group";
+import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { INCIDENT_TYPES, PERIODS, PERMIT_STAGES, PRIORITIES } from "@/lib/analytics/labels";
 import { getInsights, getReportView } from "@/lib/dashboards/api";
@@ -56,7 +57,10 @@ function ReportsView() {
   const [query, setQuery] = useState(params.get("q") ?? "");
   // Several stages (or priorities) can be picked at once; none picked means all.
   const filter = (params.get("filter") ?? "").split(",").filter(Boolean);
-  const [sort, setSort] = useState<SortState>({ column: "date", dir: "desc" });
+  // Sort lives in the URL with the filters, so it survives opening a record and coming back.
+  const [sortColumn, sortDir] = (params.get("sort") ?? "date:desc").split(":");
+  const sort: SortState = useMemo(() => ({ column: sortColumn, dir: sortDir === "asc" ? "asc" : "desc" }), [sortColumn, sortDir]);
+  const [reloadKey, setReloadKey] = useState(0);
   const [permitRows, setPermitRows] = useState<PermitReportRow[] | null>(null);
   const [incidentRows, setIncidentRows] = useState<IncidentReportRow[] | null>(null);
   const [insights, setInsights] = useState<InsightsPayload | null>(null);
@@ -87,10 +91,10 @@ function ReportsView() {
     return () => {
       cancelled = true;
     };
-  }, [tab, days]);
+  }, [tab, days, reloadKey]);
 
   function onSort(column: string) {
-    setSort((s) => ({ column, dir: s.column === column && s.dir === "desc" ? "asc" : "desc" }));
+    setParams({ sort: `${column}:${sort.column === column && sort.dir === "desc" ? "asc" : "desc"}` });
   }
 
   const permitView = useMemo(() => {
@@ -186,7 +190,15 @@ function ReportsView() {
 
       {tab === "permits" ? (
         permitRows === null ? (
-          <p className="text-sm text-muted-foreground">Loading report…</p>
+          (
+          error ? (
+            <Button type="button" variant="outline" className="justify-self-start" onClick={() => setReloadKey((k) => k + 1)}>
+              Retry
+            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading report…</p>
+          )
+        )
         ) : (
           <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid gap-5">
             <motion.div variants={staggerItem} className="grid gap-3 md:grid-cols-[14rem_1fr]">
@@ -266,7 +278,15 @@ function ReportsView() {
 
       {tab === "incidents" ? (
         incidentRows === null ? (
-          <p className="text-sm text-muted-foreground">Loading report…</p>
+          (
+          error ? (
+            <Button type="button" variant="outline" className="justify-self-start" onClick={() => setReloadKey((k) => k + 1)}>
+              Retry
+            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading report…</p>
+          )
+        )
         ) : (
           <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid gap-5">
             <motion.div variants={staggerItem} className="grid gap-3 md:grid-cols-[14rem_1fr]">
@@ -345,7 +365,13 @@ function ReportsView() {
 
       {tab === "summary" ? (
         insights === null ? (
-          <p className="text-sm text-muted-foreground">Loading summary…</p>
+          error ? (
+            <Button type="button" variant="outline" className="justify-self-start" onClick={() => setReloadKey((k) => k + 1)}>
+              Retry
+            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading summary…</p>
+          )
         ) : (
           <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <ChartCard title="Permits by stage" insight="Current position of every permit.">

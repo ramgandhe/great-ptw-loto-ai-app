@@ -1,46 +1,25 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { DENSITIES, STYLES, THEMES, type ColorMode } from "@/theme/types";
+import { View } from "react-native";
+import { ChoiceGroup } from "@/components/ui";
 import { useTheme } from "@/providers/theme-provider";
+import type { ColorMode, Density, ThemeName, VisualStyle } from "@/theme/types";
+import { WEB_THEMES } from "@/theme/web-themes";
 
-function cycle<T extends string>(values: readonly T[], current: T): T {
-  const index = values.indexOf(current);
-  return values[(index + 1) % values.length];
-}
+const THEME_LABELS: Record<ThemeName, string> = { hazard: "Hazard", "control-room": "Control Room", setu: "Setu", "ledger-slate": "Ledger Slate" };
+const options = <K extends string>(labels: Record<K, string>) => (Object.entries(labels) as [K, string][]).map(([key, label]) => ({ key, label }));
 
 export function ThemeSettings() {
   const { preferences, setTheme, setDensity, setVisualStyle, setMode, tokens } = useTheme();
-  const modes: ColorMode[] = ["light", "dark"];
-
-  const row = (label: string, value: string, onPress: () => void) => (
-    <Pressable
-      style={[styles.row, { borderColor: tokens.colors.border, backgroundColor: tokens.colors.card }]}
-      onPress={onPress}
-    >
-      <Text style={{ color: tokens.colors.foreground }}>{label}</Text>
-      <Text style={{ color: tokens.colors.mutedForeground }}>{value}</Text>
-    </Pressable>
-  );
-
   return (
-    <View style={styles.container}>
-      {row("Theme", preferences.theme, () => setTheme(cycle(THEMES, preferences.theme)))}
-      {row("Density", preferences.density, () => setDensity(cycle(DENSITIES, preferences.density)))}
-      {row("Style", preferences.visualStyle, () =>
-        setVisualStyle(cycle(STYLES, preferences.visualStyle)),
-      )}
-      {row("Mode", preferences.mode, () => setMode(cycle(modes, preferences.mode)))}
+    <View style={{ gap: tokens.space[5] }}>
+      <ChoiceGroup
+        label="Theme"
+        options={options(THEME_LABELS).map((o) => ({ ...o, swatch: WEB_THEMES[o.key].light.accentPrimary }))}
+        value={preferences.theme}
+        onChange={setTheme}
+      />
+      <ChoiceGroup label="Mode" options={options<ColorMode>({ light: "Light", dark: "Dark" })} value={preferences.mode} onChange={setMode} />
+      <ChoiceGroup label="Density" options={options<Density>({ normal: "Normal", compact: "Compact" })} value={preferences.density} onChange={setDensity} />
+      <ChoiceGroup label="Visual style" options={options<VisualStyle>({ standard: "Standard", strict: "Strict" })} value={preferences.visualStyle} onChange={setVisualStyle} />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { gap: 8 },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 12,
-    borderWidth: 1,
-    borderRadius: 8,
-  },
-});

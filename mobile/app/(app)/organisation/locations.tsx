@@ -1,6 +1,6 @@
-import { DirectoryListScreen } from "@/components/organisation/directory-list-screen";
+import { RecordListScreen } from "@/components/record-list-screen";
 import { loadLocationDirectory } from "@/lib/organisation/offline";
 
 export default function LocationsDirectoryScreen() {
-  return <DirectoryListScreen title="Location directory" loader={loadLocationDirectory} />;
+  return <RecordListScreen title="Locations" back={{ label: "Organisation", href: "/organisation" }} loader={loadLocationDirectory} details={(l) => [l.code, l.description]} />;
 }

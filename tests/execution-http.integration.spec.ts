@@ -82,15 +82,16 @@ describe('Execution HTTP integration (PUS-141 / PUS-142 / PUS-143)', () => {
 
   beforeAll(async () => {
     pool = new Pool({ connectionString: testDatabaseUrl });
+    const db = drizzle(pool, { schema });
     try {
       await pool.query('SELECT 1');
       canConnect = true;
-      const db = drizzle(pool, { schema });
-      await migrate(db, { migrationsFolder });
     } catch {
       canConnect = false;
       return;
     }
+    // A failed migration fails the suite; it must never look like "no database".
+    await migrate(db, { migrationsFolder });
 
     app = await createTestApp(() => actingUser);
   });

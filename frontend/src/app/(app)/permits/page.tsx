@@ -11,25 +11,17 @@ import { PermitTypeChip } from "@/components/permit/permit-type-chip";
 import { buttonVariants } from "@/components/ui/button";
 import { MultiToggle, SegmentedToggle } from "@/components/ui/toggle-group";
 import { ActionLink } from "@/components/work/action-link";
+import { WorkQueueUnavailable } from "@/components/work/work-queue-panel";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { PERMIT_CREATE_ROLES } from "@/lib/auth/roles";
 import { formatRelative, formatWindow } from "@/lib/format";
 import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
-import { PERMIT_STATUS_GROUPS, PERMIT_STATUSES, permitStatusColor, statusesInGroup } from "@/lib/permit/status";
+import { PERMIT_STATUSES, permitStatusColor } from "@/lib/permit/status";
+import { QUEUE_VIEWS, inQueueView, queueViewFrom } from "@/lib/permit/queue-views";
 import type { PermitRecord } from "@/lib/permit/types";
 import { cn } from "@/lib/utils";
 import { useWorkQueue } from "@/lib/work-queue-context";
-
-/** Older links (/permits?stage=live) still land on the right permits. */
-const LEGACY_STAGES: Record<string, string[]> = {
-  draft: ["draft"],
-  review: ["pending_approval", "deferred", "rejected"],
-  approved: ["approved"],
-  live: ["active", "suspended"],
-  closing: ["execution_completed", "pending_closure"],
-  done: ["closed", "cancelled", "expired"],
-};
 
 const listParam = (value: string | null) => (value ? value.split(",").filter(Boolean) : []);
 
@@ -50,10 +42,9 @@ function PermitsBoard() {
   const { permits, items, loaded } = useWorkQueue();
   const [lookups, setLookups] = useState<Lookups | null>(null);
   const [query, setQuery] = useState(params.get("q") ?? "");
-  const [exact, setExact] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const scope = params.get("scope") === "mine" ? "mine" : "all";
-  const statuses = params.get("status") ? listParam(params.get("status")) : (LEGACY_STAGES[params.get("stage") ?? ""] ?? []);
+  const statuses = listParam(params.get("status"));
   const types = listParam(params.get("type"));
 
   useEffect(() => {
@@ -63,6 +54,7 @@ function PermitsBoard() {
   function setParams(next: Record<string, string | string[]>) {
     const p = new URLSearchParams(params.toString());
     p.delete("stage");
+    p.delete("scope");
     for (const [key, raw] of Object.entries(next)) {
       const value = Array.isArray(raw) ? raw.join(",") : raw;
       if (value && value !== "all") p.set(key, value);
@@ -72,6 +64,7 @@ function PermitsBoard() {
   }
 
   const actionByPermit = useMemo(() => new Map(items.filter((item) => item.permit).map((item) => [item.permit!.id, item])), [items]);
+  const view = queueViewFrom(params, permits.filter((p) => actionByPermit.has(p.id)).length);
 
   const searched = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -83,26 +76,23 @@ function PermitsBoard() {
     );
   }, [permits, query, lookups]);
 
-  // Each filter's counts honour the other filters, so every number predicts what a click shows.
-  const inScope = (p: PermitRecord) => scope === "all" || actionByPermit.has(p.id);
+  // Each count honours the other filters, so every number predicts what a click shows.
+  const inView = (p: PermitRecord, key = view) => inQueueView(key, p.status, actionByPermit.has(p.id));
   const inStatus = (p: PermitRecord) => statuses.length === 0 || statuses.includes(p.status);
   const inType = (p: PermitRecord) => types.length === 0 || types.includes(p.permitTypeId);
 
-  const forStatusCounts = searched.filter((p) => inScope(p) && inType(p));
-  const forTypeCounts = searched.filter((p) => inScope(p) && inStatus(p));
-  const mineCount = searched.filter((p) => actionByPermit.has(p.id) && inStatus(p) && inType(p)).length;
-  const allCount = searched.filter((p) => inStatus(p) && inType(p)).length;
+  const forStatusCounts = searched.filter((p) => inView(p) && inType(p));
+  const forTypeCounts = searched.filter((p) => inView(p) && inStatus(p));
+  const viewOptions = QUEUE_VIEWS.map((v) => ({
+    value: v.key,
+    label: v.label,
+    count: searched.filter((p) => inView(p, v.key) && inStatus(p) && inType(p)).length,
+  }));
 
   const visible = searched
-    .filter((p) => inScope(p) && inStatus(p) && inType(p))
+    .filter((p) => inView(p) && inStatus(p) && inType(p))
     // Anything waiting on this person first, then most recently changed.
     .sort((a, b) => Number(actionByPermit.has(b.id)) - Number(actionByPermit.has(a.id)) || b.updatedAt.localeCompare(a.updatedAt));
-
-  const groupOptions = PERMIT_STATUS_GROUPS.map((g) => {
-    const keys = statusesInGroup(g.key);
-    return { value: g.key, label: g.label, color: permitStatusColor(keys[0]), count: forStatusCounts.filter((p) => keys.includes(p.status)).length };
-  }).filter((g) => g.count > 0);
-  const selectedGroups = PERMIT_STATUS_GROUPS.filter((g) => statusesInGroup(g.key).every((s) => statuses.includes(s))).map((g) => g.key);
 
   const statusOptions = PERMIT_STATUSES.map((s) => ({
     value: s.key,
@@ -120,7 +110,11 @@ function PermitsBoard() {
     }))
     .sort((a, b) => b.count - a.count);
 
-  const filtered = statuses.length > 0 || types.length > 0 || scope === "mine" || query;
+  const filterCount = statuses.length + types.length;
+  const chips = [
+    ...statuses.map((key) => ({ key, label: PERMIT_STATUSES.find((st) => st.key === key)?.label ?? key, remove: () => setParams({ status: statuses.filter((x) => x !== key) }) })),
+    ...types.map((key) => ({ key, label: lookups?.permitTypes.get(key)?.name ?? "Permit type", remove: () => setParams({ type: types.filter((x) => x !== key) }) })),
+  ];
 
   return (
     <main className="flex flex-1 flex-col gap-4 px-4 pb-8 sm:px-8">
@@ -136,8 +130,11 @@ function PermitsBoard() {
           ) : null
         }
       >
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <SegmentedToggle label="Permit views" className="w-max" value={view} onChange={(v) => setParams({ view: v })} options={viewOptions} />
+        </div>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="relative flex h-10 w-full items-center sm:w-80">
+          <label className="relative flex h-11 w-full items-center sm:w-80">
             <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
             <span className="sr-only">Search permits</span>
             <input
@@ -148,7 +145,7 @@ function PermitsBoard() {
                 setParams({ q: e.target.value });
               }}
               placeholder="Reference, title, type or place"
-              className="h-10 w-full rounded-full border border-border bg-card pl-9 pr-9 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-11 w-full rounded-full border border-border bg-card pl-9 pr-9 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
             {query ? (
               <button
@@ -164,50 +161,64 @@ function PermitsBoard() {
               </button>
             ) : null}
           </label>
-          <SegmentedToggle
-            label="Whose permits"
-            value={scope}
-            onChange={(v) => setParams({ scope: v })}
-            options={[
-              { value: "all", label: "All", count: allCount },
-              { value: "mine", label: "Needs you", count: mineCount },
-            ]}
-          />
           <button
             type="button"
-            aria-pressed={exact}
-            onClick={() => setExact((v) => !v)}
+            aria-expanded={filtersOpen}
+            aria-controls="permit-filters"
+            onClick={() => setFiltersOpen((v) => !v)}
             className={cn(
-              "press flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm",
-              exact ? "is-selected border-transparent font-semibold" : "border-border bg-card text-muted-foreground hover:text-foreground",
+              "press flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm",
+              filterCount ? "is-selected border-transparent font-semibold" : "border-border bg-card text-muted-foreground hover:text-foreground",
             )}
           >
             <ListFilter className="size-4" aria-hidden />
-            Exact statuses
+            Filters{filterCount ? ` (${filterCount})` : ""}
           </button>
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            {loaded ? `${visible.length} permit${visible.length === 1 ? "" : "s"}` : null}
+          </p>
         </div>
-        {exact ? (
-          <MultiToggle label="Status" options={statusOptions} selected={statuses} onChange={(next) => setParams({ status: next })} />
-        ) : (
-          <MultiToggle
-            label="Stage"
-            options={groupOptions}
-            selected={selectedGroups}
-            onChange={(groups) => setParams({ status: groups.flatMap(statusesInGroup) })}
-          />
-        )}
-        {typeOptions.length > 1 ? (
-          <MultiToggle label="Permit type" options={typeOptions} selected={types} onChange={(next) => setParams({ type: next })} />
+        {chips.length ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {chips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                onClick={chip.remove}
+                aria-label={`Remove filter ${chip.label}`}
+                className="press flex min-h-9 items-center gap-1 rounded-full border border-border bg-card px-3 text-sm hover:bg-muted"
+              >
+                {chip.label}
+                <X className="size-3.5" aria-hidden />
+              </button>
+            ))}
+            <button type="button" onClick={() => setParams({ status: [], type: [] })} className="min-h-9 px-2 text-sm font-medium text-primary hover:underline">
+              Clear
+            </button>
+          </div>
+        ) : null}
+        {filtersOpen ? (
+          <div id="permit-filters" className="grid gap-3">
+            <MultiToggle label="Status" options={statusOptions} selected={statuses} onChange={(next) => setParams({ status: next })} />
+            {typeOptions.length > 1 ? (
+              <MultiToggle label="Permit type" options={typeOptions} selected={types} onChange={(next) => setParams({ type: next })} />
+            ) : null}
+          </div>
         ) : null}
       </PageHeader>
 
+      <WorkQueueUnavailable />
       {!loaded ? (
         <p className="text-sm text-muted-foreground">Loading permits…</p>
       ) : visible.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-5 py-10 text-center">
-          <p className="font-medium">{query ? `No permits match “${query}”` : "No permits match these filters"}</p>
+          <p className="font-medium">{query ? `No permits match “${query}”` : view === "needs-me" ? "You are all caught up" : "No permits in this view"}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {filtered ? "Remove a filter above to widen the list." : "Permits you raise or are assigned will appear here."}
+            {filterCount || query
+              ? "Remove a filter above to widen the list."
+              : view === "needs-me"
+                ? "Nothing is waiting on you. Other permits are under All."
+                : "Permits you raise or are assigned will appear here."}
           </p>
         </div>
       ) : (

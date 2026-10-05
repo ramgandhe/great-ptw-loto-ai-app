@@ -12,9 +12,11 @@ import { LOTOTO_LIBRARY_WRITE_ROLES } from "@/lib/auth/roles";
 import { ENERGY_SOURCE_OPTIONS } from "@/lib/lototo/form-options";
 import {
   createLototoProcedure,
+  deactivateLototoProcedure,
   deleteLototoProcedure,
   getLototoProcedure,
   publishLototoProcedure,
+  reactivateLototoProcedure,
   removeLototoPointPhoto,
   reviseLototoProcedure,
   updateLototoProcedure,
@@ -183,7 +185,7 @@ export function LototoProcedureEditor({
   const [loading, setLoading] = useState(Boolean(procedureId));
   const [saving, setSaving] = useState(false);
 
-  const locked = Boolean(detail && !detail.draftVersion && detail.status === "published");
+  const locked = Boolean(detail && !detail.draftVersion && (detail.status === "published" || detail.status === "inactive"));
   const readOnly = !canWrite || locked;
 
   useEffect(() => {
@@ -271,6 +273,40 @@ export function LototoProcedureEditor({
     }
   }
 
+  async function deactivate() {
+    if (!procedureId || !window.confirm("Deactivate this procedure? It will no longer be offered on new permits.")) {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const next = await deactivateLototoProcedure(procedureId);
+      setDetail(next);
+      setForm(fromProcedure(next));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not deactivate.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function reactivate() {
+    if (!procedureId) {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const next = await reactivateLototoProcedure(procedureId);
+      setDetail(next);
+      setForm(fromProcedure(next));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not reactivate.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function remove() {
     if (!procedureId || !window.confirm("Delete this unused procedure?")) {
       return;
@@ -296,11 +332,11 @@ export function LototoProcedureEditor({
         actions={
           canWrite ? (
             <div className="flex flex-wrap gap-2">
-              {locked ? (
+              {detail?.status === "published" && locked ? (
                 <Button type="button" onClick={() => void revise()} disabled={saving}>
                   New revision
                 </Button>
-              ) : (
+              ) : detail?.status !== "inactive" ? (
                 <>
                   <Button type="button" variant="outline" onClick={() => void save()} disabled={saving}>
                     Save draft
@@ -309,8 +345,18 @@ export function LototoProcedureEditor({
                     Publish
                   </Button>
                 </>
-              )}
-              {procedureId && detail?.status === "draft" ? (
+              ) : null}
+              {locked && detail?.status === "published" ? (
+                <Button type="button" variant="outline" onClick={() => void deactivate()} disabled={saving}>
+                  Deactivate
+                </Button>
+              ) : null}
+              {detail?.status === "inactive" ? (
+                <Button type="button" onClick={() => void reactivate()} disabled={saving}>
+                  Reactivate
+                </Button>
+              ) : null}
+              {procedureId && (detail?.status === "draft" || detail?.status === "inactive") ? (
                 <Button type="button" variant="outline" onClick={() => void remove()}>
                   Delete
                 </Button>

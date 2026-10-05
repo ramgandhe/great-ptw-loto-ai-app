@@ -55,6 +55,8 @@ export const permits = pgTable(
     submittedBy: uuid('submitted_by'),
     /** Permit templates filled in on this permit: see PermitFormResponse in modules/permit/permit-forms.ts. */
     formResponses: jsonb('form_responses').$type<unknown[]>().notNull().default([]),
+    /** Bumped by every draft save and by submit; saves and submits must send the revision they loaded. */
+    draftRevision: integer('draft_revision').notNull().default(0),
   },
   (table) => [
     uniqueIndex('permits_tenant_reference_unique').on(table.tenantId, table.reference),

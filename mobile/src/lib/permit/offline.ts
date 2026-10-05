@@ -1,6 +1,7 @@
 import * as SQLite from "expo-sqlite";
 import { enqueueSyncItem } from "@/lib/storage";
-import type { CreatePermitPayload, PermitRecord, SaveDraftPayload } from "./types";
+import { getLocalIdMap } from "@/lib/offline/queue";
+import type { CreatePermitPayload, DraftFields, PermitRecord } from "./types";
 
 const DB_NAME = "ptw_offline.db";
 
@@ -29,7 +30,7 @@ export async function initPermitOfflineStorage(): Promise<void> {
   `);
 }
 
-export async function saveLocalPermitDraft(id: string, title: string, payload: SaveDraftPayload | CreatePermitPayload) {
+export async function saveLocalPermitDraft(id: string, title: string, payload: DraftFields | CreatePermitPayload) {
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO permit_local_drafts (id, title, status, payload, updated_at)
@@ -95,24 +96,26 @@ export function isOfflineError(error: unknown): boolean {
   return error instanceof TypeError || (error instanceof Error && error.message.includes("Network request failed"));
 }
 
+/**
+ * Queues a permit request exactly as the API takes it. `localRef` names the local permit a queued
+ * create makes; later requests use that local id in their path until the create has synced.
+ */
 export async function queuePermitMutation(input: {
-  method: "POST" | "PATCH" | "POST_SUBMIT";
+  method: "POST" | "PATCH";
   path: string;
-  payload?: Record<string, unknown>;
-  localDraftId?: string;
-  title?: string;
+  payload: Record<string, unknown>;
+  localRef?: string;
 }) {
-  await enqueueSyncItem({
-    entityType: "permits",
-    method: input.method === "POST_SUBMIT" ? "POST" : input.method,
-    path: input.path,
-    payload: {
-      ...(input.payload ?? {}),
-      ...(input.localDraftId ? { localDraftId: input.localDraftId } : {}),
-      ...(input.title ? { title: input.title } : {}),
-      ...(input.method === "POST_SUBMIT" ? { action: "submit" } : {}),
-    },
-  });
+  await enqueueSyncItem({ entityType: "permits", method: input.method, path: input.path, payload: input.payload, localRef: input.localRef });
+}
+
+/** The server id of a permit created offline once its create has synced; otherwise the id given. */
+export async function resolvePermitId(id: string): Promise<string> {
+  return isLocalPermitId(id) ? ((await getLocalIdMap()).get(id) ?? id) : id;
+}
+
+export function isLocalPermitId(id: string | null | undefined): boolean {
+  return Boolean(id?.startsWith("local-"));
 }
 
 export function localDraftToPermitRecord(draft: LocalPermitDraft): PermitRecord {
@@ -135,6 +138,8 @@ export function localDraftToPermitRecord(draft: LocalPermitDraft): PermitRecord 
     plannedStartAt: payload.plannedStartAt ?? null,
     plannedEndAt: payload.plannedEndAt ?? null,
     submittedAt: null,
+    // Never saved to the server yet: the create it replays with starts at revision 0.
+    draftRevision: 0,
     createdAt: now,
     updatedAt: draft.updatedAt,
   };

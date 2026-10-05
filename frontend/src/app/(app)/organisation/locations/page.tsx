@@ -4,7 +4,8 @@ import type { EntityField } from "@/lib/organisation/types";
 const fields: EntityField[] = [
   { key: "name", label: "Location name", required: true },
   { key: "code", label: "Code" },
-  { key: "plantId", label: "Plant", select: "plant" },
+  // Locations belong to a department (FC-ORG-004); the department sets the plant.
+  { key: "departmentId", label: "Department", select: "department" },
   { key: "description", label: "Description", multiline: true },
 ];
 

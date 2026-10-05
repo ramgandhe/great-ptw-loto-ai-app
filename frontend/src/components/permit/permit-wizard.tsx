@@ -1,13 +1,13 @@
 "use client";
 
 import { inUse } from "@/components/organisation/org-status-badge";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { ApiError } from "@/lib/api";
 import { getProfile } from "@/lib/auth/api";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
-import { gasTestingApi, masterDataApi, type GasTestingRecord, type HazardRecord, type MasterDataRecord } from "@/lib/master-data/api";
+import { masterDataApi, type HazardRecord, type MasterDataRecord } from "@/lib/master-data/api";
 import {
   departmentsApi,
   locationsApi,
@@ -15,15 +15,17 @@ import {
   plantsApi,
   workstationsApi,
 } from "@/lib/organisation/api";
-import type { MachineryRecord } from "@/lib/organisation/types";
+import type { MachineryRecord, OrgRecord } from "@/lib/organisation/types";
 import { permitTemplatesApi, type PermitTemplate, type TemplatePrefillSource } from "@/lib/organisation/templates";
-import { listLototoProcedures, getLototoProcedure } from "@/lib/lototo/api";
+import { getLototoProcedure, listLototoProcedures } from "@/lib/lototo/api";
 import type { LototoProcedure, LototoProcedureListItem } from "@/lib/lototo/types";
+import { gasTestingApi, type GasTestingRecord } from "@/lib/master-data/api";
 import {
   createPermit,
   getPermit,
   removePermitAttachment,
   savePermitDraft,
+  isRevisionConflict,
   submitPermit,
   uploadPermitAttachment,
 } from "@/lib/permit/api";
@@ -31,14 +33,15 @@ import {
   applicableTemplates,
   canRoleEditWizardStep,
   canRoleSubmitPermit,
+  emptyPermitLototo,
   createEmptyPermitForm,
-  emptyLototoAttach,
   formToSavePayload,
-  getWizardStepOwner,
-  missingRequired,
-  PERMIT_WIZARD_STEPS,
+  ERROR_FIELDS,
+  PERMIT_EDITOR_SECTIONS,
+  type PermitEditorSectionId,
   permitDetailToForm,
   shouldSaveExecutorPayload,
+  titleFromScope,
   validateStep,
 } from "@/lib/permit/form";
 import type {
@@ -55,23 +58,23 @@ import {
 } from "@/lib/workforce/api";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { ensureEndAfterStart } from "@/lib/datetime";
-import { Copy, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Copy, Pencil, X } from "lucide-react";
 import { formatRelative } from "@/lib/format";
 import { useWorkQueue } from "@/lib/work-queue-context";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { FileUploadField } from "@/components/ui/file-upload-field";
 import { DraftBanner } from "./draft-banner";
-import { LototoAttachFields } from "./lototo-attach-fields";
-import { StringListField } from "@/components/organisation/string-list-field";
 import { fieldClassName, FormField } from "./form-field";
 import { MasterDataSelect } from "./master-data-select";
 import { formatWorkforceOptionLabel } from "@/components/lototo/select-field";
 import { PlannedDateTimeField } from "./planned-datetime-field";
-import { PermitStepNav } from "./permit-step-nav";
-import { PermitSummary } from "./permit-summary";
 import { TemplateFormFill } from "./template-form-fill";
 import { ValidationSummary } from "./validation-summary";
+import { LototoAttachFields } from "./lototo-attach-fields";
+import { PermitSummary } from "./permit-summary";
+import { mergeAfterConflict, resolveConflict, type FieldConflict } from "@/lib/permit/conflict";
+import { useLeaveGuard } from "@/lib/leave-guard";
 
 function executorRoleLabel(kind?: "internal" | "contractor" | "agency") {
   if (kind === "agency") {
@@ -86,7 +89,7 @@ function executorRoleLabel(kind?: "internal" | "contractor" | "agency") {
 /** Removes one row of a repeating list (viewer, hazard, PPE, executor…). */
 function RemoveRowButton({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
   return (
-    <Button type="button" variant="ghost" size="icon" disabled={disabled} aria-label={label} title={label} onClick={onClick} className="shrink-0 text-muted-foreground hover:text-destructive">
+    <Button type="button" variant="ghost" size="icon" disabled={disabled} aria-label={label} title={label} onClick={onClick} className="size-11 shrink-0 text-muted-foreground hover:text-destructive">
       <X aria-hidden />
     </Button>
   );
@@ -101,7 +104,11 @@ function PersonSelect({
   placeholder,
   internalGroupLabel,
   externalGroupLabel = "External — contractors and agencies",
+  ...aria
 }: {
+  /** Error wiring from FormField, passed to the select itself. */
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
   id: string;
   value: string;
   disabled: boolean;
@@ -122,6 +129,7 @@ function PersonSelect({
   return (
     <select
       id={id}
+      {...aria}
       className={fieldClassName}
       value={value}
       disabled={disabled}
@@ -193,11 +201,22 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [attachments, setAttachments] = useState<PermitAttachment[]>(
     initialDetail?.attachments ?? [],
   );
-  const [reference, setReference] = useState<string | null>(
-    initialDetail?.permit.reference ?? null,
-  );
   const [status, setStatus] = useState(initialDetail?.permit.status ?? "draft");
-  const [errors, setErrors] = useState<string[]>([]);
+  // The revision this form was loaded or last saved at; the server refuses saves made against an older one.
+  const [revision, setRevision] = useState(initialDetail?.permit.draftRevision ?? 0);
+  // Set when someone else saved first: local values stay, and saving again is an explicit choice.
+  const [conflict, setConflict] = useState(false);
+  // The form as last loaded or saved: the common ancestor when someone else's save has to be merged in.
+  const [base, setBase] = useState<PermitFormState>(() => (initialDetail ? permitDetailToForm(initialDetail) : createEmptyPermitForm()));
+  // Values both people changed differently; each needs the person's choice before saving again.
+  const [conflicts, setConflicts] = useState<FieldConflict[]>([]);
+  const [errors, setErrors] = useState<{ message: string; href?: string; section?: PermitEditorSectionId }[]>([]);
+  // The title follows the scope's first sentence until someone types their own.
+  const [titleEdited, setTitleEdited] = useState(
+    () => Boolean(initialDetail) && initialDetail!.permit.title !== titleFromScope(initialDetail!.permit.workScope ?? ""),
+  );
+  const [dirty, setDirty] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -205,14 +224,14 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [permitTypes, setPermitTypes] = useState<MasterDataRecord[]>([]);
   const [plants, setPlants] = useState<MasterDataRecord[]>([]);
-  const [departments, setDepartments] = useState<MasterDataRecord[]>([]);
-  const [locations, setLocations] = useState<MasterDataRecord[]>([]);
+  const [departments, setDepartments] = useState<OrgRecord[]>([]);
+  const [locations, setLocations] = useState<OrgRecord[]>([]);
   const [workstations, setWorkstations] = useState<MasterDataRecord[]>([]);
   const [machinery, setMachinery] = useState<MachineryRecord[]>([]);
   const [hazards, setHazards] = useState<HazardRecord[]>([]);
+  const [lototoDetails, setLototoDetails] = useState<Record<string, LototoProcedure>>({});
   const [ppeItems, setPpeItems] = useState<MasterDataRecord[]>([]);
   const [machineryLototo, setMachineryLototo] = useState<LototoProcedureListItem[]>([]);
-  const [lototoDetails, setLototoDetails] = useState<Record<string, LototoProcedure>>({});
   const [workstationGasTesting, setWorkstationGasTesting] = useState<
     GasTestingRecord[]
   >([]);
@@ -227,6 +246,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   >([]);
   const [userRoles, setUserRoles] = useState<string[]>(authRoles);
   const [masterDataLoading, setMasterDataLoading] = useState(true);
+  // One step at a time. A draft reopens where it was left; the executor's part starts at Site safety.
+  const [active, setActive] = useState<PermitEditorSectionId>(() =>
+    mode === "edit" && shouldSaveExecutorPayload(authRoles)
+      ? "site"
+      : (PERMIT_EDITOR_SECTIONS.find((section) => (section.steps as readonly number[]).includes(form.currentStep))?.id ?? "work"),
+  );
 
   useEffect(() => {
     if (authRoles.length > 0) {
@@ -378,26 +403,21 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       return;
     }
     listLototoProcedures({ machineryId: form.machineryId, published: true })
-      .then((rows) => setMachineryLototo(rows.filter((row) => row.status === "published")))
+      .then(setMachineryLototo)
       .catch(() => setMachineryLototo([]));
   }, [form.machineryId]);
 
-  const attachedProcedureIds = form.lototo
-    .map((item) => item.procedureId)
-    .filter(Boolean)
-    .sort()
-    .join(",");
-
   useEffect(() => {
-    const ids = attachedProcedureIds.split(",").filter(Boolean);
+    const ids = [...new Set(form.lototo.map((item) => item.procedureId).filter(Boolean))];
     ids.forEach((id) => {
+      if (lototoDetails[id]) {
+        return;
+      }
       void getLototoProcedure(id)
-        .then((procedure) =>
-          setLototoDetails((current) => ({ ...current, [id]: procedure })),
-        )
+        .then((detail) => setLototoDetails((prev) => ({ ...prev, [id]: detail })))
         .catch(() => undefined);
     });
-  }, [attachedProcedureIds]);
+  }, [form.lototo, lototoDetails]);
 
   useEffect(() => {
     if (!form.workstationId) {
@@ -414,15 +434,71 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     if (initialDetail) {
       setForm(permitDetailToForm(initialDetail));
       setAttachments(initialDetail.attachments);
-      setReference(initialDetail.permit.reference);
       setStatus(initialDetail.permit.status);
       setPermitId(initialDetail.permit.id);
+      setRevision(initialDetail.permit.draftRevision);
+      setBase(permitDetailToForm(initialDetail));
+      setConflicts([]);
+      setConflict(false);
     }
   }, [initialDetail]);
 
-  const persistDraft = useCallback(async () => {
+  /** Every edit by the person goes through here, so the editor knows what is unsaved. */
+  const edit: typeof setForm = (update) => {
+    setDirty(true);
+    setForm(update);
+  };
+
+  /** What the permit already says, for the forms' "fill from permit" fields. */
+  const prefillSources = (current: PermitFormState): Record<TemplatePrefillSource, string | number | undefined> => {
+    const nameOf = (list: { id: string; name: string }[], id: string) => list.find((row) => row.id === id)?.name ?? "";
+    const crew = current.executors
+      .map((e) => executorOptions.find((o) => o.id === e.workforceUserId)?.name.replace(/ \(you\)$/, ""))
+      .filter((name): name is string => Boolean(name));
+    // A workstation often carries its location's name; say it once.
+    const place = [...new Set([nameOf(locations, current.locationId), nameOf(workstations, current.workstationId)].filter(Boolean))];
+    return {
+      department: nameOf(departments, current.departmentId) || undefined,
+      location: place.join(", ") || undefined,
+      equipment: nameOf(machinery, current.machineryId) || undefined,
+      "job-description": [current.title, current.workScope].filter((v) => v.trim()).join("\n\n") || undefined,
+      "valid-from": current.plannedStartAt.slice(0, 10) || undefined,
+      "valid-to": current.plannedEndAt.slice(0, 10) || undefined,
+      "crew-names": crew.join(", ") || undefined,
+      "crew-count": crew.length || undefined,
+    };
+  };
+
+  /**
+   * Fills the forms' "fill from permit" fields from the permit, so nothing is typed twice. Those fields
+   * are not shown, so they always follow the permit; one the permit leaves empty is asked as usual.
+   */
+  const withPrefill = (current: PermitFormState): PermitFormState => {
+    const sources = prefillSources(current);
+    const formResponses = { ...current.formResponses };
+    for (const template of applicableTemplates(templates, current.permitTypeId)) {
+      const answers = { ...(formResponses[template.id] ?? {}) };
+      for (const field of template.config?.sections.flatMap((section) => section.fields) ?? []) {
+        const source = field.prefill ? sources[field.prefill] : undefined;
+        if (source === undefined) continue;
+        const value: FormAnswer = field.type === "number" ? Number(source) : String(source);
+        if (typeof value === "number" && !Number.isFinite(value)) continue;
+        answers[field.id] = value;
+      }
+      formResponses[template.id] = answers;
+    }
+    return { ...current, formResponses };
+  };
+
+  // Prefilled answers follow the permit and are saved with it.
+  const prefilled = withPrefill(form);
+  const fromPermit = new Set(
+    (Object.entries(prefillSources(form)) as [TemplatePrefillSource, unknown][]).flatMap(([key, value]) => (value === undefined ? [] : [key])),
+  );
+
+  const persistDraft = async () => {
     const roles = authRoles.length > 0 ? authRoles : userRoles;
-    const payload = formToSavePayload(form, {
+    const payload = formToSavePayload(prefilled, {
       executorOnly: shouldSaveExecutorPayload(roles),
     });
     if (templatesLoaded) {
@@ -433,64 +509,99 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       delete payload.formResponses;
     }
 
-    if (!permitId) {
+    let id = permitId;
+    let baseRevision = revision;
+    if (!id) {
       const created = await createPermit({
         permitTypeId: form.permitTypeId,
         title: form.title,
         workScope: form.workScope,
         currentStep: form.currentStep,
       });
-      setPermitId(created.permit.id);
+      // Keep the id before the follow-up save, so a failed save is retried as a save, not a second create.
+      id = created.permit.id;
+      baseRevision = created.permit.draftRevision;
+      setPermitId(id);
+      setRevision(baseRevision);
       setStatus(created.permit.status);
-      // Update the address only: a router navigation would remount the wizard on the saved
-      // step, so the first Next click appeared to do nothing.
-      window.history.replaceState(null, "", `/permits/${created.permit.id}/edit`);
-      return created.permit.id;
+      // Update the address only: a router navigation would remount the editor.
+      window.history.replaceState(null, "", `/permits/${id}/edit`);
     }
 
-    await savePermitDraft(permitId, payload);
-    return permitId;
-  }, [authRoles, form, permitId, templates, templatesLoaded, userRoles]);
+    // Create stores only type, title and scope; this save stores the rest of the form.
+    try {
+      const saved = await savePermitDraft(id, { ...payload, expectedRevision: baseRevision });
+      setRevision(saved.permit.draftRevision);
+      // What the server now holds, exactly: the ancestor for any later merge.
+      setBase(permitDetailToForm(saved));
+      setConflict(false);
+      return { id, revision: saved.permit.draftRevision };
+    } catch (error) {
+      if (isRevisionConflict(error)) {
+        // Merge in the other person's save: their unrelated changes are kept, this person's are kept,
+        // and values both changed are listed for a choice. Saving again stays an explicit step.
+        const latest = await getPermit(id);
+        const savedForm = permitDetailToForm(latest);
+        const result = mergeAfterConflict(base, form, savedForm);
+        setForm(result.merged);
+        setBase(savedForm);
+        setConflicts(result.conflicts);
+        setRevision(latest.permit.draftRevision);
+        setConflict(true);
+      }
+      throw error;
+    }
+  };
+
+  /** The submit error for one field, shown under it. */
+  const fieldError = (id: string) => errors.find((e) => e.href === `#${id}`)?.message;
+
+  /** The person's choice for one value both people changed. */
+  const chooseConflict = (item: FieldConflict, keep: "saved" | "yours") => {
+    edit((current) => resolveConflict(current, item, keep));
+    setConflicts((current) => current.filter((c) => c.key !== item.key));
+  };
+  const FIELD_LABELS: Record<string, string> = {
+    permitTypeId: "Permit type",
+    title: "Title",
+    workScope: "Work scope",
+    plantId: "Plant",
+    departmentId: "Department",
+    locationId: "Location",
+    workstationId: "Workstation",
+    machineryId: "Equipment",
+    plannedStartAt: "Planned start",
+    plannedEndAt: "Planned end",
+    hazards: "Hazards",
+    ppe: "PPE",
+    lototoRequired: "LOTOTO required",
+    lototo: "LOTOTO plans",
+    gasTestingRequired: "Gas testing required",
+    gasTesting: "Gas tests",
+    executors: "Executors and crew",
+    viewers: "Viewers",
+    safetyOfficers: "Safety officers",
+  };
+  const conflictLabel = (key: string) => {
+    const [kind, a, b] = key.split(":");
+    if (kind === "field") return FIELD_LABELS[a] ?? a;
+    const template = templates.find((t) => t.id === a);
+    const field = template?.config?.sections.flatMap((section) => section.fields).find((f) => f.id === b);
+    return `${template?.name ?? "Form"}: ${field?.label ?? b}`;
+  };
+  const describeValue = (value: unknown): string => {
+    if (value === undefined || value === null || value === "") return "empty";
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (Array.isArray(value)) return value.length === 0 ? "none" : typeof value[0] === "string" ? value.join(", ") : `${value.length} item${value.length === 1 ? "" : "s"}`;
+    if (typeof value === "object") return (value as { name?: string }).name ?? JSON.stringify(value);
+    const text = String(value);
+    const named = [...permitTypes, ...plants, ...departments, ...locations, ...workstations, ...machinery].find((row) => row.id === text);
+    return named?.name ?? (text === "yes" ? "Yes" : text === "no" ? "No" : text === "na" ? "N/A" : text);
+  };
 
   const forms = applicableTemplates(templates, form.permitTypeId);
   const signerName =
     [authProfile?.firstName, authProfile?.lastName].filter(Boolean).join(" ") || authProfile?.displayName || "";
-
-  /** Fills empty "fill from permit" fields from what the permit already says, so nothing is typed twice. */
-  const withPrefill = (current: PermitFormState): PermitFormState => {
-    const nameOf = (list: { id: string; name: string }[], id: string) => list.find((row) => row.id === id)?.name ?? "";
-    const crew = current.executors
-      .map((e) => executorOptions.find((o) => o.id === e.workforceUserId)?.name.replace(/ \(you\)$/, ""))
-      .filter((name): name is string => Boolean(name));
-    const sources: Record<TemplatePrefillSource, string | number | undefined> = {
-      department: nameOf(departments, current.departmentId) || undefined,
-      location: [nameOf(locations, current.locationId), nameOf(workstations, current.workstationId)].filter(Boolean).join(", ") || undefined,
-      equipment: nameOf(machinery, current.machineryId) || undefined,
-      "job-description": [current.title, current.workScope].filter((v) => v.trim()).join("\n\n") || undefined,
-      "valid-from": current.plannedStartAt.slice(0, 10) || undefined,
-      "valid-to": current.plannedEndAt.slice(0, 10) || undefined,
-      "crew-names": crew.join(", ") || undefined,
-      "crew-count": crew.length || undefined,
-    };
-    const formResponses = { ...current.formResponses };
-    for (const template of applicableTemplates(templates, current.permitTypeId)) {
-      const answers = { ...(formResponses[template.id] ?? {}) };
-      for (const field of template.config?.sections.flatMap((section) => section.fields) ?? []) {
-        const source = field.prefill ? sources[field.prefill] : undefined;
-        if (source === undefined || answers[field.id] !== undefined) continue;
-        const value: FormAnswer = field.type === "number" ? Number(source) : String(source);
-        if (typeof value === "number" && !Number.isFinite(value)) continue;
-        answers[field.id] = value;
-      }
-      formResponses[template.id] = answers;
-    }
-    return { ...current, formResponses };
-  };
-
-  const goToStep = (current: PermitFormState, nextStep: number): PermitFormState => {
-    const next = { ...current, currentStep: nextStep };
-    return nextStep === 4 ? withPrefill(next) : next;
-  };
 
   const recentPermits = [...visiblePermits]
     // Drafts, cancelled and rejected permits make poor templates.
@@ -506,7 +617,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       const source = await getPermit(sourceId);
       const copy = permitDetailToForm(source);
       // Check sheets and signatures are never copied: every job is checked and signed afresh.
-      setForm({ ...copy, plannedStartAt: "", plannedEndAt: "", formResponses: {}, currentStep: 0 });
+      edit({ ...copy, plannedStartAt: "", plannedEndAt: "", formResponses: {}, currentStep: 0 });
+      setTitleEdited(copy.title !== titleFromScope(copy.workScope));
       setCopiedFrom(source.permit.reference ?? source.permit.title);
     } catch (error) {
       setApiError(error instanceof ApiError ? error.message : "That permit could not be copied. Fill in the form instead.");
@@ -515,78 +627,88 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     }
   };
 
+  const isReadOnly = !isEditablePermitStatus(status);
+  const isResubmit = status === "deferred" || status === "rejected";
+  const canSubmit = canRoleSubmitPermit(userRoles);
+  const isExecutor = shouldSaveExecutorPayload(userRoles);
+  const editable = (step: number) => !isReadOnly && canRoleEditWizardStep(userRoles, step);
+  const missing: Record<PermitEditorSectionId, string[]> = {
+    work: validateStep(prefilled, 0),
+    place: validateStep(prefilled, 1),
+    site: validateStep(prefilled, 2, forms, machinery),
+    crew: validateStep(prefilled, 3),
+    forms: validateStep(prefilled, 4, forms),
+    review: [],
+  };
+
+  // Leaving with unsaved changes asks first: tab close and in-app links alike.
+  useLeaveGuard(dirty);
+
+  const activeIndex = PERMIT_EDITOR_SECTIONS.findIndex((section) => section.id === active);
+  const goTo = (id: PermitEditorSectionId) => {
+    setActive(id);
+    const step = PERMIT_EDITOR_SECTIONS.find((section) => section.id === id)!.steps[0];
+    setForm((current) => ({ ...current, currentStep: step }));
+    window.scrollTo({ top: 0 });
+  };
+  const sectionEditable = (id: PermitEditorSectionId) => id === "review" || editable(PERMIT_EDITOR_SECTIONS.find((section) => section.id === id)!.steps[0]);
+  const errorsFor = (id: PermitEditorSectionId) =>
+    missing[id].map((message) => {
+      // A form's error goes to that form, where the unanswered questions are marked.
+      const template = id === "forms" ? forms.find((t) => message.startsWith(`${t.name}:`)) : undefined;
+      return { message, section: id, href: `#${template ? `form-${template.id}` : (ERROR_FIELDS[message] ?? `section-${id}`)}` };
+    });
+  /** Next checks only this step, and only when this person fills it in. */
+  const handleNext = () => {
+    const stepErrors = sectionEditable(active) ? errorsFor(active) : [];
+    setErrors(stepErrors);
+    if (stepErrors.length) {
+      requestAnimationFrame(() => document.getElementById("validation-summary")?.focus());
+      return;
+    }
+    goTo(PERMIT_EDITOR_SECTIONS[activeIndex + 1].id);
+  };
+
   const handleSaveDraft = async () => {
     setIsSaving(true);
     setApiError(null);
+    setSaveState("saving");
     try {
       await persistDraft();
+      setDirty(false);
+      setSaveState("saved");
     } catch (error) {
-      setApiError(
-        error instanceof ApiError ? error.message : "Failed to save draft",
-      );
+      setSaveState("error");
+      setApiError(error instanceof ApiError ? error.message : "Failed to save draft");
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleNext = async () => {
-    const stepErrors = validateStep(form, form.currentStep, forms, machinery);
-    setErrors(stepErrors);
-    if (stepErrors.length > 0) {
-      return;
-    }
-
-    setIsSaving(true);
-    setApiError(null);
-    try {
-      await persistDraft();
-      setForm((current) =>
-        goToStep(current, Math.min(current.currentStep + 1, PERMIT_WIZARD_STEPS.length - 1)),
-      );
-    } catch (error) {
-      setApiError(
-        error instanceof ApiError ? error.message : "Failed to save progress",
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleBack = () => {
-    setErrors([]);
-    setForm((current) => ({
-      ...current,
-      currentStep: Math.max(current.currentStep - 1, 0),
-    }));
   };
 
   const handleSubmit = async () => {
-    const allErrors = PERMIT_WIZARD_STEPS.flatMap((_, index) =>
-      validateStep(form, index, forms, machinery),
-    );
+    const allErrors = PERMIT_EDITOR_SECTIONS.flatMap((section) => errorsFor(section.id));
     setErrors(allErrors);
     if (allErrors.length > 0) {
+      // Open the first step with something to fix; the summary links to the rest.
+      setActive(allErrors[0].section);
+      requestAnimationFrame(() => document.getElementById("validation-summary")?.focus());
       return;
     }
 
     setIsSubmitting(true);
     setApiError(null);
     try {
-      const id = permitId ?? (await persistDraft());
-      if (!id) {
-        throw new Error("Permit ID missing");
-      }
-      const result = await submitPermit(id);
-      setReference(result.permit.reference);
+      // Always save the current edits first; submit only after that save succeeded, at its revision.
+      const saved = await persistDraft();
+      setDirty(false);
+      const result = await submitPermit(saved.id, saved.revision);
       setStatus(result.permit.status);
-      router.push(`/permits/${id}`);
+      router.push(`/permits/${saved.id}`);
     } catch (error) {
       if (error instanceof ApiError && Array.isArray(error.details)) {
-        setErrors(error.details as string[]);
+        setErrors((error.details as string[]).map((message) => ({ message })));
       }
-      setApiError(
-        error instanceof ApiError ? error.message : "Failed to submit permit",
-      );
+      setApiError(error instanceof ApiError ? error.message : "Failed to submit permit");
     } finally {
       setIsSubmitting(false);
     }
@@ -603,11 +725,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       const uploaded = await uploadPermitAttachment(permitId, file);
       setAttachments((current) => [...current, uploaded]);
     } catch (error) {
-      setApiError(
-        error instanceof ApiError
-          ? error.message
-          : "Failed to upload attachment",
-      );
+      setApiError(error instanceof ApiError ? error.message : "Failed to upload attachment");
     }
   };
 
@@ -617,71 +735,81 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     }
 
     await removePermitAttachment(permitId, attachmentId);
-    setAttachments((current) =>
-      current.filter((item) => item.id !== attachmentId),
-    );
+    setAttachments((current) => current.filter((item) => item.id !== attachmentId));
   };
 
-  const isReadOnly = !isEditablePermitStatus(status);
-  const isResubmit = status === "deferred" || status === "rejected";
-  const step = form.currentStep;
-  const canEditStep = !isReadOnly && canRoleEditWizardStep(userRoles, step);
-  const canSubmit = canRoleSubmitPermit(userRoles);
-  const stepOwner = getWizardStepOwner(step);
-  const isOperatorPhase = stepOwner === "operator";
-  const isIssuerPhase = stepOwner === "job-issuer";
-  const fieldDisabled = isReadOnly || !canEditStep;
-  const lototoLocked = fieldDisabled || form.lototo.some((item) => Boolean(item.frozenAt));
+  const plantOfLocation = (locationId: string) =>
+    departments.find((d) => d.id === locations.find((l) => l.id === locationId)?.departmentId)?.plantId ?? "";
+  const derivedPlant = plantOfLocation(form.locationId);
+  const plantName = (id: string) => plants.find((p) => p.id === id)?.name ?? "";
+  const locationOptions = locations.map((l) => {
+    const plant = plantName(plantOfLocation(l.id));
+    return plant ? { ...l, name: `${l.name}, ${plant}` } : l;
+  });
+  const departmentOptions = form.plantId ? departments.filter((d) => d.plantId === form.plantId) : departments;
+  const personName = (id: string) =>
+    executorOptions.find((o) => o.id === id)?.name ?? (id ? "Person no longer available" : "");
+  const hazardRows = form.hazards.filter((h) => h.hazardCategoryId);
+  const ppeRows = form.ppe.filter((p) => p.ppeCatalogueId);
+  const crewRows = form.executors.filter((e) => (e.workforceUserId ?? "").trim());
+  const saveLabel = isExecutor ? "Save preparation" : "Save draft";
+
+  const placeEditable = editable(1);
+  const siteEditable = editable(2);
+  const crewEditable = editable(3);
+  const formsEditable = editable(4);
 
   return (
-    <div className="flex flex-col gap-6 px-4 pb-8 sm:px-8">
+    <div className="flex flex-col gap-5 px-4 pb-28 sm:px-8">
       <PageHeader
         back={permitId ? { href: `/permits/${permitId}`, label: "Back to permit" } : { href: "/permits", label: "Permits" }}
         title={mode === "create" ? "Create permit" : isResubmit ? "Revise and resubmit permit" : "Edit draft permit"}
         description={
-          isOperatorPhase
-            ? "Complete on-site operational details. Executors do not approve permits."
-            : step === 4
-              ? "Fill in the permit form and check sheets for this type of work. The issuer or the assigned executor can complete them."
-              : isIssuerPhase && step < 4
-                ? "Enter core permit information, assign an executor, then hand off for on-site details."
-                : "Review executor details and submit the permit for HOD approval."
+          isExecutor
+            ? "Add the site details, crew and form answers. The job issuer submits."
+            : "Describe the work and set the place, time and executor. Submit once the executor has added the site details."
         }
-      />
+      >
+        <nav aria-label="Permit steps">
+          {/* One row on every width; it scrolls sideways on a phone instead of wrapping over the form. */}
+          <ol className="flex gap-2 overflow-x-auto">
+            {PERMIT_EDITOR_SECTIONS.map((section, index) => {
+              const left = missing[section.id].length;
+              const current = section.id === active;
+              return (
+                <li key={section.id}>
+                  <button
+                    type="button"
+                    aria-current={current ? "step" : undefined}
+                    onClick={() => goTo(section.id)}
+                    className={cn(
+                      "inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3 text-xs font-medium",
+                      current ? "border-2 border-primary bg-primary/10 font-semibold" : "border-input bg-input-fill hover:bg-muted",
+                    )}
+                  >
+                    <span aria-hidden className={cn("grid size-5 place-items-center rounded-full text-[0.7rem]", !left && section.id !== "review" ? "bg-(--status-success) text-white" : "bg-foreground/10")}>
+                      {!left && section.id !== "review" ? <Check className="size-3" /> : index + 1}
+                    </span>
+                    {section.label}
+                    {left ? <span className="text-(--status-warning)">· {left} to do</span> : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Step {activeIndex + 1} of {PERMIT_EDITOR_SECTIONS.length}: {PERMIT_EDITOR_SECTIONS[activeIndex].label}
+          </p>
+        </nav>
+      </PageHeader>
 
       {status === "draft" ? <DraftBanner /> : null}
-      {!canEditStep && !isReadOnly ? (
-        <p className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          {stepOwner === "operator"
-            ? "The job executor fills this step: workstation, machinery, LOTOTO, gas testing, hazards and PPE. Save the draft; the executor completes it from their Permits list, then you review and submit."
-            : "This step is filled by the job issuer. You can view it but cannot edit it."}
-        </p>
-      ) : null}
-      <PermitStepNav
-        currentStep={step}
-        onStepClick={(nextStep) => {
-          if (canRoleEditWizardStep(userRoles, nextStep) || !isReadOnly) {
-            setForm((current) => goToStep(current, nextStep));
-          }
-        }}
-      />
-      <ValidationSummary errors={errors} />
-      {apiError ? (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          {apiError}
-        </div>
-      ) : null}
 
-      {mode === "create" && !permitId && step === 0 && recentPermits.length > 0 && !fieldDisabled ? (
-        <section aria-labelledby="start-from" className="rounded-xl border border-border bg-card p-4">
-          <h2 id="start-from" className="text-sm font-semibold">
-            Repeat work? Start from a recent permit
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Copies the type, scope, place, crew and safety controls. You only set the new dates.
+      {active === "work" && mode === "create" && !permitId && recentPermits.length > 0 && editable(0) ? (
+        <details className="rounded-xl border border-border bg-card px-4 py-1">
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold">Use a previous permit</summary>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Copies the type, scope, place, crew and site controls. Dates, form answers and signatures start empty.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {recentPermits.map((p) => (
@@ -698,156 +826,249 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               </button>
             ))}
           </div>
-          {copiedFrom ? (
-            <p role="status" className="mt-3 text-sm font-medium text-(--status-success)">
-              Copied from {copiedFrom}. Check the title and scope, then continue.
-            </p>
-          ) : null}
-        </section>
+        </details>
+      ) : null}
+      {copiedFrom ? (
+        <p role="status" className="text-sm font-medium text-(--status-success)">
+          Copied from {copiedFrom}. Check the scope and title, and set the dates.
+        </p>
       ) : null}
 
-      {step === 0 ? (
-        <section className="grid gap-4 md:grid-cols-2">
-          <div className="grid gap-2 md:col-span-2">
-            <p id="permit-type-label" className="text-sm font-medium">
-              Permit type
-            </p>
-            {masterDataLoading ? (
-              <p className="text-sm text-muted-foreground">Loading permit types…</p>
-            ) : permitTypes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No permit types yet. An administrator adds them under Organisation, Permit types.
+
+      <ValidationSummary errors={errors} onGo={(error) => error.section && setActive(error.section)} />
+      {apiError ? (
+        <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {apiError}
+          {conflict ? (
+            <div className="mt-2 grid gap-3 text-foreground">
+              <p>
+                Another person saved this permit after you opened it. Their changes to other fields are now in the form below, and yours are kept.
+                {conflicts.length
+                  ? ` You both changed ${conflicts.length === 1 ? "one value" : `${conflicts.length} values`}: choose which to keep, then ${saveLabel.toLowerCase()} again.`
+                  : ` ${saveLabel} again to save the combined permit.`}{" "}
+                Submit stays unavailable until then.
               </p>
-            ) : (
-              <div role="radiogroup" aria-labelledby="permit-type-label" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                {permitTypes.map((type) => {
-                  const selected = form.permitTypeId === type.id;
-                  return (
-                    <button
-                      key={type.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      disabled={fieldDisabled}
-                      onClick={() => setForm({ ...form, permitTypeId: type.id })}
-                      className={cn(
-                        "flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors disabled:opacity-60",
-                        selected ? "border-foreground bg-foreground/5 font-semibold" : "border-border bg-card hover:bg-muted",
-                      )}
-                    >
-                      <span
-                        aria-hidden
-                        className="size-3 shrink-0 rounded-full bg-border"
-                        style={type.color ? { backgroundColor: type.color } : undefined}
-                      />
-                      {type.name}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          <FormField label="Title" htmlFor="title">
-            <input
-              id="title"
-              className={fieldClassName}
-              value={form.title}
-              disabled={fieldDisabled}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-            />
-          </FormField>
-          <FormField
-            label="Work scope"
-            htmlFor="workScope"
-            className="md:col-span-2"
-          >
-            <textarea
-              id="workScope"
-              className={`${fieldClassName} min-h-28 py-2`}
-              value={form.workScope}
-              disabled={fieldDisabled}
-              onChange={(e) => setForm({ ...form, workScope: e.target.value })}
-            />
-          </FormField>
-        </section>
+              {conflicts.length ? (
+                <ul className="grid gap-2" aria-label="Values you both changed">
+                  {conflicts.map((item) => (
+                    <li key={item.key} className="grid gap-2 rounded-lg border border-border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                      <div className="grid gap-0.5">
+                        <p className="font-medium">{conflictLabel(item.key)}</p>
+                        <p className="text-muted-foreground">
+                          Saved: <span className="text-foreground">{describeValue(item.saved)}</span>
+                        </p>
+                        <p className="text-muted-foreground">
+                          Yours: <span className="text-foreground">{describeValue(item.yours)}</span>
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" className="min-h-11" onClick={() => chooseConflict(item, "yours")}>
+                          Keep mine
+                        </Button>
+                        <Button type="button" variant="outline" className="min-h-11" onClick={() => chooseConflict(item, "saved")}>
+                          Use saved
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
-      {step === 1 ? (
-        <section className="grid gap-4 md:grid-cols-2">
-          <FormField label="Plant" htmlFor="plantId">
-            <MasterDataSelect
-              id="plantId"
-              value={form.plantId}
-              options={plants}
-              disabled={fieldDisabled || masterDataLoading}
-              placeholder="Select plant"
-              onChange={(plantId) => setForm({ ...form, plantId })}
-            />
-          </FormField>
-          <FormField label="Department" htmlFor="departmentId">
-            <MasterDataSelect
-              id="departmentId"
-              value={form.departmentId}
-              options={departments}
-              disabled={fieldDisabled || masterDataLoading}
-              placeholder="Select department"
-              onChange={(departmentId) => setForm({ ...form, departmentId })}
-            />
-          </FormField>
-          <FormField label="Location" htmlFor="locationId">
+      {active === "work" ? (
+      <EditorSection id="work" title="Work" owner="Job issuer" editable={editable(0)} left={missing.work.length}>
+        <div className="grid gap-2">
+          <p id="permit-type-label" className="text-sm font-medium">
+            Permit type
+          </p>
+          {masterDataLoading ? (
+            <p className="text-sm text-muted-foreground">Loading permit types…</p>
+          ) : permitTypes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No permit types yet. An administrator adds them under Organisation, Permit types.</p>
+          ) : (
+            <div role="radiogroup" aria-labelledby="permit-type-label" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {permitTypes.map((type) => {
+                const selected = form.permitTypeId === type.id;
+                return (
+                  <button
+                    key={type.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    disabled={!editable(0)}
+                    onClick={() => edit({ ...form, permitTypeId: type.id })}
+                    className={cn(
+                      "flex min-h-11 items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors disabled:opacity-60",
+                      selected ? "border-2 border-primary bg-primary/10 font-semibold" : "border-input bg-input-fill hover:bg-muted",
+                    )}
+                  >
+                    {selected ? <Check aria-hidden className="size-4 shrink-0" /> : null}
+                    <span aria-hidden className="size-3 shrink-0 rounded-full bg-border" style={type.color ? { backgroundColor: type.color } : undefined} />
+                    {type.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <FormField label="Work scope" htmlFor="workScope" hint="What will be done and how. The title below is suggested from its first sentence.">
+          <textarea
+            id="workScope"
+            className={`${fieldClassName} min-h-24 py-2`}
+            value={form.workScope}
+            disabled={!editable(0)}
+            onChange={(e) => {
+              const workScope = e.target.value;
+              edit((current) => ({ ...current, workScope, title: titleEdited ? current.title : titleFromScope(workScope) }));
+            }}
+          />
+        </FormField>
+        <FormField label="Title" htmlFor="title" error={fieldError("title")} hint={titleEdited ? undefined : "Suggested from the scope. Change it if it does not read well."}>
+          <input
+            id="title"
+            className={fieldClassName}
+            value={form.title}
+            disabled={!editable(0)}
+            onChange={(e) => {
+              setTitleEdited(true);
+              edit({ ...form, title: e.target.value });
+            }}
+          />
+        </FormField>
+      </EditorSection>
+      ) : null}
+
+      {active === "place" ? (
+      <EditorSection id="place" title="Place and schedule" owner="Job issuer" editable={placeEditable} left={missing.place.length}>
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormField label="Location" htmlFor="locationId" error={fieldError("locationId")}>
             <MasterDataSelect
               id="locationId"
               value={form.locationId}
-              options={locations}
-              disabled={fieldDisabled || masterDataLoading}
+              options={locationOptions}
+              disabled={!placeEditable || masterDataLoading}
               placeholder="Select location"
-              onChange={(locationId) => setForm({ ...form, locationId })}
-            />
-          </FormField>
-          <FormField
-            label="Primary executor"
-            htmlFor="primary-executor"
-            hint="Internal Job executors, or an external contractor / agency contact. They complete on-site details; the job issuer submits."
-          >
-            <PersonSelect
-              id="primary-executor"
-              value={form.executors[0]?.workforceUserId ?? ""}
-              disabled={fieldDisabled || masterDataLoading}
-              options={executorOptions}
-              placeholder="Select executors"
-              internalGroupLabel="Internal — Job executors"
-              onChange={(workforceUserId) =>
-                setForm({
-                  ...form,
-                  executors: [{ workforceUserId, isPrimary: true }],
+              onChange={(locationId) =>
+                edit((current) => {
+                  const plantId = plantOfLocation(locationId) || current.plantId;
+                  // A department from another plant no longer fits; clear it so it is chosen again.
+                  const departmentFits = departments.find((d) => d.id === current.departmentId)?.plantId === plantId;
+                  return { ...current, locationId, plantId, departmentId: departmentFits ? current.departmentId : "" };
                 })
               }
             />
           </FormField>
-          <div className="md:col-span-2 grid gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Viewers (optional)</h2>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={fieldDisabled}
-                onClick={() =>
-                  setForm({
-                    ...form,
-                    viewers: [...form.viewers, { workforceUserId: "" }],
-                  })
-                }
-              >
-                Add Viewer
-              </Button>
+          {derivedPlant ? (
+            <div className="grid gap-1.5 text-sm">
+              <span className="font-medium">Plant</span>
+              <p className="flex min-h-11 items-center text-muted-foreground">{plantName(derivedPlant)}, from the location</p>
             </div>
+          ) : (
+            <FormField label="Plant" htmlFor="plantId">
+              <MasterDataSelect
+                id="plantId"
+                value={form.plantId}
+                options={plants}
+                disabled={!placeEditable || masterDataLoading}
+                placeholder="Select plant"
+                onChange={(plantId) => edit({ ...form, plantId })}
+              />
+            </FormField>
+          )}
+          <FormField label="Department" htmlFor="departmentId" error={fieldError("departmentId")} hint={form.plantId ? `Departments of ${plantName(form.plantId)}` : undefined}>
+            <MasterDataSelect
+              id="departmentId"
+              value={form.departmentId}
+              options={departmentOptions}
+              disabled={!placeEditable || masterDataLoading}
+              placeholder="Select department"
+              onChange={(departmentId) => edit({ ...form, departmentId })}
+            />
+          </FormField>
+          <FormField
+            label="Primary executor"
+            htmlFor="primary-executor" error={fieldError("primary-executor")}
+            hint="They add the site details, crew and form answers; you then review and submit."
+          >
+            <PersonSelect
+              id="primary-executor"
+              value={form.executors.find((e) => e.isPrimary)?.workforceUserId ?? form.executors[0]?.workforceUserId ?? ""}
+              disabled={!placeEditable || masterDataLoading}
+              options={executorOptions}
+              placeholder="Select executor"
+              internalGroupLabel="Internal — Job executors"
+              onChange={(workforceUserId) =>
+                edit((current) => ({
+                  ...current,
+                  // Replace the primary only; crew the executor already added stays.
+                  executors: [
+                    { workforceUserId, isPrimary: true },
+                    ...current.executors
+                      .filter((e) => !e.isPrimary && e.workforceUserId && e.workforceUserId !== workforceUserId)
+                      .map((e) => ({ ...e, isPrimary: false })),
+                  ],
+                }))
+              }
+            />
+          </FormField>
+        </div>
+        <div className="grid gap-3">
+          {placeEditable ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium">When</span>
+              {schedulePresets().map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  aria-pressed={form.plannedStartAt === preset.start && form.plannedEndAt === preset.end}
+                  onClick={() => edit((current) => ({ ...current, plannedStartAt: preset.start, plannedEndAt: preset.end }))}
+                  className="min-h-11 rounded-full border border-input bg-input-fill px-3.5 text-sm hover:bg-muted aria-pressed:border-2 aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:font-semibold"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField label="Planned start" htmlFor="plannedStartAt" error={fieldError("plannedStartAt")}>
+              <PlannedDateTimeField
+                id="plannedStartAt"
+                value={form.plannedStartAt}
+                disabled={!placeEditable}
+                onChange={(plannedStartAt) =>
+                  edit((current) => ({
+                    ...current,
+                    plannedStartAt,
+                    plannedEndAt: current.plannedEndAt ? ensureEndAfterStart(plannedStartAt, current.plannedEndAt) : current.plannedEndAt,
+                  }))
+                }
+              />
+            </FormField>
+            <FormField label="Planned end" htmlFor="plannedEndAt" error={fieldError("plannedEndAt")} hint={form.plannedStartAt ? "Must be after planned start" : undefined}>
+              <PlannedDateTimeField
+                id="plannedEndAt"
+                value={form.plannedEndAt}
+                minValue={form.plannedStartAt || undefined}
+                disabled={!placeEditable || !form.plannedStartAt}
+                onChange={(plannedEndAt) => edit({ ...form, plannedEndAt })}
+              />
+            </FormField>
+          </div>
+        </div>
+        <details className="rounded-lg border border-border px-3 py-2" open={form.viewers.length > 0 || undefined}>
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">
+            Viewers (optional){form.viewers.length ? `: ${form.viewers.length}` : ""}
+          </summary>
+          <div className="mt-3 grid gap-3">
             {form.viewers.map((viewer, index) => (
               <div key={`viewer-${index}`} className="flex items-center gap-2">
                 <PersonSelect
                   id={`viewer-${index}`}
                   value={viewer.workforceUserId}
-                  disabled={fieldDisabled || masterDataLoading}
+                  disabled={!placeEditable || masterDataLoading}
                   options={viewerOptions.filter(
                     (person) => person.id === viewer.workforceUserId || !form.viewers.some((v) => v.workforceUserId === person.id),
                   )}
@@ -856,768 +1077,765 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                   onChange={(workforceUserId) => {
                     const viewers = [...form.viewers];
                     viewers[index] = { workforceUserId };
-                    setForm({ ...form, viewers });
+                    edit({ ...form, viewers });
                   }}
                 />
                 <RemoveRowButton
                   label="Remove viewer"
-                  disabled={fieldDisabled}
-                  onClick={() => setForm({ ...form, viewers: form.viewers.filter((_, i) => i !== index) })}
+                  disabled={!placeEditable}
+                  onClick={() => edit({ ...form, viewers: form.viewers.filter((_, i) => i !== index) })}
                 />
               </div>
             ))}
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 justify-self-start"
+              disabled={!placeEditable}
+              onClick={() => edit({ ...form, viewers: [...form.viewers, { workforceUserId: "" }] })}
+            >
+              Add viewer
+            </Button>
           </div>
-          <FormField label="Planned start" htmlFor="plannedStartAt">
-            <PlannedDateTimeField
-              id="plannedStartAt"
-              value={form.plannedStartAt}
-              disabled={fieldDisabled}
-              onChange={(plannedStartAt) => {
-                setForm((current) => ({
-                  ...current,
-                  plannedStartAt,
-                  plannedEndAt: current.plannedEndAt
-                    ? ensureEndAfterStart(plannedStartAt, current.plannedEndAt)
-                    : current.plannedEndAt,
-                }));
-              }}
-            />
-          </FormField>
-          <FormField
-            label="Planned end"
-            htmlFor="plannedEndAt"
-            hint={
-              form.plannedStartAt ? "Must be after planned start" : undefined
-            }
-          >
-            <PlannedDateTimeField
-              id="plannedEndAt"
-              value={form.plannedEndAt}
-              minValue={form.plannedStartAt || undefined}
-              disabled={isReadOnly || !form.plannedStartAt}
-              onChange={(plannedEndAt) => setForm({ ...form, plannedEndAt })}
-            />
-          </FormField>
-          {!fieldDisabled ? (
-            <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-              <span className="text-sm text-muted-foreground">Quick schedule:</span>
-              {schedulePresets().map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => setForm((current) => ({ ...current, plannedStartAt: preset.start, plannedEndAt: preset.end }))}
-                  className="rounded-full border border-border px-3 py-1 text-sm hover:bg-muted"
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </section>
+        </details>
+      </EditorSection>
       ) : null}
 
-      {step === 2 ? (
-        <section className="grid gap-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <FormField label="Workstation" htmlFor="workstationId">
-              <MasterDataSelect
-                id="workstationId"
-                value={form.workstationId}
-                options={workstations}
-                disabled={fieldDisabled || masterDataLoading}
-                placeholder="Select workstation"
-                onChange={(workstationId) =>
-                  setForm((current) => ({
+      {active === "site" ? (
+      <EditorSection
+        id="site"
+        title="Site safety"
+        owner="Job executor"
+        editable={siteEditable}
+        left={missing.site.length}
+        note="The job executor adds these after you save: workstation, machinery, isolation, gas tests, hazards and PPE."
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormField label="Workstation" htmlFor="workstationId" error={fieldError("workstationId")}>
+            <MasterDataSelect
+              id="workstationId"
+              value={form.workstationId}
+              options={workstations}
+              disabled={!siteEditable || masterDataLoading}
+              placeholder="Select workstation"
+              onChange={(workstationId) =>
+                edit((current) => ({
+                  ...current,
+                  workstationId,
+                  machineryId:
+                    current.machineryId && machinery.some((item) => item.id === current.machineryId && item.workstationId !== workstationId)
+                      ? ""
+                      : current.machineryId,
+                  gasTesting: workstationId === current.workstationId ? current.gasTesting : [],
+                  gasTestingRequired: workstationId ? current.gasTestingRequired : false,
+                }))
+              }
+            />
+          </FormField>
+          <FormField label="Machinery" htmlFor="machineryId" error={fieldError("machineryId")}>
+            <MasterDataSelect
+              id="machineryId"
+              value={form.machineryId}
+              options={form.workstationId ? machinery.filter((item) => item.workstationId === form.workstationId) : machinery}
+              disabled={!siteEditable || masterDataLoading}
+              placeholder="Select machinery"
+              onChange={(machineryId) => edit({ ...form, machineryId, lototo: machineryId === form.machineryId ? form.lototo : [] })}
+            />
+          </FormField>
+        </div>
+
+        <div className="grid gap-2">
+          <h3 className="text-sm font-semibold">Hazards</h3>
+          <ChipPicker
+            label="Hazards"
+            options={hazards}
+            selected={hazardRows.map((h) => h.hazardCategoryId)}
+            disabled={!siteEditable || masterDataLoading}
+            onToggle={(hazardCategoryId) =>
+              edit((current) => {
+                const rows = current.hazards.filter((h) => h.hazardCategoryId);
+                return {
+                  ...current,
+                  hazards: rows.some((h) => h.hazardCategoryId === hazardCategoryId)
+                    ? rows.filter((h) => h.hazardCategoryId !== hazardCategoryId)
+                    : [...rows, { hazardCategoryId, extraConsequences: [], extraControls: [] }],
+                };
+              })
+            }
+          />
+          {hazardRows.map((hazard) => {
+            const catalogue = hazards.find((h) => h.id === hazard.hazardCategoryId);
+            const name = catalogue?.name ?? "Hazard no longer offered";
+            return (
+              <div key={hazard.hazardCategoryId} className="grid gap-3 rounded-xl border border-border p-4">
+                <div>
+                  <p className="text-sm font-medium">
+                    {name}
+                    {catalogue?.code ? ` (${catalogue.code})` : ""}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {catalogue?.category || "Uncategorised"}
+                    {catalogue?.severity ? ` · ${catalogue.severity}` : ""}
+                  </p>
+                  {catalogue?.description ? <p className="mt-1 whitespace-pre-wrap text-sm">{catalogue.description}</p> : null}
+                </div>
+                <ConfiguredList
+                  title="Consequences"
+                  empty="No consequences configured for this hazard."
+                  items={catalogue?.consequences ?? []}
+                />
+                <ExtraStringList
+                  label="Additional consequences"
+                  values={hazard.extraConsequences ?? []}
+                  disabled={!siteEditable}
+                  onChange={(extraConsequences) =>
+                    edit((current) => ({
+                      ...current,
+                      hazards: current.hazards.map((h) =>
+                        h.hazardCategoryId === hazard.hazardCategoryId ? { ...h, extraConsequences } : h,
+                      ),
+                    }))
+                  }
+                />
+                <ConfiguredList
+                  title="Safety / controls"
+                  empty="No controls configured for this hazard."
+                  items={catalogue?.controls ?? []}
+                />
+                <ExtraStringList
+                  label="Additional controls"
+                  values={hazard.extraControls ?? []}
+                  disabled={!siteEditable}
+                  onChange={(extraControls) =>
+                    edit((current) => ({
+                      ...current,
+                      hazards: current.hazards.map((h) =>
+                        h.hazardCategoryId === hazard.hazardCategoryId ? { ...h, extraControls } : h,
+                      ),
+                    }))
+                  }
+                />
+              </div>
+            );
+          })}
+        </div>
+
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.lototoRequired}
+            disabled={!siteEditable || !form.machineryId}
+            onChange={(e) =>
+              edit({
+                ...form,
+                lototoRequired: e.target.checked,
+                // A machine with a single plan: select it straight away.
+                lototo: !e.target.checked
+                  ? []
+                  : form.lototo.length || machineryLototo.length !== 1
+                    ? form.lototo
+                    : [emptyPermitLototo(machineryLototo[0].id)],
+              })
+            }
+          />
+          LOTOTO required
+          {!form.machineryId && siteEditable ? <span className="text-muted-foreground">(choose machinery first)</span> : null}
+        </label>
+        {form.lototoRequired ? (
+          <div className="grid gap-3">
+            {machineryLototo.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                This machine has no LOTOTO plan yet.{" "}
+                <a href={`/lototo?new=1&machineryId=${form.machineryId}`} target="_blank" rel="noreferrer" className="font-medium text-(--act-do) underline underline-offset-2">
+                  Create one in a new tab
+                </a>
+                , then{" "}
+                <button
+                  type="button"
+                  className="font-medium underline underline-offset-2"
+                  onClick={() => void listLototoProcedures({ machineryId: form.machineryId, published: true }).then(setMachineryLototo).catch(() => setMachineryLototo([]))}
+                >
+                  refresh the list
+                </button>
+                .
+              </p>
+            ) : (
+              <div className="grid gap-4">
+                {form.lototo.map((item, index) => (
+                  <LototoAttachFields
+                    key={`${item.procedureId}-${index}`}
+                    item={item}
+                    index={index}
+                    procedures={machineryLototo}
+                    detail={lototoDetails[item.procedureId]}
+                    people={executorOptions}
+                    disabled={!siteEditable || Boolean(item.frozenAt)}
+                    onChange={(next) =>
+                      edit((current) => ({
+                        ...current,
+                        lototo: current.lototo.map((row, i) => (i === index ? next : row)),
+                      }))
+                    }
+                    onRemove={() =>
+                      edit((current) => ({
+                        ...current,
+                        lototo: current.lototo.filter((_, i) => i !== index),
+                      }))
+                    }
+                  />
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 justify-self-start"
+                  disabled={!siteEditable || form.lototo.some((item) => Boolean(item.frozenAt))}
+                  onClick={() =>
+                    edit((current) => ({
+                      ...current,
+                      lototo: [...current.lototo, emptyPermitLototo(machineryLototo.length === 1 ? machineryLototo[0].id : "")],
+                    }))
+                  }
+                >
+                  Add LOTOTO procedure
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.gasTestingRequired}
+            disabled={!siteEditable || !form.workstationId}
+            onChange={(e) =>
+              edit({
+                ...form,
+                gasTestingRequired: e.target.checked,
+                // Start with every gas test set up for this workstation; remove any not needed.
+                gasTesting: !e.target.checked
+                  ? []
+                  : form.gasTesting.length
+                    ? form.gasTesting
+                    : workstationGasTesting.map((row) => ({ gasTestingCatalogueId: row.id })),
+              })
+            }
+          />
+          Gas testing required
+          {!form.workstationId && siteEditable ? <span className="text-muted-foreground">(choose a workstation first)</span> : null}
+        </label>
+        {form.gasTestingRequired ? (
+          workstationGasTesting.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No gas tests are set up for this workstation yet.{" "}
+              <a href="/organisation/gas-testing" target="_blank" rel="noreferrer" className="font-medium text-(--act-do) underline underline-offset-2">
+                Add them in a new tab
+              </a>
+              , then{" "}
+              <button
+                type="button"
+                className="font-medium underline underline-offset-2"
+                onClick={() =>
+                  void gasTestingApi
+                    .list(form.workstationId)
+                    .then((rows) => setWorkstationGasTesting(rows.filter(inUse)))
+                    .catch(() => setWorkstationGasTesting([]))
+                }
+              >
+                refresh the list
+              </button>
+              .
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              <ChipPicker
+                label="Gas tests"
+                options={workstationGasTesting.map((row) => ({
+                  id: row.id,
+                  name: `${row.parameter} (${row.minimum}–${row.maximum} ${row.unit})`,
+                }))}
+                selected={form.gasTesting.map((item) => item.gasTestingCatalogueId)}
+                disabled={!siteEditable}
+                onToggle={(gasTestingCatalogueId) =>
+                  edit((current) => ({
                     ...current,
-                    workstationId,
-                    machineryId:
-                      current.machineryId &&
-                      machinery.some(
-                        (item) =>
-                          item.id === current.machineryId &&
-                          item.workstationId !== workstationId,
-                      )
-                        ? ""
-                        : current.machineryId,
-                    gasTesting:
-                      workstationId === current.workstationId
-                        ? current.gasTesting
-                        : [],
-                    gasTestingRequired: workstationId
-                      ? current.gasTestingRequired
-                      : false,
+                    gasTesting: current.gasTesting.some((item) => item.gasTestingCatalogueId === gasTestingCatalogueId)
+                      ? current.gasTesting.filter((item) => item.gasTestingCatalogueId !== gasTestingCatalogueId)
+                      : [...current.gasTesting.filter((item) => item.gasTestingCatalogueId), { gasTestingCatalogueId }],
                   }))
                 }
               />
-            </FormField>
-            <FormField label="Machinery" htmlFor="machineryId">
-              <MasterDataSelect
-                id="machineryId"
-                value={form.machineryId}
-                options={
-                  form.workstationId
-                    ? machinery.filter(
-                        (item) => item.workstationId === form.workstationId,
-                      )
-                    : machinery
-                }
-                disabled={fieldDisabled || masterDataLoading}
-                placeholder="Select machinery"
-                onChange={(machineryId) =>
-                  setForm({
-                    ...form,
-                    machineryId,
-                    lototo: machineryId === form.machineryId ? form.lototo : [],
-                  })
-                }
-              />
-            </FormField>
-          </div>
-          <div className="grid gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">
-                Safety officers (optional)
-              </h2>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={fieldDisabled}
-                onClick={() =>
-                  setForm({
-                    ...form,
-                    safetyOfficers: [
-                      ...form.safetyOfficers,
-                      { workforceUserId: "" },
-                    ],
-                  })
-                }
-              >
-                Add safety officer
-              </Button>
-            </div>
-            {form.safetyOfficers.map((officer, index) => (
-              <div key={`so-${index}`} className="flex items-center gap-2">
-              <PersonSelect
-                id={`safety-officer-${index}`}
-                value={officer.workforceUserId}
-                disabled={fieldDisabled || masterDataLoading}
-                options={safetyOfficerOptions}
-                placeholder="Select Safety officers"
-                internalGroupLabel="Internal Safety Officers"
-                onChange={(workforceUserId) => {
-                  const safetyOfficers = [...form.safetyOfficers];
-                  safetyOfficers[index] = { workforceUserId };
-                  setForm({ ...form, safetyOfficers });
-                }}
-              />
-              <RemoveRowButton
-                label="Remove safety officer"
-                disabled={fieldDisabled}
-                onClick={() => setForm({ ...form, safetyOfficers: form.safetyOfficers.filter((_, i) => i !== index) })}
-              />
-              </div>
-            ))}
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.lototoRequired}
-              disabled={lototoLocked || !form.machineryId}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  lototoRequired: e.target.checked,
-                  // A machine with a single plan: select it straight away.
-                  lototo: !e.target.checked
-                    ? []
-                    : form.lototo.length || machineryLototo.length !== 1
-                      ? form.lototo
-                      : [{ ...emptyLototoAttach(), procedureId: machineryLototo[0].id }],
-                })
-              }
-            />
-            LOTOTO required
-            {form.lototo.some((item) => item.frozenAt) ? (
-              <span className="text-muted-foreground">(frozen at approval)</span>
-            ) : !form.machineryId && !fieldDisabled ? (
-              <span className="text-muted-foreground">(choose machinery above first)</span>
-            ) : null}
-          </label>
-          {form.lototoRequired ? (
-            <div className="grid gap-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">LOTOTO</h2>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={lototoLocked || machineryLototo.length === 0}
-                  onClick={() =>
-                    setForm({
-                      ...form,
-                      lototo: [...form.lototo, emptyLototoAttach()],
-                    })
-                  }
-                >
-                  Add LOTOTO
-                </Button>
-              </div>
-              {machineryLototo.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  This machine has no published LOTOTO procedure yet.{" "}
-                  <a
-                    href={`/lototo/procedures/new?machineryId=${form.machineryId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-medium text-(--act-do) underline underline-offset-2"
-                  >
-                    Create one in a new tab
-                  </a>
-                  , then{" "}
-                  <button
-                    type="button"
-                    className="font-medium underline underline-offset-2"
-                    onClick={() =>
-                      void listLototoProcedures({ machineryId: form.machineryId, published: true })
-                        .then((rows) => setMachineryLototo(rows.filter((row) => row.status === "published")))
-                        .catch(() => setMachineryLototo([]))
-                    }
-                  >
-                    refresh the list
-                  </button>
-                  .
-                </p>
-              ) : null}
-              {form.lototo.map((item, index) => (
-                <LototoAttachFields
-                  key={`lototo-${index}`}
-                  item={item}
-                  index={index}
-                  procedures={machineryLototo}
-                  detail={lototoDetails[item.procedureId]}
-                  people={[...executorOptions, ...safetyOfficerOptions].filter(
-                    (person, personIndex, all) => all.findIndex((row) => row.id === person.id) === personIndex,
-                  )}
-                  disabled={lototoLocked}
-                  onChange={(next) => {
-                    const lototo = [...form.lototo];
-                    lototo[index] = next;
-                    setForm({ ...form, lototo });
-                  }}
-                  onRemove={() => setForm({ ...form, lototo: form.lototo.filter((_, i) => i !== index) })}
-                />
-              ))}
-            </div>
-          ) : null}
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.gasTestingRequired}
-              disabled={fieldDisabled || !form.workstationId}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  gasTestingRequired: e.target.checked,
-                  // Start with every gas test set up for this workstation; remove any not needed.
-                  gasTesting: !e.target.checked
-                    ? []
-                    : form.gasTesting.length
-                      ? form.gasTesting
-                      : workstationGasTesting.map((row) => ({ gasTestingCatalogueId: row.id })),
-                })
-              }
-            />
-            Gas testing required
-            {!form.workstationId && !fieldDisabled ? <span className="text-muted-foreground">(choose a workstation above first)</span> : null}
-          </label>
-          {form.gasTestingRequired ? (
-            <div className="grid gap-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">Gas testing</h2>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={fieldDisabled || workstationGasTesting.length === 0}
-                  onClick={() =>
-                    setForm({
-                      ...form,
-                      gasTesting: [
-                        ...form.gasTesting,
-                        { gasTestingCatalogueId: "" },
-                      ],
-                    })
-                  }
-                >
-                  Add gas testing
-                </Button>
-              </div>
-              {workstationGasTesting.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No gas tests are set up for this workstation yet.{" "}
-                  <a
-                    href="/organisation/gas-testing"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-medium text-(--act-do) underline underline-offset-2"
-                  >
-                    Add them in a new tab
-                  </a>
-                  , then{" "}
-                  <button
-                    type="button"
-                    className="font-medium underline underline-offset-2"
-                    onClick={() =>
-                      void gasTestingApi
-                        .list(form.workstationId)
-                        .then((rows) => setWorkstationGasTesting(rows.filter(inUse)))
-                        .catch(() => setWorkstationGasTesting([]))
-                    }
-                  >
-                    refresh the list
-                  </button>
-                  .
-                </p>
-              ) : null}
-              {form.gasTesting.map((item, index) => (
-                <div key={`gas-testing-${index}`} className="flex items-end gap-2">
-                <FormField
-                  label="Gas testing item"
-                  htmlFor={`gas-testing-${index}`}
-                  className="flex-1"
-                >
-                  <MasterDataSelect
-                    id={`gas-testing-${index}`}
-                    value={item.gasTestingCatalogueId}
-                    options={workstationGasTesting.map((row) => ({
-                      id: row.id,
-                      name: `${row.parameter} (${row.minimum}–${row.maximum} ${row.unit})`,
-                    }))}
-                    disabled={fieldDisabled}
-                    placeholder="Select gas testing"
-                    onChange={(gasTestingCatalogueId) => {
-                      const gasTesting = [...form.gasTesting];
-                      gasTesting[index] = { gasTestingCatalogueId };
-                      setForm({ ...form, gasTesting });
-                    }}
-                  />
-                </FormField>
-                <RemoveRowButton
-                  label="Remove gas test"
-                  disabled={fieldDisabled}
-                  onClick={() => setForm({ ...form, gasTesting: form.gasTesting.filter((_, i) => i !== index) })}
-                />
-                </div>
-              ))}
-            </div>
-          ) : null}
-          <div className="grid gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Hazards</h2>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={fieldDisabled}
-                onClick={() =>
-                  setForm({
-                    ...form,
-                    hazards: [
-                      ...form.hazards,
-                      { hazardCategoryId: "", extraConsequences: [], extraControls: [] },
-                    ],
-                  })
-                }
-              >
-                Add hazard
-              </Button>
-            </div>
-            {form.hazards.map((hazard, index) => {
-              const selected = hazards.find((item) => item.id === hazard.hazardCategoryId);
-              const taken = new Set(
-                form.hazards
-                  .map((row, i) => (i === index ? "" : row.hazardCategoryId))
-                  .filter(Boolean),
-              );
-              return (
-              <div
-                key={`hazard-${index}`}
-                className="grid gap-3 rounded-lg border border-border p-4"
-              >
-                <FormField label="Hazard" htmlFor={`hazard-${index}`}>
-                  <MasterDataSelect
-                    id={`hazard-${index}`}
-                    value={hazard.hazardCategoryId}
-                    options={hazards.filter((item) => item.id === hazard.hazardCategoryId || !taken.has(item.id))}
-                    disabled={fieldDisabled || masterDataLoading}
-                    placeholder="Select hazard"
-                    onChange={(hazardCategoryId) => {
-                      const hazardRows = [...form.hazards];
-                      hazardRows[index] = {
-                        hazardCategoryId,
-                        extraConsequences: [],
-                        extraControls: [],
-                      };
-                      setForm({ ...form, hazards: hazardRows });
-                    }}
-                  />
-                </FormField>
-                {selected ? (
-                  <div className="grid gap-2 text-sm">
-                    <p>
-                      <span className="text-muted-foreground">Category · </span>
-                      {selected.category || "—"}
-                      <span className="text-muted-foreground"> · Severity · </span>
-                      <span className="capitalize">{selected.severity ?? "medium"}</span>
-                    </p>
-                    {selected.description ? <p className="whitespace-pre-wrap text-muted-foreground">{selected.description}</p> : null}
-                    <div>
-                      <p className="text-xs text-muted-foreground">Potential consequences</p>
-                      <ul className="mt-1 list-disc pl-5">
-                        {(selected.consequences ?? []).map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
+              {form.gasTesting
+                .filter((item) => item.gasTestingCatalogueId)
+                .map((item) => {
+                  const row = workstationGasTesting.find((test) => test.id === item.gasTestingCatalogueId);
+                  return (
+                    <div key={item.gasTestingCatalogueId} className="grid gap-2 rounded-xl border border-border p-4 text-sm">
+                      <p className="font-medium">{row?.parameter ?? "Gas test no longer offered"}</p>
+                      <dl className="grid gap-2 sm:grid-cols-3">
+                        <div>
+                          <dt className="text-xs text-muted-foreground">Parameter</dt>
+                          <dd>{row?.parameter ?? "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">Acceptable range</dt>
+                          <dd>
+                            {row ? `${row.minimum}–${row.maximum}` : "—"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">Unit</dt>
+                          <dd>{row?.unit ?? "—"}</dd>
+                        </div>
+                      </dl>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Controls</p>
-                      <ul className="mt-1 list-disc pl-5">
-                        {(selected.controls ?? []).map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <StringListField
-                      label="Extra consequences for this permit"
-                      values={hazard.extraConsequences ?? []}
-                      disabled={fieldDisabled}
-                      addLabel="Add consequence"
-                      onChange={(extraConsequences) => {
-                        const hazardRows = [...form.hazards];
-                        hazardRows[index] = { ...hazard, extraConsequences };
-                        setForm({ ...form, hazards: hazardRows });
-                      }}
-                    />
-                    <StringListField
-                      label="Extra controls for this permit"
-                      values={hazard.extraControls ?? []}
-                      disabled={fieldDisabled}
-                      addLabel="Add control"
-                      onChange={(extraControls) => {
-                        const hazardRows = [...form.hazards];
-                        hazardRows[index] = { ...hazard, extraControls };
-                        setForm({ ...form, hazards: hazardRows });
-                      }}
-                    />
-                  </div>
-                ) : null}
-                <RemoveRowButton
-                  label="Remove hazard"
-                  disabled={fieldDisabled}
-                  onClick={() => setForm({ ...form, hazards: form.hazards.filter((_, i) => i !== index) })}
-                />
-              </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+            </div>
+          )
+        ) : null}
 
-          <div className="grid gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">PPE</h2>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={fieldDisabled}
-                onClick={() =>
-                  setForm({
-                    ...form,
-                    ppe: [...form.ppe, { ppeCatalogueId: "", quantity: 1 }],
-                  })
-                }
-              >
-                Add PPE
-              </Button>
-            </div>
-            {form.ppe.map((item, index) => (
-              <div
-                key={`ppe-${index}`}
-                className="grid items-end gap-3 rounded-lg border border-border p-4 md:grid-cols-[1fr_1fr_auto]"
-              >
-                <FormField label="PPE item" htmlFor={`ppe-${index}`}>
-                  <MasterDataSelect
-                    id={`ppe-${index}`}
-                    value={item.ppeCatalogueId}
-                    options={ppeItems}
-                    disabled={fieldDisabled || masterDataLoading}
-                    placeholder="Select PPE"
-                    onChange={(ppeCatalogueId) => {
-                      const ppe = [...form.ppe];
-                      ppe[index] = { ...item, ppeCatalogueId };
-                      setForm({ ...form, ppe });
-                    }}
-                  />
-                </FormField>
-                <FormField label="Quantity" htmlFor={`ppe-qty-${index}`}>
+        <div className="grid gap-2">
+          <h3 className="text-sm font-semibold">PPE</h3>
+          <ChipPicker
+            label="PPE"
+            options={ppeItems}
+            selected={ppeRows.map((p) => p.ppeCatalogueId)}
+            disabled={!siteEditable || masterDataLoading}
+            onToggle={(ppeCatalogueId) =>
+              edit((current) => {
+                const rows = current.ppe.filter((p) => p.ppeCatalogueId);
+                return {
+                  ...current,
+                  ppe: rows.some((p) => p.ppeCatalogueId === ppeCatalogueId)
+                    ? rows.filter((p) => p.ppeCatalogueId !== ppeCatalogueId)
+                    : [...rows, { ppeCatalogueId, quantity: 1 }],
+                };
+              })
+            }
+          />
+          {ppeRows.length ? (
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {ppeRows.map((item) => (
+                <FormField
+                  key={item.ppeCatalogueId}
+                  label={`${ppeItems.find((p) => p.id === item.ppeCatalogueId)?.name ?? "Item no longer offered"}: quantity`}
+                  htmlFor={`ppe-qty-${item.ppeCatalogueId}`}
+                >
                   <input
-                    id={`ppe-qty-${index}`}
+                    id={`ppe-qty-${item.ppeCatalogueId}`}
                     type="number"
                     min={1}
                     className={fieldClassName}
                     value={item.quantity}
-                    disabled={fieldDisabled}
-                    onChange={(e) => {
-                      const ppe = [...form.ppe];
-                      ppe[index] = {
-                        ...item,
-                        quantity: Number(e.target.value) || 1,
-                      };
-                      setForm({ ...form, ppe });
-                    }}
+                    disabled={!siteEditable}
+                    onChange={(e) =>
+                      edit((current) => ({
+                        ...current,
+                        ppe: current.ppe.map((p) =>
+                          p.ppeCatalogueId === item.ppeCatalogueId ? { ...p, quantity: Number(e.target.value) || 1 } : p,
+                        ),
+                      }))
+                    }
                   />
                 </FormField>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+      </EditorSection>
+      ) : null}
+
+      {active === "crew" ? (
+      <EditorSection id="crew" title="Crew" owner="Job executor" editable={crewEditable} left={missing.crew.length} note="The job executor adds the crew after you save.">
+        <div className="grid gap-2">
+          <ul className="grid gap-2">
+            {crewRows.map((executor) => (
+              <li key={executor.workforceUserId} className="flex flex-wrap items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm">
+                <span className="min-w-0 flex-1 truncate">{personName(executor.workforceUserId)}</span>
+                <label className="flex min-h-11 items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={executor.isPrimary}
+                    disabled={!siteEditable}
+                    onChange={(e) =>
+                      edit((current) => ({
+                        ...current,
+                        executors: current.executors.map((row) =>
+                          row.workforceUserId === executor.workforceUserId ? { ...row, isPrimary: e.target.checked } : row,
+                        ),
+                      }))
+                    }
+                  />
+                  Primary
+                </label>
                 <RemoveRowButton
-                  label="Remove PPE item"
-                  disabled={fieldDisabled}
-                  onClick={() => setForm({ ...form, ppe: form.ppe.filter((_, i) => i !== index) })}
+                  label={`Remove ${personName(executor.workforceUserId)}`}
+                  disabled={!siteEditable || crewRows.length === 1}
+                  onClick={() =>
+                    edit((current) => ({
+                      ...current,
+                      executors: current.executors.filter((row) => row.workforceUserId !== executor.workforceUserId),
+                    }))
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+          {siteEditable ? (
+            <div className="max-w-md">
+              <label htmlFor="add-crew" className="sr-only">
+                Add crew member
+              </label>
+              <PersonSelect
+                id="add-crew"
+                value=""
+                disabled={masterDataLoading}
+                options={executorOptions.filter((person) => !crewRows.some((row) => row.workforceUserId === person.id))}
+                placeholder="Add crew member"
+                internalGroupLabel="Internal — Job executors"
+                onChange={(workforceUserId) =>
+                  workforceUserId &&
+                  edit((current) => ({
+                    ...current,
+                    executors: [...current.executors.filter((row) => row.workforceUserId), { workforceUserId, isPrimary: false }],
+                  }))
+                }
+              />
+            </div>
+          ) : null}
+        </div>
+
+        <details className="rounded-lg border border-border px-3 py-2" open={form.safetyOfficers.length > 0 || undefined}>
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">
+            Safety officers (optional){form.safetyOfficers.length ? `: ${form.safetyOfficers.length}` : ""}
+          </summary>
+          <div className="mt-3 grid gap-3">
+            {form.safetyOfficers.map((officer, index) => (
+              <div key={`so-${index}`} className="flex items-center gap-2">
+                <PersonSelect
+                  id={`safety-officer-${index}`}
+                  value={officer.workforceUserId}
+                  disabled={!siteEditable || masterDataLoading}
+                  options={safetyOfficerOptions}
+                  placeholder="Select safety officer"
+                  internalGroupLabel="Internal Safety Officers"
+                  onChange={(workforceUserId) => {
+                    const safetyOfficers = [...form.safetyOfficers];
+                    safetyOfficers[index] = { workforceUserId };
+                    edit({ ...form, safetyOfficers });
+                  }}
+                />
+                <RemoveRowButton
+                  label="Remove safety officer"
+                  disabled={!siteEditable}
+                  onClick={() => edit({ ...form, safetyOfficers: form.safetyOfficers.filter((_, i) => i !== index) })}
                 />
               </div>
             ))}
-          </div>
-        </section>
-      ) : null}
-
-      {step === 3 ? (
-        <section className="grid gap-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Executors</h2>
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              disabled={fieldDisabled}
-              onClick={() =>
-                setForm({
-                  ...form,
-                  executors: [
-                    ...form.executors,
-                    { workforceUserId: "", isPrimary: false },
-                  ],
-                })
-              }
+              className="min-h-11 justify-self-start"
+              disabled={!siteEditable}
+              onClick={() => edit({ ...form, safetyOfficers: [...form.safetyOfficers, { workforceUserId: "" }] })}
             >
-              Add executor
+              Add safety officer
             </Button>
           </div>
-          {form.executors.map((executor, index) => (
-            <div
-              key={`executor-${index}`}
-              className="grid items-end gap-3 rounded-lg border border-border p-4 md:grid-cols-[1fr_auto_auto]"
-            >
-              <FormField
-                label="Executor"
-                htmlFor={`executor-${index}`}
-                hint="Internal Job executors or external contractors / agency contacts."
-              >
-                <PersonSelect
-                  id={`executor-${index}`}
-                  value={executor.workforceUserId ?? ""}
-                  disabled={fieldDisabled || masterDataLoading}
-                  options={executorOptions}
-                  placeholder="Select executors"
-                  internalGroupLabel="Internal — Job executors"
-                  onChange={(workforceUserId) => {
-                    const executors = [...form.executors];
-                    executors[index] = { ...executor, workforceUserId };
-                    setForm({ ...form, executors });
-                  }}
-                />
-              </FormField>
-              <label className="flex items-end gap-2 pb-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={executor.isPrimary}
-                  disabled={fieldDisabled}
-                  onChange={(e) => {
-                    const executors = [...form.executors];
-                    executors[index] = {
-                      ...executor,
-                      isPrimary: e.target.checked,
-                    };
-                    setForm({ ...form, executors });
-                  }}
-                />
-                Primary executor
-              </label>
-              <RemoveRowButton
-                label="Remove executor"
-                disabled={fieldDisabled || form.executors.length === 1}
-                onClick={() => setForm({ ...form, executors: form.executors.filter((_, i) => i !== index) })}
-              />
-            </div>
-          ))}
-        </section>
+        </details>
+      </EditorSection>
       ) : null}
 
-      {step === 4 ? (
-        <section className="grid gap-4" aria-label="Forms and check sheets">
-          {!templatesLoaded && !masterDataLoading ? (
-            <p role="alert" className="text-sm text-destructive">The forms for this permit could not be loaded. Reload the page to try again.</p>
-          ) : forms.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
-              No permit forms or check sheets are linked to{" "}
-              {permitTypes.find((type) => type.id === form.permitTypeId)?.name ?? "this permit type"}. Continue to review.
+      {active === "forms" ? (
+      <EditorSection id="forms" title="Forms and evidence" owner="Job issuer or executor" editable={formsEditable} left={missing.forms.length}>
+        {!templatesLoaded && !masterDataLoading ? (
+          <p role="alert" className="text-sm text-destructive">The forms for this permit could not be loaded. Reload the page to try again.</p>
+        ) : forms.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No permit forms or check sheets are linked to {permitTypes.find((type) => type.id === form.permitTypeId)?.name ?? "this permit type"}.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Details the permit already holds are filled in for you and not asked again. Questions marked * must be answered before the
+              permit can be submitted.
             </p>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                {forms.length === 1 ? "One form applies" : `${forms.length} forms apply`} to{" "}
-                {permitTypes.find((type) => type.id === form.permitTypeId)?.name ?? "this permit type"}. Details the permit already holds
-                are filled in for you. Questions marked * must be answered before the permit can be submitted.
-              </p>
-              {forms.map((template) => (
-                <TemplateFormFill
-                  key={template.id}
-                  name={template.name}
-                  config={template.config!}
-                  answers={form.formResponses[template.id] ?? {}}
-                  disabled={fieldDisabled}
-                  signerName={signerName}
-                  onChange={(answers) =>
-                    setForm((current) => ({ ...current, formResponses: { ...current.formResponses, [template.id]: answers } }))
+            {forms.map((template) => (
+              <TemplateFormFill
+                key={template.id}
+                name={template.name}
+                config={template.config!}
+                answers={prefilled.formResponses[template.id] ?? {}}
+                disabled={!formsEditable}
+                signerName={signerName}
+                anchorId={`form-${template.id}`}
+                fromPermit={fromPermit}
+                showMissing={errors.length > 0}
+                onChange={(answers) => edit((current) => ({ ...current, formResponses: { ...current.formResponses, [template.id]: answers } }))}
+              />
+            ))}
+          </>
+        )}
+        <div className="grid gap-3">
+          <h3 className="text-sm font-semibold">Attachments (optional)</h3>
+          <FileUploadField
+            id="permit-attachment"
+            label="Add attachment"
+            hint={permitId ? "Supporting documents, photos, or drawings" : `${saveLabel} first, then add attachments.`}
+            disabled={isReadOnly || isUploadingAttachment || !permitId}
+            value={pendingAttachment}
+            onChange={(file) => {
+              setPendingAttachment(file);
+              if (file) {
+                void (async () => {
+                  setIsUploadingAttachment(true);
+                  setApiError(null);
+                  try {
+                    await handleUpload(file);
+                    setPendingAttachment(null);
+                  } finally {
+                    setIsUploadingAttachment(false);
                   }
-                />
-              ))}
-            </>
-          )}
-        </section>
-      ) : null}
-
-      {step === 5 ? (
-        <section className="grid gap-6">
-          {forms.length ? (
-            <div className="rounded-xl border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold">Forms and check sheets</h2>
-              <ul className="mt-2 grid gap-1.5 text-sm">
-                {forms.map((template) => {
-                  const missing = missingRequired(template, form);
-                  return (
-                    <li key={template.id} className="flex flex-wrap items-center justify-between gap-2">
-                      <span>{template.name}</span>
-                      {missing.length ? (
-                        <button
-                          type="button"
-                          className="text-(--status-warning) hover:underline"
-                          onClick={() => setForm((current) => goToStep(current, 4))}
-                        >
-                          {missing.length} required {missing.length === 1 ? "answer" : "answers"} missing
-                        </button>
-                      ) : (
-                        <span className="text-(--status-success)">Complete</span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ) : null}
-          <PermitSummary
-            form={form}
-            status={status}
-            reference={reference}
-            attachments={attachments}
+                })();
+              }
+            }}
           />
-          <div className="grid gap-3">
-            <h2 className="text-sm font-semibold">Attachments</h2>
-            <FileUploadField
-              id="permit-attachment"
-              label="Add attachment"
-              hint="Supporting documents, photos, or drawings"
-              disabled={isReadOnly || isUploadingAttachment}
-              value={pendingAttachment}
-              onChange={(file) => {
-                setPendingAttachment(file);
-                if (file) {
-                  void (async () => {
-                    setIsUploadingAttachment(true);
-                    setApiError(null);
-                    try {
-                      await handleUpload(file);
-                      setPendingAttachment(null);
-                    } finally {
-                      setIsUploadingAttachment(false);
-                    }
-                  })();
-                }
-              }}
-            />
+          {attachments.length ? (
             <ul className="grid gap-2 text-sm">
               {attachments.map((attachment) => (
-                <li
-                  key={attachment.id}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
-                >
+                <li key={attachment.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
                   <span>
-                    {attachment.fileName} (
-                    {Math.round(attachment.fileSize / 1024)} KB)
+                    {attachment.fileName} ({Math.round(attachment.fileSize / 1024)} KB)
                   </span>
                   {status === "draft" ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void handleRemoveAttachment(attachment.id)}
-                    >
+                    <Button type="button" variant="ghost" className="min-h-11" onClick={() => void handleRemoveAttachment(attachment.id)}>
                       Remove
                     </Button>
                   ) : null}
                 </li>
               ))}
             </ul>
-          </div>
-        </section>
+          ) : null}
+        </div>
+      </EditorSection>
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        {step > 0 ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleBack}
-            disabled={isSaving || isSubmitting}
-          >
+      {active === "review" ? (
+      <EditorSection id="review" title="Review" owner="Job issuer" editable left={0}>
+        <div className="flex flex-wrap gap-2">
+          {PERMIT_EDITOR_SECTIONS.filter((section) => section.id !== "review").map((section) => (
+            <Button key={section.id} type="button" variant="ghost" className="min-h-11" onClick={() => goTo(section.id)}>
+              <Pencil aria-hidden />
+              Change {section.label}
+            </Button>
+          ))}
+        </div>
+        <PermitSummary form={form} status={status} attachments={attachments} showHeader={false} />
+        {PERMIT_EDITOR_SECTIONS.some((section) => missing[section.id].length) ? (
+          <ul className="grid gap-2 text-sm">
+            {PERMIT_EDITOR_SECTIONS.filter((section) => missing[section.id].length).map((section) => (
+              <li key={section.id}>
+                <button type="button" onClick={() => goTo(section.id)} className="font-medium underline underline-offset-2">
+                  {section.label}
+                </button>
+                <span className="text-muted-foreground">: {missing[section.id].join("; ")}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-(--status-success)">Everything needed for submission is filled in.</p>
+        )}
+        <p className="text-sm text-muted-foreground">
+          {isExecutor
+            ? `${saveLabel} when you are done. The job issuer reviews the permit and submits it for approval.`
+            : "Submitting saves your changes and sends the permit for approval. Saving the draft does not authorise any work."}
+        </p>
+      </EditorSection>
+      ) : null}
+
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-8 sm:px-8">
+        <p role="status" className="mr-auto text-sm text-muted-foreground">
+          {saveState === "saving"
+            ? "Saving…"
+            : saveState === "error"
+              ? "Could not save. Your changes are still here."
+              : dirty
+                ? "Unsaved changes"
+                : saveState === "saved"
+                  ? isExecutor
+                    ? "Saved. The job issuer reviews next."
+                    : "Saved"
+                  : ""}
+        </p>
+        {status === "draft" ? (
+          <Button type="button" size="lg" className="min-h-11 px-4" variant="secondary" onClick={() => void handleSaveDraft()} disabled={isSaving || isSubmitting || conflicts.length > 0}>
+            {isSaving ? "Saving…" : saveLabel}
+          </Button>
+        ) : null}
+        {activeIndex > 0 ? (
+          <Button type="button" size="lg" variant="outline" className="min-h-11 px-4" onClick={() => goTo(PERMIT_EDITOR_SECTIONS[activeIndex - 1].id)}>
+            <ChevronLeft aria-hidden />
             Back
           </Button>
         ) : null}
-        {status === "draft" ? (
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => void handleSaveDraft()}
-            disabled={isSaving || isSubmitting}
-          >
-            {isSaving ? "Saving..." : "Save draft"}
+        {active !== "review" ? (
+          <Button type="button" size="lg" className="min-h-11 px-4" onClick={handleNext}>
+            Next
+            <ChevronRight aria-hidden />
+          </Button>
+        ) : canSubmit ? (
+          <Button type="button" size="lg" className="min-h-11 px-4" onClick={() => void handleSubmit()} disabled={isSubmitting || isSaving || isReadOnly || conflict}>
+            {isSubmitting ? "Submitting…" : isResubmit ? "Resubmit permit" : "Submit permit"}
           </Button>
         ) : null}
-        {step < PERMIT_WIZARD_STEPS.length - 1 ? (
-          <Button
-            type="button"
-            onClick={() => void handleNext()}
-            disabled={isSaving || isSubmitting || !canEditStep}
-          >
-            {isSaving ? "Saving..." : "Next"}
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            onClick={() => void handleSubmit()}
-            disabled={isSubmitting || !canSubmit || !canEditStep}
-          >
-            {isSubmitting ? "Submitting..." : "Submit permit"}
-          </Button>
-        )}
       </div>
+    </div>
+  );
+}
+
+/** One section of the permit editor, with its owner and what is left to fill in. */
+function EditorSection({
+  id,
+  title,
+  owner,
+  editable,
+  left,
+  note,
+  children,
+}: {
+  id: PermitEditorSectionId;
+  title: string;
+  owner: string;
+  editable: boolean;
+  left: number;
+  note?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      id={`section-${id}`}
+      aria-labelledby={`section-${id}-title`}
+      // Jumps land below the sticky app header (3.5rem) and page header with the section links.
+      style={{ scrollMarginTop: "calc(var(--page-head-h, 0px) + 4.5rem)" }}
+      className="grid gap-4 rounded-xl border border-border bg-card p-4 sm:p-5"
+    >
+      <header className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id={`section-${id}-title`} className="text-base font-semibold">
+          {title}
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          {owner}
+          {left ? ` · ${left} to do` : ""}
+        </p>
+      </header>
+      {!editable && note ? <p className="rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground">{note}</p> : null}
+      {children}
+    </section>
+  );
+}
+
+/** Tap to select or deselect catalogue items; selected items are pressed buttons. */
+function ChipPicker({
+  label,
+  options,
+  selected,
+  disabled,
+  onToggle,
+}: {
+  label: string;
+  options: { id: string; name: string }[];
+  selected: string[];
+  disabled: boolean;
+  onToggle: (id: string) => void;
+}) {
+  if (options.length === 0) {
+    return <p className="text-sm text-muted-foreground">Nothing to choose from yet. An administrator adds these under Organisation.</p>;
+  }
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap gap-2">
+      {options.map((option) => {
+        const on = selected.includes(option.id);
+        return (
+          <button
+            key={option.id}
+            type="button"
+            aria-pressed={on}
+            disabled={disabled}
+            onClick={() => onToggle(option.id)}
+            className={cn(
+              "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-colors disabled:opacity-60",
+              on ? "border-2 border-primary bg-primary/10 font-semibold" : "border-input bg-input-fill hover:bg-muted",
+            )}
+          >
+            {on ? <Check aria-hidden className="size-4" /> : null}
+            {option.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ConfiguredList({ title, items, empty }: { title: string; items: string[]; empty: string }) {
+  return (
+    <div className="grid gap-1">
+      <p className="text-sm font-medium">{title}</p>
+      {items.length ? (
+        <ul className="list-disc space-y-0.5 pl-5 text-sm">
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">{empty}</p>
+      )}
+    </div>
+  );
+}
+
+function ExtraStringList({
+  label,
+  values,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  values: string[];
+  disabled: boolean;
+  onChange: (values: string[]) => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <p className="text-sm font-medium">{label}</p>
+      {values.map((value, index) => (
+        <div key={`${label}-${index}`} className="flex gap-2">
+          <input
+            aria-label={`${label} ${index + 1}`}
+            className={fieldClassName}
+            value={value}
+            disabled={disabled}
+            onChange={(event) => {
+              const next = [...values];
+              next[index] = event.target.value;
+              onChange(next);
+            }}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={disabled}
+            aria-label={`Remove ${label} ${index + 1}`}
+            onClick={() => onChange(values.filter((_, i) => i !== index))}
+          >
+            <X aria-hidden />
+          </Button>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => onChange([...values, ""])}>
+        Add
+      </Button>
     </div>
   );
 }

@@ -21,9 +21,12 @@ type WorkQueueValue = {
   permits: PermitRecord[];
   counts: Record<string, number>;
   loaded: boolean;
+  /** Sources that could not be read ("permits", "approvals", …): the queue is incomplete, never "all caught up". */
+  failed: string[];
+  retry: () => void;
 };
 
-const WorkQueueContext = createContext<WorkQueueValue>({ items: [], permits: [], counts: {}, loaded: false });
+const WorkQueueContext = createContext<WorkQueueValue>({ items: [], permits: [], counts: {}, loaded: false, failed: [], retry: () => undefined });
 
 export function WorkQueueProvider({ children }: { children: React.ReactNode }) {
   const { roles, isLoading } = useAuthProfile();
@@ -33,38 +36,41 @@ export function WorkQueueProvider({ children }: { children: React.ReactNode }) {
     approvals: PendingApprovalItem[];
     conflicts: SimopsConflict[];
     incidents: Incident[];
+    failed: string[];
   } | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   // Each fetch is gated on the roles the API accepts, so no one triggers a 403.
   // Refetch on every navigation so counts reflect the action just taken.
   useEffect(() => {
     if (isLoading || roles.length === 0) return;
     let cancelled = false;
+    const failed: string[] = [];
+    function read<T>(allowed: readonly string[], source: string, load: () => Promise<T[]>): Promise<T[]> {
+      if (!hasAnyRole(roles, allowed)) return Promise.resolve([]);
+      return load().catch(() => {
+        failed.push(source);
+        return [];
+      });
+    }
     Promise.all([
-      hasAnyRole(roles, PERMIT_READ_ROLES)
-        ? listPermits().catch(() => [] as PermitRecord[])
-        : Promise.resolve([] as PermitRecord[]),
-      hasAnyRole(roles, APPROVAL_READ_ROLES)
-        ? listPendingApprovals().catch(() => [] as PendingApprovalItem[])
-        : Promise.resolve([] as PendingApprovalItem[]),
-      hasAnyRole(roles, SIMOPS_READ_ROLES)
-        ? listSimopsConflicts().catch(() => [] as SimopsConflict[])
-        : Promise.resolve([] as SimopsConflict[]),
-      hasAnyRole(roles, INCIDENT_READ_ROLES)
-        ? listIncidents().catch(() => [] as Incident[])
-        : Promise.resolve([] as Incident[]),
+      read(PERMIT_READ_ROLES, "permits", listPermits),
+      read(APPROVAL_READ_ROLES, "approvals", listPendingApprovals),
+      read(SIMOPS_READ_ROLES, "work clashes", listSimopsConflicts),
+      read(INCIDENT_READ_ROLES, "incidents", listIncidents),
     ]).then(([permits, approvals, conflicts, incidents]) => {
-      if (!cancelled) setData({ permits, approvals, conflicts, incidents });
+      if (!cancelled) setData({ permits, approvals, conflicts, incidents, failed });
     });
     return () => {
       cancelled = true;
     };
-  }, [roles, isLoading, pathname]);
+  }, [roles, isLoading, pathname, attempt]);
 
   const value = useMemo<WorkQueueValue>(() => {
-    if (!data) return { items: [], permits: [], counts: {}, loaded: false };
+    const retry = () => setAttempt((n) => n + 1);
+    if (!data) return { items: [], permits: [], counts: {}, loaded: false, failed: [], retry };
     const items = buildWorkQueue(roles, data.permits, data.approvals, data.conflicts, data.incidents);
-    return { items, permits: data.permits, counts: workCountsByRoute(items), loaded: true };
+    return { items, permits: data.permits, counts: workCountsByRoute(items), loaded: true, failed: data.failed, retry };
   }, [data, roles]);
 
   return <WorkQueueContext.Provider value={value}>{children}</WorkQueueContext.Provider>;
