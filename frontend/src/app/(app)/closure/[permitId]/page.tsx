@@ -15,6 +15,7 @@ import type { PermitDetail } from "@/lib/permit/types";
 import { AuditTimeline } from "@/components/closure/audit-timeline";
 import { ClosureDialog } from "@/components/closure/closure-dialog";
 import { HistoryTimeline } from "@/components/closure/history-timeline";
+import { ReadonlyPermitViewer } from "@/components/closure/readonly-permit-viewer";
 import { PermitLototoExecution } from "@/components/permit/lototo-execution";
 import {
   defaultVerificationChecklist,
