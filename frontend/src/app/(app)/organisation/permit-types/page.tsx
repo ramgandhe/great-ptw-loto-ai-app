@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { FileDown, Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
+import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { masterDataApi, type MasterDataRecord } from "@/lib/master-data/api";
 import { permitTemplatesApi, type PermitTemplate } from "@/lib/organisation/templates";
 import Link from "next/link";
@@ -29,6 +30,7 @@ export default function PermitTypesPage() {
   const [colorPicked, setColorPicked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   function load() {
@@ -66,6 +68,28 @@ export default function PermitTypesPage() {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setFormOpen(false);
+  }
+
+  async function handleImportDefaults() {
+    setImporting(true);
+    setError(null);
+    try {
+      const result = await masterDataApi.importDefaults();
+      if (result.created + result.updated === 0) {
+        toast("The standard permit types are already here.");
+      } else {
+        toast(
+          `Added ${result.created} standard type${result.created === 1 ? "" : "s"}${
+            result.updated ? `, updated ${result.updated}` : ""
+          }.`,
+        );
+      }
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not add the standard permit types");
+    } finally {
+      setImporting(false);
+    }
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -109,12 +133,12 @@ export default function PermitTypesPage() {
 
   async function handleDelete(id: string) {
     const name = items.find((item) => item.id === id)?.name ?? "this permit type";
-    if (!window.confirm(`Delete ${name}? Existing permits that use it will block deletion.`)) {
-      return;
-    }
     setError(null);
     try {
-      await masterDataApi.deletePermitType(id);
+      const ok = await deleteWithAssignmentConfirm(name, (force) =>
+        masterDataApi.deletePermitType(id, force).then(() => undefined),
+      );
+      if (!ok) return;
       toast(`Permit type ${name} deleted`);
       if (editingId === id) {
         resetForm();
@@ -132,10 +156,16 @@ export default function PermitTypesPage() {
         description="The permit types this organisation can issue, such as hot work or confined space."
         action={
           !formOpen ? (
-            <Button type="button" size="lg" onClick={() => openForm()}>
-              <Plus aria-hidden />
-              Add permit type
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="lg" disabled={importing} onClick={() => void handleImportDefaults()}>
+                <FileDown aria-hidden />
+                Add standard types
+              </Button>
+              <Button type="button" size="lg" onClick={() => openForm()}>
+                <Plus aria-hidden />
+                Add permit type
+              </Button>
+            </div>
           ) : null
         }
       />

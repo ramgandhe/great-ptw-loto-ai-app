@@ -14,7 +14,7 @@ import { PermitApprovalStatus } from "@/components/permit/permit-approval-status
 import { PermitJourney } from "@/components/permit/permit-journey";
 import { PermitLototoExecution } from "@/components/permit/lototo-execution";
 import { PermitPeopleReassign } from "@/components/permit/permit-people-reassign";
-import { PermitSummary } from "@/components/permit/permit-summary";
+import { identityFromPermit, PermitSummary } from "@/components/permit/permit-summary";
 import { PermitFormResponses } from "@/components/permit/permit-form-responses";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -43,8 +43,8 @@ const VETO_REASONS = [
 ];
 
 const DELETE_ROLES = ["tenant-owner", "tenant-admin"] as const;
-const SUSPEND_ROLES = ["tenant-owner", "tenant-admin", "hod", "safety-officer"] as const;
-const REVALIDATE_ROLES = ["tenant-owner", "tenant-admin", "hod", "job-issuer"] as const;
+const SUSPEND_ROLES = ["tenant-owner", "tenant-admin", "permit-approver", "safety-officer"] as const;
+const REVALIDATE_ROLES = ["tenant-owner", "tenant-admin", "permit-approver", "permit-receiver"] as const;
 
 /**
  * One place for a permit: Overview (where it is, who it waits on, actions), Preparation (the
@@ -179,7 +179,8 @@ function PermitWorkspace() {
           <PermitStatusBadge status={permit.status} />
         </div>
         <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-muted-foreground">
-          <span className="font-mono">{permit.reference ?? "No reference until submitted"}</span>
+          <span className="font-mono">{permit.reference ?? "No number until submitted"}</span>
+          <span>v{permit.permitVersion ?? 1}</span>
           <span>{formatWindow(permit.plannedStartAt, permit.plannedEndAt)}</span>
           <span>Updated {formatRelative(permit.updatedAt)}</span>
         </p>
@@ -308,7 +309,13 @@ function PermitWorkspace() {
               Print this permit
             </Button>
           </div>
-          <PermitSummary form={permitDetailToForm(detail)} status={permit.status} attachments={detail.attachments} showHeader={false} />
+          <PermitSummary
+            form={permitDetailToForm(detail)}
+            status={permit.status}
+            attachments={detail.attachments}
+            showHeader={false}
+            identity={identityFromPermit(permit)}
+          />
           <PermitFormResponses responses={permit.formResponses ?? []} />
         </>
       ) : null}

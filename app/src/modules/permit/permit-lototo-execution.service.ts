@@ -12,6 +12,7 @@ import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   lototoProcedureLockoutPoints,
   lototoProcedures,
+  permitExecutors,
   permitLototoCrew,
   permitLototoCrewActions,
   permitLototoExtraPoints,
@@ -28,11 +29,14 @@ import {
   RecordLototoRestoreVerificationDto,
 } from './dto/permit-lototo-execution.dto';
 import {
+  isLototoCrewApplyComplete,
   isLototoIsolationComplete,
   isLototoRestorationComplete,
   lototoPointExecutionStatus,
 } from './permit-lototo-execution-status';
 import { PermitService } from './permit.service';
+import { isTenantPrivileged } from '../../common/constants/tenant-roles';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const EXECUTABLE_STATUSES = ['approved', 'active'] as const;
 
@@ -41,6 +45,7 @@ export class PermitLototoExecutionService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly permitService: PermitService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getBoard(permitId: string, user: AuthenticatedUser) {
@@ -92,9 +97,61 @@ export class PermitLototoExecutionService {
     }
   }
 
+  async startIsolation(permitId: string, instanceId: string, user: AuthenticatedUser) {
+    const { detail, instance } = await this.prepareWrite(permitId, instanceId, user);
+    await this.assertOperator(permitId, user);
+    if (!instance.startedAt) {
+      await this.db
+        .update(permitLototoInstances)
+        .set({ startedAt: new Date(), startedBy: user.id, updatedBy: user.id })
+        .where(eq(permitLototoInstances.id, instance.id));
+    }
+    const crew = await this.db
+      .select({ workforceUserId: permitLototoCrew.workforceUserId })
+      .from(permitLototoCrew)
+      .where(eq(permitLototoCrew.instanceId, instance.id));
+    const recipients = [...new Set(crew.map((row) => row.workforceUserId).filter((id) => id !== user.id))];
+    if (recipients.length > 0 && detail.permit.tenantId) {
+      await this.notificationsService.generateSystem(detail.permit.tenantId, user.id, {
+        eventType: 'lototo_verification',
+        category: 'workflow',
+        priority: 'high',
+        title: 'LOTOTO isolation started',
+        body: `Apply each isolation step on "${detail.permit.title}".`,
+        recipientUserIds: recipients,
+        entityType: 'permit',
+        entityId: permitId,
+        dedupeKey: `${detail.permit.tenantId}:permit:${permitId}:lototo:${instance.id}:started`,
+        sourceModule: 'lototo',
+      });
+    }
+    return this.getBoard(permitId, user);
+  }
+
+  async declareCrewComplete(permitId: string, instanceId: string, user: AuthenticatedUser) {
+    const { instance } = await this.prepareWrite(permitId, instanceId, user);
+    await this.assertCrew(instanceId, user);
+    if (!instance.startedAt) {
+      throw new ConflictException('Start LOTOTO before the crew can declare isolation complete');
+    }
+    const board = await this.getBoard(permitId, user);
+    const row = board.instances.find((item) => item.instanceId === instanceId);
+    if (!row || !isLototoCrewApplyComplete(row.points)) {
+      throw new ConflictException('Tick every apply step before declaring isolation complete');
+    }
+    await this.db
+      .update(permitLototoInstances)
+      .set({ crewCompletedAt: new Date(), crewCompletedBy: user.id, updatedBy: user.id })
+      .where(eq(permitLototoInstances.id, instance.id));
+    return this.getBoard(permitId, user);
+  }
+
   async recordCrewAction(permitId: string, instanceId: string, dto: RecordLototoCrewActionDto, user: AuthenticatedUser) {
     const { instance } = await this.prepareWrite(permitId, instanceId, user);
-    await this.assertCrew(instanceId, user.id);
+    await this.assertCrew(instanceId, user);
+    if (!instance.startedAt) {
+      throw new ConflictException('Start LOTOTO before applying isolation steps');
+    }
     const point = await this.resolvePoint(instance, dto);
     if (point.na) {
       throw new ConflictException('N/A isolation points are not executed');
@@ -108,7 +165,7 @@ export class PermitLototoExecutionService {
       instanceId,
       basePointId: point.basePointId,
       extraPointId: point.extraPointId,
-      lockTagId: dto.lockTagId.trim(),
+      lockTagId: (dto.lockTagId ?? 'applied').trim() || 'applied',
       reading: dto.reading?.trim() || null,
       comment: dto.comment?.trim() || null,
       completedBy: user.id,
@@ -126,7 +183,10 @@ export class PermitLototoExecutionService {
     user: AuthenticatedUser,
   ) {
     const { instance } = await this.prepareWrite(permitId, instanceId, user);
-    await this.assertVerifier(instanceId, user.id);
+    await this.assertVerifier(instanceId, user);
+    if (!instance.crewCompletedAt) {
+      throw new ConflictException('Crew must declare isolation complete before verification');
+    }
     if (!dto.tryOutCompleted) {
       throw new BadRequestException('Try-out is required to verify isolation');
     }
@@ -165,7 +225,7 @@ export class PermitLototoExecutionService {
     user: AuthenticatedUser,
   ) {
     const { instance } = await this.prepareRestoreWrite(permitId, instanceId, user);
-    await this.assertCrew(instanceId, user.id);
+    await this.assertCrew(instanceId, user);
     const point = await this.resolvePoint(instance, dto);
     if (point.na) {
       throw new ConflictException('N/A isolation points are not restored');
@@ -178,7 +238,7 @@ export class PermitLototoExecutionService {
       instanceId,
       basePointId: point.basePointId,
       extraPointId: point.extraPointId,
-      lockTagId: dto.lockTagId.trim(),
+      lockTagId: (dto.lockTagId ?? 'removed').trim() || 'removed',
       comment: dto.comment?.trim() || null,
       restoredBy: user.id,
       createdBy: user.id,
@@ -194,7 +254,7 @@ export class PermitLototoExecutionService {
     user: AuthenticatedUser,
   ) {
     const { instance } = await this.prepareRestoreWrite(permitId, instanceId, user);
-    await this.assertVerifier(instanceId, user.id);
+    await this.assertVerifier(instanceId, user);
     const point = await this.resolvePoint(instance, dto);
     if (point.na) {
       throw new ConflictException('N/A isolation points are not restored');
@@ -255,22 +315,45 @@ export class PermitLototoExecutionService {
     return { detail, instance };
   }
 
-  private async assertCrew(instanceId: string, userId: string) {
+  private isPrivileged(user: AuthenticatedUser) {
+    return user.roles.includes('platform-admin') || isTenantPrivileged(user.roles);
+  }
+
+  private async assertOperator(permitId: string, user: AuthenticatedUser) {
+    if (this.isPrivileged(user)) {
+      return;
+    }
+    const [row] = await this.db
+      .select({ id: permitExecutors.id })
+      .from(permitExecutors)
+      .where(and(eq(permitExecutors.permitId, permitId), eq(permitExecutors.workforceUserId, user.id)));
+    if (!row) {
+      throw new ForbiddenException('Only the permit operator can start LOTOTO');
+    }
+  }
+
+  private async assertCrew(instanceId: string, user: AuthenticatedUser) {
+    if (this.isPrivileged(user)) {
+      return;
+    }
     const [row] = await this.db
       .select({ id: permitLototoCrew.id })
       .from(permitLototoCrew)
-      .where(and(eq(permitLototoCrew.instanceId, instanceId), eq(permitLototoCrew.workforceUserId, userId)));
+      .where(and(eq(permitLototoCrew.instanceId, instanceId), eq(permitLototoCrew.workforceUserId, user.id)));
     if (!row) {
       throw new ForbiddenException('Only assigned isolation crew can complete this point');
     }
   }
 
-  private async assertVerifier(instanceId: string, userId: string) {
+  private async assertVerifier(instanceId: string, user: AuthenticatedUser) {
+    if (this.isPrivileged(user)) {
+      return;
+    }
     const [row] = await this.db
       .select({ id: permitLototoVerifiers.id })
       .from(permitLototoVerifiers)
       .where(
-        and(eq(permitLototoVerifiers.instanceId, instanceId), eq(permitLototoVerifiers.workforceUserId, userId)),
+        and(eq(permitLototoVerifiers.instanceId, instanceId), eq(permitLototoVerifiers.workforceUserId, user.id)),
       );
     if (!row) {
       throw new ForbiddenException('Only assigned verifiers can confirm this point');
@@ -483,6 +566,8 @@ export class PermitLototoExecutionService {
       procedureCode,
       procedureTitle,
       frozenAt: instance.frozenAt,
+      startedAt: instance.startedAt,
+      crewCompletedAt: instance.crewCompletedAt,
       points,
     };
   }

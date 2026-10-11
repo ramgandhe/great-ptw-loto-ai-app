@@ -13,5 +13,5 @@ export const BILLING_READ_ROLES = [
   'tenant-owner',
   'platform-admin',
   'safety-officer',
-  'hod',
+  'permit-approver',
 ] as const;

@@ -13,6 +13,7 @@ import {
   UpdateCompetencyDto,
   UpdateWorkforceDto,
 } from './dto/workforce.dto';
+import { isForeignKeyViolation, throwInUse } from '../../common/http/in-use';
 import { TenantUsersService } from './tenant-users.service';
 
 @Injectable()
@@ -51,8 +52,8 @@ export class WorkforceService {
     return this.setPersonLoginStatus(employees, 'employee', id, user, 'active');
   }
 
-  deleteEmployee(id: string, user: AuthenticatedUser) {
-    return this.deletePerson(employees, 'employee', id, user);
+  deleteEmployee(id: string, user: AuthenticatedUser, force = false) {
+    return this.deletePerson(employees, 'employee', id, user, force);
   }
 
   listContractors(user: AuthenticatedUser) {
@@ -81,8 +82,8 @@ export class WorkforceService {
     return this.setPersonLoginStatus(contractors, 'contractor', id, user, 'active');
   }
 
-  deleteContractor(id: string, user: AuthenticatedUser) {
-    return this.deletePerson(contractors, 'contractor', id, user);
+  deleteContractor(id: string, user: AuthenticatedUser, force = false) {
+    return this.deletePerson(contractors, 'contractor', id, user, force);
   }
 
   listAgencies(user: AuthenticatedUser) {
@@ -138,8 +139,8 @@ export class WorkforceService {
     return this.setPersonLoginStatus(agencies, 'agency', id, user, 'active');
   }
 
-  deleteAgency(id: string, user: AuthenticatedUser) {
-    return this.deletePerson(agencies, 'agency', id, user);
+  deleteAgency(id: string, user: AuthenticatedUser, force = false) {
+    return this.deletePerson(agencies, 'agency', id, user, force);
   }
 
   listCompetencies(user: AuthenticatedUser) {
@@ -194,8 +195,8 @@ export class WorkforceService {
       });
   }
 
-  archiveCompetency(id: string, user: AuthenticatedUser) {
-    return this.archiveRecord(competencies, 'competency', id, user);
+  archiveCompetency(id: string, user: AuthenticatedUser, force = false) {
+    return this.archiveRecord(competencies, 'competency', id, user, force);
   }
 
   async listDirectory(user: AuthenticatedUser) {
@@ -348,6 +349,7 @@ export class WorkforceService {
     entityType: string,
     id: string,
     user: AuthenticatedUser,
+    force = false,
   ) {
     const tenantId = requireTenant(user);
     const [existing] = await this.db
@@ -359,14 +361,29 @@ export class WorkforceService {
     }
     if (existing.keycloakUserId) {
       try {
-        await this.tenantUsersService.remove(existing.keycloakUserId, user);
+        await this.tenantUsersService.remove(existing.keycloakUserId, user, force);
       } catch (error) {
         if (!(error instanceof NotFoundException)) {
           throw error;
         }
       }
     }
-    return this.archiveRecord(table, entityType, id, user);
+    try {
+      const [row] = await this.db.delete(table).where(and(eq(table.id, id), eq(table.tenantId, tenantId))).returning();
+      if (!row) {
+        throw new NotFoundException('Record not found');
+      }
+      await this.audit(`${entityType}.deleted`, entityType, id, user, tenantId);
+      return row;
+    } catch (error) {
+      if (!isForeignKeyViolation(error)) {
+        throw error;
+      }
+      if (!force) {
+        throwInUse([`${entityType} is used on other records`]);
+      }
+      return this.archiveRecord(table, entityType, id, user, true);
+    }
   }
 
   private async archiveRecord(
@@ -374,18 +391,34 @@ export class WorkforceService {
     entityType: string,
     id: string,
     user: AuthenticatedUser,
+    force = false,
   ) {
     const tenantId = requireTenant(user);
-    const [row] = await this.db
-      .update(table)
-      .set({ status: 'archived', updatedBy: user.id, updatedAt: new Date() })
-      .where(and(eq(table.id, id), eq(table.tenantId, tenantId)))
-      .returning();
-    if (!row) {
-      throw new NotFoundException('Record not found');
+    try {
+      const [row] = await this.db.delete(table).where(and(eq(table.id, id), eq(table.tenantId, tenantId))).returning();
+      if (!row) {
+        throw new NotFoundException('Record not found');
+      }
+      await this.audit(`${entityType}.deleted`, entityType, id, user, tenantId);
+      return row;
+    } catch (error) {
+      if (!isForeignKeyViolation(error)) {
+        throw error;
+      }
+      if (!force) {
+        throwInUse([`${entityType} is used on other records`]);
+      }
+      const [row] = await this.db
+        .update(table)
+        .set({ status: 'archived', updatedBy: user.id, updatedAt: new Date() })
+        .where(and(eq(table.id, id), eq(table.tenantId, tenantId)))
+        .returning();
+      if (!row) {
+        throw new NotFoundException('Record not found');
+      }
+      await this.audit(`${entityType}.archived`, entityType, id, user, tenantId);
+      return row;
     }
-    await this.audit(`${entityType}.archived`, entityType, id, user, tenantId);
-    return row;
   }
 
   private async audit(

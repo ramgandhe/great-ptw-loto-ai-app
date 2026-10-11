@@ -4,20 +4,20 @@ export const MDP_DAY_TRANSITION_VALIDITY_JOB = 'mdp.day-transition-validity';
 export const MDP_VALIDITY_NOTIFICATION_JOB = 'mdp.validity-notification';
 
 export const REVALIDATION_WRITE_ROLES = [
-  'hod',
+  'permit-approver',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
 export const REVALIDATION_READ_ROLES = [
   ...REVALIDATION_WRITE_ROLES,
-  'job-issuer',
+  'permit-receiver',
   'viewer',
 ] as const;
 
 export const EXTENSION_REQUEST_ROLES = [
-  'job-issuer',
-  'hod',
+  'permit-receiver',
+  'permit-approver',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;

@@ -64,7 +64,7 @@ describe('SIMOPS HTTP integration (PUS-166 / PUS-171)', () => {
     id: supervisorId,
     username: 'hod',
     tenantId,
-    roles: ['hod'],
+    roles: ['permit-approver'],
     email: 'supervisor@example.com',
   };
 

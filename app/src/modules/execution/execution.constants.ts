@@ -6,15 +6,15 @@ export const ACTIVE_STATUS = 'active' as const;
 export const SUSPENDED_STATUS = 'suspended' as const;
 
 export const EXECUTION_ACTION_ROLES = [
-  'operator',
-  'hod',
+  'permit-operator',
+  'permit-approver',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
 /** Suspend approved/active work — Owner, Admin, HOD, Safety Officer. */
 export const EXECUTION_SUSPEND_ROLES = [
-  'hod',
+  'permit-approver',
   'safety-officer',
   'tenant-owner',
   'tenant-admin',
@@ -22,8 +22,8 @@ export const EXECUTION_SUSPEND_ROLES = [
 
 /** Revalidate after suspension — Owner, Admin, HOD, Issuer. */
 export const EXECUTION_REVALIDATE_ROLES = [
-  'job-issuer',
-  'hod',
+  'permit-receiver',
+  'permit-approver',
   'tenant-owner',
   'tenant-admin',
 ] as const;
@@ -33,7 +33,7 @@ export const EXECUTION_UPDATE_ROLES = [...EXECUTION_ACTION_ROLES] as const;
 /** @deprecated Use EXECUTION_ACTION_ROLES or EXECUTION_UPDATE_ROLES */
 export const EXECUTION_WRITE_ROLES = EXECUTION_UPDATE_ROLES;
 
-export const EXECUTION_READ_ROLES = [...EXECUTION_UPDATE_ROLES, 'job-issuer', 'viewer'] as const;
+export const EXECUTION_READ_ROLES = [...EXECUTION_UPDATE_ROLES, 'permit-receiver', 'viewer'] as const;
 
 export const MAX_EVIDENCE_SIZE_BYTES = 10 * 1024 * 1024;
 

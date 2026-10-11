@@ -8,6 +8,7 @@ import {
 import { randomUUID } from 'crypto';
 import { and, asc, desc, eq, max } from 'drizzle-orm';
 import { optionalUuid } from '../../common/helpers/optional-uuid';
+import { throwInUse } from '../../common/http/in-use';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
@@ -25,6 +26,7 @@ import { UploadedFilePayload } from '../permit/uploaded-file.interface';
 import { MAX_ATTACHMENT_SIZE_BYTES } from '../permit/permit.constants';
 import {
   CreateLototoProcedureDto,
+  LototoLockoutPointDto,
   LototoProcedureContentDto,
   UpdateLototoProcedureDto,
 } from './dto/lototo-procedure.dto';
@@ -291,7 +293,8 @@ export class LototoProcedureService {
           lockoutPoints: published.lockoutPoints.map((point) => ({
             sortOrder: point.sortOrder,
             pointCode: point.pointCode,
-            energyType: point.energyType,
+            energyType: point.energyType as LototoLockoutPointDto['energyType'],
+            energyOtherText: point.energyOtherText ?? undefined,
             magnitude: point.magnitude ?? undefined,
             locationText: point.locationText ?? undefined,
             action: point.action ?? undefined,
@@ -302,6 +305,10 @@ export class LototoProcedureService {
             phase: step.phase as 'apply' | 'remove',
             sequenceOrder: step.sequenceOrder,
             title: step.title,
+            action: step.action ?? undefined,
+            infoText: step.infoText ?? undefined,
+            verification: step.verification ?? undefined,
+            note: step.note ?? undefined,
             description: step.description ?? undefined,
           })),
           authorizedRoles: published.authorizedRoles,
@@ -333,6 +340,39 @@ export class LototoProcedureService {
         await tx.insert(lototoProcedurePhotos).values({
           versionId: version.id,
           lockoutPointId,
+          fileName: row.photo.fileName,
+          contentType: row.photo.contentType,
+          storageBucket: row.photo.storageBucket,
+          storageKey: row.photo.storageKey,
+          createdBy: optionalUuid(user.id),
+          updatedBy: optionalUuid(user.id),
+        });
+      }
+      const publishedStepPhotos = await tx
+        .select({
+          phase: lototoProcedureSequenceSteps.phase,
+          sequenceOrder: lototoProcedureSequenceSteps.sequenceOrder,
+          photo: lototoProcedurePhotos,
+        })
+        .from(lototoProcedurePhotos)
+        .innerJoin(
+          lototoProcedureSequenceSteps,
+          eq(lototoProcedurePhotos.sequenceStepId, lototoProcedureSequenceSteps.id),
+        )
+        .where(eq(lototoProcedureSequenceSteps.versionId, published.id));
+      const newSteps = await tx
+        .select()
+        .from(lototoProcedureSequenceSteps)
+        .where(eq(lototoProcedureSequenceSteps.versionId, version.id));
+      const stepByKey = new Map(newSteps.map((step) => [`${step.phase}:${step.sequenceOrder}`, step.id]));
+      for (const row of publishedStepPhotos) {
+        const sequenceStepId = stepByKey.get(`${row.phase}:${row.sequenceOrder}`);
+        if (!sequenceStepId) {
+          continue;
+        }
+        await tx.insert(lototoProcedurePhotos).values({
+          versionId: version.id,
+          sequenceStepId,
           fileName: row.photo.fileName,
           contentType: row.photo.contentType,
           storageBucket: row.photo.storageBucket,
@@ -412,18 +452,24 @@ export class LototoProcedureService {
     return this.assemble(this.db, procedure.id, tenantId);
   }
 
-  async remove(id: string, user: AuthenticatedUser) {
+  async remove(id: string, user: AuthenticatedUser, force = false) {
     const tenantId = this.validationService.requireTenant(user);
     const procedure = await this.requireProcedure(id, tenantId);
     const [attached] = await this.db
       .select({ id: permitLototoInstances.id })
       .from(permitLototoInstances)
       .where(eq(permitLototoInstances.procedureId, procedure.id));
-    if (attached) {
-      throw new ConflictException('Cannot delete a LOTOTO procedure that is used on a permit');
+    if (attached && !force) {
+      throwInUse(['This LOTOTO procedure is used on a permit']);
     }
-
-    await this.db.delete(lototoProcedures).where(eq(lototoProcedures.id, procedure.id));
+    if (attached) {
+      await this.db
+        .update(lototoProcedures)
+        .set({ status: 'inactive', updatedBy: optionalUuid(user.id), updatedAt: new Date() })
+        .where(eq(lototoProcedures.id, procedure.id));
+    } else {
+      await this.db.delete(lototoProcedures).where(eq(lototoProcedures.id, procedure.id));
+    }
     await this.auditService.log({
       action: 'lototo.procedure.deleted',
       entityType: 'lototo_procedure',
@@ -523,6 +569,91 @@ export class LototoProcedureService {
     return this.assemble(this.db, procedure.id, tenantId);
   }
 
+  async uploadStepPhoto(
+    procedureId: string,
+    stepId: string,
+    file: UploadedFilePayload,
+    user: AuthenticatedUser,
+  ) {
+    const tenantId = this.validationService.requireTenant(user);
+    if (!file) {
+      throw new BadRequestException('A photo file is required');
+    }
+    if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+      throw new BadRequestException(`File exceeds maximum size of ${MAX_ATTACHMENT_SIZE_BYTES} bytes`);
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+      throw new BadRequestException('Sequence step photos must be JPEG, PNG, or WebP');
+    }
+    const procedure = await this.requireProcedure(procedureId, tenantId);
+    this.assertMutable(procedure);
+    const draft = await this.latestUnpublishedVersion(procedure.id);
+    if (!draft) {
+      throw new ConflictException('Create a new revision before adding photos to a published procedure');
+    }
+    const [step] = await this.db
+      .select()
+      .from(lototoProcedureSequenceSteps)
+      .where(and(eq(lototoProcedureSequenceSteps.id, stepId), eq(lototoProcedureSequenceSteps.versionId, draft.id)));
+    if (!step) {
+      throw new NotFoundException('Sequence step not found on the draft procedure');
+    }
+    const existing = await this.db
+      .select()
+      .from(lototoProcedurePhotos)
+      .where(eq(lototoProcedurePhotos.sequenceStepId, step.id));
+    for (const photo of existing) {
+      try {
+        await this.storageService.deleteObject(photo.storageKey);
+      } catch {
+        // continue
+      }
+      await this.db.delete(lototoProcedurePhotos).where(eq(lototoProcedurePhotos.id, photo.id));
+    }
+    const storageKey = `${tenantId}/lototo/${procedure.id}/steps/${step.id}/${randomUUID()}-${file.originalname}`;
+    await this.storageService.putObject(storageKey, file.buffer, file.mimetype, file.size);
+    await this.db.insert(lototoProcedurePhotos).values({
+      versionId: draft.id,
+      sequenceStepId: step.id,
+      fileName: file.originalname,
+      contentType: file.mimetype,
+      storageBucket: this.storageService.getBucket(),
+      storageKey,
+      createdBy: optionalUuid(user.id),
+      updatedBy: optionalUuid(user.id),
+    });
+    return this.assemble(this.db, procedure.id, tenantId);
+  }
+
+  async removeStepPhoto(procedureId: string, stepId: string, user: AuthenticatedUser) {
+    const tenantId = this.validationService.requireTenant(user);
+    const procedure = await this.requireProcedure(procedureId, tenantId);
+    this.assertMutable(procedure);
+    const draft = await this.latestUnpublishedVersion(procedure.id);
+    if (!draft) {
+      throw new ConflictException('Create a new revision before changing photos on a published procedure');
+    }
+    const photos = await this.db
+      .select()
+      .from(lototoProcedurePhotos)
+      .innerJoin(
+        lototoProcedureSequenceSteps,
+        eq(lototoProcedurePhotos.sequenceStepId, lototoProcedureSequenceSteps.id),
+      )
+      .where(
+        and(eq(lototoProcedureSequenceSteps.id, stepId), eq(lototoProcedureSequenceSteps.versionId, draft.id)),
+      );
+    for (const row of photos) {
+      try {
+        await this.storageService.deleteObject(row.lototo_procedure_photos.storageKey);
+      } catch {
+        // continue
+      }
+      await this.db.delete(lototoProcedurePhotos).where(eq(lototoProcedurePhotos.id, row.lototo_procedure_photos.id));
+    }
+    return this.assemble(this.db, procedure.id, tenantId);
+  }
+
   private async requireProcedure(id: string, tenantId: string) {
     const [procedure] = await this.db
       .select()
@@ -599,7 +730,8 @@ export class LototoProcedureService {
             versionId,
             sortOrder: point.sortOrder,
             pointCode: point.pointCode,
-            energyType: point.energyType,
+            energyType: point.energyType as LototoLockoutPointDto['energyType'],
+            energyOtherText: point.energyOtherText,
             magnitude: point.magnitude,
             locationText: point.locationText,
             action: point.action,
@@ -627,6 +759,22 @@ export class LototoProcedureService {
     }
 
     if (dto.sequenceSteps) {
+      const existingSteps = await tx
+        .select()
+        .from(lototoProcedureSequenceSteps)
+        .where(eq(lototoProcedureSequenceSteps.versionId, versionId));
+      const existingPhotos = await tx
+        .select()
+        .from(lototoProcedurePhotos)
+        .where(eq(lototoProcedurePhotos.versionId, versionId));
+      const photosByKey = new Map(
+        existingPhotos
+          .filter((photo) => photo.sequenceStepId)
+          .map((photo) => {
+            const step = existingSteps.find((row) => row.id === photo.sequenceStepId);
+            return [`${step?.phase}:${step?.sequenceOrder}`, photo] as const;
+          }),
+      );
       await tx
         .delete(lototoProcedureSequenceSteps)
         .where(eq(lototoProcedureSequenceSteps.versionId, versionId));
@@ -637,11 +785,29 @@ export class LototoProcedureService {
             phase: step.phase,
             sequenceOrder: step.sequenceOrder,
             title: step.title,
+            action: step.action,
+            infoText: step.infoText,
+            verification: step.verification,
+            note: step.note,
             description: step.description,
             createdBy: optionalUuid(userId),
             updatedBy: optionalUuid(userId),
           })),
         );
+      }
+      const newSteps = await tx
+        .select()
+        .from(lototoProcedureSequenceSteps)
+        .where(eq(lototoProcedureSequenceSteps.versionId, versionId));
+      for (const step of newSteps) {
+        const photo = photosByKey.get(`${step.phase}:${step.sequenceOrder}`);
+        if (!photo) {
+          continue;
+        }
+        await tx
+          .update(lototoProcedurePhotos)
+          .set({ sequenceStepId: step.id, updatedBy: optionalUuid(userId) })
+          .where(eq(lototoProcedurePhotos.id, photo.id));
       }
     }
 
@@ -695,9 +861,24 @@ export class LototoProcedureService {
         };
       }),
     );
+    const steps = await Promise.all(
+      sequenceSteps.map(async (step) => {
+        const photo = photos.find((row) => row.sequenceStepId === step.id);
+        return {
+          ...step,
+          photo: photo
+            ? {
+                id: photo.id,
+                fileName: photo.fileName,
+                url: await this.storageService.presignedGetObject(photo.storageKey, 3600),
+              }
+            : null,
+        };
+      }),
+    );
     return {
       lockoutPoints: points,
-      sequenceSteps,
+      sequenceSteps: steps,
       authorizedRoles: roles.map((row) => row.role),
     };
   }

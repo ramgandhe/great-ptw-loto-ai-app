@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import {
+  declarePermitLototoCrewComplete,
   getPermitLototoExecution,
   recordPermitLototoCrew,
   recordPermitLototoRestore,
   recordPermitLototoRestoreVerify,
   recordPermitLototoVerify,
+  startPermitLototo,
 } from "@/lib/permit/api";
 import type { PermitLototoExecutionBoard, PermitLototoExecutionPoint } from "@/lib/permit/types";
 import { Button } from "@/components/ui/button";
@@ -97,10 +99,10 @@ export function PermitLototoExecution({
           {canRestore
             ? board.restored
               ? "Energy sources are restored. Issuer verification can proceed."
-              : "Restore isolation points in reverse order. Crew record lock/tag removal. Verifiers confirm pass/fail. A fail sends that point back to crew."
+              : "Tick each remove step. Verifiers then confirm that point. There is no overall restoration tick."
             : board.isolated
                 ? "Isolation and try-out are verified for every point."
-                : "Crew apply locks. Verifiers confirm pass/fail and try-out. A fail sends that point back to crew."}
+                : "Operator starts LOTOTO. Assigned crew is notified, ticks each apply step, then declares complete. Operator verifies."}
         </p>
       </div>
       {board.instances.map((instance) => (
@@ -108,6 +110,15 @@ export function PermitLototoExecution({
           <h3 className="text-sm font-semibold">
             {instance.procedureCode} {instance.procedureTitle}
           </h3>
+          {canWrite && !canRestore && !instance.startedAt ? (
+            <Button
+              type="button"
+              disabled={!userId || busy === instance.instanceId}
+              onClick={() => void run(instance.instanceId, () => startPermitLototo(permitId, instance.instanceId))}
+            >
+              Start LOTOTO
+            </Button>
+          ) : null}
           {!canRestore
             ? instance.points.map((point) => {
             const key = `${instance.instanceId}-${point.basePointId ?? point.extraPointId}`;
@@ -135,32 +146,32 @@ export function PermitLototoExecution({
                   </p>
                 ) : null}
 
-                {canWrite && (point.status === "pending_crew" || point.status === "failed") ? (
-                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                {canWrite && instance.startedAt && (point.status === "pending_crew" || point.status === "failed") ? (
+                  <label className="flex items-center gap-2 text-sm">
                     <input
-                      className={fieldClassName}
-                      placeholder="Lock/tag ID"
-                      value={lockTagId[key] ?? ""}
-                      onChange={(event) => setLockTagId((current) => ({ ...current, [key]: event.target.value }))}
-                    />
-                    <Button
-                      type="button"
-                      disabled={!userId || busy === key || !(lockTagId[key] ?? "").trim()}
-                      onClick={() =>
+                      type="checkbox"
+                      disabled={!userId || busy === key}
+                      checked={false}
+                      onChange={() =>
                         void run(key, () =>
                           recordPermitLototoCrew(permitId, instance.instanceId, {
                             ...pointRef(point),
-                            lockTagId: (lockTagId[key] ?? "").trim(),
+                            lockTagId: (lockTagId[key] ?? "applied").trim() || "applied",
                           }),
                         )
                       }
-                    >
-                      Isolation complete
-                    </Button>
-                  </div>
+                    />
+                    Applied
+                    <input
+                      className={fieldClassName}
+                      placeholder="Lock/tag ID (optional)"
+                      value={lockTagId[key] ?? ""}
+                      onChange={(event) => setLockTagId((current) => ({ ...current, [key]: event.target.value }))}
+                    />
+                  </label>
                 ) : null}
 
-                {canWrite && point.status === "pending_verify" ? (
+                {canWrite && instance.crewCompletedAt && point.status === "pending_verify" ? (
                   <div className="grid gap-2">
                     <label className="flex items-center gap-2 text-sm">
                       <input
@@ -209,6 +220,23 @@ export function PermitLototoExecution({
             );
           })
             : null}
+          {canWrite && !canRestore && instance.startedAt && !instance.crewCompletedAt ? (
+            <Button
+              type="button"
+              disabled={
+                !userId ||
+                busy === `${instance.instanceId}-complete` ||
+                instance.points.some((point) => point.status === "pending_crew" || point.status === "failed")
+              }
+              onClick={() =>
+                void run(`${instance.instanceId}-complete`, () =>
+                  declarePermitLototoCrewComplete(permitId, instance.instanceId),
+                )
+              }
+            >
+              Crew isolation complete
+            </Button>
+          ) : null}
           {canRestore
             ? [...instance.points].reverse().map((point) => {
                 const key = `restore-${instance.instanceId}-${point.basePointId ?? point.extraPointId}`;
@@ -221,28 +249,22 @@ export function PermitLototoExecution({
                       <span className="text-xs text-muted-foreground">{RESTORE_STATUS_LABEL[point.restoreStatus]}</span>
                     </div>
                     {canRestore && (point.restoreStatus === "pending_crew" || point.restoreStatus === "failed") ? (
-                      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <label className="flex items-center gap-2 text-sm">
                         <input
-                          className={fieldClassName}
-                          placeholder="Lock / tag ID"
-                          value={lockTagId[key] ?? ""}
-                          onChange={(event) => setLockTagId((current) => ({ ...current, [key]: event.target.value }))}
-                        />
-                        <Button
-                          type="button"
-                          disabled={!userId || busy === key || !(lockTagId[key] ?? "").trim()}
-                          onClick={() =>
+                          type="checkbox"
+                          disabled={!userId || busy === key}
+                          checked={false}
+                          onChange={() =>
                             void run(key, () =>
                               recordPermitLototoRestore(permitId, instance.instanceId, {
                                 ...pointRef(point),
-                                lockTagId: (lockTagId[key] ?? "").trim(),
+                                lockTagId: (lockTagId[key] ?? "removed").trim() || "removed",
                               }),
                             )
                           }
-                        >
-                          Restoration complete
-                        </Button>
-                      </div>
+                        />
+                        Removed
+                      </label>
                     ) : null}
                     {canRestore && point.restoreStatus === "pending_verify" ? (
                       <div className="flex flex-wrap gap-2">

@@ -10,8 +10,8 @@ describe('IncidentsService (PUS-186)', () => {
   const tenantId = '11111111-1111-4111-8111-111111111111';
   const user = {
     id: '22222222-2222-4222-8222-222222222222',
-    username: 'operator',
-    roles: ['operator'],
+    username: 'permit-operator',
+    roles: ['permit-operator'],
     tenantId,
   };
 

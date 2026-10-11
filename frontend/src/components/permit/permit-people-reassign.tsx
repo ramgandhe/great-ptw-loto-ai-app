@@ -12,7 +12,7 @@ import { formatWorkforceOptionLabel } from "@/components/lototo/select-field";
 import { listPermitExecutors, listWorkforceDirectory } from "@/lib/workforce/api";
 import type { TenantUser, WorkforceRecord } from "@/lib/workforce/types";
 
-const HOD_REASSIGN_ROLES = ["hod", "tenant-owner", "tenant-admin", "platform-admin"] as const;
+const HOD_REASSIGN_ROLES = ["permit-approver", "tenant-owner", "tenant-admin", "platform-admin"] as const;
 
 function userLabel(person: TenantUser) {
   return formatWorkforceOptionLabel({
@@ -119,7 +119,7 @@ export function PermitPeopleReassign({
       </div>
       {canExecutors ? (
         <div className="grid gap-2">
-          <p className="text-sm font-medium">Job executors</p>
+          <p className="text-sm font-medium">Permit operators</p>
           {executors.map((id, index) => (
             <select
               key={`ex-${index}`}
@@ -130,7 +130,12 @@ export function PermitPeopleReassign({
               }
             >
               <option value="">Select executor</option>
-              {executorOptions.map((person) => (
+              {executorOptions
+                .filter(
+                  (person) =>
+                    person.id !== detail.permit.createdBy && person.id !== detail.permit.submittedBy,
+                )
+                .map((person) => (
                 <option key={person.id} value={person.id}>
                   {names.get(person.id) ?? userLabel(person)}
                 </option>

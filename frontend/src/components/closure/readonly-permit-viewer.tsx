@@ -1,7 +1,7 @@
 import { permitDetailToForm } from "@/lib/permit/form";
 import type { PermitDetail } from "@/lib/permit/types";
 import type { PermitClosure, PermitVerification } from "@/lib/closure/types";
-import { PermitSummary } from "@/components/permit/permit-summary";
+import { identityFromPermit, PermitSummary } from "@/components/permit/permit-summary";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { formatDateTime } from "@/lib/format";
 
@@ -24,7 +24,12 @@ export function ReadonlyPermitViewer({
         <h2 className="text-lg font-semibold">{detail.permit.title}</h2>
         <PermitStatusBadge status={detail.permit.status} />
       </div>
-      <PermitSummary form={form} status={detail.permit.status} reference={detail.permit.reference} />
+      <PermitSummary
+        form={form}
+        status={detail.permit.status}
+        reference={detail.permit.reference}
+        identity={identityFromPermit(detail.permit)}
+      />
       {verification ? (
         <section className="rounded-lg border border-border p-4 text-sm">
           <h3 className="font-semibold">Verification</h3>

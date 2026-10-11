@@ -5,9 +5,18 @@ import type {
   ProgressRecord,
 } from "./types";
 
+import type { ExecutionStartState } from "./start";
+
+export function saveExecutionStart(permitId: string, start: ExecutionStartState) {
+  return fetchApi<{ executionStart: ExecutionStartState }>(`/permits/${permitId}/execution-start`, {
+    method: "POST",
+    body: JSON.stringify(start),
+  });
+}
+
 export function activatePermit(
   permitId: string,
-  payload?: { comment?: string; actualStartAt?: string },
+  payload?: { comment?: string; actualStartAt?: string; start?: ExecutionStartState },
 ) {
   return fetchApi<ExecutionActionResult>(`/permits/${permitId}/activate`, {
     method: "POST",

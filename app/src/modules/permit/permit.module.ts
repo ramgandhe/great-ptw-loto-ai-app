@@ -14,9 +14,10 @@ import { PermitLototoExecutionService } from './permit-lototo-execution.service'
 import { PermitLogService } from './permit-log.service';
 
 import { SimopsModule } from '../simops/simops.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [forwardRef(() => ApprovalModule), forwardRef(() => SimopsModule)],
+  imports: [forwardRef(() => ApprovalModule), forwardRef(() => SimopsModule), NotificationsModule],
   controllers: [PermitController, DraftController, AttachmentController, PermitLototoExecutionController],
   providers: [
     PermitService,

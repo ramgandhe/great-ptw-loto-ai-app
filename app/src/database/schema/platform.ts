@@ -37,6 +37,7 @@ export const tenantUsers = pgTable(
     firstName: varchar('first_name', { length: 128 }),
     lastName: varchar('last_name', { length: 128 }),
     role: varchar('role', { length: 64 }).notNull(),
+    roles: varchar('roles', { length: 64 }).array().notNull().default([]),
     departmentId: uuid('department_id'),
     status: varchar('status', { length: 32 }).notNull().default('active'),
   },

@@ -24,6 +24,11 @@ export class CreatePermitDto extends PermitRelationsDto {
   workScope?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  emergencyPhone?: string;
+
+  @IsOptional()
   @IsUUID()
   plantId?: string;
 

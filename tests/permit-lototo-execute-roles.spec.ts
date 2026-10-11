@@ -24,11 +24,11 @@ describe('LOTOTO permit execution role enforcement', () => {
   });
 
   it('allows operators and safety officers to record isolation', () => {
-    expect(guard.canActivate(buildContext({ roles: ['operator'] }))).toBe(true);
+    expect(guard.canActivate(buildContext({ roles: ['permit-operator'] }))).toBe(true);
     expect(guard.canActivate(buildContext({ roles: ['safety-officer'] }))).toBe(true);
   });
 
   it('denies HOD from recording isolation or restoration', () => {
-    expect(() => guard.canActivate(buildContext({ roles: ['hod'] }))).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(buildContext({ roles: ['permit-approver'] }))).toThrow(ForbiddenException);
   });
 });

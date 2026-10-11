@@ -2,9 +2,9 @@ export const ORGANISATION_WRITE_ROLES = ['tenant-owner', 'tenant-admin', 'platfo
 
 export const ORGANISATION_READ_ROLES = [
   ...ORGANISATION_WRITE_ROLES,
-  'hod',
-  'operator',
-  'job-issuer',
+  'permit-approver',
+  'permit-operator',
+  'permit-receiver',
   'safety-officer',
   'viewer',
 ] as const;

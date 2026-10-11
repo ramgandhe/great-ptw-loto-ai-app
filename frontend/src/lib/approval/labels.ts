@@ -1,8 +1,8 @@
 const APPROVER_ROLE_LABELS: Record<string, string> = {
-  "job-issuer": "Job Issuer",
-  operator: "Job Executor",
-  hod: "HOD",
-  "safety-officer": "Safety Officer",
+  "permit-receiver": "Permit receiver",
+  "permit-operator": "Permit operator",
+  "permit-approver": "Permit approver",
+  "safety-officer": "Safety officer",
 };
 
 export function formatApproverRoleLabel(role: string): string {

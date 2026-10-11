@@ -2,7 +2,7 @@ export const APPROVAL_NOTIFICATION_JOB = 'approval.notification';
 export const APPROVAL_REMINDER_JOB = 'approval.reminder';
 export const APPROVAL_SLA_ESCALATION_JOB = 'approval.sla-escalation';
 
-export const APPROVER_ROLES = ['hod', 'job-issuer', 'tenant-owner', 'tenant-admin'] as const;
+export const APPROVER_ROLES = ['permit-approver', 'permit-receiver', 'tenant-owner', 'tenant-admin'] as const;
 
 export const SAFETY_VETO_ROLES = ['safety-officer', 'tenant-owner', 'tenant-admin'] as const;
 
@@ -19,7 +19,7 @@ export const MAX_SLA_ESCALATION_LEVELS = 3;
 
 export const APPROVAL_READ_ROLES = [
   ...APPROVER_ROLES,
-  'job-issuer',
+  'permit-receiver',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
   'viewer',

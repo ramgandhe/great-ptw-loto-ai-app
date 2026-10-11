@@ -6,6 +6,7 @@ import { MasterDataSelect } from "./master-data-select";
 import { formatWorkforceOptionLabel } from "@/components/lototo/select-field";
 import type { LototoProcedure, LototoProcedureListItem } from "@/lib/lototo/types";
 import { emptyLototoExtraPoint } from "@/lib/permit/form";
+import { ENERGY_SOURCE_OPTIONS } from "@/lib/lototo/form-options";
 import type { PermitLototoInput } from "@/lib/permit/types";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { X } from "lucide-react";
@@ -209,7 +210,7 @@ export function LototoAttachFields({
                 />
               </FormField>
               <FormField label="Energy type" htmlFor={`extra-energy-${index}-${extraIndex}`}>
-                <input
+                <select
                   id={`extra-energy-${index}-${extraIndex}`}
                   className={fieldClassName}
                   disabled={disabled}
@@ -219,8 +220,29 @@ export function LototoAttachFields({
                     extraPoints[extraIndex] = { ...point, energyType: event.target.value };
                     onChange({ ...item, extraPoints });
                   }}
-                />
+                >
+                  {ENERGY_SOURCE_OPTIONS.filter((opt) => opt.value !== "gravitational" || point.energyType === "gravitational").map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </FormField>
+              {point.energyType === "other" ? (
+                <FormField label="Other energy" htmlFor={`extra-energy-other-${index}-${extraIndex}`} className="md:col-span-2">
+                  <input
+                    id={`extra-energy-other-${index}-${extraIndex}`}
+                    className={fieldClassName}
+                    disabled={disabled}
+                    value={point.energyOtherText ?? ""}
+                    onChange={(event) => {
+                      const extraPoints = [...item.extraPoints];
+                      extraPoints[extraIndex] = { ...point, energyOtherText: event.target.value };
+                      onChange({ ...item, extraPoints });
+                    }}
+                  />
+                </FormField>
+              ) : null}
               <FormField label="Location" htmlFor={`extra-loc-${index}-${extraIndex}`} className="md:col-span-2">
                 <input
                   id={`extra-loc-${index}-${extraIndex}`}

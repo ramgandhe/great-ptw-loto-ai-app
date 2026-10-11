@@ -35,7 +35,7 @@ const PILL: Record<Status, string> = {
 const FLOW: { title: string; who: string; body: string; status: Status; state: string }[] = [
   {
     title: "Raise the permit",
-    who: "Job issuer and executor",
+    who: "Permit receiver and operator",
     body: "Choose the permit type, location, time window, crew and machinery. The HOD is notified as soon as a draft exists, not when it lands on their desk.",
     status: "draft",
     state: "Draft",

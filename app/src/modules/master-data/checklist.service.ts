@@ -17,6 +17,7 @@ import { AuditService } from '../logging/audit.service';
 import { CreateChecklistDto } from './dto/create-checklist.dto';
 import { MasterDataCacheService } from './master-data-cache.service';
 import { MasterDataLogService } from './master-data-log.service';
+import { isForeignKeyViolation, throwInUse } from '../../common/http/in-use';
 import { ReferenceIntegrityService } from './reference-integrity.service';
 
 @Injectable()
@@ -170,20 +171,40 @@ export class ChecklistService {
     return result;
   }
 
-  async archive(id: string, user: AuthenticatedUser) {
+  async archive(id: string, user: AuthenticatedUser, force = false) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
-    const [row] = await this.db
-      .update(safetyChecklists)
-      .set({ status: 'archived', updatedBy: user.id, updatedAt: new Date() })
-      .where(and(eq(safetyChecklists.id, id), eq(safetyChecklists.tenantId, tenantId)))
-      .returning();
-
-    if (!row) {
-      throw new NotFoundException('Checklist not found');
+    try {
+      const row = await this.db.transaction(async (tx) => {
+        await tx.delete(safetyChecklistItems).where(eq(safetyChecklistItems.checklistId, id));
+        const [deleted] = await tx
+          .delete(safetyChecklists)
+          .where(and(eq(safetyChecklists.id, id), eq(safetyChecklists.tenantId, tenantId)))
+          .returning();
+        if (!deleted) {
+          throw new NotFoundException('Checklist not found');
+        }
+        return deleted;
+      });
+      await this.afterMutation(tenantId, user, 'checklist.deleted', id);
+      return row;
+    } catch (error) {
+      if (!isForeignKeyViolation(error)) {
+        throw error;
+      }
+      if (!force) {
+        throwInUse(['Checklist is used on a permit']);
+      }
+      const [row] = await this.db
+        .update(safetyChecklists)
+        .set({ status: 'archived', updatedBy: user.id, updatedAt: new Date() })
+        .where(and(eq(safetyChecklists.id, id), eq(safetyChecklists.tenantId, tenantId)))
+        .returning();
+      if (!row) {
+        throw new NotFoundException('Checklist not found');
+      }
+      await this.afterMutation(tenantId, user, 'checklist.archived', id);
+      return row;
     }
-
-    await this.afterMutation(tenantId, user, 'checklist.archived', id);
-    return row;
   }
 
   async publish(id: string, user: AuthenticatedUser) {

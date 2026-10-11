@@ -12,6 +12,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ForceQuery } from '../../common/decorators/force-query.decorator';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -103,9 +104,35 @@ export class LototoProcedureController {
   }
 
   @Roles(...LOTOTO_LIBRARY_WRITE_ROLES)
+  @Post(':id/sequence-steps/:stepId/photo')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  uploadStepPhoto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('stepId', ParseUUIDPipe) stepId: string,
+    @UploadedFile() file: UploadedFilePayload,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.procedureService.uploadStepPhoto(id, stepId, file, user);
+  }
+
+  @Roles(...LOTOTO_LIBRARY_WRITE_ROLES)
+  @Delete(':id/sequence-steps/:stepId/photo')
+  removeStepPhoto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('stepId', ParseUUIDPipe) stepId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.procedureService.removeStepPhoto(id, stepId, user);
+  }
+
+  @Roles(...LOTOTO_LIBRARY_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.procedureService.remove(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.procedureService.remove(id, user, force);
   }
 }
 

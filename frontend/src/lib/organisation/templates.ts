@@ -1,4 +1,5 @@
 import { fetchApi } from "@/lib/api";
+import { forceQuery } from "@/lib/confirm-delete";
 
 /** Mirrors TemplateConfig in app/src/modules/organisation/permit-template-library.ts. */
 export const TEMPLATE_FIELD_TYPES = [
@@ -92,9 +93,13 @@ export const permitTemplatesApi = {
   update: (id: string, payload: PermitTemplateInput) =>
     fetchApi<PermitTemplate>(`/permit-templates/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   duplicate: (id: string) => fetchApi<PermitTemplate>(`/permit-templates/${id}/duplicate`, { method: "POST" }),
-  archive: (id: string) => fetchApi<void>(`/permit-templates/${id}`, { method: "DELETE" }),
+  archive: (id: string, force = false) =>
+    fetchApi<void>(`/permit-templates/${id}${forceQuery(force)}`, { method: "DELETE" }),
   importReference: () =>
-    fetchApi<{ created: number; alreadyPresent: number }>("/permit-templates/import-reference", { method: "POST" }),
+    fetchApi<{ created: number; alreadyPresent: number; relinked: number }>(
+      "/permit-templates/import-reference",
+      { method: "POST" },
+    ),
 };
 
 export function fieldCount(config: TemplateConfig | null): number {

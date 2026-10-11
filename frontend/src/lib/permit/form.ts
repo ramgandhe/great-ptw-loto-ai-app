@@ -9,15 +9,16 @@ import type {
 } from "./types";
 
 /** "shared": either the issuer or the assigned executor fills it in. */
-export type WizardParticipant = "job-issuer" | "operator" | "shared";
+export type WizardParticipant = "permit-receiver" | "permit-operator" | "shared" | "safety-officer";
 
 export const PERMIT_WIZARD_STEPS = [
-  { label: "Basic information", owner: "job-issuer" satisfies WizardParticipant },
-  { label: "Location & schedule", owner: "job-issuer" satisfies WizardParticipant },
-  { label: "On-site details", owner: "operator" satisfies WizardParticipant },
-  { label: "Crew assignment", owner: "operator" satisfies WizardParticipant },
+  { label: "Basic information", owner: "permit-receiver" satisfies WizardParticipant },
+  { label: "Location & schedule", owner: "permit-receiver" satisfies WizardParticipant },
+  { label: "On-site details", owner: "permit-operator" satisfies WizardParticipant },
+  { label: "Crew assignment", owner: "permit-operator" satisfies WizardParticipant },
   { label: "Forms & check sheets", owner: "shared" satisfies WizardParticipant },
-  { label: "Review & submit", owner: "job-issuer" satisfies WizardParticipant },
+  { label: "Safety Approval", owner: "safety-officer" satisfies WizardParticipant },
+  { label: "Review & submit", owner: "permit-receiver" satisfies WizardParticipant },
 ] as const;
 
 /**
@@ -30,7 +31,8 @@ export const PERMIT_EDITOR_SECTIONS = [
   { id: "site", label: "Site safety", steps: [2] },
   { id: "crew", label: "Crew", steps: [3] },
   { id: "forms", label: "Forms and evidence", steps: [4] },
-  { id: "review", label: "Review", steps: [5] },
+  { id: "safety", label: "Safety Approval", steps: [5] },
+  { id: "review", label: "Review", steps: [6] },
 ] as const;
 export type PermitEditorSectionId = (typeof PERMIT_EDITOR_SECTIONS)[number]["id"];
 
@@ -49,7 +51,8 @@ export function emptyPermitLototo(procedureId: string): PermitLototoInput {
 export function emptyLototoExtraPoint(): PermitLototoExtraInput {
   return {
     pointCode: "",
-    energyType: "",
+    energyType: "electrical",
+    energyOtherText: "",
     magnitude: "",
     locationText: "",
     action: "",
@@ -59,7 +62,7 @@ export function emptyLototoExtraPoint(): PermitLototoExtraInput {
 }
 
 export function getWizardStepOwner(step: number): WizardParticipant {
-  return PERMIT_WIZARD_STEPS[step]?.owner ?? "job-issuer";
+  return PERMIT_WIZARD_STEPS[step]?.owner ?? "permit-receiver";
 }
 
 export function canRoleEditWizardStep(roles: string[], step: number): boolean {
@@ -67,17 +70,28 @@ export function canRoleEditWizardStep(roles: string[], step: number): boolean {
   const privileged =
     roles.includes("tenant-owner") || roles.includes("tenant-admin") || roles.includes("platform-admin");
   if (owner === "shared") {
-    return roles.includes("job-issuer") || roles.includes("operator") || privileged;
+    return roles.includes("permit-receiver") || roles.includes("permit-operator") || privileged;
   }
-  if (owner === "job-issuer") {
-    return roles.includes("job-issuer") || privileged;
+  if (owner === "permit-receiver") {
+    return roles.includes("permit-receiver") || privileged;
   }
-  return roles.includes("operator") || privileged;
+  if (owner === "safety-officer") {
+    return roles.includes("safety-officer") || privileged;
+  }
+  return roles.includes("permit-operator") || privileged;
+}
+
+export function needsSafetyApproval(form: PermitFormState): boolean {
+  return form.safetyOfficers.some((row) => (row.workforceUserId ?? "").trim());
+}
+
+export function editorSectionsFor(form: PermitFormState) {
+  return PERMIT_EDITOR_SECTIONS.filter((section) => section.id !== "safety" || needsSafetyApproval(form));
 }
 
 export function canRoleSubmitPermit(roles: string[]): boolean {
   return (
-    roles.includes("job-issuer") ||
+    roles.includes("permit-receiver") ||
     roles.includes("tenant-owner") ||
     roles.includes("tenant-admin") ||
     roles.includes("platform-admin")
@@ -89,6 +103,7 @@ export function createEmptyPermitForm(): PermitFormState {
     permitTypeId: "",
     title: "",
     workScope: "",
+    emergencyPhone: "",
     plantId: "",
     departmentId: "",
     locationId: "",
@@ -105,6 +120,8 @@ export function createEmptyPermitForm(): PermitFormState {
     executors: [{ workforceUserId: "", isPrimary: true }],
     viewers: [],
     safetyOfficers: [],
+    safetyApprovalComment: "",
+    safetyApprovalSignedName: "",
     formResponses: {},
     currentStep: 0,
   };
@@ -133,6 +150,7 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
     permitTypeId: permit.permitTypeId,
     title: permit.title,
     workScope: permit.workScope ?? "",
+    emergencyPhone: permit.emergencyPhone ?? "",
     plantId: permit.plantId ?? "",
     departmentId: permit.departmentId ?? "",
     locationId: permit.locationId ?? "",
@@ -181,24 +199,30 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
         : [{ workforceUserId: "", isPrimary: true }],
     viewers: (viewers ?? []).map((row) => ({ workforceUserId: row.workforceUserId })),
     safetyOfficers: (safetyOfficers ?? []).map((row) => ({ workforceUserId: row.workforceUserId })),
+    safetyApprovalComment: permit.safetyApprovalComment ?? "",
+    safetyApprovalSignedName: permit.safetyApprovalSignedName ?? "",
     formResponses: Object.fromEntries((permit.formResponses ?? []).map((response) => [response.templateId, response.answers])),
     currentStep: draft?.currentStep ?? 0,
   };
 }
 
 export function shouldSaveExecutorPayload(roles: string[]): boolean {
-  return roles.includes("operator") && !canRoleSubmitPermit(roles);
+  return roles.includes("permit-operator") && !canRoleSubmitPermit(roles);
 }
 
 function optionalUuid(value: string): string | undefined {
   return value.trim() ? value.trim() : undefined;
 }
 
-export function formToSavePayload(form: PermitFormState, options?: { executorOnly?: boolean }): DraftFields {
+export function formToSavePayload(
+  form: PermitFormState,
+  options?: { executorOnly?: boolean; includeSafetyApproval?: boolean },
+): DraftFields {
   const payload = {
     permitTypeId: form.permitTypeId,
     title: form.title,
     workScope: form.workScope || undefined,
+    emergencyPhone: form.emergencyPhone.trim(),
     plantId: optionalUuid(form.plantId),
     departmentId: optionalUuid(form.departmentId),
     locationId: optionalUuid(form.locationId),
@@ -253,8 +277,15 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
     formResponses: Object.entries(form.formResponses).map(([templateId, answers]) => ({ templateId, answers })),
   };
 
+  const safetyApproval = options?.includeSafetyApproval
+    ? {
+        safetyApprovalComment: form.safetyApprovalComment.trim(),
+        safetyApprovalSignedName: form.safetyApprovalSignedName.trim(),
+      }
+    : {};
+
   if (!options?.executorOnly) {
-    return payload;
+    return { ...payload, ...safetyApproval };
   }
 
   return {
@@ -270,6 +301,7 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
     executors: payload.executors,
     safetyOfficers: payload.safetyOfficers,
     formResponses: payload.formResponses,
+    ...safetyApproval,
   };
 }
 
@@ -312,6 +344,8 @@ export const ERROR_FIELDS: Record<string, string> = {
   "Workstation is required": "workstationId",
   "Machinery is required": "machineryId",
   "Machinery is required when LOTOTO is required": "machineryId",
+  "Safety Approval comments are required": "safetyApprovalComment",
+  "A typed name is required for Safety Approval": "safetyApprovalSignedName",
 };
 
 export function validateStep(
@@ -380,6 +414,11 @@ export function validateStep(
         errors.push(`${template.name}: answer ${missing.length === 1 ? `“${missing[0]}”` : `${missing.length} required questions`}`);
       }
     }
+  }
+
+  if (step === 5 && needsSafetyApproval(form)) {
+    if (!form.safetyApprovalComment.trim()) errors.push("Safety Approval comments are required");
+    if (!form.safetyApprovalSignedName.trim()) errors.push("A typed name is required for Safety Approval");
   }
 
   return errors;

@@ -2,9 +2,9 @@ export const LOTOTO_PLAN_STATUSES = ["draft", "ready", "in_execution", "complete
 export type LototoPlanStatus = (typeof LOTOTO_PLAN_STATUSES)[number];
 
 export const LOTOTO_ASSIGNMENT_ROLES = [
-  "operator",
+  "permit-operator",
   "safety-officer",
-  "hod",
+  "permit-approver",
 ] as const;
 export type LototoAssignmentRole = (typeof LOTOTO_ASSIGNMENT_ROLES)[number];
 
@@ -99,6 +99,7 @@ export type LototoLockoutPoint = {
   sortOrder: number;
   pointCode: string;
   energyType: string;
+  energyOtherText?: string | null;
   magnitude?: string | null;
   locationText?: string | null;
   action?: string | null;
@@ -112,7 +113,12 @@ export type LototoSequenceStep = {
   phase: "apply" | "remove";
   sequenceOrder: number;
   title: string;
+  action?: string | null;
+  infoText?: string | null;
+  verification?: string | null;
+  note?: string | null;
   description?: string | null;
+  photo?: { id: string; fileName: string; url: string } | null;
 };
 
 export type LototoProcedureVersion = {

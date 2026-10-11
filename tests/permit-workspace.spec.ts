@@ -5,12 +5,12 @@ import type { PermitRecord } from '../frontend/src/lib/permit/types';
 
 describe('permit workspace (S4)', () => {
   it('offers only the tabs that have something for the person and the status', () => {
-    expect(workspaceTabs('draft', ['job-issuer'])).toEqual(['overview', 'preparation', 'history']);
-    expect(workspaceTabs('pending_approval', ['hod'])).toEqual(['overview', 'preparation', 'review', 'history']);
+    expect(workspaceTabs('draft', ['permit-receiver'])).toEqual(['overview', 'preparation', 'history']);
+    expect(workspaceTabs('pending_approval', ['permit-approver'])).toEqual(['overview', 'preparation', 'review', 'history']);
     // Operators cannot read approvals, but closure review (evidence, verification) is open to them.
-    expect(workspaceTabs('pending_approval', ['operator'])).toEqual(['overview', 'preparation', 'history']);
-    expect(workspaceTabs('active', ['operator'])).toEqual(['overview', 'preparation', 'work', 'history']);
-    expect(workspaceTabs('pending_closure', ['operator'])).toEqual(['overview', 'preparation', 'review', 'history']);
+    expect(workspaceTabs('pending_approval', ['permit-operator'])).toEqual(['overview', 'preparation', 'history']);
+    expect(workspaceTabs('active', ['permit-operator'])).toEqual(['overview', 'preparation', 'work', 'history']);
+    expect(workspaceTabs('pending_closure', ['permit-operator'])).toEqual(['overview', 'preparation', 'review', 'history']);
     expect(workspaceTabs('active', ['safety-officer'])).not.toContain('work');
   });
 
@@ -19,10 +19,16 @@ describe('permit workspace (S4)', () => {
     expect(workspaceHref('p1', 'review')).toBe('/permits/p1?tab=review');
   });
 
+  it('sends an assigned safety officer to the draft editor for Safety Approval', () => {
+    const permit = { id: 'd', status: 'draft', title: 'd', permitTypeId: 't', updatedAt: '', createdAt: '' } as unknown as PermitRecord;
+    const items = buildWorkQueue(['safety-officer'], [permit], []);
+    expect(items.map((item) => [item.action, item.href])).toEqual([['safety-check', '/permits/d/edit']]);
+  });
+
   it('sends queue items to the workspace tab that does the job; editing stays in the editor', () => {
     const permit = (id: string, status: string) => ({ id, status, title: id, permitTypeId: 't', updatedAt: '', createdAt: '' }) as unknown as PermitRecord;
     const hrefs = Object.fromEntries(
-      buildWorkQueue(['job-issuer', 'hod', 'operator'], [permit('d', 'draft'), permit('a', 'active'), permit('c', 'pending_closure')], [
+      buildWorkQueue(['permit-receiver', 'permit-approver', 'permit-operator'], [permit('d', 'draft'), permit('a', 'active'), permit('c', 'pending_closure')], [
         { permit: permit('r', 'pending_approval') } as never,
       ]).map((item) => [item.key, item.href]),
     );

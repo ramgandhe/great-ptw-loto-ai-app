@@ -6,13 +6,13 @@
 
 import { workspaceHref } from "@/lib/permit/workspace-tabs";
 
-export type LaneId = "issuer" | "executor" | "approvers" | "hod" | "safety" | "system";
+export type LaneId = "issuer" | "executor" | "approvers" | "permit-approver" | "safety" | "system";
 
 export const LANES: { id: LaneId; label: string; roles: string; top: number; height: number }[] = [
-  { id: "issuer", label: "Job issuer", roles: "Raises, revises, verifies", top: 0, height: 160 },
-  { id: "executor", label: "Job executor", roles: "Site details, does the work", top: 160, height: 110 },
+  { id: "issuer", label: "Permit receiver", roles: "Raises, revises, verifies", top: 0, height: 160 },
+  { id: "executor", label: "Permit operator", roles: "Site details, does the work", top: 160, height: 110 },
   { id: "approvers", label: "Approvers", roles: "Each workflow stage", top: 270, height: 130 },
-  { id: "hod", label: "HOD", roles: "Revalidates, signs off", top: 400, height: 120 },
+  { id: "permit-approver", label: "Permit approver", roles: "Revalidates, signs off", top: 400, height: 120 },
   { id: "safety", label: "Safety officer", roles: "Suspends, can veto", top: 520, height: 90 },
   { id: "system", label: "System", roles: "Validity, incidents", top: 610, height: 90 },
 ];
@@ -61,7 +61,7 @@ export const NODES: ProcessNode[] = [
     y: 80,
     kind: "work",
     meaning: "Being prepared. It goes to approval once the issuer submits it.",
-    owner: "Job issuer, with the executor adding on-site details",
+    owner: "Permit receiver, with the executor adding on-site details",
     needs: [
       "Permit type, title, location and planned window",
       "Hazards and PPE for the job",
@@ -80,7 +80,7 @@ export const NODES: ProcessNode[] = [
     y: 70,
     kind: "loop-back",
     meaning: "Sent back for changes. The issuer revises and resubmits it.",
-    owner: "Job issuer",
+    owner: "Permit receiver",
     needs: ["Read the approver's comment", "Make the changes asked for"],
     records: ["Approver's deferral comment"],
     screen: (id) => `/permits/${id}/edit`,
@@ -93,7 +93,7 @@ export const NODES: ProcessNode[] = [
     y: 70,
     kind: "loop-back",
     meaning: "Rejected by an approver or stopped by a safety veto. The issuer can revise and resubmit.",
-    owner: "Job issuer",
+    owner: "Permit receiver",
     needs: ["Read the rejection or veto reason", "Fix the cause before resubmitting"],
     records: ["Rejection or veto reason"],
     screen: (id) => `/permits/${id}/edit`,
@@ -148,7 +148,7 @@ export const NODES: ProcessNode[] = [
   {
     id: "suspended",
     title: "Suspended",
-    lane: "hod",
+    lane: "permit-approver",
     x: 720,
     y: 60,
     kind: "hold",
@@ -166,7 +166,7 @@ export const NODES: ProcessNode[] = [
     y: 80,
     kind: "decision",
     meaning: "Work is finished. The issuer confirms completion next.",
-    owner: "Job issuer",
+    owner: "Permit receiver",
     needs: ["Work completed", "Evidence reviewed", "Area secured", "Hazards removed"],
     records: ["Verification checklist and comment"],
     screen: (id) => workspaceHref(id, "review"),
@@ -174,7 +174,7 @@ export const NODES: ProcessNode[] = [
   {
     id: "pending_closure",
     title: "Final sign-off",
-    lane: "hod",
+    lane: "permit-approver",
     x: 1060,
     y: 60,
     kind: "decision",
@@ -187,7 +187,7 @@ export const NODES: ProcessNode[] = [
   {
     id: "closed",
     title: "Closed",
-    lane: "hod",
+    lane: "permit-approver",
     x: 1260,
     y: 60,
     kind: "end",
@@ -216,7 +216,7 @@ export const NODES: ProcessNode[] = [
     y: 45,
     kind: "end",
     meaning: "The permit window ended before it was closed. A renewal starts a new draft.",
-    owner: "Job issuer, by renewing as a new permit",
+    owner: "Permit receiver, by renewing as a new permit",
     needs: [],
     records: ["Validity notices sent before expiry"],
   },
@@ -254,21 +254,21 @@ export type ProcessEdge = {
 };
 
 export const EDGES: ProcessEdge[] = [
-  { id: "submit", labelT: 0.3, from: "draft", to: "pending_approval", label: "Submit", actor: "Job issuer", actions: ["submitted"], when: "Required forms answered", tone: "forward" },
-  { id: "resubmit-deferred", labelT: 0.3, from: "deferred", to: "pending_approval", label: "Resubmit", actor: "Job issuer", actions: ["resubmitted"], tone: "forward", bend: -40 },
-  { id: "resubmit-rejected", labelT: 0.3, from: "rejected", to: "pending_approval", label: "Resubmit", actor: "Job issuer", actions: ["resubmitted"], tone: "forward", bend: -40 },
+  { id: "submit", labelT: 0.3, from: "draft", to: "pending_approval", label: "Submit", actor: "Permit receiver", actions: ["submitted"], when: "Required forms answered", tone: "forward" },
+  { id: "resubmit-deferred", labelT: 0.3, from: "deferred", to: "pending_approval", label: "Resubmit", actor: "Permit receiver", actions: ["resubmitted"], tone: "forward", bend: -40 },
+  { id: "resubmit-rejected", labelT: 0.3, from: "rejected", to: "pending_approval", label: "Resubmit", actor: "Permit receiver", actions: ["resubmitted"], tone: "forward", bend: -40 },
   { id: "stage", from: "pending_approval", to: "pending_approval", label: "Next stage", actor: "Stage approver", actions: ["stage_advanced"], when: "More stages remain", tone: "forward" },
   { id: "approve", from: "pending_approval", to: "approved", label: "Final approval", actor: "Last-stage approver", actions: ["approved"], tone: "forward" },
   { id: "defer", labelT: 0.4, from: "pending_approval", to: "deferred", label: "Defer", actor: "Stage approver", actions: ["deferred"], tone: "back", bend: -40 },
   { id: "reject", labelT: 0.4, from: "pending_approval", to: "rejected", label: "Reject", actor: "Stage approver", actions: ["rejected"], tone: "stop", bend: -40 },
-  { id: "activate", from: "approved", to: "active", label: "Start work", actor: "Assigned executor", actions: ["activated"], tone: "forward" },
+  { id: "activate", from: "approved", to: "active", label: "Start Permit Execution", actor: "Assigned executor", actions: ["activated"], tone: "forward" },
   { id: "suspend-approved", from: "approved", to: "suspended", label: "Suspend", actor: "HOD or safety officer", actions: ["suspended"], tone: "stop" },
   { id: "suspend-active", from: "active", to: "suspended", label: "Suspend", actor: "HOD or safety officer", actions: ["suspended"], tone: "stop", bend: -34 },
   { id: "resume", from: "suspended", to: "active", label: "Resume", actor: "Executor or HOD", actions: ["resumed"], when: "Suspension recorded", tone: "forward", bend: -34 },
   { id: "revalidate", from: "suspended", to: "pending_approval", label: "Revalidate", actor: "HOD or issuer", actions: ["revalidated"], when: "Goes through full approval again", tone: "back" },
   { id: "complete", from: "active", to: "execution_completed", label: "Declare complete", actor: "Primary executor", actions: ["execution_completed"], when: "Completion checklist done", tone: "forward", bend: -34 },
-  { id: "send-back-executor", from: "execution_completed", to: "active", label: "Send back", actor: "Job issuer", actions: ["sent_back"], tone: "back", bend: -34 },
-  { id: "verify", from: "execution_completed", to: "pending_closure", label: "Verify", actor: "Job issuer", actions: ["verified"], when: "Verification checklist done", tone: "forward", bend: 40 },
+  { id: "send-back-executor", from: "execution_completed", to: "active", label: "Send back", actor: "Permit receiver", actions: ["sent_back"], tone: "back", bend: -34 },
+  { id: "verify", from: "execution_completed", to: "pending_closure", label: "Verify", actor: "Permit receiver", actions: ["verified"], when: "Verification checklist done", tone: "forward", bend: 40 },
   { id: "send-back-issuer", from: "pending_closure", to: "execution_completed", label: "Send back", actor: "HOD or org admin", actions: ["sent_back"], tone: "back", bend: 40 },
   { id: "close", from: "pending_closure", to: "closed", label: "Close", actor: "HOD or org admin", actions: ["closed"], when: "Closure checklist done", tone: "forward" },
   { id: "veto", from: "veto", to: "rejected", label: "Stop work", actor: "Safety officer", actions: ["safety_veto"], when: "Any live status", tone: "stop", dashed: true, labelT: 0.12 },

@@ -17,6 +17,7 @@ import {
   NAV_INCIDENTS_ROLES,
   NAV_LOTOTO_ROLES,
   NAV_OPERATOR_DRAFTS_ROLES,
+  NAV_SAFETY_DRAFTS_ROLES,
   NAV_ORGANISATION_ROLES,
   NAV_PERMITS_ROLES,
   NAV_SIMOPS_ROLES,
@@ -53,13 +54,13 @@ const ROUTE_RULES: RouteRule[] = [
   { test: (p) => p === "/permits/new", roles: PERMIT_CREATE_ROLES },
   {
     test: (p) => /\/permits\/[^/]+\/edit$/.test(p),
-    roles: [...NAV_DRAFTS_ROLES, ...NAV_OPERATOR_DRAFTS_ROLES],
+    roles: [...NAV_DRAFTS_ROLES, ...NAV_OPERATOR_DRAFTS_ROLES, ...NAV_SAFETY_DRAFTS_ROLES],
   },
   { test: (p) => /\/permits\/[^/]+\/execute$/.test(p), roles: NAV_EXECUTION_ROLES },
   { test: (p) => /\/permits\/[^/]+\/multi-day$/.test(p), roles: MDP_READ_ROLES },
   {
     test: (p) => p === "/permits/drafts" || p.startsWith("/permits/drafts/"),
-    roles: [...NAV_DRAFTS_ROLES, ...NAV_OPERATOR_DRAFTS_ROLES],
+    roles: [...NAV_DRAFTS_ROLES, ...NAV_OPERATOR_DRAFTS_ROLES, ...NAV_SAFETY_DRAFTS_ROLES],
   },
   { test: (p) => p.startsWith("/permits"), roles: NAV_PERMITS_ROLES },
   { test: (p) => p === "/active-permits", roles: NAV_ACTIVE_WORK_ROLES },
@@ -128,6 +129,11 @@ export function formatRoleLabel(role: string): string {
     "platform-admin": "Platform Owner",
     "tenant-owner": "Tenant Owner",
     "tenant-admin": "Tenant Admin",
+    "permit-receiver": "Permit receiver",
+    "permit-approver": "Permit approver",
+    "permit-operator": "Permit operator",
+    "safety-officer": "Safety officer",
+    viewer: "Viewer",
   };
   if (labels[role]) {
     return labels[role];

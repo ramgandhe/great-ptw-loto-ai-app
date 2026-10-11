@@ -16,7 +16,7 @@ import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { cn } from "@/lib/utils";
 import { useWorkQueue } from "@/lib/work-queue-context";
 import { WorkflowTimeline } from "@/components/approval/workflow-timeline";
-import { PermitSummary, permitGaps } from "@/components/permit/permit-summary";
+import { identityFromPermit, PermitSummary, permitGaps } from "@/components/permit/permit-summary";
 import { PermitFormResponses } from "@/components/permit/permit-form-responses";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { StageAnswers, stageAnswersLeft, stageAnswersPayload, type StageAnswerEdits } from "@/components/permit/stage-answers";
@@ -167,7 +167,13 @@ export default function PermitReviewPage() {
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="grid min-w-0 gap-6">
-          <PermitSummary form={form} status={review.permit.status} attachments={review.attachments} showHeader={false} />
+          <PermitSummary
+            form={form}
+            status={review.permit.status}
+            attachments={review.attachments}
+            showHeader={false}
+            identity={identityFromPermit(review.permit)}
+          />
           <PermitFormResponses responses={review.permit.formResponses ?? []} />
         </div>
 

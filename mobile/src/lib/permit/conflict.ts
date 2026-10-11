@@ -10,6 +10,7 @@ const FIELDS = [
   "permitTypeId",
   "title",
   "workScope",
+  "emergencyPhone",
   "plantId",
   "departmentId",
   "locationId",
@@ -24,6 +25,8 @@ const FIELDS = [
   "gasTestingRequired",
   "gasTesting",
   "executors",
+  "safetyApprovalComment",
+  "safetyApprovalSignedName",
 ] as const satisfies readonly (keyof PermitFormState)[];
 
 // By value, whatever the key order (stored signatures come back with their keys reordered).

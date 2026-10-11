@@ -63,9 +63,9 @@ describe('Execution HTTP integration (PUS-141 / PUS-142 / PUS-143)', () => {
 
   const executorUser: AuthenticatedUser = {
     id: executorId,
-    username: 'operator',
+    username: 'permit-operator',
     tenantId,
-    roles: ['operator'],
+    roles: ['permit-operator'],
     email: 'operator@example.com',
   };
 
@@ -74,7 +74,7 @@ describe('Execution HTTP integration (PUS-141 / PUS-142 / PUS-143)', () => {
     id: randomUUID(),
     username: 'hod',
     tenantId,
-    roles: ['hod'],
+    roles: ['permit-approver'],
     email: 'hod@example.com',
   };
 
@@ -148,7 +148,15 @@ describe('Execution HTTP integration (PUS-141 / PUS-142 / PUS-143)', () => {
 
     const activateRes = await request(app.getHttpServer())
       .post(`/api/v1/permits/${permitId}/activate`)
-      .send({})
+      .send({
+        start: {
+          toolboxTalk: true,
+          hazardControls: [],
+          ppeIds: [],
+          lototoVerified: false,
+          gasReadings: [],
+        },
+      })
       .expect(201);
 
     expect(activateRes.body.success).toBe(true);

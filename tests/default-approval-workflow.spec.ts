@@ -2,12 +2,12 @@ import { APPROVAL_APPROVER_ROLES, isApprovalApproverRole } from '../app/src/modu
 
 describe('platform default approval workflow', () => {
   it('treats HOD as a valid approver role', () => {
-    expect(isApprovalApproverRole('hod')).toBe(true);
-    expect(APPROVAL_APPROVER_ROLES).toContain('hod');
+    expect(isApprovalApproverRole('permit-approver')).toBe(true);
+    expect(APPROVAL_APPROVER_ROLES).toContain('permit-approver');
   });
 
   it('rejects unknown approver roles', () => {
-    expect(isApprovalApproverRole('operator')).toBe(false);
+    expect(isApprovalApproverRole('permit-operator')).toBe(false);
     expect(isApprovalApproverRole('tenant-admin')).toBe(false);
   });
 });

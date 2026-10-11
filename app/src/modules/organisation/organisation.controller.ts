@@ -17,6 +17,7 @@ import { CreateOrgEntityDto, UpdateOrgEntityDto } from './dto/org-entity.dto';
 import { CreateOrganisationDto, UpdateOrganisationDto } from './dto/organisation.dto';
 import { CreatePermitTemplateDto, UpdatePermitTemplateDto } from './dto/permit-template.dto';
 import { OrganisationService } from './organisation.service';
+import { ForceQuery } from '../../common/decorators/force-query.decorator';
 
 @Controller('organisations')
 export class OrganisationController {
@@ -52,8 +53,12 @@ export class OrganisationController {
 
   @Roles(...ORGANISATION_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.organisationService.archiveOrganisation(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.organisationService.archiveOrganisation(id, user, force);
   }
 }
 
@@ -91,8 +96,12 @@ export class PlantController {
 
   @Roles(...ORGANISATION_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.organisationService.archivePlant(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.organisationService.archivePlant(id, user, force);
   }
 }
 
@@ -130,8 +139,12 @@ export class DepartmentController {
 
   @Roles(...ORGANISATION_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.organisationService.archiveDepartment(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.organisationService.archiveDepartment(id, user, force);
   }
 }
 
@@ -169,8 +182,12 @@ export class LocationController {
 
   @Roles(...ORGANISATION_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.organisationService.archiveLocation(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.organisationService.archiveLocation(id, user, force);
   }
 }
 
@@ -214,8 +231,12 @@ export class ApprovalWorkflowController {
 
   @Roles(...ORGANISATION_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.organisationService.archiveWorkflow(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.organisationService.archiveWorkflow(id, user, force);
   }
 }
 
@@ -265,8 +286,12 @@ export class PermitTemplateController {
 
   @Roles(...ORGANISATION_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.organisationService.archiveTemplate(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.organisationService.archiveTemplate(id, user, force);
   }
 }
 
@@ -307,7 +332,11 @@ export class NotificationPreferenceController {
 
   @Roles(...ORGANISATION_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.organisationService.archiveNotificationPreference(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.organisationService.archiveNotificationPreference(id, user, force);
   }
 }

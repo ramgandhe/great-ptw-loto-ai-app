@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { isForeignKeyViolation, throwInUse } from '../../common/http/in-use';
 import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import { requireTenant } from '../../common/helpers/tenant-context';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -23,7 +24,7 @@ import { optionalUuid } from '../../common/helpers/optional-uuid';
 import { CreateOrgEntityDto, UpdateOrgEntityDto } from './dto/org-entity.dto';
 import { CreateOrganisationDto, UpdateOrganisationDto } from './dto/organisation.dto';
 import { CreatePermitTemplateDto, UpdatePermitTemplateDto } from './dto/permit-template.dto';
-import { REFERENCE_TEMPLATES } from './permit-template-library';
+import { ensureReferenceTemplates } from './ensure-reference-templates';
 
 type PermitTemplateRow = typeof permitTemplates.$inferSelect;
 
@@ -114,18 +115,36 @@ export class OrganisationService {
     return row;
   }
 
-  async archiveOrganisation(id: string, user: AuthenticatedUser) {
+  async archiveOrganisation(id: string, user: AuthenticatedUser, force = false) {
     const tenantId = requireTenant(user);
-    const [row] = await this.db
-      .update(organisations)
-      .set({ status: 'archived', updatedBy: user.id, updatedAt: new Date() })
-      .where(and(eq(organisations.id, id), eq(organisations.tenantId, tenantId)))
-      .returning();
-    if (!row) {
-      throw new NotFoundException('Organisation not found');
+    try {
+      const [row] = await this.db
+        .delete(organisations)
+        .where(and(eq(organisations.id, id), eq(organisations.tenantId, tenantId)))
+        .returning();
+      if (!row) {
+        throw new NotFoundException('Organisation not found');
+      }
+      await this.audit('organisation.deleted', 'organisation', id, user, tenantId);
+      return row;
+    } catch (error) {
+      if (!isForeignKeyViolation(error)) {
+        throw error;
+      }
+      if (!force) {
+        throwInUse(['Organisation is used on other records']);
+      }
+      const [row] = await this.db
+        .update(organisations)
+        .set({ status: 'archived', updatedBy: user.id, updatedAt: new Date() })
+        .where(and(eq(organisations.id, id), eq(organisations.tenantId, tenantId)))
+        .returning();
+      if (!row) {
+        throw new NotFoundException('Organisation not found');
+      }
+      await this.audit('organisation.archived', 'organisation', id, user, tenantId);
+      return row;
     }
-    await this.audit('organisation.archived', 'organisation', id, user, tenantId);
-    return row;
   }
 
   listPlants(user: AuthenticatedUser, archived = false) {
@@ -148,8 +167,8 @@ export class OrganisationService {
     return this.updateEntity(plants, 'plant', id, user, dto);
   }
 
-  archivePlant(id: string, user: AuthenticatedUser) {
-    return this.archiveEntity(plants, 'plant', id, user);
+  archivePlant(id: string, user: AuthenticatedUser, force = false) {
+    return this.archiveEntity(plants, 'plant', id, user, force);
   }
 
   listDepartments(user: AuthenticatedUser, archived = false) {
@@ -173,8 +192,8 @@ export class OrganisationService {
     return this.updateEntity(departments, 'department', id, user, dto);
   }
 
-  archiveDepartment(id: string, user: AuthenticatedUser) {
-    return this.archiveEntity(departments, 'department', id, user);
+  archiveDepartment(id: string, user: AuthenticatedUser, force = false) {
+    return this.archiveEntity(departments, 'department', id, user, force);
   }
 
   listLocations(user: AuthenticatedUser, archived = false) {
@@ -198,8 +217,8 @@ export class OrganisationService {
     return this.updateEntity(locations, 'location', id, user, dto);
   }
 
-  archiveLocation(id: string, user: AuthenticatedUser) {
-    return this.archiveEntity(locations, 'location', id, user);
+  archiveLocation(id: string, user: AuthenticatedUser, force = false) {
+    return this.archiveEntity(locations, 'location', id, user, force);
   }
 
   listWorkflows(user: AuthenticatedUser, archived = false) {
@@ -252,7 +271,7 @@ export class OrganisationService {
     if (row.isCurrent) {
       const stepId = await applyCurrentWorkflowToLiveStep(this.db, tenantId, optionalUuid(user.id), {
         name: row.name,
-        approverRole: row.approverRole ?? existing.approverRole ?? 'hod',
+        approverRole: row.approverRole ?? existing.approverRole ?? 'permit-approver',
         workflowStepId: row.workflowStepId,
       });
       if (stepId !== row.workflowStepId) {
@@ -306,12 +325,12 @@ export class OrganisationService {
     return stepId.updated;
   }
 
-  async archiveWorkflow(id: string, user: AuthenticatedUser) {
+  async archiveWorkflow(id: string, user: AuthenticatedUser, force = false) {
     const workflow = await this.getWorkflow(id, user);
     if (workflow.isCurrent) {
       throw new ConflictException('Activate another workflow before archiving the current one');
     }
-    return this.archiveEntity(approvalWorkflows, 'approval_workflow', id, user);
+    return this.archiveEntity(approvalWorkflows, 'approval_workflow', id, user, force);
   }
 
   async listTemplates(user: AuthenticatedUser) {
@@ -410,44 +429,11 @@ export class OrganisationService {
    */
   async importReferenceTemplates(user: AuthenticatedUser) {
     const tenantId = requireTenant(user);
-    const [existing, types] = await Promise.all([
-      this.db
-        .select({ id: permitTemplates.id, code: permitTemplates.code, status: permitTemplates.status })
-        .from(permitTemplates)
-        .where(eq(permitTemplates.tenantId, tenantId)),
-      this.db
-        .select({ id: permitTypes.id, code: permitTypes.code })
-        .from(permitTypes)
-        .where(and(eq(permitTypes.tenantId, tenantId), eq(permitTypes.isActive, true))),
-    ]);
-    const have = new Map(existing.map((row) => [row.code, row]));
-    let created = 0;
-    for (const template of REFERENCE_TEMPLATES) {
-      const current = have.get(template.code);
-      if (current?.status === 'archived') {
-        await this.db
-          .update(permitTemplates)
-          .set({ status: 'published', updatedBy: user.id, updatedAt: new Date() })
-          .where(and(eq(permitTemplates.id, current.id), eq(permitTemplates.tenantId, tenantId)));
-        await this.audit('permit_template.restored', 'permit_template', current.id, user, tenantId);
-        created += 1;
-        continue;
-      }
-      if (current) continue;
-      const allTypes = template.permitTypeCodes.includes('*');
-      const linked = allTypes ? [] : types.filter((type) => template.permitTypeCodes.includes(type.code));
-      await this.createEntity(permitTemplates, 'permit_template', user, {
-        name: template.name,
-        code: template.code,
-        description: template.description,
-        status: 'published',
-        permitTypeIds: linked.map((type) => type.id),
-        appliesToAllTypes: allTypes,
-        config: template.config,
-      });
-      created += 1;
+    const result = await ensureReferenceTemplates(this.db, tenantId, user.id);
+    if (result.created + result.relinked > 0) {
+      await this.audit('permit_template.reference-imported', 'permit_template', tenantId, user, tenantId);
     }
-    return { created, alreadyPresent: REFERENCE_TEMPLATES.length - created };
+    return result;
   }
 
   /** Validates that the permit types belong to this tenant; undefined means "leave unchanged". */
@@ -465,8 +451,8 @@ export class OrganisationService {
     return unique;
   }
 
-  archiveTemplate(id: string, user: AuthenticatedUser) {
-    return this.archiveEntity(permitTemplates, 'permit_template', id, user);
+  archiveTemplate(id: string, user: AuthenticatedUser, force = false) {
+    return this.archiveEntity(permitTemplates, 'permit_template', id, user, force);
   }
 
   listNotificationPreferences(user: AuthenticatedUser) {
@@ -546,18 +532,36 @@ export class OrganisationService {
     return row;
   }
 
-  async archiveNotificationPreference(id: string, user: AuthenticatedUser) {
+  async archiveNotificationPreference(id: string, user: AuthenticatedUser, force = false) {
     const tenantId = requireTenant(user);
-    const [row] = await this.db
-      .update(notificationPreferences)
-      .set({ status: 'archived', updatedBy: user.id, updatedAt: new Date() })
-      .where(and(eq(notificationPreferences.id, id), eq(notificationPreferences.tenantId, tenantId)))
-      .returning();
-    if (!row) {
-      throw new NotFoundException('Notification preference not found');
+    try {
+      const [row] = await this.db
+        .delete(notificationPreferences)
+        .where(and(eq(notificationPreferences.id, id), eq(notificationPreferences.tenantId, tenantId)))
+        .returning();
+      if (!row) {
+        throw new NotFoundException('Notification preference not found');
+      }
+      await this.audit('notification_preference.deleted', 'notification_preference', id, user, tenantId);
+      return row;
+    } catch (error) {
+      if (!isForeignKeyViolation(error)) {
+        throw error;
+      }
+      if (!force) {
+        throwInUse(['Notification preference is used on other records']);
+      }
+      const [row] = await this.db
+        .update(notificationPreferences)
+        .set({ status: 'archived', updatedBy: user.id, updatedAt: new Date() })
+        .where(and(eq(notificationPreferences.id, id), eq(notificationPreferences.tenantId, tenantId)))
+        .returning();
+      if (!row) {
+        throw new NotFoundException('Notification preference not found');
+      }
+      await this.audit('notification_preference.archived', 'notification_preference', id, user, tenantId);
+      return row;
     }
-    await this.audit('notification_preference.archived', 'notification_preference', id, user, tenantId);
-    return row;
   }
 
   /** Live records, or with `archived` only the archived ones (newest first) so they can still be looked up. */
@@ -644,18 +648,34 @@ export class OrganisationService {
     entityType: string,
     id: string,
     user: AuthenticatedUser,
+    force = false,
   ) {
     const tenantId = requireTenant(user);
-    const [row] = await this.db
-      .update(table)
-      .set({ status: 'archived', updatedBy: user.id, updatedAt: new Date() })
-      .where(and(eq(table.id, id), eq(table.tenantId, tenantId)))
-      .returning();
-    if (!row) {
-      throw new NotFoundException('Record not found');
+    try {
+      const [row] = await this.db.delete(table).where(and(eq(table.id, id), eq(table.tenantId, tenantId))).returning();
+      if (!row) {
+        throw new NotFoundException('Record not found');
+      }
+      await this.audit(`${entityType}.deleted`, entityType, id, user, tenantId);
+      return row;
+    } catch (error) {
+      if (!isForeignKeyViolation(error)) {
+        throw error;
+      }
+      if (!force) {
+        throwInUse([`${entityType.replace(/_/g, ' ')} is used on other records`]);
+      }
+      const [row] = await this.db
+        .update(table)
+        .set({ status: 'archived', updatedBy: user.id, updatedAt: new Date() })
+        .where(and(eq(table.id, id), eq(table.tenantId, tenantId)))
+        .returning();
+      if (!row) {
+        throw new NotFoundException('Record not found');
+      }
+      await this.audit(`${entityType}.archived`, entityType, id, user, tenantId);
+      return row;
     }
-    await this.audit(`${entityType}.archived`, entityType, id, user, tenantId);
-    return row;
   }
 
   private async audit(

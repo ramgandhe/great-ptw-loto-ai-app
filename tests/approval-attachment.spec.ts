@@ -35,7 +35,7 @@ describe('ApprovalAttachmentService (PUS-140)', () => {
   it('denies attachment access for users without approval read roles', async () => {
     const unauthorized: AuthenticatedUser = {
       ...viewer,
-      roles: ['operator'],
+      roles: ['permit-operator'],
     };
 
     await expect(

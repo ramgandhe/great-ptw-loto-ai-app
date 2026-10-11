@@ -84,6 +84,7 @@ export const lototoProcedureLockoutPoints = pgTable(
     sortOrder: integer('sort_order').notNull(),
     pointCode: varchar('point_code', { length: 64 }).notNull(),
     energyType: varchar('energy_type', { length: 64 }).notNull(),
+    energyOtherText: varchar('energy_other_text', { length: 255 }),
     magnitude: varchar('magnitude', { length: 128 }),
     locationText: text('location_text'),
     action: text('action'),
@@ -113,6 +114,10 @@ export const lototoProcedureSequenceSteps = pgTable(
     phase: varchar('phase', { length: 16 }).notNull(),
     sequenceOrder: integer('sequence_order').notNull(),
     title: varchar('title', { length: 255 }).notNull(),
+    action: text('action'),
+    infoText: text('info_text'),
+    verification: text('verification'),
+    note: text('note'),
     description: text('description'),
   },
   (table) => [
@@ -152,6 +157,9 @@ export const lototoProcedurePhotos = pgTable(
     lockoutPointId: uuid('lockout_point_id').references(() => lototoProcedureLockoutPoints.id, {
       onDelete: 'set null',
     }),
+    sequenceStepId: uuid('sequence_step_id').references(() => lototoProcedureSequenceSteps.id, {
+      onDelete: 'set null',
+    }),
     fileName: varchar('file_name', { length: 255 }).notNull(),
     contentType: varchar('content_type', { length: 128 }).notNull(),
     storageBucket: varchar('storage_bucket', { length: 128 }).notNull(),
@@ -174,6 +182,10 @@ export const permitLototoInstances = pgTable(
       .notNull()
       .references(() => lototoProcedureVersions.id, { onDelete: 'restrict' }),
     frozenAt: timestamp('frozen_at', { withTimezone: true }),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    startedBy: uuid('started_by'),
+    crewCompletedAt: timestamp('crew_completed_at', { withTimezone: true }),
+    crewCompletedBy: uuid('crew_completed_by'),
   },
   (table) => [
     uniqueIndex('permit_lototo_instances_permit_procedure_unique').on(
@@ -195,6 +207,7 @@ export const permitLototoExtraPoints = pgTable(
     sortOrder: integer('sort_order').notNull(),
     pointCode: varchar('point_code', { length: 64 }).notNull(),
     energyType: varchar('energy_type', { length: 64 }).notNull(),
+    energyOtherText: varchar('energy_other_text', { length: 255 }),
     magnitude: varchar('magnitude', { length: 128 }),
     locationText: text('location_text'),
     action: text('action'),

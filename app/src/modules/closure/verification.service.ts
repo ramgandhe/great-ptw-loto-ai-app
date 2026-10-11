@@ -49,7 +49,7 @@ export class VerificationService {
     if (
       !isTenantPrivileged(user.roles) &&
       !user.roles.includes('platform-admin') &&
-      !(user.roles.includes('job-issuer') && (permit.createdBy === user.id || permit.submittedBy === user.id))
+      !(user.roles.includes('permit-receiver') && (permit.createdBy === user.id || permit.submittedBy === user.id))
     ) {
       throw new ForbiddenException('Only the permit issuer can verify execution');
     }

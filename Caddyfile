@@ -3,8 +3,8 @@
 # Usage: docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.caddy.yml up -d
 #
 # Site addresses come from CADDY_SITES (default :80, plain http on any host).
-# With a domain, e.g. CADDY_SITES="permitwiseai.cloud, :80", Caddy gets a certificate for it,
-# redirects its http to https, and still serves the bare IP over http.
+# Production: CADDY_SITES="permitwiseai.cloud, www.permitwiseai.cloud, :80"
+# Caddy gets certificates, redirects those hosts' http to https, and still serves the bare IP over http.
 
 {$CADDY_SITES::80} {
 	encode gzip

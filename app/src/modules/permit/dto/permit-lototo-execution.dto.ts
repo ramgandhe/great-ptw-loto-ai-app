@@ -12,9 +12,10 @@ export class LototoPointRefDto {
 }
 
 export class RecordLototoCrewActionDto extends LototoPointRefDto {
+  @IsOptional()
   @IsString()
   @MaxLength(64)
-  lockTagId!: string;
+  lockTagId?: string;
 
   @IsOptional()
   @IsString()

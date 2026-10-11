@@ -35,7 +35,7 @@ function executorRoleLabel(kind?: TenantUser["executorKind"]) {
   if (kind === "contractor") {
     return "Contractor";
   }
-  return "Job executor";
+  return "Permit operator";
 }
 
 function tenantUsersToExecutors(users: TenantUser[]): WorkforceRecord[] {
@@ -55,7 +55,7 @@ function mergeExecutors(
   const byId = new Map<string, WorkforceRecord>();
   const profileName =
     [profile.firstName, profile.lastName].filter(Boolean).join(" ") || profile.username;
-  const isOperator = profile.roles.includes("operator");
+  const isOperator = profile.roles.includes("permit-operator");
 
   for (const person of directory) {
     byId.set(person.id, person);
@@ -66,7 +66,7 @@ function mergeExecutors(
       id: profile.id,
       name: `${profileName} (you)`,
       email: profile.email ?? null,
-      role: "Job executor",
+      role: "Permit operator",
       executorKind: "internal",
     });
   }

@@ -89,6 +89,46 @@ describe('Master data services (PUS-70)', () => {
     };
   }
 
+  dbTest('imports the standard hazard catalogue and remaps legacy codes', async () => {
+    const tenantId = randomUUID();
+    const user = adminUser(tenantId);
+    await hazardService.create({ code: 'FIRE', name: 'Flammable atmosphere', category: 'Fire / Explosion' }, user);
+
+    const first = await hazardService.importDefaults(user);
+    expect(first.updated).toBe(1);
+    expect(first.created).toBe(29);
+
+    const rows = await hazardService.findAll(user);
+    expect(rows).toHaveLength(30);
+    expect(rows.find((row) => row.code === 'HAZ-FIRE-002')?.name).toBe('Explosion / Flammable Atmosphere');
+    expect(rows.find((row) => row.code === 'HAZ-FIRE-001')?.permitTypeCodes).toEqual(
+      expect.arrayContaining(['HOT', 'ELEC']),
+    );
+
+    const second = await hazardService.importDefaults(user);
+    expect(second.created).toBe(0);
+    expect(second.updated).toBe(0);
+  });
+
+  dbTest('imports the six standard permit types and remaps legacy codes', async () => {
+    const tenantId = randomUUID();
+    const user = adminUser(tenantId);
+    await permitTypeService.create({ code: 'HOT-WORK', name: 'Hot Work' }, user);
+
+    const first = await permitTypeService.importDefaults(user);
+    expect(first.updated).toBe(1);
+    expect(first.created).toBe(5);
+
+    const rows = await permitTypeService.findAll(user);
+    const codes = rows.map((row) => row.code).sort();
+    expect(codes).toEqual(['COLD', 'CSP', 'ELEC', 'EXC', 'HOT', 'WAH']);
+    expect(rows.find((row) => row.code === 'HOT')?.name).toBe('Hot Work Permit');
+
+    const second = await permitTypeService.importDefaults(user);
+    expect(second.created).toBe(0);
+    expect(second.updated).toBe(0);
+  });
+
   dbTest('rejects duplicate permit type codes within tenant', async () => {
     const tenantId = randomUUID();
     const user = adminUser(tenantId);

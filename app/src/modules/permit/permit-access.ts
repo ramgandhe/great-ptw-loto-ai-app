@@ -36,7 +36,7 @@ export async function canViewPermit(
     return true;
   }
 
-  if (user.roles.includes('hod')) {
+  if (user.roles.includes('permit-approver')) {
     const departmentId = await loadUserDepartment(db, user);
     if (!departmentId) {
       return true;
@@ -44,12 +44,12 @@ export async function canViewPermit(
     return detail.permit.departmentId === departmentId;
   }
 
-  if (user.roles.includes('job-issuer') && detail.permit.createdBy === user.id) {
+  if (user.roles.includes('permit-receiver') && detail.permit.createdBy === user.id) {
     return true;
   }
 
   if (
-    user.roles.includes('operator') &&
+    user.roles.includes('permit-operator') &&
     detail.executors.some((row) => row.workforceUserId === user.id)
   ) {
     return true;
@@ -81,7 +81,7 @@ export async function visiblePermitFilter(
     return null;
   }
 
-  if (user.roles.includes('hod')) {
+  if (user.roles.includes('permit-approver')) {
     const departmentId = await loadUserDepartment(db, user);
     if (!departmentId) {
       return null;
@@ -91,11 +91,11 @@ export async function visiblePermitFilter(
 
   const clauses = [];
 
-  if (user.roles.includes('job-issuer')) {
+  if (user.roles.includes('permit-receiver')) {
     clauses.push(eq(permits.createdBy, user.id));
   }
 
-  if (user.roles.includes('operator')) {
+  if (user.roles.includes('permit-operator')) {
     const assigned = await db
       .select({ permitId: permitExecutors.permitId })
       .from(permitExecutors)
@@ -148,6 +148,10 @@ async function loadUserDepartment(
 
 export function isPrimaryExecutor(detail: PermitDetail, userId: string): boolean {
   return detail.executors.some((row) => row.workforceUserId === userId && row.isPrimary);
+}
+
+export function isAssignedSafetyOfficer(detail: PermitDetail, userId: string): boolean {
+  return detail.safetyOfficers?.some((row) => row.workforceUserId === userId) === true;
 }
 
 export function isPermitIssuer(detail: PermitDetail, userId: string): boolean {

@@ -11,51 +11,20 @@ import { seedDemoWorkflows } from './seed-demo-workflows';
 import { seedDefaultWorkflow } from './seed-default-workflow';
 import { seedMasterCatalogue } from './seed-master-catalogue';
 import { ensureDefaultApprovalWorkflowForAllTenants } from '../modules/approval/ensure-default-workflow';
+import { DEFAULT_PERMIT_TYPES } from '../modules/master-data/default-permit-types';
+import { ensureReferenceTemplates } from '../modules/organisation/ensure-reference-templates';
 import { DEMO_IDS, DEMO_TENANT_ID, SEED_ACTOR_ID } from './seed-ids';
 
-const DEMO_PERMIT_TYPES = [
-  {
-    id: DEMO_IDS.permitTypeHotWork,
-    code: 'HOT-WORK',
-    name: 'Hot Work',
-    description: 'Welding, grinding, and other ignition-source work',
-    color: '#DC2626',
-  },
-  {
-    id: DEMO_IDS.permitTypeColdWork,
-    code: 'COLD-WORK',
-    name: 'Cold Work',
-    description: 'General maintenance without ignition sources',
-    color: '#2563EB',
-  },
-  {
-    id: DEMO_IDS.permitTypeConfinedSpace,
-    code: 'CONFINED-SPACE',
-    name: 'Confined Space',
-    description: 'Entry into tanks, vessels, pits, and other confined spaces',
-    color: '#7C3AED',
-  },
-  {
-    id: DEMO_IDS.permitTypeWorkingAtHeight,
-    code: 'WORKING-AT-HEIGHT',
-    name: 'Working at Height',
-    description: 'Work above ground level requiring fall protection',
-    color: '#CA8A04',
-  },
-  {
-    id: DEMO_IDS.permitTypeElectrical,
-    code: 'ELECTRICAL',
-    name: 'Electrical',
-    description: 'Electrical installation, maintenance, and isolation work',
-    color: '#EA580C',
-  },
-  {
-    id: DEMO_IDS.permitTypeExcavation,
-    code: 'EXCAVATION',
-    name: 'Excavation',
-    description: 'Digging, trenching, and ground disturbance',
-    color: '#92400E',
-  },
+const DEMO_SPEC_TYPE_IDS: Record<(typeof DEFAULT_PERMIT_TYPES)[number]['code'], string> = {
+  HOT: DEMO_IDS.permitTypeHotWork,
+  COLD: DEMO_IDS.permitTypeColdWork,
+  CSP: DEMO_IDS.permitTypeConfinedSpace,
+  ELEC: DEMO_IDS.permitTypeElectrical,
+  WAH: DEMO_IDS.permitTypeWorkingAtHeight,
+  EXC: DEMO_IDS.permitTypeExcavation,
+};
+
+const DEMO_EXTRA_PERMIT_TYPES = [
   {
     id: DEMO_IDS.permitTypeLifting,
     code: 'LIFTING',
@@ -92,6 +61,17 @@ const DEMO_PERMIT_TYPES = [
     color: '#0369A1',
   },
 ] as const;
+
+const DEMO_PERMIT_TYPES = [
+  ...DEFAULT_PERMIT_TYPES.map((type) => ({
+    id: DEMO_SPEC_TYPE_IDS[type.code],
+    code: type.code,
+    name: type.name,
+    description: type.description,
+    color: type.color,
+  })),
+  ...DEMO_EXTRA_PERMIT_TYPES,
+];
 
 async function seed(): Promise<void> {
   const connectionString =
@@ -139,8 +119,9 @@ async function seed(): Promise<void> {
       })),
     )
     .onConflictDoUpdate({
-      target: [permitTypes.tenantId, permitTypes.code],
+      target: permitTypes.id,
       set: {
+        code: sql`excluded.code`,
         name: sql`excluded.name`,
         description: sql`excluded.description`,
         color: sql`excluded.color`,
@@ -152,6 +133,7 @@ async function seed(): Promise<void> {
   await seedMasterCatalogue(db);
   await seedDefaultWorkflow(db);
   await ensureDefaultApprovalWorkflowForAllTenants(db, SEED_ACTOR_ID);
+  await ensureReferenceTemplates(db, DEMO_TENANT_ID, SEED_ACTOR_ID);
   await seedDemoWorkflows(db);
 
   console.log('Seed completed.');

@@ -2,37 +2,37 @@ export const PERMIT_LIFECYCLE_PHASES = [
   {
     sequence: 1,
     name: "Issuer initiation",
-    participantRole: "job-issuer",
+    participantRole: "permit-receiver",
     kind: "collaboration",
   },
   {
     sequence: 2,
     name: "Executor on-site details",
-    participantRole: "operator",
+    participantRole: "permit-operator",
     kind: "collaboration",
   },
   {
     sequence: 3,
     name: "HOD initial review",
-    participantRole: "hod",
+    participantRole: "permit-approver",
     kind: "approval",
   },
   {
     sequence: 4,
     name: "Executor pre-work confirmation",
-    participantRole: "operator",
+    participantRole: "permit-operator",
     kind: "execution",
   },
   {
     sequence: 5,
     name: "Issuer completion approval",
-    participantRole: "job-issuer",
+    participantRole: "permit-receiver",
     kind: "closure",
   },
   {
     sequence: 6,
     name: "HOD final approval",
-    participantRole: "hod",
+    participantRole: "permit-approver",
     kind: "closure",
   },
 ] as const;
@@ -65,7 +65,7 @@ export function resolveLifecyclePhases(input: {
       }
     } else if (permitStatus === "pending_approval") {
       if (phase.sequence <= 2) status = "completed";
-      if (phase.sequence === 3) status = activeApprovalRole === "hod" ? "active" : "pending";
+      if (phase.sequence === 3) status = activeApprovalRole === "permit-approver" ? "active" : "pending";
     } else if (
       permitStatus === "approved" ||
       permitStatus === "active" ||

@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { ActionBar, AppText, Banner, Button, Card, ChoiceGroup, DateTimeField, EmptyState, InfoList, PageHeader, Screen, TextField, ToggleRow } from "@/components/ui";
 import { CalendarClock, ChevronRight, Paperclip, Pencil, Plus, Save, Send } from "@/components/ui/icons";
 import { formatWindow } from "@/lib/format";
+import { hazardFitsPermitType } from "@/lib/master-data/hazard-fit";
 import { ApiError } from "@/lib/api";
 import { createPermit, getPermit, isRevisionConflict, savePermitDraft, submitPermit, uploadPermitAttachment } from "@/lib/permit/api";
 import {
@@ -351,6 +352,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
 
   const step = form.currentStep;
   const last = PERMIT_WIZARD_STEPS.length - 1;
+  const needsSafety = form.safetyOfficers.some((row) => row.workforceUserId.trim());
   // Steps up to the furthest one reached can be revisited from the step bar; an existing permit opens all of them.
   const [reached, setReached] = useState(mode === "edit" ? last : step);
   const goTo = (next: number) => {
@@ -361,11 +363,15 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   const handleNext = () => {
     const stepErrors = isReadOnly ? [] : [...validateStep(form, step), ...(step === 4 ? missingFormAnswers(forms, prefilled.formResponses) : [])];
     setErrors(stepErrors);
-    if (stepErrors.length === 0) goTo(step + 1);
+    if (stepErrors.length === 0) goTo(step === 4 && !needsSafety ? last : step + 1);
   };
 
   const nameIn = (list: { id: string; name: string }[] | undefined, id: string) => list?.find((row) => row.id === id)?.name;
   const hazardIds = form.hazards.map((h) => h.hazardCategoryId).filter(Boolean);
+  const permitTypeCode = formOptions?.permitTypes.find((type) => type.id === form.permitTypeId)?.code;
+  const offeredHazards = (formOptions?.hazards ?? []).filter(
+    (hazard) => hazardFitsPermitType(hazard.permitTypeCodes, permitTypeCode) || hazardIds.includes(hazard.id),
+  );
   const ppeIds = form.ppe.map((p) => p.ppeCatalogueId).filter(Boolean);
   const notSet = "Not set";
   const crewNames = form.executors.map((e) => nameIn(formOptions?.executors, e.workforceUserId ?? "")).filter(Boolean).join(", ");
@@ -405,7 +411,14 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
       key={step}
       footer={
         <ActionBar>
-          {step > 0 ? <Button label="Back" variant="outline" onPress={() => goTo(step - 1)} style={{ marginRight: "auto" }} /> : null}
+          {step > 0 ? (
+            <Button
+              label="Back"
+              variant="outline"
+              onPress={() => goTo(step === last && !needsSafety ? 4 : step - 1)}
+              style={{ marginRight: "auto" }}
+            />
+          ) : null}
           {!isReadOnly ? <Button label="Save draft" variant="secondary" icon={Save} loading={isBusy} onPress={() => void handleSaveDraft()} /> : null}
           {step < last ? (
             <Button label="Next" icon={ChevronRight} onPress={handleNext} />
@@ -463,7 +476,15 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
               options={(formOptions?.permitTypes ?? []).map((item) => ({ key: item.id, label: item.name, color: item.color ?? undefined, swatch: item.color ?? undefined }))}
               value={form.permitTypeId || null}
               disabled={isReadOnly}
-              onChange={(permitTypeId) => setForm({ ...form, permitTypeId })}
+              onChange={(permitTypeId) => {
+                const nextCode = formOptions?.permitTypes.find((type) => type.id === permitTypeId)?.code;
+                const kept = form.hazards.filter((row) => {
+                  if (!row.hazardCategoryId) return true;
+                  const catalogue = formOptions?.hazards.find((hazard) => hazard.id === row.hazardCategoryId);
+                  return hazardFitsPermitType(catalogue?.permitTypeCodes, nextCode);
+                });
+                setForm({ ...form, permitTypeId, hazards: kept });
+              }}
             />
           </StepCard>
           <StepCard title="The job">
@@ -550,7 +571,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
         <>
           <StepCard title="Hazards" description="Tap every hazard present at this job.">
             <ChoiceGroup
-              options={(formOptions?.hazards ?? []).map((item) => ({ key: item.id, label: item.name }))}
+              options={offeredHazards.map((item) => ({ key: item.id, label: item.name }))}
               value={hazardIds}
               disabled={isReadOnly}
               onChange={(id) => setForm({ ...form, hazards: toggleRow(form.hazards, "hazardCategoryId", id, { description: "" }) })}
@@ -651,6 +672,17 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
         </StepCard>
       ) : null}
 
+      {step === 5 ? (
+        needsSafety ? (
+          <EmptyState
+            title="Safety Approval"
+            body="An assigned safety officer comments and types their name on the web. One sign-off is enough."
+          />
+        ) : (
+          <EmptyState title="Safety Approval is not needed" body="No safety officer is assigned on this permit." done />
+        )
+      ) : null}
+
       {step === 4 && !optionsLoading ? (
         forms.length === 0 ? (
           <EmptyState title="No check sheets for this type of work" body="Continue to review and submit." done />
@@ -712,6 +744,7 @@ const STEP_INTRO = [
   "The hazards on site and how the crew is protected.",
   "The people doing the work.",
   "The check sheets for this type of work. Answers the permit already gives are filled in for you.",
+  "Assigned safety officers sign here. Skip this step if none are assigned.",
   "Check everything, then submit for approval.",
 ];
 

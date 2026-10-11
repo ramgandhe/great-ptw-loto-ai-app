@@ -195,7 +195,7 @@ export const REFERENCE_TEMPLATES: ReferenceTemplate[] = [
     code: 'SOP-ES-023-F2',
     name: 'Check sheet: electrical work',
     description: 'Electrical work in HT/LT above 24 volts.',
-    permitTypeCodes: ['ELECTRICAL'],
+    permitTypeCodes: ['ELEC', 'ELECTRICAL'],
     config: {
       kind: 'check-sheet',
       reference: 'SOP/ES/023-F2',
@@ -219,7 +219,7 @@ export const REFERENCE_TEMPLATES: ReferenceTemplate[] = [
     code: 'SOP-ES-023-F3',
     name: 'Check sheet: work at height and fragile roof',
     description: 'Working at heights above 2 metres, including roof sheds and fragile roofs.',
-    permitTypeCodes: ['WORKING-AT-HEIGHT'],
+    permitTypeCodes: ['WAH', 'WORKING-AT-HEIGHT'],
     config: {
       kind: 'check-sheet',
       reference: 'SOP/ES/023-F3',
@@ -247,7 +247,7 @@ export const REFERENCE_TEMPLATES: ReferenceTemplate[] = [
     code: 'SOP-ES-023-F4',
     name: 'Check sheet: hot work',
     description: 'Hot work such as welding and gas cutting, including fire watch during and after the work.',
-    permitTypeCodes: ['HOT-WORK'],
+    permitTypeCodes: ['HOT', 'HOT-WORK'],
     config: {
       kind: 'check-sheet',
       reference: 'SOP/ES/023-F4',
@@ -285,7 +285,7 @@ export const REFERENCE_TEMPLATES: ReferenceTemplate[] = [
     code: 'SOP-ES-023-F5',
     name: 'Check sheet: confined space entry',
     description: 'Entry into a confined space, with site preparation, pre-entry gas testing and rescue arrangements.',
-    permitTypeCodes: ['CONFINED-SPACE', 'CONFINED'],
+    permitTypeCodes: ['CSP', 'CONFINED-SPACE', 'CONFINED'],
     config: {
       kind: 'check-sheet',
       reference: 'SOP/ES/023-F5',
@@ -356,7 +356,7 @@ export const REFERENCE_TEMPLATES: ReferenceTemplate[] = [
     code: 'SOP-ES-023-F6',
     name: 'Check sheet: excavation and civil work',
     description: 'Excavation and civil jobs near buried services.',
-    permitTypeCodes: ['EXCAVATION'],
+    permitTypeCodes: ['EXC', 'EXCAVATION'],
     config: {
       kind: 'check-sheet',
       reference: 'SOP/ES/023-F6',

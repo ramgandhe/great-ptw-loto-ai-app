@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState, ErrorNote, RecordList, RecordRow } from "@/components/safety/record-list";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
+import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { LOTOTO_LIBRARY_WRITE_ROLES } from "@/lib/auth/roles";
@@ -47,10 +48,11 @@ function ProcedureLibrary() {
       } else if (action === "reactivate") {
         await reactivateLototoProcedure(id);
       } else {
-        if (!window.confirm("Delete this unused procedure?")) {
-          return;
-        }
-        await deleteLototoProcedure(id);
+        const name = rows?.find((row) => row.id === id)?.title ?? "this procedure";
+        const ok = await deleteWithAssignmentConfirm(name, (force) =>
+          deleteLototoProcedure(id, force).then(() => undefined),
+        );
+        if (!ok) return;
       }
       await reload();
     } catch (err) {

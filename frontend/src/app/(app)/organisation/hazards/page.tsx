@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { FileDown, Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { RowActions } from "@/components/ui/row-actions";
@@ -9,8 +9,9 @@ import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 import { OrgStatusBadge, stateOf } from "@/components/organisation/org-status-badge";
 import { StringListField } from "@/components/organisation/string-list-field";
+import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { hazardsApi } from "@/lib/organisation/api";
-import type { HazardRecord } from "@/lib/master-data/api";
+import { masterDataApi, type HazardRecord, type MasterDataRecord } from "@/lib/master-data/api";
 
 const SEVERITY_OPTIONS = [
   { value: "low", label: "Low" },
@@ -27,6 +28,7 @@ const emptyForm = {
   severity: "medium",
   consequences: [""],
   controls: [""],
+  permitTypeCodes: [] as string[],
 };
 
 export default function HazardsPage() {
@@ -36,7 +38,9 @@ export default function HazardsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [types, setTypes] = useState<MasterDataRecord[]>([]);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   function load() {
@@ -49,6 +53,7 @@ export default function HazardsPage() {
 
   useEffect(() => {
     void load();
+    masterDataApi.permitTypes().then(setTypes).catch(() => setTypes([]));
   }, []);
 
   function resetForm() {
@@ -72,6 +77,7 @@ export default function HazardsPage() {
       severity: item.severity ?? "medium",
       consequences: item.consequences?.length ? item.consequences : [""],
       controls: item.controls?.length ? item.controls : [""],
+      permitTypeCodes: item.permitTypeCodes ?? [],
     });
     setEditingId(item.id);
     setFormOpen(true);
@@ -89,6 +95,7 @@ export default function HazardsPage() {
       severity: form.severity,
       consequences: form.consequences,
       controls: form.controls,
+      permitTypeCodes: form.permitTypeCodes,
     };
     try {
       if (editingId) {
@@ -108,6 +115,32 @@ export default function HazardsPage() {
     }
   }
 
+  async function handleImportDefaults() {
+    setImporting(true);
+    setError(null);
+    try {
+      const result = await masterDataApi.importHazardDefaults();
+      if (result.created + result.updated === 0) {
+        toast("The standard hazards are already here.");
+      } else {
+        toast(
+          `Added ${result.created} standard hazard${result.created === 1 ? "" : "s"}${
+            result.updated ? `, updated ${result.updated}` : ""
+          }.`,
+        );
+      }
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not add the standard hazards");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function typeName(code: string) {
+    return types.find((type) => type.code === code)?.name ?? code;
+  }
+
   async function handleSetActive(item: HazardRecord, on: boolean) {
     if (!on && !window.confirm(`Deactivate ${item.name}? It stays listed but is no longer offered on new permits.`)) {
       return;
@@ -122,11 +155,9 @@ export default function HazardsPage() {
   }
 
   async function handleArchive(item: HazardRecord) {
-    if (!window.confirm(`Delete ${item.name}? Permits that used it keep their record.`)) {
-      return;
-    }
     try {
-      await hazardsApi.archive(item.id);
+      const ok = await deleteWithAssignmentConfirm(item.name, (force) => hazardsApi.archive(item.id, force));
+      if (!ok) return;
       toast(`${item.name} deleted`);
       if (editingId === item.id) {
         resetForm();
@@ -144,10 +175,16 @@ export default function HazardsPage() {
         description="Defaults for each hazard. Permits copy extras only; this catalogue stays unchanged by executors."
         action={
           !formOpen ? (
-            <Button type="button" size="lg" onClick={openCreate}>
-              <Plus aria-hidden />
-              Add hazard
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="lg" disabled={importing} onClick={() => void handleImportDefaults()}>
+                <FileDown aria-hidden />
+                Add standard hazards
+              </Button>
+              <Button type="button" size="lg" onClick={openCreate}>
+                <Plus aria-hidden />
+                Add hazard
+              </Button>
+            </div>
           ) : null
         }
       />
@@ -192,6 +229,35 @@ export default function HazardsPage() {
               onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
             />
           </label>
+          {types.length > 0 ? (
+            <fieldset className="grid gap-2 sm:col-span-2">
+              <legend className="text-sm font-medium">Associated permit types</legend>
+              <p className="text-xs text-muted-foreground">Shown when this hazard is offered on a permit of that type.</p>
+              <div className="flex flex-wrap gap-2">
+                {types.map((type) => {
+                  const checked = form.permitTypeCodes.includes(type.code ?? "");
+                  return (
+                    <label key={type.id} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          const code = type.code ?? "";
+                          setForm((prev) => ({
+                            ...prev,
+                            permitTypeCodes: checked
+                              ? prev.permitTypeCodes.filter((item) => item !== code)
+                              : [...prev.permitTypeCodes, code],
+                          }));
+                        }}
+                      />
+                      {type.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          ) : null}
           <div className="sm:col-span-2">
             <StringListField
               label="Potential consequences"
@@ -241,6 +307,7 @@ export default function HazardsPage() {
                 <th className="px-4 py-2.5">Code</th>
                 <th className="px-4 py-2.5">Category</th>
                 <th className="px-4 py-2.5">Severity</th>
+                <th className="px-4 py-2.5">Permit types</th>
                 <th className="px-4 py-2.5">Status</th>
                 <th className="px-4 py-2.5">
                   <span className="sr-only">Actions</span>
@@ -254,6 +321,11 @@ export default function HazardsPage() {
                   <td className="px-4 py-3 font-mono text-xs">{item.code}</td>
                   <td className="px-4 py-3">{item.category || "—"}</td>
                   <td className="px-4 py-3 capitalize">{item.severity ?? "medium"}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {(item.permitTypeCodes ?? []).length
+                      ? (item.permitTypeCodes ?? []).map(typeName).join(", ")
+                      : "—"}
+                  </td>
                   <td className="px-4 py-3">
                     <OrgStatusBadge status={stateOf(item)} />
                   </td>

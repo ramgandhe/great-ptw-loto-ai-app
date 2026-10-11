@@ -49,7 +49,7 @@ describe('WorkflowEngineService role checks (PUS-136)', () => {
   const service = new WorkflowEngineService(null as never);
 
   it('allows matching approver role', () => {
-    expect(service.userHasApproverRole(['hod'], 'hod')).toBe(true);
+    expect(service.userHasApproverRole(['permit-approver'], 'permit-approver')).toBe(true);
   });
 
   it('denies platform-admin override for workflow steps', () => {
@@ -61,10 +61,10 @@ describe('WorkflowEngineService role checks (PUS-136)', () => {
   });
 
   it('allows tenant-owner to act on workflow steps', () => {
-    expect(service.userHasApproverRole(['tenant-owner'], 'hod')).toBe(true);
+    expect(service.userHasApproverRole(['tenant-owner'], 'permit-approver')).toBe(true);
   });
 
   it('denies unauthorised role', () => {
-    expect(service.userHasApproverRole(['viewer'], 'hod')).toBe(false);
+    expect(service.userHasApproverRole(['viewer'], 'permit-approver')).toBe(false);
   });
 });

@@ -428,6 +428,76 @@
       "when": 1791500000000,
       "tag": "0058_lototo_procedure_inactive",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1791600000000,
+      "tag": "0059_rename_permit_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1791700000000,
+      "tag": "0060_tenant_user_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1791800000000,
+      "tag": "0061_hazard_permit_type_codes",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1791900000000,
+      "tag": "0062_permit_emergency_phone",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1792000000000,
+      "tag": "0063_permit_safety_approval",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1792100000000,
+      "tag": "0064_permit_version",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792200000000,
+      "tag": "0065_permit_preview_signatures",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1792300000000,
+      "tag": "0066_execution_start",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792400000000,
+      "tag": "0067_lototo_start_notify",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1792500000000,
+      "tag": "0068_lototo_library_fields",
+      "breakpoints": true
     }
   ]
 }

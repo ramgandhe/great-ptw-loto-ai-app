@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
+import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { gasTestingApi, type GasTestingRecord } from "@/lib/master-data/api";
 import { workstationsApi } from "@/lib/organisation/api";
 import type { OrgRecord } from "@/lib/organisation/types";
@@ -136,12 +137,12 @@ export default function GasTestingConfigPage() {
 
   async function handleDelete(id: string) {
     const name = items.find((item) => item.id === id)?.parameter ?? "this gas test";
-    if (!window.confirm(`Delete ${name}?`)) {
-      return;
-    }
     setError(null);
     try {
-      await gasTestingApi.remove(id);
+      const ok = await deleteWithAssignmentConfirm(name, (force) =>
+        gasTestingApi.remove(id, force).then(() => undefined),
+      );
+      if (!ok) return;
       toast(`${name} deleted`);
       if (editingId === id) {
         resetForm();

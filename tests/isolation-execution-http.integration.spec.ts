@@ -69,7 +69,7 @@ describe('Isolation Execution HTTP integration (PUS-156)', () => {
     id: officerId,
     username: 'officer',
     tenantId,
-    roles: ['operator'],
+    roles: ['permit-operator'],
     email: 'officer@example.com',
   };
   const verifier: AuthenticatedUser = {
@@ -90,14 +90,14 @@ describe('Isolation Execution HTTP integration (PUS-156)', () => {
     id: randomUUID(),
     username: 'other-admin',
     tenantId: randomUUID(),
-    roles: ['operator', 'tenant-owner'],
+    roles: ['permit-operator', 'tenant-owner'],
     email: 'other@example.com',
   };
   const noActionRole: AuthenticatedUser = {
     id: randomUUID(),
     username: 'issuer',
     tenantId,
-    roles: ['job-issuer'],
+    roles: ['permit-receiver'],
     email: 'issuer@example.com',
   };
 
@@ -289,7 +289,7 @@ describe('Isolation Execution HTTP integration (PUS-156)', () => {
 
   httpTest('rejects action by a role without permission (RBAC server-side)', async () => {
     const { planId } = await seedPlan();
-    currentUser = noActionRole; // job-issuer cannot start execution
+    currentUser = noActionRole; // permit-receiver cannot start execution
     await request(server())
       .post(`/api/v1/lototo-plans/${planId}/isolation-execution`)
       .send({})

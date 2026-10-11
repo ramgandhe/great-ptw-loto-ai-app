@@ -173,9 +173,9 @@ describe('MS-07 integration HTTP (notifications + dashboards + regression)', () 
   httpTest('ITC-DSH: personal dashboard available to operator role', async () => {
     const operatorApp = await createTestApp({
       id: randomUUID(),
-      username: 'operator',
+      username: 'permit-operator',
       tenantId,
-      roles: ['operator'],
+      roles: ['permit-operator'],
       email: 'operator@example.com',
     });
 
@@ -193,9 +193,9 @@ describe('MS-07 integration HTTP (notifications + dashboards + regression)', () 
   httpTest('NTC-DSH: operator cannot access management dashboard', async () => {
     const operatorApp = await createTestApp({
       id: randomUUID(),
-      username: 'operator',
+      username: 'permit-operator',
       tenantId,
-      roles: ['operator'],
+      roles: ['permit-operator'],
       email: 'operator@example.com',
     });
 

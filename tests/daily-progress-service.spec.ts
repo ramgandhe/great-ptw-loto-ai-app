@@ -6,7 +6,7 @@ describe('DailyProgressService (PUS-176)', () => {
   const user = {
     id: '22222222-2222-4222-8222-222222222222',
     username: 'issuer',
-    roles: ['job-issuer'],
+    roles: ['permit-receiver'],
     tenantId,
   };
 

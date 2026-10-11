@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { ApiError } from "@/lib/api";
+import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import {
   approvalWorkflowsApi,
   departmentsApi,
@@ -259,12 +260,10 @@ export function EntityCrudPage({
 
   async function handleArchive(id: string) {
     const name = String(items.find((item) => item.id === id)?.[nameField] ?? singular);
-    if (!window.confirm(`Delete ${name}? It is removed from this list; permits that used it keep their record.`)) {
-      return;
-    }
     setError(null);
     try {
-      await api.archive(id);
+      const ok = await deleteWithAssignmentConfirm(name, (force) => api.archive(id, force));
+      if (!ok) return;
       toast(`${name} deleted`);
       if (editingId === id) {
         resetForm();

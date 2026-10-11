@@ -57,6 +57,7 @@ describe('Permit draft revision contract (S0a)', () => {
       { send: jest.fn().mockResolvedValue(undefined) } as never,
       { get: () => 'http://localhost:3000' } as never,
       { enqueueApprovalNotification: jest.fn().mockResolvedValue(undefined) } as never,
+      { syncOnSubmit: jest.fn().mockResolvedValue(undefined) } as never,
     );
   });
 
@@ -77,14 +78,14 @@ describe('Permit draft revision contract (S0a)', () => {
       id: randomUUID(),
       username: 'issuer',
       tenantId,
-      roles: ['job-issuer'],
+      roles: ['permit-receiver'],
       email: 'issuer@example.com',
     };
     const executor: AuthenticatedUser = {
       id: randomUUID(),
       username: 'executor',
       tenantId,
-      roles: ['operator'],
+      roles: ['permit-operator'],
       email: 'executor@example.com',
     };
     const [permit] = await db
@@ -166,7 +167,7 @@ describe('Permit draft revision contract (S0a)', () => {
 
   dbTest('RBAC and assignment are checked before the revision, so a stale revision never bypasses them', async () => {
     const { tenantId, permitId } = await context();
-    const stranger: AuthenticatedUser = { id: randomUUID(), username: 's', tenantId, roles: ['operator'], email: 's@example.com' };
+    const stranger: AuthenticatedUser = { id: randomUUID(), username: 's', tenantId, roles: ['permit-operator'], email: 's@example.com' };
     await expect(service.update(permitId, { expectedRevision: 99, hazards: [] }, stranger)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -182,6 +183,25 @@ describe('Permit draft revision contract (S0a)', () => {
     expect(initializeAtSubmit).toHaveBeenCalledTimes(1);
     const history = await db.select().from(schema.approvalHistory).where(eq(schema.approvalHistory.permitId, permitId));
     expect(history).toHaveLength(1);
+  });
+
+  dbTest('submitted version starts at 1 and increments on each resubmit', async () => {
+    const { issuer, permitId } = await context();
+    await service.submit(permitId, { expectedRevision: 0 }, issuer);
+    const [first] = await db.select().from(schema.permits).where(eq(schema.permits.id, permitId));
+    expect(first.permitVersion).toBe(1);
+    expect(first.permitVersionAt).toBeTruthy();
+    expect(first.reference).toBeTruthy();
+    expect(first.approvedAt).toBeNull();
+    expect(first.submittedSignedName).toBeTruthy();
+    expect(first.approvedBy).toBeNull();
+    expect(first.approvedSignedName).toBeNull();
+
+    await db.update(schema.permits).set({ status: 'rejected' }).where(eq(schema.permits.id, permitId));
+    await service.submit(permitId, { expectedRevision: first.draftRevision }, issuer);
+    const [second] = await db.select().from(schema.permits).where(eq(schema.permits.id, permitId));
+    expect(second.permitVersion).toBe(2);
+    expect(second.permitVersionAt?.getTime()).toBeGreaterThanOrEqual(first.permitVersionAt!.getTime());
   });
 
   dbTest('a submit after a competing save conflicts, and a save after submit cannot revive old content', async () => {
@@ -238,7 +258,7 @@ describe('Permit draft revision contract (S0a)', () => {
 
   dbTest('stage answers: status and revision checked under lock, audited, other answers kept, missing listed', async () => {
     const { tenantId, issuer, permitId } = await context();
-    const hod: AuthenticatedUser = { id: randomUUID(), username: 'hod', tenantId, roles: ['hod'], email: 'hod@example.com' };
+    const hod: AuthenticatedUser = { id: randomUUID(), username: 'permit-approver', tenantId, roles: ['permit-approver'], email: 'hod@example.com' };
     const [template] = await db
       .insert(schema.permitTemplates)
       .values({
@@ -288,7 +308,7 @@ describe('Permit draft revision contract (S0a)', () => {
 
   dbTest('attestations: drafts cannot pre-sign, archiving cannot drop a requirement, a new round signs again', async () => {
     const { tenantId, issuer, permitId } = await context();
-    const hod: AuthenticatedUser = { id: randomUUID(), username: 'hod', firstName: 'Hema', lastName: 'Rao', tenantId, roles: ['hod'], email: 'hod@example.com' };
+    const hod: AuthenticatedUser = { id: randomUUID(), username: 'permit-approver', firstName: 'Hema', lastName: 'Rao', tenantId, roles: ['permit-approver'], email: 'hod@example.com' };
     const [template] = await db
       .insert(schema.permitTemplates)
       .values({
@@ -357,8 +377,8 @@ describe('Permit draft revision contract (S0a)', () => {
 
   dbTest('issuer signs at verification, HOD signs at closure: the issuer\'s signature stays the issuer\'s', async () => {
     const { tenantId, permitId } = await context();
-    const issuer: AuthenticatedUser = { id: randomUUID(), username: 'issuer', firstName: 'Ishaan', lastName: 'Iyer', tenantId, roles: ['job-issuer'], email: 'i@example.com' };
-    const hod: AuthenticatedUser = { id: randomUUID(), username: 'hod', firstName: 'Hema', lastName: 'Rao', tenantId, roles: ['hod'], email: 'h@example.com' };
+    const issuer: AuthenticatedUser = { id: randomUUID(), username: 'issuer', firstName: 'Ishaan', lastName: 'Iyer', tenantId, roles: ['permit-receiver'], email: 'i@example.com' };
+    const hod: AuthenticatedUser = { id: randomUUID(), username: 'permit-approver', firstName: 'Hema', lastName: 'Rao', tenantId, roles: ['permit-approver'], email: 'h@example.com' };
     const templateId = randomUUID();
     const config = {
       kind: 'permit',

@@ -1,4 +1,5 @@
 import { fetchApi } from "@/lib/api";
+import { forceQuery } from "@/lib/confirm-delete";
 
 export type MasterDataRecord = {
   id: string;
@@ -14,6 +15,7 @@ export type HazardRecord = MasterDataRecord & {
   severity?: string;
   consequences?: string[];
   controls?: string[];
+  permitTypeCodes?: string[];
 };
 
 export const masterDataApi = {
@@ -37,10 +39,14 @@ export const masterDataApi = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
-  deletePermitType: (id: string) =>
-    fetchApi<MasterDataRecord>(`/permit-types/${id}`, { method: "DELETE" }),
+  deletePermitType: (id: string, force = false) =>
+    fetchApi<MasterDataRecord>(`/permit-types/${id}${forceQuery(force)}`, { method: "DELETE" }),
+  importDefaults: () =>
+    fetchApi<{ created: number; updated: number }>("/permit-types/import-defaults", { method: "POST" }),
   hazards: () => fetchApi<HazardRecord[]>("/hazards"),
   ppe: () => fetchApi<MasterDataRecord[]>("/ppe"),
+  importHazardDefaults: () =>
+    fetchApi<{ created: number; updated: number }>("/hazards/import-defaults", { method: "POST" }),
 };
 
 export type GasTestingRecord = {
@@ -84,5 +90,6 @@ export const gasTestingApi = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
-  remove: (id: string) => fetchApi<GasTestingRecord>(`/gas-testing/${id}`, { method: "DELETE" }),
+  remove: (id: string, force = false) =>
+    fetchApi<GasTestingRecord>(`/gas-testing/${id}${forceQuery(force)}`, { method: "DELETE" }),
 };

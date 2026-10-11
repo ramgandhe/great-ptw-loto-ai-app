@@ -41,6 +41,7 @@ export type CreatedTenantUser = {
   name: string;
   email: string;
   role: string;
+  roles?: string[];
   temporaryPassword: string;
   signInUrl: string;
   signInHint: string;

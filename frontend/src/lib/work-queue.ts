@@ -52,11 +52,11 @@ export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string; kin
   "incident-decision": { group: "Incidents waiting for your decision", verb: "Decide", kind: "decide" },
   "resolve-conflict": { group: "Clashing work to resolve (SIMOPS)", verb: "Resolve", kind: "fix" },
   review: { group: "Waiting for your approval", verb: "Review", kind: "decide" },
-  "safety-check": { group: "Safety check before work starts", verb: "Check", kind: "decide" },
+  "safety-check": { group: "Safety Approval", verb: "Sign off", kind: "decide" },
   "final-approval": { group: "Waiting for final sign-off", verb: "Sign off", kind: "decide" },
   "approve-completion": { group: "Work finished, confirm completion", verb: "Confirm", kind: "decide" },
   revalidate: { group: "Suspended, needs revalidation", verb: "Revalidate", kind: "fix" },
-  "start-work": { group: "Approved, ready to start", verb: "Start work", kind: "do" },
+  "start-work": { group: "Approved, ready to start", verb: "Start Permit Execution", kind: "do" },
   "log-progress": { group: "In progress", verb: "Update", kind: "do" },
   "site-details": { group: "Add your on-site details", verb: "Add details", kind: "do" },
   revise: { group: "Sent back to you", verb: "Revise", kind: "fix" },
@@ -69,14 +69,14 @@ export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string; kin
 
 const ACTION_ORDER = Object.keys(WORK_ACTIONS) as WorkAction[];
 
-const REVALIDATE_ROLES = ["job-issuer", "hod", "tenant-owner", "tenant-admin"];
-const EXECUTOR_ROLES = ["operator"];
-const COMPLETION_ROLES = ["job-issuer", "tenant-owner", "tenant-admin"];
-const FINAL_APPROVAL_ROLES = ["hod", "tenant-owner", "tenant-admin"];
-const SIMOPS_RESOLVE_ROLES = ["hod", "tenant-owner", "tenant-admin"];
-const INCIDENT_HOD_ROLES = ["hod", "tenant-owner", "tenant-admin"];
+const REVALIDATE_ROLES = ["permit-receiver", "permit-approver", "tenant-owner", "tenant-admin"];
+const EXECUTOR_ROLES = ["permit-operator"];
+const COMPLETION_ROLES = ["permit-receiver", "tenant-owner", "tenant-admin"];
+const FINAL_APPROVAL_ROLES = ["permit-approver", "tenant-owner", "tenant-admin"];
+const SIMOPS_RESOLVE_ROLES = ["permit-approver", "tenant-owner", "tenant-admin"];
+const INCIDENT_HOD_ROLES = ["permit-approver", "tenant-owner", "tenant-admin"];
 const INCIDENT_SAFETY_ROLES = ["safety-officer", "tenant-owner", "tenant-admin"];
-const INVESTIGATION_ROLES = ["safety-officer", "hod", "tenant-owner", "tenant-admin"];
+const INVESTIGATION_ROLES = ["safety-officer", "permit-approver", "tenant-owner", "tenant-admin"];
 const SAFETY_OFFICER_ROLES = ["safety-officer"];
 const OPEN_CONFLICT_STATUSES = ["open", "assessed", "mitigation_planned"];
 
@@ -136,9 +136,15 @@ export function buildWorkQueue(
 
   for (const permit of permits) {
     if (reviewing.has(permit.id)) continue;
-    if (isSafetyOfficer && (permit.status === "pending_approval" || permit.status === "approved")) {
-      add("safety-check", permit, `/permits/${permit.id}`, startsSoonNote(permit, now), Boolean(startsSoonNote(permit, now)));
-      continue;
+    if (isSafetyOfficer) {
+      if (permit.status === "draft" || permit.status === "deferred" || permit.status === "rejected") {
+        add("safety-check", permit, `/permits/${permit.id}/edit`);
+        continue;
+      }
+      if (permit.status === "pending_approval" || permit.status === "approved") {
+        add("safety-check", permit, `/permits/${permit.id}`, startsSoonNote(permit, now), Boolean(startsSoonNote(permit, now)));
+        continue;
+      }
     }
     switch (permit.status) {
       case "draft":

@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { ForceQuery } from '../../common/decorators/force-query.decorator';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -34,7 +35,11 @@ export class MachineryController {
 
   @Roles(...MASTER_DATA_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.machineryService.remove(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.machineryService.remove(id, user, force);
   }
 }

@@ -37,6 +37,11 @@ export class UpdatePermitDto {
   workScope?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  emergencyPhone?: string;
+
+  @IsOptional()
   @IsUUID()
   plantId?: string;
 
@@ -130,4 +135,13 @@ export class UpdatePermitDto {
   @ValidateNested({ each: true })
   @Type(() => PermitAssigneeDto)
   safetyOfficers?: PermitAssigneeDto[];
+
+  @IsOptional()
+  @IsString()
+  safetyApprovalComment?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  safetyApprovalSignedName?: string;
 }

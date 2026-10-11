@@ -35,10 +35,10 @@ describe('buildJourney', () => {
   it('follows loops, counts repeated moves and marks where the permit is now', () => {
     const journey = buildJourney(permit, [
       entry('1', '2026-09-01T09:00:00.000Z', 'submitted', 'draft', 'pending_approval', 'issuer'),
-      entry('2', '2026-09-01T10:00:00.000Z', 'deferred', 'pending_approval', 'deferred', 'hod'),
+      entry('2', '2026-09-01T10:00:00.000Z', 'deferred', 'pending_approval', 'deferred', 'permit-approver'),
       entry('3', '2026-09-01T11:00:00.000Z', 'resubmitted', 'deferred', 'pending_approval', 'issuer'),
-      entry('4', '2026-09-01T12:00:00.000Z', 'stage_advanced', 'pending_approval', 'pending_approval', 'hod'),
-      entry('5', '2026-09-01T13:00:00.000Z', 'approved', 'pending_approval', 'approved', 'hod'),
+      entry('4', '2026-09-01T12:00:00.000Z', 'stage_advanced', 'pending_approval', 'pending_approval', 'permit-approver'),
+      entry('5', '2026-09-01T13:00:00.000Z', 'approved', 'pending_approval', 'approved', 'permit-approver'),
       entry('6', '2026-09-02T08:00:00.000Z', 'activated', 'approved', 'active', 'executor'),
     ]);
 

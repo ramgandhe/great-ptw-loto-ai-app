@@ -14,6 +14,11 @@ describe('PermitValidationService', () => {
       permitTypeId: 'type-id',
       title: 'Hot work',
       workScope: 'Welding',
+      emergencyPhone: null,
+      safetyApprovalComment: null,
+      safetyApprovalSignedName: null,
+      safetyApprovedBy: null,
+      safetyApprovedAt: null,
       plantId: 'plant-id',
       departmentId: 'dept-id',
       locationId: 'location-id',
@@ -25,6 +30,13 @@ describe('PermitValidationService', () => {
       plannedEndAt: new Date('2026-08-01T16:00:00Z'),
       submittedAt: null,
       submittedBy: null,
+      submittedSignedName: null,
+      permitVersion: 1,
+      permitVersionAt: null,
+      approvedAt: null,
+      approvedBy: null,
+      approvedSignedName: null,
+      executionStart: {},
       formResponses: [],
       draftRevision: 0,
       renewedFromPermitId: null,
@@ -73,6 +85,7 @@ describe('PermitValidationService', () => {
         updatedBy: 'user-id',
       },
     ],
+    safetyOfficers: [],
     attachments: [],
   });
 
@@ -135,6 +148,27 @@ describe('PermitValidationService', () => {
     ];
 
     expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
+  });
+
+  it('rejects submit when a safety officer is assigned without Safety Approval', () => {
+    const record = baseRecord();
+    record.safetyOfficers = [
+      {
+        id: 'so-row',
+        permitId: 'permit-id',
+        workforceUserId: 'so-1',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: 'user-id',
+        updatedBy: 'user-id',
+      },
+    ];
+
+    expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
+
+    record.permit.safetyApprovalComment = 'Controls verified';
+    record.permit.safetyApprovalSignedName = 'A. Rao';
+    expect(() => service.validateForSubmit(record)).not.toThrow();
   });
 
   it('rejects gas testing required without an item', () => {

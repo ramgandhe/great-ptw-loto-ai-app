@@ -6,7 +6,7 @@ const permit = (id: string, status: string) => ({ id, status, title: id }) as Pe
 
 describe('mobile Needs you (S6)', () => {
   it('sends each person to the screen that does their job, with the web app\'s verbs', () => {
-    const items = buildWorkQueue(['job-issuer'], [permit('d', 'draft'), permit('x', 'rejected'), permit('c', 'execution_completed')], [
+    const items = buildWorkQueue(['permit-receiver'], [permit('d', 'draft'), permit('x', 'rejected'), permit('c', 'execution_completed')], [
       { permit: permit('r', 'pending_approval') } as never,
     ]);
     expect(items.map((i) => [i.action, i.href])).toEqual([
@@ -15,7 +15,7 @@ describe('mobile Needs you (S6)', () => {
       ['approve-completion', '/closure/c'],
       ['finish-draft', '/permits/d/edit'],
     ]);
-    const operator = buildWorkQueue(['operator'], [permit('d', 'draft'), permit('a', 'active')], []);
+    const operator = buildWorkQueue(['permit-operator'], [permit('d', 'draft'), permit('a', 'active')], []);
     expect(operator.map((i) => i.action)).toEqual(['log-progress', 'site-details']);
     expect(buildWorkQueue(['viewer'], [permit('d', 'draft')], [])).toEqual([]);
   });

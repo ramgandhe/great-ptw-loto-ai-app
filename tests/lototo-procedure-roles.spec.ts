@@ -27,12 +27,12 @@ describe('LOTOTO library role enforcement', () => {
     expect(guard.canActivate(buildContext({ roles: ['tenant-admin'] }))).toBe(true);
   });
 
-  it('denies HOD from managing the procedure library', () => {
-    expect(() => guard.canActivate(buildContext({ roles: ['hod'] }))).toThrow(ForbiddenException);
+  it('allows HOD to manage the procedure library', () => {
+    expect(guard.canActivate(buildContext({ roles: ['permit-approver'] }))).toBe(true);
   });
 
   it('denies operator from managing the procedure library', () => {
-    expect(() => guard.canActivate(buildContext({ roles: ['operator'] }))).toThrow(
+    expect(() => guard.canActivate(buildContext({ roles: ['permit-operator'] }))).toThrow(
       ForbiddenException,
     );
   });

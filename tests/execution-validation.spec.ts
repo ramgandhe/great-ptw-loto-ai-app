@@ -78,7 +78,7 @@ describe('Execution role enforcement (PUS-141)', () => {
   it('allows authorised execution write roles', () => {
     mockRoleGuardReflector(getAllAndOverride, EXECUTION_WRITE_ROLES);
 
-    const result = guard.canActivate(buildContext({ roles: ['operator'] }));
+    const result = guard.canActivate(buildContext({ roles: ['permit-operator'] }));
     expect(result).toBe(true);
   });
 

@@ -9,8 +9,8 @@ const fields = [
     label: "Approver",
     required: true,
     options: [
-      { value: "hod", label: "HOD" },
-      { value: "job-issuer", label: "Job issuer" },
+      { value: "permit-approver", label: "Permit approver" },
+      { value: "permit-receiver", label: "Permit receiver" },
       { value: "safety-officer", label: "Safety officer" },
     ],
   },

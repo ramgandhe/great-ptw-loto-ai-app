@@ -1,4 +1,16 @@
-import { IsDateString, IsEmail, IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsDateString,
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+  ValidateIf,
+} from 'class-validator';
 import { NAME_MESSAGE, NAME_REGEX, PHONE_MESSAGE, PHONE_REGEX, TEXT_MESSAGE, TEXT_REGEX } from '../../../common/validation';
 import { TENANT_ASSIGNABLE_ROLES } from '../workforce.constants';
 
@@ -72,9 +84,16 @@ export class CreateCompetencyDto {
 export class UpdateCompetencyDto extends CreateCompetencyDto {}
 
 export class AssignRoleDto {
+  @IsOptional()
   @IsString()
   @IsIn([...TENANT_ASSIGNABLE_ROLES])
-  role!: string;
+  role?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsIn([...TENANT_ASSIGNABLE_ROLES], { each: true })
+  roles?: string[];
 }
 
 export class CreateTenantUserDto {
@@ -87,9 +106,16 @@ export class CreateTenantUserDto {
   @IsEmail()
   email!: string;
 
+  @ValidateIf((dto: CreateTenantUserDto) => !dto.roles?.length)
   @IsString()
   @IsIn([...TENANT_ASSIGNABLE_ROLES])
-  role!: string;
+  role?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsIn([...TENANT_ASSIGNABLE_ROLES], { each: true })
+  roles?: string[];
 
   @IsOptional()
   @IsString()

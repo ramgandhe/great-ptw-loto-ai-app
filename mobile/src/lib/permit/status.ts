@@ -30,13 +30,13 @@ export function permitStatusLabel(status: string): string {
  */
 export const TYPE_FAMILIES = [
   { key: "hot", match: /hot|weld|burn/i, color: "#DC2626" },
-  { key: "electrical", match: /electr|energ/i, color: "#D97706" },
+  { key: "electrical", match: /electr|energ/i, color: "#2563EB" },
   { key: "hazardous", match: /hazard|atex|gas/i, color: "#EA580C" },
   { key: "confined", match: /confin|vessel|tank entry/i, color: "#7C3AED" },
-  { key: "height", match: /height|scaffold|roof/i, color: "#0891B2" },
+  { key: "height", match: /height|scaffold|roof/i, color: "#D97706" },
   { key: "excavation", match: /excavat|dig|trench/i, color: "#92400E" },
   { key: "lifting", match: /shift|lift|crane|machine/i, color: "#4D7C0F" },
-  { key: "cold", match: /cold/i, color: "#2563EB" },
+  { key: "cold", match: /cold/i, color: "#16A34A" },
 ] as const;
 
 export type TypeFamily = (typeof TYPE_FAMILIES)[number]["key"] | "general";

@@ -5,10 +5,16 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnApplicationBootstrap,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { isTenantAssignableRole } from '../../common/constants/tenant-roles';
+import {
+  canonicalizeTenantRole,
+  canonicalizeTenantRoles,
+  isTenantAssignableRole,
+  LEGACY_TENANT_ROLE_MAP,
+} from '../../common/constants/tenant-roles';
 
 export type CreatedKeycloakUser = {
   id: string;
@@ -38,10 +44,20 @@ type KeycloakUser = {
 type KeycloakRole = { id: string; name: string };
 
 @Injectable()
-export class KeycloakAdminService {
+export class KeycloakAdminService implements OnApplicationBootstrap {
   private readonly logger = new Logger(KeycloakAdminService.name);
 
   constructor(private readonly configService: ConfigService) {}
+
+  async onApplicationBootstrap(): Promise<void> {
+    try {
+      await this.migrateLegacyRealmRoles();
+    } catch (error) {
+      this.logger.warn(
+        `Keycloak role migration skipped: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
 
   async createOrgAdmin(params: {
     email: string;
@@ -61,7 +77,8 @@ export class KeycloakAdminService {
   async createTenantUser(params: {
     email: string;
     tenantId: string;
-    role: string;
+    role?: string;
+    roles?: string[];
     firstName?: string;
     lastName?: string;
     temporaryPassword: string;
@@ -106,7 +123,13 @@ export class KeycloakAdminService {
 
     try {
       await this.setTemporaryPassword(token, id, params.temporaryPassword);
-      await this.assignRealmRole(token, id, params.role);
+      const assigned = [...new Set((params.roles?.length ? params.roles : params.role ? [params.role] : []).map(canonicalizeTenantRole))];
+      if (assigned.length === 0) {
+        throw new BadRequestException('At least one role is required');
+      }
+      for (const role of assigned) {
+        await this.assignRealmRole(token, id, role);
+      }
     } catch (error) {
       await this.deleteUser(token, id).catch(() => undefined);
       throw error;
@@ -206,6 +229,14 @@ export class KeycloakAdminService {
   }
 
   async setUserRoleInTenant(userId: string, tenantId: string, role: string): Promise<void> {
+    await this.setUserRolesInTenant(userId, tenantId, [role]);
+  }
+
+  async setUserRolesInTenant(userId: string, tenantId: string, roles: string[]): Promise<void> {
+    const canonical = [...new Set(roles.map(canonicalizeTenantRole))];
+    if (canonical.length === 0) {
+      throw new BadRequestException('At least one role is required');
+    }
     const token = await this.adminToken();
     const user = await this.getUser(token, userId);
     if (this.readTenantId(user) !== tenantId) {
@@ -217,14 +248,17 @@ export class KeycloakAdminService {
       throw new ForbiddenException('Cannot change a platform administrator');
     }
 
+    const wanted = new Set(canonical);
     const removable = current.filter(
-      (entry) => entry.name !== role && this.isAssignableRealmRole(entry.name),
+      (entry) => this.isAssignableRealmRole(entry.name) && !wanted.has(canonicalizeTenantRole(entry.name)),
     );
     if (removable.length > 0) {
       await this.removeRealmRoles(token, userId, removable);
     }
-    if (!current.some((entry) => entry.name === role)) {
-      await this.assignRealmRole(token, userId, role);
+    for (const role of canonical) {
+      if (!current.some((entry) => canonicalizeTenantRole(entry.name) === role)) {
+        await this.assignRealmRole(token, userId, role);
+      }
     }
   }
 
@@ -351,7 +385,9 @@ export class KeycloakAdminService {
       firstName: user.firstName ?? null,
       lastName: user.lastName ?? null,
       enabled: user.enabled !== false,
-      roles: mappings.map((role) => role.name).filter((name) => this.isAssignableRealmRole(name)),
+      roles: canonicalizeTenantRoles(
+        mappings.map((role) => role.name).filter((name) => this.isAssignableRealmRole(name)),
+      ),
     };
   }
 
@@ -377,6 +413,76 @@ export class KeycloakAdminService {
     const token = await this.adminToken();
     const user = await this.getUser(token, id);
     return { id, tenantId: this.readTenantId(user) };
+  }
+
+  async migrateLegacyRealmRoles(): Promise<void> {
+    const token = await this.adminToken();
+    const needed = [...new Set(Object.values(LEGACY_TENANT_ROLE_MAP))];
+    for (const name of needed) {
+      await this.ensureRealmRole(token, name);
+    }
+
+    let first = 0;
+    const pageSize = 100;
+    for (;;) {
+      const url = new URL(`${this.realmUrl()}/users`);
+      url.searchParams.set('first', String(first));
+      url.searchParams.set('max', String(pageSize));
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) {
+        throw this.unavailable('Failed to list users for role migration', await response.text());
+      }
+      const users = (await response.json()) as KeycloakUser[];
+      if (users.length === 0) {
+        break;
+      }
+      for (const user of users) {
+        const mappings = await this.getRealmRoleMappings(token, user.id);
+        const legacyByCanonical = new Map<string, KeycloakRole[]>();
+        for (const mapping of mappings) {
+          const canonical = canonicalizeTenantRole(mapping.name);
+          if (canonical === mapping.name) {
+            continue;
+          }
+          const list = legacyByCanonical.get(canonical) ?? [];
+          list.push(mapping);
+          legacyByCanonical.set(canonical, list);
+        }
+        for (const [canonical, legacy] of legacyByCanonical) {
+          if (!mappings.some((mapping) => mapping.name === canonical)) {
+            await this.assignRealmRole(token, user.id, canonical);
+          }
+          await this.removeRealmRoles(token, user.id, legacy);
+        }
+      }
+      first += users.length;
+      if (users.length < pageSize) {
+        break;
+      }
+    }
+  }
+
+  private async ensureRealmRole(token: string, name: string): Promise<void> {
+    const existing = await fetch(`${this.realmUrl()}/roles/${encodeURIComponent(name)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (existing.ok) {
+      return;
+    }
+    if (existing.status !== 404) {
+      throw this.unavailable(`Failed to read Keycloak role ${name}`, await existing.text());
+    }
+    const created = await fetch(`${this.realmUrl()}/roles`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name, description: name }),
+    });
+    if (!created.ok && created.status !== 409) {
+      throw this.unavailable(`Failed to create Keycloak role ${name}`, await created.text());
+    }
   }
 
   async findUserIdByEmail(email: string): Promise<string | null> {

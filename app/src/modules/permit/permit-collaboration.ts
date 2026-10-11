@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { isTenantPrivileged } from '../../common/constants/tenant-roles';
 import type { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import {
@@ -8,11 +8,13 @@ import {
 } from './permit.constants';
 import type { PermitDetail } from './permit.service';
 import type { UpdatePermitDto } from './dto/update-permit.dto';
+import { isAssignedSafetyOfficer } from './permit-access';
 
 export const ISSUER_ONLY_FIELDS = [
   'permitTypeId',
   'title',
   'workScope',
+  'emergencyPhone',
   'plantId',
   'departmentId',
   'locationId',
@@ -37,6 +39,11 @@ export const EXECUTOR_FIELDS = [
   'formResponses',
 ] as const satisfies readonly (keyof UpdatePermitDto)[];
 
+export const SAFETY_APPROVAL_FIELDS = [
+  'safetyApprovalComment',
+  'safetyApprovalSignedName',
+] as const satisfies readonly (keyof UpdatePermitDto)[];
+
 function hasAnyRole(user: AuthenticatedUser, roles: readonly string[]): boolean {
   return roles.some((role) => user.roles.includes(role));
 }
@@ -55,6 +62,30 @@ export function assertPermitSubmitAllowed(user: AuthenticatedUser): void {
 
 export function isAssignedExecutor(detail: PermitDetail, userId: string): boolean {
   return detail.executors.some((executor) => executor.workforceUserId === userId);
+}
+
+/** Same person cannot be receiver and operator, or operator and approver, on one permit. */
+export function assertPermitSegregationOfDuties(params: {
+  receiverIds: Array<string | null | undefined>;
+  executorIds: Array<string | null | undefined>;
+  approverIds?: Array<string | null | undefined>;
+}): void {
+  const receivers = new Set(params.receiverIds.filter((id): id is string => Boolean(id)));
+  const executors = new Set(params.executorIds.filter((id): id is string => Boolean(id)));
+  const approvers = new Set((params.approverIds ?? []).filter((id): id is string => Boolean(id)));
+
+  for (const id of executors) {
+    if (receivers.has(id)) {
+      throw new BadRequestException(
+        'The permit receiver cannot also be a permit operator on the same permit',
+      );
+    }
+    if (approvers.has(id)) {
+      throw new BadRequestException(
+        'A permit operator cannot also approve the same permit',
+      );
+    }
+  }
 }
 
 const LOTOTO_ATTACH_FIELDS = ['lototoRequired', 'lototo'] as const;
@@ -81,6 +112,16 @@ export function sanitizeCreatePermitDto<T extends { lototoRequired?: boolean; lo
   return { ...dto, lototoRequired: false, lototo: undefined };
 }
 
+function pickFields(dto: UpdatePermitDto, allowed: ReadonlySet<string>): UpdatePermitDto {
+  const sanitized: UpdatePermitDto = {};
+  for (const [key, value] of Object.entries(dto)) {
+    if (allowed.has(key) && value !== undefined) {
+      (sanitized as Record<string, unknown>)[key] = value;
+    }
+  }
+  return sanitized;
+}
+
 export function sanitizeDraftUpdateDto(
   user: AuthenticatedUser,
   dto: UpdatePermitDto,
@@ -97,18 +138,20 @@ export function sanitizeDraftUpdateDto(
     return dto;
   }
 
-  if (!hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES)) {
-    return dto;
+  if (hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES)) {
+    const allowed = new Set<string>([...EXECUTOR_FIELDS, ...SAFETY_APPROVAL_FIELDS]);
+    return pickFields(dto, allowed);
   }
 
-  const allowed = new Set<string>(EXECUTOR_FIELDS);
-  const sanitized: UpdatePermitDto = {};
-  for (const [key, value] of Object.entries(dto)) {
-    if (allowed.has(key) && value !== undefined) {
-      (sanitized as Record<string, unknown>)[key] = value;
-    }
+  if (user.roles.includes('safety-officer')) {
+    return pickFields(dto, new Set<string>(SAFETY_APPROVAL_FIELDS));
   }
-  return sanitized;
+
+  if (user.roles.includes('permit-approver')) {
+    return pickFields(dto, new Set<string>(['safetyOfficers']));
+  }
+
+  return dto;
 }
 
 export function assertDraftUpdateAllowed(
@@ -118,6 +161,11 @@ export function assertDraftUpdateAllowed(
 ): void {
   if (isPrivilegedPermitEditor(user)) {
     return;
+  }
+
+  const signing = SAFETY_APPROVAL_FIELDS.some((field) => dto[field] !== undefined);
+  if (signing && !isAssignedSafetyOfficer(detail, user.id)) {
+    throw new ForbiddenException('Only an assigned safety officer can complete Safety Approval');
   }
 
   if (hasAnyRole(user, PERMIT_CREATE_ROLES) && !hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES)) {
@@ -139,13 +187,30 @@ export function assertDraftUpdateAllowed(
     }
 
     const touchedFields = Object.keys(dto) as (keyof UpdatePermitDto)[];
-    const allowed = new Set<string>(EXECUTOR_FIELDS);
+    const allowed = new Set<string>([...EXECUTOR_FIELDS, ...SAFETY_APPROVAL_FIELDS]);
     const disallowed = touchedFields.filter((field) => !allowed.has(field));
     if (disallowed.length > 0) {
       throw new ForbiddenException('Executors can only update on-site operational details');
     }
 
     return;
+  }
+
+  if (user.roles.includes('safety-officer') && isAssignedSafetyOfficer(detail, user.id)) {
+    const touchedFields = Object.keys(dto) as (keyof UpdatePermitDto)[];
+    const allowed = new Set<string>(SAFETY_APPROVAL_FIELDS);
+    if (touchedFields.some((field) => !allowed.has(field))) {
+      throw new ForbiddenException('Safety officers can only complete Safety Approval on this permit');
+    }
+    return;
+  }
+
+  if (user.roles.includes('permit-approver')) {
+    const touchedFields = Object.keys(dto) as (keyof UpdatePermitDto)[];
+    if (touchedFields.length === 0 || touchedFields.every((field) => field === 'safetyOfficers')) {
+      return;
+    }
+    throw new ForbiddenException('A permit approver can assign safety officers on this permit');
   }
 
   throw new ForbiddenException('Insufficient permissions to update this permit');
@@ -160,7 +225,7 @@ export function assertPeopleReassignAllowed(
     throw new ConflictException('People can only be reassigned after approval and before work starts');
   }
 
-  if (isPrivilegedPermitEditor(user) || user.roles.includes('hod')) {
+  if (isPrivilegedPermitEditor(user) || user.roles.includes('permit-approver')) {
     return;
   }
 
@@ -183,11 +248,15 @@ export function canEditWizardStep(
     if (isTenantPrivileged(user.roles)) {
       return true;
     }
-    return step === 0 || step === 1 || step === 4 || step === 5;
+    return step === 0 || step === 1 || step === 4 || step === 6;
   }
 
   if (hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES) && isAssignedExecutor(detail, user.id)) {
     return step === 2 || step === 3 || step === 4;
+  }
+
+  if (user.roles.includes('safety-officer') && isAssignedSafetyOfficer(detail, user.id)) {
+    return step === 5;
   }
 
   return false;

@@ -79,7 +79,7 @@ describe('Permit approval schema (PUS-139)', () => {
         permitTypeId,
         stepSequence: 1,
         name: 'Safety Officer Review',
-        approverRole: 'hod',
+        approverRole: 'permit-approver',
         createdBy: issuerId,
       })
       .returning();
@@ -112,7 +112,7 @@ describe('Permit approval schema (PUS-139)', () => {
         permitTypeId,
         stepSequence: 1,
         name: 'Duplicate sequence',
-        approverRole: 'hod',
+        approverRole: 'permit-approver',
         createdBy: issuerId,
       }),
     ).rejects.toThrow();

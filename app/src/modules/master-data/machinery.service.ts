@@ -94,9 +94,9 @@ export class MachineryService {
     return row;
   }
 
-  async remove(id: string, user: AuthenticatedUser) {
+  async remove(id: string, user: AuthenticatedUser, force = false) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
-    await this.referenceIntegrity.assertMachineryNotReferenced(tenantId, id);
+    await this.referenceIntegrity.assertMachineryNotReferenced(tenantId, id, force);
 
     const [row] = await this.db
       .delete(machineryCatalogue)

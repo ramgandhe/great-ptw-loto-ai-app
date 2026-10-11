@@ -35,7 +35,7 @@ describe('ClosureAttachmentService (PUS-150)', () => {
   it('denies attachment download for users without archive read roles', async () => {
     const unauthorized: AuthenticatedUser = {
       ...viewer,
-      roles: ['operator'],
+      roles: ['permit-operator'],
     };
 
     await expect(

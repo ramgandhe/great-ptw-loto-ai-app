@@ -1,18 +1,38 @@
 export const LOTOTO_WRITE_ROLES = [
-  'hod',
+  'permit-approver',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
-export const LOTOTO_READ_ROLES = [...LOTOTO_WRITE_ROLES, 'operator', 'viewer'] as const;
+export const LOTOTO_READ_ROLES = [...LOTOTO_WRITE_ROLES, 'permit-operator', 'viewer'] as const;
 
-export const LOTOTO_LIBRARY_WRITE_ROLES = ['tenant-owner', 'tenant-admin', 'platform-admin'] as const;
+export const LOTOTO_ENERGY_TYPES = [
+  'electrical',
+  'mechanical',
+  'hydraulic',
+  'pneumatic',
+  'chemical',
+  'thermal',
+  'pressure',
+  'gravity',
+  'gravitational',
+  'stored_energy',
+  'radiation',
+  'other',
+] as const;
+
+export const LOTOTO_LIBRARY_WRITE_ROLES = [
+  'permit-approver',
+  'tenant-owner',
+  'tenant-admin',
+  'platform-admin',
+] as const;
 
 export const LOTOTO_LIBRARY_READ_ROLES = [
   ...LOTOTO_LIBRARY_WRITE_ROLES,
-  'hod',
-  'operator',
-  'job-issuer',
+  'permit-approver',
+  'permit-operator',
+  'permit-receiver',
   'safety-officer',
   'viewer',
 ] as const;

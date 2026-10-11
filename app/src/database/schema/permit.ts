@@ -41,6 +41,11 @@ export const permits = pgTable(
     permitTypeId: uuid('permit_type_id').notNull(),
     title: varchar('title', { length: 255 }).notNull(),
     workScope: text('work_scope'),
+    emergencyPhone: varchar('emergency_phone', { length: 32 }),
+    safetyApprovalComment: text('safety_approval_comment'),
+    safetyApprovalSignedName: varchar('safety_approval_signed_name', { length: 255 }),
+    safetyApprovedBy: uuid('safety_approved_by'),
+    safetyApprovedAt: timestamp('safety_approved_at', { withTimezone: true }),
     plantId: uuid('plant_id'),
     departmentId: uuid('department_id'),
     locationId: uuid('location_id'),
@@ -53,10 +58,19 @@ export const permits = pgTable(
     renewedFromPermitId: uuid('renewed_from_permit_id'),
     submittedAt: timestamp('submitted_at', { withTimezone: true }),
     submittedBy: uuid('submitted_by'),
+    submittedSignedName: varchar('submitted_signed_name', { length: 255 }),
+    /** Display version: 1 on first submit, then +1 on each resubmit. */
+    permitVersion: integer('permit_version').notNull().default(1),
+    permitVersionAt: timestamp('permit_version_at', { withTimezone: true }),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    approvedBy: uuid('approved_by'),
+    approvedSignedName: varchar('approved_signed_name', { length: 255 }),
     /** Permit templates filled in on this permit: see PermitFormResponse in modules/permit/permit-forms.ts. */
     formResponses: jsonb('form_responses').$type<unknown[]>().notNull().default([]),
     /** Bumped by every draft save and by submit; saves and submits must send the revision they loaded. */
     draftRevision: integer('draft_revision').notNull().default(0),
+    /** Ordered start-of-execution ticks (toolbox, hazard controls, PPE, LOTOTO, gas readings). */
+    executionStart: jsonb('execution_start').$type<Record<string, unknown>>().notNull().default({}),
   },
   (table) => [
     uniqueIndex('permits_tenant_reference_unique').on(table.tenantId, table.reference),

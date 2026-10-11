@@ -105,7 +105,7 @@ describe('MDP day-transition and renewal (SP-09.03 / FR-MDP-009)', () => {
       id: issuerId,
       username: 'issuer',
       tenantId,
-      roles: ['job-issuer'],
+      roles: ['permit-receiver'],
       email: 'issuer@example.com',
     };
 
@@ -247,7 +247,7 @@ describe('MDP day-transition and renewal (SP-09.03 / FR-MDP-009)', () => {
     );
   });
 
-  dbTest('rejects renewal from non-issuer without job-issuer role', async () => {
+  dbTest('rejects renewal from non-issuer without permit-receiver role', async () => {
     const { tenantId, seedOrg, createActivePermit } = context();
     await seedOrg();
     const source = await createActivePermit(new Date(Date.now() - 60_000));

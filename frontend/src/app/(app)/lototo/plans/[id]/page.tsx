@@ -55,7 +55,7 @@ export default function LototoPlanDetailPage() {
   const [isolationDescription, setIsolationDescription] = useState("");
   const [energySourceType, setEnergySourceType] = useState("electrical");
   const [workforceUserId, setWorkforceUserId] = useState("");
-  const [assignmentRole, setAssignmentRole] = useState<LototoAssignmentRole>("operator");
+  const [assignmentRole, setAssignmentRole] = useState<LototoAssignmentRole>("permit-operator");
 
   const filteredMachinery = useMemo(
     () => filterMachineryByWorkstation(machinery, plan?.workstationId),

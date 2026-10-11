@@ -80,7 +80,7 @@ describe('MS-06 lifecycle HTTP integration (ITC-INC-001–010)', () => {
     id: randomUUID(),
     username: 'hod',
     tenantId,
-    roles: ['hod'],
+    roles: ['permit-approver'],
     email: 'supervisor@example.com',
   };
 
@@ -176,7 +176,7 @@ describe('MS-06 lifecycle HTTP integration (ITC-INC-001–010)', () => {
       permitTypeId,
       stepSequence: 1,
       name: 'Supervisor Approval',
-      approverRole: 'hod',
+      approverRole: 'permit-approver',
       createdBy: userId,
     });
 
@@ -210,7 +210,16 @@ describe('MS-06 lifecycle HTTP integration (ITC-INC-001–010)', () => {
     );
     await request(server)
       .post(`/api/v1/permits/${permitId}/activate`)
-      .send({ comment: 'Work started' })
+      .send({
+        comment: 'Work started',
+        start: {
+          toolboxTalk: true,
+          hazardControls: [`hazard:${hazardCategoryId}`],
+          ppeIds: [ppeCatalogueId],
+          lototoVerified: false,
+          gasReadings: [],
+        },
+      })
       .expect(201);
 
     return { permitId, plantId, locationId };

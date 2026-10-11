@@ -1,4 +1,5 @@
 import { fetchApi } from "@/lib/api";
+import { forceQuery } from "@/lib/confirm-delete";
 import type {
   AddIsolationPointPayload,
   AssignPersonnelPayload,
@@ -104,8 +105,10 @@ export function reactivateLototoProcedure(id: string) {
   return fetchApi<LototoProcedure>(`/lototo/procedures/${id}/reactivate`, { method: "POST" });
 }
 
-export function deleteLototoProcedure(id: string) {
-  return fetchApi<{ id: string; deleted: boolean }>(`/lototo/procedures/${id}`, { method: "DELETE" });
+export function deleteLototoProcedure(id: string, force = false) {
+  return fetchApi<{ id: string; deleted: boolean }>(`/lototo/procedures/${id}${forceQuery(force)}`, {
+    method: "DELETE",
+  });
 }
 
 export function uploadLototoPointPhoto(procedureId: string, pointId: string, file: File) {
@@ -114,6 +117,21 @@ export function uploadLototoPointPhoto(procedureId: string, pointId: string, fil
   return fetchApi<LototoProcedure>(`/lototo/procedures/${procedureId}/lockout-points/${pointId}/photo`, {
     method: "POST",
     body: formData,
+  });
+}
+
+export function uploadLototoStepPhoto(procedureId: string, stepId: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return fetchApi<LototoProcedure>(`/lototo/procedures/${procedureId}/sequence-steps/${stepId}/photo`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export function removeLototoStepPhoto(procedureId: string, stepId: string) {
+  return fetchApi<LototoProcedure>(`/lototo/procedures/${procedureId}/sequence-steps/${stepId}/photo`, {
+    method: "DELETE",
   });
 }
 

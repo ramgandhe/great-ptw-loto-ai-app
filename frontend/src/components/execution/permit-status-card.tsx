@@ -48,7 +48,7 @@ export function PermitStatusCard({ permit, overdue = false }: { permit: PermitRe
         href={`/execution/${permit.id}`}
         className={cn(buttonVariants({ variant: permit.status === "approved" || overdue ? "default" : "outline" }), "ml-auto")}
       >
-        {permit.status === "approved" ? "Start work" : permit.status === "suspended" ? "Review" : "Open"}
+        {permit.status === "approved" ? "Start Permit Execution" : permit.status === "suspended" ? "Review" : "Open"}
       </Link>
     </article>
   );

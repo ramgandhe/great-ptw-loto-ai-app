@@ -66,7 +66,7 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
     id: supervisorId,
     username: 'hod',
     tenantId,
-    roles: ['hod'],
+    roles: ['permit-approver'],
     email: 'supervisor@example.com',
   };
 
@@ -218,7 +218,7 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
 
     await request(app.getHttpServer())
       .post(`/api/v1/lototo/plans/${planId}/assignments`)
-      .send({ workforceUserId: officerId, role: 'operator' })
+      .send({ workforceUserId: officerId, role: 'permit-operator' })
       .expect(201);
 
     await request(app.getHttpServer())

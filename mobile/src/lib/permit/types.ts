@@ -8,6 +8,7 @@ export type PermitRecord = {
   permitTypeId: string;
   title: string;
   workScope: string | null;
+  emergencyPhone?: string | null;
   plantId: string | null;
   departmentId: string | null;
   locationId: string | null;
@@ -18,6 +19,14 @@ export type PermitRecord = {
   plannedStartAt: string | null;
   plannedEndAt: string | null;
   submittedAt: string | null;
+  submittedSignedName?: string | null;
+  permitVersion?: number;
+  permitVersionAt?: string | null;
+  approvedAt?: string | null;
+  approvedBy?: string | null;
+  approvedSignedName?: string | null;
+  safetyApprovalComment?: string | null;
+  safetyApprovalSignedName?: string | null;
   /** Send back on every save and submit; the server refuses an older one with PERMIT_REVISION_CONFLICT. */
   draftRevision: number;
   /** Filled-in forms and check sheets, each with the form as it was when filled in. */
@@ -58,6 +67,7 @@ export type PermitFormState = {
   permitTypeId: string;
   title: string;
   workScope: string;
+  emergencyPhone: string;
   plantId: string;
   departmentId: string;
   locationId: string;
@@ -72,6 +82,9 @@ export type PermitFormState = {
   gasTestingRequired: boolean;
   gasTesting: PermitGasTestingInput[];
   executors: PermitExecutorInput[];
+  safetyOfficers: { workforceUserId: string }[];
+  safetyApprovalComment: string;
+  safetyApprovalSignedName: string;
   /** Answers per template id. */
   formResponses: Record<string, FormAnswers>;
   currentStep: number;
@@ -92,6 +105,7 @@ export type PermitDetail = {
   lototo?: Array<{ procedureId: string }>;
   gasTesting?: Array<{ gasTestingCatalogueId: string }>;
   executors: Array<{ workforceUserId: string; isPrimary: boolean | null }>;
+  safetyOfficers?: Array<{ workforceUserId: string }>;
   attachments: Array<{ id: string; fileName: string; fileSize: number }>;
 };
 
@@ -127,6 +141,7 @@ export type CreatePermitPayload = {
   permitTypeId: string;
   title: string;
   workScope?: string;
+  emergencyPhone?: string;
   plantId?: string;
   departmentId?: string;
   locationId?: string;

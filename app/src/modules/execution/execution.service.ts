@@ -6,11 +6,11 @@ import {
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { isTenantPrivileged } from '../../common/constants/tenant-roles';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { permitExecution, permitExecutors, permitExecutionCompletions, permitVerifications, permits } from '../../database/schema';
+import { hazardCategories, permitExecution, permitExecutors, permitExecutionCompletions, permitVerifications, permits } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { WorkflowEngineService } from '../approval/workflow-engine.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
@@ -22,6 +22,13 @@ import {
   SUSPENDED_STATUS,
 } from './execution.constants';
 import { ActivatePermitDto } from './dto/activate-permit.dto';
+import { ExecutionStartDto } from './dto/execution-start.dto';
+import {
+  assertExecutionStartReady,
+  emptyExecutionStart,
+  requiredHazardControlKeys,
+  type ExecutionStartState,
+} from './execution-start';
 import { CompleteExecutionDto, SendBackDto } from './dto/complete-execution.dto';
 import { isPrimaryExecutor, isPermitIssuer, isPrivilegedPermitViewer, visiblePermitFilter } from '../permit/permit-access';
 import { SuspendPermitDto } from './dto/suspend-permit.dto';
@@ -56,7 +63,7 @@ export class ExecutionService {
     }
 
     await this.requireExecutor(permitId, user);
-    await this.lototoExecutionService.assertIsolationReadyToStart(permitId, user);
+    const start = await this.requireStartReady(detail, dto.start, user);
 
     const actualStartAt = dto.actualStartAt ? new Date(dto.actualStartAt) : new Date();
 
@@ -94,6 +101,11 @@ export class ExecutionService {
           .returning();
         execution = created;
       }
+
+      await tx
+        .update(permits)
+        .set({ executionStart: start, updatedBy: user.id })
+        .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
 
       await this.statusTransitionService.transition(
         {
@@ -443,18 +455,19 @@ export class ExecutionService {
     }
 
     const checklist = dto.checklist;
-    if (
-      !checklist.workDescribedComplete ||
-      !checklist.procedureFollowed ||
-      !checklist.lototoDone ||
-      !checklist.gasTestingDone
-    ) {
+    if (!checklist.workDescribedComplete || !checklist.procedureFollowed) {
       throw new ConflictException('All execution completion checklist items must be completed');
+    }
+    if (detail.permit.lototoRequired && !checklist.lototoDone) {
+      throw new ConflictException('LOTOTO must be completed before declaring execution complete');
+    }
+    if (detail.permit.gasTestingRequired && !checklist.gasTestingDone) {
+      throw new ConflictException('Gas testing must be completed before declaring execution complete');
     }
 
     if (
       !isPrivilegedPermitViewer(user) &&
-      !(user.roles.includes('operator') && isPrimaryExecutor(detail, user.id))
+      !(user.roles.includes('permit-operator') && isPrimaryExecutor(detail, user.id))
     ) {
       throw new ForbiddenException('Only the primary executor can declare execution completed');
     }
@@ -503,7 +516,7 @@ export class ExecutionService {
     }
     if (
       !isPrivilegedPermitViewer(user) &&
-      !(user.roles.includes('job-issuer') && isPermitIssuer(detail, user.id))
+      !(user.roles.includes('permit-receiver') && isPermitIssuer(detail, user.id))
     ) {
       throw new ForbiddenException('Only the permit issuer can send this permit back to the executor');
     }
@@ -535,7 +548,7 @@ export class ExecutionService {
     if (detail.permit.status !== 'pending_closure') {
       throw new ConflictException('Only pending-closure permits can be sent back to the issuer');
     }
-    if (!isPrivilegedPermitViewer(user) && !user.roles.includes('hod')) {
+    if (!isPrivilegedPermitViewer(user) && !user.roles.includes('permit-approver')) {
       throw new ForbiddenException('Only the HOD can send this permit back to the issuer');
     }
 
@@ -558,6 +571,79 @@ export class ExecutionService {
     await this.permitCacheService.invalidatePermit(tenantId, permitId);
     await this.executionCacheService.invalidatePermit(tenantId, permitId);
     return this.permitService.findOne(permitId, user);
+  }
+
+  async saveExecutionStart(permitId: string, dto: ExecutionStartDto, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const detail = await this.permitService.findOne(permitId, user);
+    if (detail.permit.status !== APPROVED_STATUS) {
+      throw new ConflictException('Start-of-execution steps can only be recorded on an approved permit');
+    }
+    await this.requireExecutor(permitId, user);
+    const start = this.normaliseStart(dto);
+    await this.db
+      .update(permits)
+      .set({ executionStart: start, updatedBy: user.id })
+      .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
+    await this.permitCacheService.invalidatePermit(tenantId, permitId);
+    return { ...detail.permit, executionStart: start };
+  }
+
+  private normaliseStart(dto?: ExecutionStartDto | ExecutionStartState | null): ExecutionStartState {
+    if (!dto) {
+      return emptyExecutionStart();
+    }
+    return {
+      toolboxTalk: Boolean(dto.toolboxTalk),
+      hazardControls: [...(dto.hazardControls ?? [])],
+      ppeIds: [...(dto.ppeIds ?? [])],
+      lototoVerified: Boolean(dto.lototoVerified),
+      gasReadings: (dto.gasReadings ?? []).map((row) => ({
+        gasTestingCatalogueId: row.gasTestingCatalogueId,
+        value: Number(row.value),
+      })),
+    };
+  }
+
+  private async requireStartReady(
+    detail: Awaited<ReturnType<PermitService['findOne']>>,
+    dtoStart: ExecutionStartDto | undefined,
+    user: AuthenticatedUser,
+  ): Promise<ExecutionStartState> {
+    const saved = this.normaliseStart(detail.permit.executionStart as ExecutionStartState | undefined);
+    const start = dtoStart ? this.normaliseStart(dtoStart) : saved;
+    const hazardIds = [...new Set(detail.hazards.map((row) => row.hazardCategoryId))];
+    const catalogues = new Map<string, { controls?: string[] | null }>();
+    if (hazardIds.length > 0) {
+      const rows = await this.db
+        .select({ id: hazardCategories.id, controls: hazardCategories.controls })
+        .from(hazardCategories)
+        .where(inArray(hazardCategories.id, hazardIds));
+      for (const row of rows) {
+        catalogues.set(row.id, { controls: row.controls });
+      }
+    }
+    let lototoIsolated = !detail.permit.lototoRequired;
+    if (detail.permit.lototoRequired) {
+      await this.lototoExecutionService.assertIsolationReadyToStart(detail.permit.id, user);
+      lototoIsolated = true;
+    }
+    assertExecutionStartReady({
+      start,
+      lototoRequired: Boolean(detail.permit.lototoRequired),
+      gasTestingRequired: Boolean(detail.permit.gasTestingRequired),
+      lototoIsolated,
+      requiredHazardKeys: requiredHazardControlKeys(detail.hazards, catalogues),
+      requiredPpeIds: detail.ppe.map((row) => row.ppeCatalogueId),
+      gasItems: detail.gasTesting.map((row) => ({
+        gasTestingCatalogueId: row.gasTestingCatalogueId,
+        parameter: row.parameter,
+        minimum: row.minimum,
+        maximum: row.maximum,
+        unit: row.unit,
+      })),
+    });
+    return start;
   }
 
   private async requireExecutor(permitId: string, user: AuthenticatedUser) {

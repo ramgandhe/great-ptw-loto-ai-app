@@ -7,7 +7,7 @@ describe('RevalidationService (PUS-181)', () => {
   const user = {
     id: '22222222-2222-4222-8222-222222222222',
     username: 'hod',
-    roles: ['hod'],
+    roles: ['permit-approver'],
     tenantId,
   };
 

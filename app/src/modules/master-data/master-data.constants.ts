@@ -4,9 +4,9 @@ export const MASTER_DATA_WRITE_ROLES = ['tenant-owner', 'tenant-admin', 'platfor
 
 export const MASTER_DATA_READ_ROLES = [
   ...MASTER_DATA_WRITE_ROLES,
-  'hod',
-  'operator',
-  'job-issuer',
+  'permit-approver',
+  'permit-operator',
+  'permit-receiver',
   'viewer',
   // Safety officers review hazards, PPE and places on the permits they check.
   'safety-officer',

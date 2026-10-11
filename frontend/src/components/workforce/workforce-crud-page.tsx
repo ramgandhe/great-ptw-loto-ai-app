@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { ApiError } from "@/lib/api";
+import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { agenciesApi, competenciesApi, contractorsApi, employeesApi, listTenantUserNames } from "@/lib/workforce/api";
 import type { CompetencyRecord, EntityField, TenantUser, WorkforceRecord } from "@/lib/workforce/types";
 import { loadEntitySelectOptions, type EntitySelectResource } from "@/lib/form-options";
@@ -241,27 +242,32 @@ export function WorkforceCrudPage({
 
   /** Row actions: confirm, call the API, confirm with a toast, reload. */
   function act(item: WorkforceItem, action: "deactivate" | "activate" | "delete") {
+    const people = api as typeof employeesApi;
+    if (action === "delete") {
+      void deleteWithAssignmentConfirm(item.name, (force) => api.archive(item.id, force))
+        .then((ok) => {
+          if (!ok) return;
+          toast(`${item.name} deleted`);
+          load();
+        })
+        .catch((err) => setError(err instanceof ApiError ? err.message : "Delete failed"));
+      return;
+    }
     const question = {
       deactivate: hasLogin
         ? `Deactivate ${item.name}? They stay on this list but cannot sign in.`
         : `Deactivate ${item.name}? It stays on this list but is not counted as valid.`,
       activate: `Activate ${item.name}?`,
-      delete: hasLogin ? `Delete ${item.name}? This removes the row and their login.` : `Delete ${item.name}?`,
     }[action];
     if (!window.confirm(question)) return;
-    const people = api as typeof employeesApi;
-    // People switch their login on or off; certificates and competencies carry a status.
-    const call =
-      action === "delete"
-        ? api.archive(item.id)
-        : hasLogin
-          ? action === "deactivate"
-            ? people.deactivate(item.id)
-            : people.reactivate(item.id)
-          : api.update(item.id, { status: action === "deactivate" ? "inactive" : "active" });
+    const call = hasLogin
+      ? action === "deactivate"
+        ? people.deactivate(item.id)
+        : people.reactivate(item.id)
+      : api.update(item.id, { status: action === "deactivate" ? "inactive" : "active" });
     void call
       .then(() => {
-        toast(`${item.name} ${action === "delete" ? "deleted" : `${action}d`}`);
+        toast(`${item.name} ${action}d`);
         load();
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : `${action[0].toUpperCase()}${action.slice(1)} failed`));

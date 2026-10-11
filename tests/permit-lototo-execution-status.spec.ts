@@ -1,4 +1,5 @@
 import {
+  isLototoCrewApplyComplete,
   isLototoIsolationComplete,
   isLototoRestorationComplete,
   lototoPointExecutionStatus,
@@ -51,6 +52,12 @@ describe('LOTOTO isolation point status', () => {
     expect(isLototoIsolationComplete([])).toBe(false);
     expect(isLototoIsolationComplete([{ status: 'na' }, { status: 'passed' }])).toBe(true);
     expect(isLototoIsolationComplete([{ status: 'na' }, { status: 'failed' }])).toBe(false);
+  });
+
+  it('crew apply is complete when every point is ticked or N/A', () => {
+    expect(isLototoCrewApplyComplete([])).toBe(false);
+    expect(isLototoCrewApplyComplete([{ status: 'na' }, { status: 'pending_verify' }])).toBe(true);
+    expect(isLototoCrewApplyComplete([{ status: 'na' }, { status: 'pending_crew' }])).toBe(false);
   });
 
   it('is restored only when every point is passed or N/A', () => {

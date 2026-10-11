@@ -71,7 +71,7 @@ describe('LOTOTO procedure library HTTP', () => {
     id: randomUUID(),
     username: 'hod',
     tenantId,
-    roles: ['hod'],
+    roles: ['permit-approver'],
     email: 'hod@example.com',
   };
 
@@ -150,7 +150,7 @@ describe('LOTOTO procedure library HTTP', () => {
           {
             sortOrder: 1,
             pointCode: 'E-1',
-            energyType: 'Electrical',
+            energyType: 'electrical',
             magnitude: '415 Volts',
             action: 'Turn isolator off and lock',
             device: 'Lock device',
@@ -161,7 +161,7 @@ describe('LOTOTO procedure library HTTP', () => {
           { phase: 'apply', sequenceOrder: 1, title: 'Notify employees' },
           { phase: 'remove', sequenceOrder: 1, title: 'Remove locks' },
         ],
-        authorizedRoles: ['operator'],
+        authorizedRoles: ['permit-operator'],
       })
       .expect(201);
 
@@ -193,7 +193,7 @@ describe('LOTOTO procedure library HTTP', () => {
         machineryId: machinery.id,
         code: `REV-${randomUUID().slice(0, 8)}`,
         title: 'Compressor LOTO',
-        lockoutPoints: [{ sortOrder: 1, pointCode: 'EMP-1', energyType: 'Electrical' }],
+        lockoutPoints: [{ sortOrder: 1, pointCode: 'EMP-1', energyType: 'electrical' }],
       })
       .expect(201);
 
@@ -204,7 +204,7 @@ describe('LOTOTO procedure library HTTP', () => {
     await request(adminApp.getHttpServer())
       .patch(`/api/v1/lototo/procedures/${created.body.data.id}`)
       .send({
-        lockoutPoints: [{ sortOrder: 1, pointCode: 'EMP-2', energyType: 'Electrical' }],
+        lockoutPoints: [{ sortOrder: 1, pointCode: 'EMP-2', energyType: 'electrical' }],
       })
       .expect(409);
 
@@ -217,7 +217,7 @@ describe('LOTOTO procedure library HTTP', () => {
     await request(adminApp.getHttpServer())
       .patch(`/api/v1/lototo/procedures/${created.body.data.id}`)
       .send({
-        lockoutPoints: [{ sortOrder: 1, pointCode: 'EMP-2', energyType: 'Electrical' }],
+        lockoutPoints: [{ sortOrder: 1, pointCode: 'EMP-2', energyType: 'electrical' }],
       })
       .expect(200);
 
@@ -236,7 +236,7 @@ describe('LOTOTO procedure library HTTP', () => {
         machineryId: machinery.id,
         code: `OFF-${randomUUID().slice(0, 8)}`,
         title: 'Idle lockout',
-        lockoutPoints: [{ sortOrder: 1, pointCode: 'OFF-1', energyType: 'Electrical' }],
+        lockoutPoints: [{ sortOrder: 1, pointCode: 'OFF-1', energyType: 'electrical' }],
       })
       .expect(201);
 

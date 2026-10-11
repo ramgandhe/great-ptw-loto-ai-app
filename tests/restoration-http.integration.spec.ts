@@ -58,10 +58,10 @@ describe('Restoration & History HTTP integration (PUS-161)', () => {
 
   const tenantId = randomUUID();
   const officerId = randomUUID();
-  const officer: AuthenticatedUser = { id: officerId, username: 'officer', tenantId, roles: ['operator'], email: 'o@x.com' };
+  const officer: AuthenticatedUser = { id: officerId, username: 'officer', tenantId, roles: ['permit-operator'], email: 'o@x.com' };
   const verifier: AuthenticatedUser = { id: randomUUID(), username: 'safety-officer', tenantId, roles: ['safety-officer'], email: 'v@x.com' };
   const reader: AuthenticatedUser = { id: randomUUID(), username: 'viewer', tenantId, roles: ['viewer'], email: 'r@x.com' };
-  const foreign: AuthenticatedUser = { id: randomUUID(), username: 'other', tenantId: randomUUID(), roles: ['operator', 'tenant-owner'], email: 'f@x.com' };
+  const foreign: AuthenticatedUser = { id: randomUUID(), username: 'other', tenantId: randomUUID(), roles: ['permit-operator', 'tenant-owner'], email: 'f@x.com' };
 
   beforeAll(async () => {
     pool = new Pool({ connectionString: testDatabaseUrl });

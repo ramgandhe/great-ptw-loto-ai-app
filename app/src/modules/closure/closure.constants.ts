@@ -5,24 +5,24 @@ export const EXECUTION_COMPLETED_STATUS = 'execution_completed' as const;
 export const PENDING_CLOSURE_STATUS = 'pending_closure' as const;
 
 export const CLOSURE_VERIFY_ROLES = [
-  'job-issuer',
-  'hod',
+  'permit-receiver',
+  'permit-approver',
   'tenant-owner',
   'tenant-admin',
 ] as const;
 
-export const CLOSURE_CLOSE_ROLES = ['hod', 'tenant-owner', 'tenant-admin'] as const;
+export const CLOSURE_CLOSE_ROLES = ['permit-approver', 'tenant-owner', 'tenant-admin'] as const;
 
 export const CLOSURE_ARCHIVE_READ_ROLES = [
-  'job-issuer',
-  'hod',
+  'permit-receiver',
+  'permit-approver',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
   'viewer',
 ] as const;
 
 /** Anyone on the permit may follow its journey; per-permit access is still checked by PermitService.findOne. */
-export const CLOSURE_HISTORY_READ_ROLES = [...CLOSURE_ARCHIVE_READ_ROLES, 'operator', 'safety-officer'] as const;
+export const CLOSURE_HISTORY_READ_ROLES = [...CLOSURE_ARCHIVE_READ_ROLES, 'permit-operator', 'safety-officer'] as const;
 
 export const CLOSURE_AUDIT_READ_ROLES = [...CLOSURE_ARCHIVE_READ_ROLES] as const;
 

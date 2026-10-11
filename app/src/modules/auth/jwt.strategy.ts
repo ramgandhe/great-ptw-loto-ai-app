@@ -7,6 +7,7 @@ import { and, eq, or } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { organisations, tenantInvites, tenantUsers } from '../../database/schema';
+import { canonicalizeTenantRoles } from '../../common/constants/tenant-roles';
 
 interface KeycloakJwtPayload {
   sub: string;
@@ -45,9 +46,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: KeycloakJwtPayload): Promise<AuthenticatedUser> {
     const tenantClaim = payload.tenant_id;
     const claimedTenantId = Array.isArray(tenantClaim) ? tenantClaim[0] : tenantClaim;
-    const roles = (payload.realm_access?.roles ?? []).map((role) =>
-      role === 'org-admin' ? 'tenant-owner' : role,
-    );
+    const roles = canonicalizeTenantRoles(payload.realm_access?.roles ?? []);
     const email = (payload.email ?? payload.preferred_username)?.trim().toLowerCase();
     const tenantId = claimedTenantId || (await this.resolveTenantId(payload.sub, email));
 

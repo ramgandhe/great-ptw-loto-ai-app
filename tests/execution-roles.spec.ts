@@ -32,7 +32,7 @@ describe('Execution role enforcement (PUS-145)', () => {
   it('allows authorised execution action roles for suspend/resume', () => {
     mockRoleGuardReflector(getAllAndOverride, EXECUTION_ACTION_ROLES);
 
-    const result = guard.canActivate(buildContext({ roles: ['hod'] }));
+    const result = guard.canActivate(buildContext({ roles: ['permit-approver'] }));
     expect(result).toBe(true);
   });
 
@@ -47,7 +47,7 @@ describe('Execution role enforcement (PUS-145)', () => {
   it('allows operator for progress and evidence updates', () => {
     mockRoleGuardReflector(getAllAndOverride, EXECUTION_UPDATE_ROLES);
 
-    const result = guard.canActivate(buildContext({ roles: ['operator'] }));
+    const result = guard.canActivate(buildContext({ roles: ['permit-operator'] }));
     expect(result).toBe(true);
   });
 
@@ -58,10 +58,10 @@ describe('Execution role enforcement (PUS-145)', () => {
     expect(result).toBe(true);
   });
 
-  it('denies job-issuer for execution action endpoints', () => {
+  it('denies permit-receiver for execution action endpoints', () => {
     mockRoleGuardReflector(getAllAndOverride, EXECUTION_ACTION_ROLES);
 
-    expect(() => guard.canActivate(buildContext({ roles: ['job-issuer'] }))).toThrow(
+    expect(() => guard.canActivate(buildContext({ roles: ['permit-receiver'] }))).toThrow(
       ForbiddenException,
     );
   });

@@ -22,16 +22,16 @@
         "description": "Tenant administrator"
       },
       {
-        "name": "hod",
-        "description": "Head of Department — approves, closes, and authorises permits"
+        "name": "permit-approver",
+        "description": "Permit approver — approves, closes, and authorises permits"
       },
       {
-        "name": "operator",
-        "description": "Job Executor — field operator"
+        "name": "permit-operator",
+        "description": "Permit operator — field work and execution"
       },
       {
-        "name": "job-issuer",
-        "description": "Job Issuer — creates and submits permits"
+        "name": "permit-receiver",
+        "description": "Permit receiver — creates and submits permits"
       },
       {
         "name": "viewer",
@@ -236,7 +236,7 @@
         }
       ],
       "realmRoles": [
-        "job-issuer"
+        "permit-receiver"
       ]
     },
     {
@@ -260,7 +260,7 @@
         }
       ],
       "realmRoles": [
-        "hod"
+        "permit-approver"
       ]
     },
     {
@@ -284,7 +284,7 @@
         }
       ],
       "realmRoles": [
-        "operator"
+        "permit-operator"
       ]
     },
     {

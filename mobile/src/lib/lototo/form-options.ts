@@ -11,15 +11,20 @@ export const ENERGY_SOURCE_OPTIONS = [
   { value: "mechanical", label: "Mechanical" },
   { value: "hydraulic", label: "Hydraulic" },
   { value: "pneumatic", label: "Pneumatic" },
-  { value: "thermal", label: "Thermal" },
   { value: "chemical", label: "Chemical" },
-  { value: "gravitational", label: "Gravitational" },
+  { value: "thermal", label: "Thermal" },
+  { value: "pressure", label: "Pressure" },
+  { value: "gravity", label: "Gravity" },
+  { value: "gravitational", label: "Gravity" },
+  { value: "stored_energy", label: "Stored Energy" },
+  { value: "radiation", label: "Radiation" },
+  { value: "other", label: "Other" },
 ] as const;
 
 export const ASSIGNMENT_ROLE_OPTIONS: { value: LototoAssignmentRole; label: string }[] = [
-  { value: "operator", label: "Job executor" },
+  { value: "permit-operator", label: "Permit operator" },
   { value: "safety-officer", label: "Safety officer" },
-  { value: "hod", label: "Head of Department" },
+  { value: "permit-approver", label: "Permit approver" },
 ];
 
 export type LototoFormOptions = {

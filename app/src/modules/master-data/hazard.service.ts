@@ -7,6 +7,7 @@ import { AuditService } from '../logging/audit.service';
 import { CreateHazardDto } from './dto/create-hazard.dto';
 import { MasterDataCacheService } from './master-data-cache.service';
 import { MasterDataLogService } from './master-data-log.service';
+import { ensureDefaultHazards } from './default-hazards';
 import { ReferenceIntegrityService } from './reference-integrity.service';
 
 function trimLines(values?: string[]): string[] {
@@ -38,6 +39,7 @@ export class HazardService {
           severity: dto.severity ?? 'medium',
           consequences: trimLines(dto.consequences),
           controls: trimLines(dto.controls),
+          permitTypeCodes: trimLines(dto.permitTypeCodes),
           isActive: dto.isActive ?? true,
           createdBy: user.id,
           updatedBy: user.id,
@@ -66,6 +68,7 @@ export class HazardService {
         ...(dto.severity !== undefined ? { severity: dto.severity } : {}),
         ...(dto.consequences !== undefined ? { consequences: trimLines(dto.consequences) } : {}),
         ...(dto.controls !== undefined ? { controls: trimLines(dto.controls) } : {}),
+        ...(dto.permitTypeCodes !== undefined ? { permitTypeCodes: trimLines(dto.permitTypeCodes) } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         updatedBy: user.id,
         updatedAt: new Date(),
@@ -79,6 +82,23 @@ export class HazardService {
 
     await this.afterMutation(tenantId, user, 'hazard.updated', row.id);
     return row;
+  }
+
+  async importDefaults(user: AuthenticatedUser) {
+    const tenantId = this.referenceIntegrity.requireTenant(user);
+    const result = await ensureDefaultHazards(this.db, tenantId, user.id);
+    await this.cacheService.invalidate(tenantId, 'hazards');
+    if (result.created + result.updated > 0) {
+      await this.auditService.log({
+        action: 'hazard.defaults-imported',
+        entityType: 'hazard_category',
+        entityId: tenantId,
+        userId: user.id,
+        tenantId,
+        metadata: result,
+      });
+    }
+    return result;
   }
 
   async findAll(user: AuthenticatedUser) {
@@ -100,9 +120,9 @@ export class HazardService {
     return rows;
   }
 
-  async remove(id: string, user: AuthenticatedUser) {
+  async remove(id: string, user: AuthenticatedUser, force = false) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
-    await this.referenceIntegrity.assertHazardCategoryNotReferenced(id);
+    await this.referenceIntegrity.assertHazardCategoryNotReferenced(id, force);
 
     const [row] = await this.db
       .delete(hazardCategories)

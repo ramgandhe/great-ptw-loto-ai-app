@@ -8,7 +8,7 @@ export const INVESTIGATION_ASSIGN_ROLES = [
 
 export const INVESTIGATION_WRITE_ROLES = [
   ...INVESTIGATION_ASSIGN_ROLES,
-  'hod',
+  'permit-approver',
 ] as const;
 
 export const INVESTIGATION_READ_ROLES = [
@@ -18,6 +18,6 @@ export const INVESTIGATION_READ_ROLES = [
 
 export const CORRECTIVE_ACTION_UPDATE_ROLES = [
   ...INVESTIGATION_WRITE_ROLES,
-  'operator',
-  'job-issuer',
+  'permit-operator',
+  'permit-receiver',
 ] as const;

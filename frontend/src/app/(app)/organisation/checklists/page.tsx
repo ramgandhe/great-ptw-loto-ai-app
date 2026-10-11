@@ -9,6 +9,7 @@ import { SegmentedToggle } from "@/components/ui/toggle-group";
 import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 import { OrgStatusBadge, stateOf } from "@/components/organisation/org-status-badge";
+import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import {
   checklistsApi,
   type SafetyChecklistBundle,
@@ -151,12 +152,12 @@ export default function ChecklistsPage() {
 
   async function handleArchive(id: string) {
     const name = items.find((bundle) => bundle.checklist.id === id)?.checklist.name ?? "this checklist";
-    if (!window.confirm(`Delete ${name}? It moves to the Deleted view; permits that used it keep their record.`)) {
-      return;
-    }
     setError(null);
     try {
-      await checklistsApi.archive(id);
+      const ok = await deleteWithAssignmentConfirm(name, (force) =>
+        checklistsApi.archive(id, force).then(() => undefined),
+      );
+      if (!ok) return;
       toast(`${name} deleted`);
       if (editingId === id) {
         resetForm();

@@ -2,9 +2,9 @@ export const WORKFORCE_WRITE_ROLES = ['tenant-owner', 'tenant-admin', 'platform-
 
 export const WORKFORCE_READ_ROLES = [
   ...WORKFORCE_WRITE_ROLES,
-  'hod',
-  'operator',
-  'job-issuer',
+  'permit-approver',
+  'permit-operator',
+  'permit-receiver',
   'safety-officer',
   'viewer',
 ] as const;

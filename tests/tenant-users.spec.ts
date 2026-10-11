@@ -103,7 +103,7 @@ describe('TenantUsersService', () => {
     );
 
     const result = await service.create(
-      { name: 'Pat HOD', email: 'hod@acme.test', role: 'hod' },
+      { name: 'Pat HOD', email: 'hod@acme.test', role: 'permit-approver' },
       actor,
     );
 
@@ -111,13 +111,43 @@ describe('TenantUsersService', () => {
       expect.objectContaining({
         email: 'hod@acme.test',
         tenantId: actor.tenantId,
-        role: 'hod',
+        role: 'permit-approver',
+        roles: ['permit-approver'],
         firstName: 'Pat',
         lastName: 'HOD',
       }),
     );
     expect(result.temporaryPassword).toBeTruthy();
     expect(result.email).toBe('hod@acme.test');
+  });
+
+  it('creates a tenant user with multiple roles', async () => {
+    const keycloakAdmin = {
+      createTenantUser: jest.fn().mockResolvedValue({ id: 'kc-multi', username: 'multi@acme.test' }),
+    };
+    const service = new TenantUsersService(
+      mockDb() as never,
+      keycloakAdmin as never,
+      { log: jest.fn() } as never,
+      { get: () => 'http://localhost:3000' } as never,
+      { generateSystem: jest.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    const result = await service.create(
+      {
+        name: 'Multi Role',
+        email: 'multi@acme.test',
+        roles: ['permit-receiver', 'permit-operator'],
+      },
+      actor,
+    );
+
+    expect(keycloakAdmin.createTenantUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roles: ['permit-receiver', 'permit-operator'],
+      }),
+    );
+    expect(result.roles).toEqual(['permit-receiver', 'permit-operator']);
   });
 
   it('lists only active operator accounts as permit executors', async () => {
@@ -127,7 +157,7 @@ describe('TenantUsersService', () => {
         email: 'exec@acme.test',
         firstName: 'Exe',
         lastName: 'Cutor',
-        role: 'operator',
+        role: 'permit-operator',
         status: 'active',
       },
     ];
@@ -144,7 +174,7 @@ describe('TenantUsersService', () => {
       expect.objectContaining({
         id: 'kc-op',
         email: 'exec@acme.test',
-        roles: ['operator'],
+        roles: ['permit-operator'],
         executorKind: 'internal',
       }),
     ]);
@@ -164,7 +194,7 @@ describe('TenantUsersService', () => {
         email: 'jane@acme.test',
         firstName: 'Jane',
         lastName: 'Op',
-        role: 'operator',
+        role: 'permit-operator',
         status: 'active',
       },
     ];

@@ -1,4 +1,4 @@
-# Demo overlay — public HTTP demo on a single host (no TLS).
+# Demo overlay — public URLs (HTTP by IP, or HTTPS when used with docker-compose.caddy.yml).
 # Usage:
 #   export DEMO_WEB_URL=http://203.0.113.10:3000
 #   export DEMO_API_URL=http://203.0.113.10:4000/api/v1

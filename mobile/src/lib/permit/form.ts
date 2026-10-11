@@ -1,12 +1,13 @@
 import type { DraftFields, PermitDetail, PermitFormState } from "./types";
 
-/** Same order and stored step index as the web editor's sections (0 work … 4 forms, 5 review). */
+/** Same order and stored step index as the web editor's sections (0 work … 4 forms, 5 Safety Approval, 6 review). */
 export const PERMIT_WIZARD_STEPS = [
   "Work",
   "Place and time",
   "Safety",
   "Crew",
   "Check sheets",
+  "Safety Approval",
   "Review",
 ] as const;
 
@@ -35,6 +36,7 @@ export function createEmptyPermitForm(): PermitFormState {
     permitTypeId: "",
     title: "",
     workScope: "",
+    emergencyPhone: "",
     plantId: "",
     departmentId: "",
     locationId: "",
@@ -49,6 +51,9 @@ export function createEmptyPermitForm(): PermitFormState {
     gasTestingRequired: false,
     gasTesting: [],
     executors: [{ workforceUserId: "", isPrimary: true }],
+    safetyOfficers: [],
+    safetyApprovalComment: "",
+    safetyApprovalSignedName: "",
     formResponses: {},
     currentStep: 0,
   };
@@ -61,6 +66,7 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
     permitTypeId: permit.permitTypeId,
     title: permit.title,
     workScope: permit.workScope ?? "",
+    emergencyPhone: permit.emergencyPhone ?? "",
     plantId: permit.plantId ?? "",
     departmentId: permit.departmentId ?? "",
     locationId: permit.locationId ?? "",
@@ -106,6 +112,9 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
             isPrimary: e.isPrimary ?? false,
           }))
         : [{ workforceUserId: "", isPrimary: true }],
+    safetyOfficers: (detail.safetyOfficers ?? []).map((row) => ({ workforceUserId: row.workforceUserId })),
+    safetyApprovalComment: permit.safetyApprovalComment ?? "",
+    safetyApprovalSignedName: permit.safetyApprovalSignedName ?? "",
     formResponses: Object.fromEntries((permit.formResponses ?? []).map((response) => [response.templateId, response.answers])),
     currentStep: fromStoredStep(draft?.currentStep ?? 0),
   };
@@ -117,7 +126,7 @@ function optionalUuid(value: string): string | undefined {
 
 function canRoleSubmitPermit(roles: string[]): boolean {
   return (
-    roles.includes("job-issuer") ||
+    roles.includes("permit-receiver") ||
     roles.includes("tenant-owner") ||
     roles.includes("tenant-admin") ||
     roles.includes("platform-admin")
@@ -125,7 +134,7 @@ function canRoleSubmitPermit(roles: string[]): boolean {
 }
 
 export function shouldSaveExecutorPayload(roles: string[]): boolean {
-  return roles.includes("operator") && !canRoleSubmitPermit(roles);
+  return roles.includes("permit-operator") && !canRoleSubmitPermit(roles);
 }
 
 export function formToSavePayload(form: PermitFormState, options?: { executorOnly?: boolean }): DraftFields {
@@ -133,6 +142,7 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
     permitTypeId: form.permitTypeId,
     title: form.title,
     workScope: form.workScope || undefined,
+    emergencyPhone: form.emergencyPhone.trim(),
     plantId: optionalUuid(form.plantId),
     departmentId: optionalUuid(form.departmentId),
     locationId: optionalUuid(form.locationId),
@@ -213,6 +223,11 @@ export function validateStep(form: PermitFormState, step: number): string[] {
     if (!form.executors.some((e) => (e.workforceUserId ?? "").trim())) {
       errors.push("At least one executor is required");
     }
+  }
+
+  if (step === 5 && form.safetyOfficers.some((row) => row.workforceUserId.trim())) {
+    if (!form.safetyApprovalComment.trim()) errors.push("Safety Approval comments are required");
+    if (!form.safetyApprovalSignedName.trim()) errors.push("A typed name is required for Safety Approval");
   }
 
   return errors;

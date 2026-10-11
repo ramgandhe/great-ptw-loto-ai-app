@@ -25,6 +25,7 @@ import {
   permits,
   permitArchive,
   simopsConflicts,
+  tenantUsers,
   workflowAssignments,
 } from './schema';
 import { DEMO_IDS, DEMO_TENANT_ID, DEMO_USER_IDS, SEED_ACTOR_ID } from './seed-ids';
@@ -224,6 +225,77 @@ async function clearDemoWorkflowData(db: Database): Promise<void> {
 
 async function seedDemoWorkflowRecords(db: Database): Promise<void> {
   console.log('Seeding demo workforce personas...');
+  await db
+    .insert(tenantUsers)
+    .values([
+      {
+        tenantId: DEMO_TENANT_ID,
+        keycloakUserId: DEMO_USER_IDS.orgAdmin,
+        email: 'orgadmin@ptw.local',
+        firstName: 'Org',
+        lastName: 'Admin',
+        role: 'tenant-owner',
+        roles: ['tenant-owner'],
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+      {
+        tenantId: DEMO_TENANT_ID,
+        keycloakUserId: DEMO_USER_IDS.issuer,
+        email: 'issuer@ptw.local',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        role: 'permit-receiver',
+        roles: ['permit-receiver'],
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+      {
+        tenantId: DEMO_TENANT_ID,
+        keycloakUserId: DEMO_USER_IDS.hod,
+        email: 'hod@ptw.local',
+        firstName: 'Head',
+        lastName: 'Department',
+        role: 'permit-approver',
+        roles: ['permit-approver'],
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+      {
+        tenantId: DEMO_TENANT_ID,
+        keycloakUserId: DEMO_USER_IDS.operator,
+        email: 'operator@ptw.local',
+        firstName: 'Field',
+        lastName: 'Operator',
+        role: 'permit-operator',
+        roles: ['permit-operator'],
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+      {
+        tenantId: DEMO_TENANT_ID,
+        keycloakUserId: DEMO_USER_IDS.safety,
+        email: 'safety@ptw.local',
+        firstName: 'Safety',
+        lastName: 'Officer',
+        role: 'safety-officer',
+        roles: ['safety-officer'],
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+      {
+        tenantId: DEMO_TENANT_ID,
+        keycloakUserId: DEMO_USER_IDS.viewer,
+        email: 'viewer@ptw.local',
+        firstName: 'Read',
+        lastName: 'Only',
+        role: 'viewer',
+        roles: ['viewer'],
+        createdBy: SEED_ACTOR_ID,
+        updatedBy: SEED_ACTOR_ID,
+      },
+    ])
+    .onConflictDoNothing();
   await db
     .insert(employees)
     .values([
@@ -651,7 +723,7 @@ async function seedLototo(db: Database): Promise<void> {
       {
         planId: DEMO_IDS.lototoPlanInExecution,
         workforceUserId: DEMO_USER_IDS.operator,
-        role: 'operator',
+        role: 'permit-operator',
         createdBy: DEMO_USER_IDS.hod,
         updatedBy: DEMO_USER_IDS.hod,
       },

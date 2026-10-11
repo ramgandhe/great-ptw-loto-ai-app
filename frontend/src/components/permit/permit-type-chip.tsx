@@ -8,13 +8,13 @@ import { cn } from "@/lib/utils";
  */
 export const TYPE_FAMILIES: { key: string; label: string; match: RegExp; icon: LucideIcon; color: string }[] = [
   { key: "hot", label: "Ignition and energy", match: /hot|weld|burn/i, icon: Flame, color: "#DC2626" },
-  { key: "electrical", label: "Ignition and energy", match: /electr|energ/i, icon: Zap, color: "#D97706" },
+  { key: "electrical", label: "Ignition and energy", match: /electr|energ/i, icon: Zap, color: "#2563EB" },
   { key: "hazardous", label: "Ignition and energy", match: /hazard|atex|gas/i, icon: TriangleAlert, color: "#EA580C" },
   { key: "confined", label: "Access and atmosphere", match: /confin|vessel|tank entry/i, icon: Container, color: "#7C3AED" },
-  { key: "height", label: "Access and atmosphere", match: /height|scaffold|roof/i, icon: ArrowUpFromLine, color: "#0891B2" },
+  { key: "height", label: "Access and atmosphere", match: /height|scaffold|roof/i, icon: ArrowUpFromLine, color: "#D97706" },
   { key: "excavation", label: "Access and atmosphere", match: /excavat|dig|trench/i, icon: Shovel, color: "#92400E" },
   { key: "lifting", label: "Routine and mechanical", match: /shift|lift|crane|machine/i, icon: Truck, color: "#4D7C0F" },
-  { key: "cold", label: "Routine and mechanical", match: /cold/i, icon: Snowflake, color: "#2563EB" },
+  { key: "cold", label: "Routine and mechanical", match: /cold/i, icon: Snowflake, color: "#16A34A" },
 ];
 
 export function typeFamily(name: string | undefined) {

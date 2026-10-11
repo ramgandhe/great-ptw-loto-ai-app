@@ -13,10 +13,15 @@ import {
   completeExecution,
   listEvidence,
   listProgress,
+  resumePermit,
   revalidatePermitAfterSuspension,
+  saveExecutionStart,
   suspendPermit,
   uploadEvidence,
 } from "@/lib/execution/api";
+import { parseExecutionStart, type ExecutionStartState } from "@/lib/execution/start";
+import { StartExecutionSteps } from "@/components/execution/start-execution-steps";
+import { masterDataApi, type HazardRecord } from "@/lib/master-data/api";
 import type { EvidenceRecord, PermitExecution, ProgressRecord } from "@/lib/execution/types";
 import { getPermit, getPermitLototoExecution } from "@/lib/permit/api";
 import { PermitLototoExecution } from "@/components/permit/lototo-execution";
@@ -27,15 +32,22 @@ import { EvidenceUpload } from "@/components/execution/evidence-upload";
 import { ProgressFeed } from "@/components/execution/progress-feed";
 import { StatusTimeline } from "@/components/execution/status-timeline";
 import { SuspensionDialog } from "@/components/execution/suspension-dialog";
-import { PermitSummary } from "@/components/permit/permit-summary";
+import { identityFromPermit, PermitSummary } from "@/components/permit/permit-summary";
 import { PermitFormResponses } from "@/components/permit/permit-form-responses";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 
-const SUSPEND_ROLES = ["tenant-owner", "tenant-admin", "hod", "safety-officer"] as const;
-const REVALIDATE_ROLES = ["tenant-owner", "tenant-admin", "hod", "job-issuer"] as const;
+const START_RESUME_ROLES = [
+  "permit-operator",
+  "permit-approver",
+  "tenant-owner",
+  "tenant-admin",
+  "platform-admin",
+] as const;
+const SUSPEND_ROLES = ["tenant-owner", "tenant-admin", "permit-approver", "safety-officer"] as const;
+const REVALIDATE_ROLES = ["tenant-owner", "tenant-admin", "permit-approver", "permit-receiver"] as const;
 
 /** Common site updates, so logging progress on a phone needs little typing. */
 const PROGRESS_PHRASES = [
@@ -65,6 +77,10 @@ export default function PermitExecutionPage() {
   const [suspendReason, setSuspendReason] = useState("");
   const [suspendError, setSuspendError] = useState<string | null>(null);
   const [lototoIsolated, setLototoIsolated] = useState<boolean | null>(null);
+  const [start, setStart] = useState<ExecutionStartState>(parseExecutionStart(null));
+  const [hazards, setHazards] = useState<Map<string, HazardRecord>>(new Map());
+  const [ppeNames, setPpeNames] = useState<Map<string, string>>(new Map());
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [completeComment, setCompleteComment] = useState("");
   const [completeChecklist, setCompleteChecklist] = useState({
     workDescribedComplete: false,
@@ -76,6 +92,7 @@ export default function PermitExecutionPage() {
   async function loadData() {
     const permitDetail = await getPermit(permitId);
     setDetail(permitDetail);
+    setStart(parseExecutionStart(permitDetail.permit.executionStart));
 
     if (permitDetail.permit.lototoRequired) {
       const board = await getPermitLototoExecution(permitId);
@@ -98,13 +115,20 @@ export default function PermitExecutionPage() {
     loadData().catch((err) => {
       setError(err instanceof ApiError ? err.message : "Failed to load permit");
     });
+    Promise.all([masterDataApi.hazards(), masterDataApi.ppe()])
+      .then(([hazardRows, ppeRows]) => {
+        setHazards(new Map(hazardRows.map((row) => [row.id, row])));
+        setPpeNames(new Map(ppeRows.map((row) => [row.id, row.name])));
+      })
+      .catch(() => undefined);
   }, [permitId]);
 
   async function handleActivate() {
     setIsSubmitting(true);
     setActionError(null);
     try {
-      const result = await activatePermit(permitId);
+      const result = await activatePermit(permitId, { start });
+      setWizardOpen(false);
       setDetail((current) =>
         current ? { ...current, permit: result.permit } : current,
       );
@@ -112,6 +136,23 @@ export default function PermitExecutionPage() {
       await loadData();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Activation failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleResume() {
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      const result = await resumePermit(permitId);
+      setDetail((current) =>
+        current ? { ...current, permit: result.permit } : current,
+      );
+      setExecution(result.execution);
+      await loadData();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Resume failed");
     } finally {
       setIsSubmitting(false);
     }
@@ -156,7 +197,15 @@ export default function PermitExecutionPage() {
   }
 
   async function handleCompleteExecution() {
-    if (!completeComment.trim() || !Object.values(completeChecklist).every(Boolean)) {
+    const lototoOk = !detail?.permit.lototoRequired || completeChecklist.lototoDone;
+    const gasOk = !detail?.permit.gasTestingRequired || completeChecklist.gasTestingDone;
+    if (
+      !completeComment.trim() ||
+      !completeChecklist.workDescribedComplete ||
+      !completeChecklist.procedureFollowed ||
+      !lototoOk ||
+      !gasOk
+    ) {
       setActionError("Complete the checklist and add a comment before declaring execution complete.");
       return;
     }
@@ -165,7 +214,11 @@ export default function PermitExecutionPage() {
     try {
       const updated = await completeExecution(permitId, {
         comment: completeComment.trim(),
-        checklist: completeChecklist,
+        checklist: {
+          ...completeChecklist,
+          lototoDone: !detail?.permit.lototoRequired || completeChecklist.lototoDone,
+          gasTestingDone: !detail?.permit.gasTestingRequired || completeChecklist.gasTestingDone,
+        },
       });
       setDetail(updated);
     } catch (err) {
@@ -257,7 +310,7 @@ export default function PermitExecutionPage() {
         </div>
       ) : null}
 
-      {permit.lototoRequired && (isApproved || isActive || permit.status === "execution_completed") ? (
+      {permit.lototoRequired && (isActive || permit.status === "execution_completed") ? (
         <PermitLototoExecution
           permitId={permit.id}
           onBoardChange={(board) => {
@@ -266,16 +319,29 @@ export default function PermitExecutionPage() {
         />
       ) : null}
 
+      {isApproved && hasAnyRole(roles, START_RESUME_ROLES) && wizardOpen ? (
+        <StartExecutionSteps
+          permitId={permit.id}
+          detail={detail}
+          form={form}
+          hazards={hazards}
+          ppeNames={ppeNames}
+          lototoIsolated={lototoIsolated !== false}
+          start={start}
+          isSubmitting={isSubmitting}
+          onChange={setStart}
+          onSave={async () => {
+            await saveExecutionStart(permitId, start);
+          }}
+          onBeginWork={handleActivate}
+        />
+      ) : null}
+
       <section className="flex flex-wrap gap-2">
-        {isApproved ? (
-          <Button onClick={handleActivate} disabled={isSubmitting || lototoIsolated === false}>
-            {isSubmitting ? "Starting..." : "Start work"}
+        {isApproved && hasAnyRole(roles, START_RESUME_ROLES) && !wizardOpen ? (
+          <Button onClick={() => setWizardOpen(true)} disabled={isSubmitting}>
+            Start Permit Execution
           </Button>
-        ) : null}
-        {isApproved && permit.lototoRequired && lototoIsolated === false ? (
-          <p className="w-full text-sm text-muted-foreground">
-            Isolation and try-out must be verified before work can start.
-          </p>
         ) : null}
         {isApproved || isActive ? (
           hasAnyRole(roles, SUSPEND_ROLES) ? (
@@ -283,6 +349,11 @@ export default function PermitExecutionPage() {
               Suspend work
             </Button>
           ) : null
+        ) : null}
+        {isSuspended && hasAnyRole(roles, START_RESUME_ROLES) ? (
+          <Button onClick={() => void handleResume()} disabled={isSubmitting}>
+            {isSubmitting ? "Resuming..." : "Resume work"}
+          </Button>
         ) : null}
         {isSuspended && hasAnyRole(roles, REVALIDATE_ROLES) ? (
           <Button onClick={() => void handleRevalidate()} disabled={isSubmitting}>
@@ -342,7 +413,7 @@ export default function PermitExecutionPage() {
                 />
               </section>
 
-              {hasAnyRole(roles, ["operator", "tenant-owner", "tenant-admin", "platform-admin"]) ? (
+              {hasAnyRole(roles, ["permit-operator", "tenant-owner", "tenant-admin", "platform-admin"]) ? (
                 <section className="grid gap-3 rounded-lg border border-border p-4">
                   <h2 className="text-sm font-semibold">Declare execution completed</h2>
                   <label className="flex items-start gap-2 text-sm">
@@ -361,22 +432,26 @@ export default function PermitExecutionPage() {
                     />
                     Procedure was followed
                   </label>
-                  <label className="flex items-start gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={completeChecklist.lototoDone}
-                      onChange={(e) => setCompleteChecklist((current) => ({ ...current, lototoDone: e.target.checked }))}
-                    />
-                    LOTOTO is done
-                  </label>
-                  <label className="flex items-start gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={completeChecklist.gasTestingDone}
-                      onChange={(e) => setCompleteChecklist((current) => ({ ...current, gasTestingDone: e.target.checked }))}
-                    />
-                    Gas testing is done
-                  </label>
+                  {permit.lototoRequired ? (
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={completeChecklist.lototoDone}
+                        onChange={(e) => setCompleteChecklist((current) => ({ ...current, lototoDone: e.target.checked }))}
+                      />
+                      LOTOTO is done
+                    </label>
+                  ) : null}
+                  {permit.gasTestingRequired ? (
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={completeChecklist.gasTestingDone}
+                        onChange={(e) => setCompleteChecklist((current) => ({ ...current, gasTestingDone: e.target.checked }))}
+                      />
+                      Gas testing is done
+                    </label>
+                  ) : null}
                   <textarea
                     value={completeComment}
                     required
@@ -416,7 +491,7 @@ export default function PermitExecutionPage() {
           Permit details <span className="font-normal text-muted-foreground group-open:hidden">(tap to open)</span>
         </summary>
         <div className="grid gap-4">
-          <PermitSummary form={form} status={permit.status} showHeader={false} />
+          <PermitSummary form={form} status={permit.status} showHeader={false} identity={identityFromPermit(permit)} />
           <PermitFormResponses responses={permit.formResponses ?? []} />
         </div>
       </details>

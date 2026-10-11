@@ -7,7 +7,10 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
+import { ForceQuery } from '../../common/decorators/force-query.decorator';
+import { parseForceQuery } from '../../common/http/in-use';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -65,8 +68,12 @@ export class EmployeeController {
 
   @Roles(...WORKFORCE_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.workforceService.deleteEmployee(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.workforceService.deleteEmployee(id, user, force);
   }
 }
 
@@ -110,8 +117,12 @@ export class ContractorController {
 
   @Roles(...WORKFORCE_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.workforceService.deleteContractor(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.workforceService.deleteContractor(id, user, force);
   }
 }
 
@@ -155,8 +166,12 @@ export class AgencyController {
 
   @Roles(...WORKFORCE_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.workforceService.deleteAgency(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.workforceService.deleteAgency(id, user, force);
   }
 }
 
@@ -188,8 +203,12 @@ export class CompetencyController {
 
   @Roles(...WORKFORCE_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.workforceService.archiveCompetency(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.workforceService.archiveCompetency(id, user, force);
   }
 }
 
@@ -278,7 +297,11 @@ export class TenantUsersController {
 
   @Roles(...WORKFORCE_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.tenantUsersService.remove(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('force') force: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.tenantUsersService.remove(id, user, parseForceQuery(force));
   }
 }

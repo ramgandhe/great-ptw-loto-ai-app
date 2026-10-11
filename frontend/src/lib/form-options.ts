@@ -25,9 +25,9 @@ export type SelectOption = {
 export const ASSIGNABLE_ROLES: SelectOption[] = [
   { value: "tenant-owner", label: "Tenant Owner" },
   { value: "tenant-admin", label: "Tenant Admin" },
-  { value: "hod", label: "Head of Department" },
-  { value: "job-issuer", label: "Job issuer" },
-  { value: "operator", label: "Job executor" },
+  { value: "permit-approver", label: "Permit approver" },
+  { value: "permit-receiver", label: "Permit receiver" },
+  { value: "permit-operator", label: "Permit operator" },
   { value: "safety-officer", label: "Safety officer" },
   { value: "viewer", label: "Viewer" },
 ];

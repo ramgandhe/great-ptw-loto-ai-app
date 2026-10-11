@@ -17,6 +17,7 @@ export type PermitRecord = {
   permitTypeId: string;
   title: string;
   workScope: string | null;
+  emergencyPhone?: string | null;
   plantId: string | null;
   departmentId: string | null;
   locationId: string | null;
@@ -28,11 +29,22 @@ export type PermitRecord = {
   plannedEndAt: string | null;
   submittedAt: string | null;
   submittedBy?: string | null;
+  submittedSignedName?: string | null;
+  permitVersion?: number;
+  permitVersionAt?: string | null;
+  approvedAt?: string | null;
+  approvedBy?: string | null;
+  approvedSignedName?: string | null;
+  safetyApprovalComment?: string | null;
+  safetyApprovalSignedName?: string | null;
+  safetyApprovedBy?: string | null;
+  safetyApprovedAt?: string | null;
   createdBy?: string | null;
   updatedBy?: string | null;
   formResponses?: StoredFormResponse[];
   /** Send back on every save and submit; the server refuses an older one with PERMIT_REVISION_CONFLICT. */
   draftRevision: number;
+  executionStart?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -52,6 +64,7 @@ export type PermitPpeInput = {
 export type PermitLototoExtraInput = {
   pointCode: string;
   energyType: string;
+  energyOtherText?: string;
   magnitude: string;
   locationText: string;
   action: string;
@@ -92,6 +105,7 @@ export type PermitFormState = {
   permitTypeId: string;
   title: string;
   workScope: string;
+  emergencyPhone: string;
   plantId: string;
   departmentId: string;
   locationId: string;
@@ -108,6 +122,8 @@ export type PermitFormState = {
   executors: PermitExecutorInput[];
   viewers: PermitAssigneeInput[];
   safetyOfficers: PermitAssigneeInput[];
+  safetyApprovalComment: string;
+  safetyApprovalSignedName: string;
   /** Answers per permit template id. */
   formResponses: Record<string, FormAnswers>;
   currentStep: number;
@@ -151,6 +167,7 @@ export type CreatePermitPayload = {
   permitTypeId: string;
   title: string;
   workScope?: string;
+  emergencyPhone?: string;
   plantId?: string;
   departmentId?: string;
   locationId?: string;
@@ -168,6 +185,8 @@ export type CreatePermitPayload = {
   executors?: PermitExecutorInput[];
   viewers?: PermitAssigneeInput[];
   safetyOfficers?: PermitAssigneeInput[];
+  safetyApprovalComment?: string;
+  safetyApprovalSignedName?: string;
   formResponses?: { templateId: string; answers: FormAnswers }[];
 };
 
@@ -209,6 +228,8 @@ export type PermitLototoExecutionBoard = {
     procedureId: string;
     procedureCode: string;
     procedureTitle: string;
+    startedAt?: string | null;
+    crewCompletedAt?: string | null;
     points: PermitLototoExecutionPoint[];
   }>;
 };

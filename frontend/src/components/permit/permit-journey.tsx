@@ -13,7 +13,7 @@ import { formatApproverRoleLabel } from "@/lib/approval/labels";
 import { getPermitAudit, getPermitHistory } from "@/lib/closure/api";
 import type { AuditLogEntry, PermitHistoryEntry } from "@/lib/closure/types";
 import { permitTemplatesApi, type PermitTemplate } from "@/lib/organisation/templates";
-import { applicableTemplates, getWizardStepOwner, PERMIT_WIZARD_STEPS, permitDetailToForm, validateStep } from "@/lib/permit/form";
+import { applicableTemplates, getWizardStepOwner, needsSafetyApproval, PERMIT_WIZARD_STEPS, permitDetailToForm, validateStep } from "@/lib/permit/form";
 import { buildJourney, EDGES, formatDuration, NODE_BY_ID, stageTitle, type Journey } from "@/lib/permit/process";
 import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
 import { formatDateTime, formatRelative, formatWindow } from "@/lib/format";
@@ -64,10 +64,10 @@ function waitingOn(detail: PermitDetail, review: ApprovalReview | null, journey:
 
   switch (permit.status) {
     case "draft":
-      return { who: "Job issuer and executor", people: [issuer, ...executors].filter(Boolean) as string[], action: "Finish the permit and submit it for approval" };
+      return { who: "Permit receiver and operator", people: [issuer, ...executors].filter(Boolean) as string[], action: "Finish the permit and submit it for approval" };
     case "deferred":
     case "rejected":
-      return { who: "Job issuer", people: issuer ? [issuer] : [], action: "Revise the permit and resubmit it", note: lastComment };
+      return { who: "Permit receiver", people: issuer ? [issuer] : [], action: "Revise the permit and resubmit it", note: lastComment };
     case "pending_approval": {
       const active = (review?.workflow ?? []).filter((row) => row.assignment.status === "active");
       const stages = new Set((review?.workflow ?? []).map((row) => row.step.stepSequence)).size;
@@ -82,9 +82,9 @@ function waitingOn(detail: PermitDetail, review: ApprovalReview | null, journey:
     }
     case "approved":
       return {
-        who: "Job executor",
+        who: "Permit operator",
         people: executors,
-        action: "Check isolations and gas tests, then start work",
+        action: "Complete Start Permit Execution steps, then begin work",
         due: permit.plannedStartAt ? { at: permit.plannedStartAt, overdue: new Date(permit.plannedStartAt).getTime() < Date.now() } : undefined,
       };
     case "active":
@@ -97,7 +97,7 @@ function waitingOn(detail: PermitDetail, review: ApprovalReview | null, journey:
     case "suspended":
       return { who: "HOD or job issuer", people: issuer ? [issuer] : [], action: "Resolve the cause, then revalidate or resume", note: lastComment };
     case "execution_completed":
-      return { who: "Job issuer", people: issuer ? [issuer] : [], action: "Check the finished work and verify it", note: lastComment };
+      return { who: "Permit receiver", people: issuer ? [issuer] : [], action: "Check the finished work and verify it", note: lastComment };
     case "pending_closure":
       return { who: "HOD", people: [], action: "Give final sign-off and close the permit" };
     default:
@@ -113,9 +113,18 @@ function checksFor(detail: PermitDetail, templates: PermitTemplate[]): Check[] {
   const form = permitDetailToForm(detail);
   if (["draft", "deferred", "rejected"].includes(permit.status)) {
     const applicable = applicableTemplates(templates, permit.permitTypeId);
-    return PERMIT_WIZARD_STEPS.slice(0, 5).flatMap((step, index): Check[] => {
+    return PERMIT_WIZARD_STEPS.slice(0, 6).flatMap((step, index): Check[] => {
+      if (index === 5 && !needsSafetyApproval(form)) return [];
       const errors = validateStep(form, index, applicable);
-      const who = getWizardStepOwner(index) === "operator" ? "Executor" : getWizardStepOwner(index) === "shared" ? "Issuer or executor" : "Issuer";
+      const owner = getWizardStepOwner(index);
+      const who =
+        owner === "permit-operator"
+          ? "Executor"
+          : owner === "shared"
+            ? "Issuer or executor"
+            : owner === "safety-officer"
+              ? "Safety officer"
+              : "Issuer";
       return errors.length ? errors.map((label) => ({ ok: false, label, who })) : [{ ok: true, label: step.label, who }];
     });
   }

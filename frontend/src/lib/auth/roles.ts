@@ -3,9 +3,9 @@
 export const AUTHENTICATED_ROLES = [
   "platform-admin",
   "tenant-owner", "tenant-admin",
-  "hod",
-  "operator",
-  "job-issuer",
+  "permit-approver",
+  "permit-operator",
+  "permit-receiver",
   "safety-officer",
   "viewer",
 ] as const;
@@ -13,9 +13,9 @@ export const AUTHENTICATED_ROLES = [
 export const PLATFORM_ADMIN_ROLES = ["platform-admin"] as const;
 
 export const DASHBOARD_READ_ROLES = [
-  "operator",
-  "job-issuer",
-  "hod",
+  "permit-operator",
+  "permit-receiver",
+  "permit-approver",
   "safety-officer",
   "tenant-owner", "tenant-admin",
   "platform-admin",
@@ -23,14 +23,14 @@ export const DASHBOARD_READ_ROLES = [
 ] as const;
 
 export const DASHBOARD_REPORT_ROLES = [
-  "hod",
+  "permit-approver",
   "safety-officer",
   "tenant-owner", "tenant-admin",
   "platform-admin",
 ] as const;
 
 export const DASHBOARD_ANALYTICS_ROLES = [
-  "hod",
+  "permit-approver",
   "safety-officer",
   "tenant-owner", "tenant-admin",
   "platform-admin",
@@ -39,23 +39,26 @@ export const DASHBOARD_ANALYTICS_ROLES = [
 export const ORGANISATION_READ_ROLES = [
   "tenant-owner", "tenant-admin",
   "platform-admin",
-  "hod",
-  "operator",
-  "job-issuer",
+  "permit-approver",
+  "permit-operator",
+  "permit-receiver",
   "safety-officer",
   "viewer",
 ] as const;
 
 export const ORGANISATION_WRITE_ROLES = ["tenant-owner", "tenant-admin", "platform-admin"] as const;
 
-export const LOTOTO_LIBRARY_WRITE_ROLES = ORGANISATION_WRITE_ROLES;
+export const LOTOTO_LIBRARY_WRITE_ROLES = [
+  "permit-approver",
+  ...ORGANISATION_WRITE_ROLES,
+] as const;
 
 export const MASTER_DATA_READ_ROLES = [
   "tenant-owner", "tenant-admin",
   "platform-admin",
-  "hod",
-  "operator",
-  "job-issuer",
+  "permit-approver",
+  "permit-operator",
+  "permit-receiver",
   "viewer",
   "safety-officer",
 ] as const;
@@ -63,9 +66,9 @@ export const MASTER_DATA_READ_ROLES = [
 export const WORKFORCE_READ_ROLES = [
   "tenant-owner", "tenant-admin",
   "platform-admin",
-  "hod",
-  "operator",
-  "job-issuer",
+  "permit-approver",
+  "permit-operator",
+  "permit-receiver",
   "safety-officer",
   "viewer",
 ] as const;
@@ -73,9 +76,9 @@ export const WORKFORCE_READ_ROLES = [
 export const WORKFORCE_WRITE_ROLES = ["tenant-owner", "tenant-admin", "platform-admin"] as const;
 
 export const PERMIT_READ_ROLES = [
-  "job-issuer",
-  "operator",
-  "hod",
+  "permit-receiver",
+  "permit-operator",
+  "permit-approver",
   "tenant-owner", "tenant-admin",
   "platform-admin",
   "viewer",
@@ -83,20 +86,21 @@ export const PERMIT_READ_ROLES = [
 ] as const;
 
 // Not platform-admin: a platform admin belongs to no organisation, so the permit would be refused.
-export const PERMIT_CREATE_ROLES = ["job-issuer", "tenant-owner", "tenant-admin"] as const;
+export const PERMIT_CREATE_ROLES = ["permit-receiver", "tenant-owner", "tenant-admin"] as const;
 
 export const PERMIT_SUBMIT_ROLES = PERMIT_CREATE_ROLES;
 
 export const PERMIT_WRITE_ROLES = [
   ...PERMIT_CREATE_ROLES,
-  "operator",
-  "hod",
+  "permit-operator",
+  "permit-approver",
+  "safety-officer",
 ] as const;
 
 /** Matches the API: safety officers use the safety veto, not the approval queue. */
 export const APPROVAL_READ_ROLES = [
-  "job-issuer",
-  "hod",
+  "permit-receiver",
+  "permit-approver",
   "tenant-owner", "tenant-admin",
   "platform-admin",
   "viewer",
@@ -105,70 +109,70 @@ export const APPROVAL_READ_ROLES = [
 export const SAFETY_VETO_ROLES = ["safety-officer"] as const;
 
 export const EXECUTION_READ_ROLES = [
-  "operator",
-  "hod",
+  "permit-operator",
+  "permit-approver",
   "tenant-owner", "tenant-admin",
   "platform-admin",
-  "job-issuer",
+  "permit-receiver",
   "viewer",
 ] as const;
 
 export const MDP_READ_ROLES = [
-  "job-issuer",
-  "operator",
-  "hod",
+  "permit-receiver",
+  "permit-operator",
+  "permit-approver",
   "tenant-owner", "tenant-admin",
   "platform-admin",
   "viewer",
 ] as const;
 
 export const LOTOTO_READ_ROLES = [
-  "hod",
-  "operator",
+  "permit-approver",
+  "permit-operator",
   "tenant-owner", "tenant-admin",
   "platform-admin",
   "viewer",
 ] as const;
 
-export const LOTOTO_WRITE_ROLES = ["hod", "tenant-owner", "tenant-admin", "platform-admin"] as const;
+export const LOTOTO_WRITE_ROLES = ["permit-approver", "tenant-owner", "tenant-admin", "platform-admin"] as const;
 
 export const ISOLATION_READ_ROLES = [
-  "operator",
+  "permit-operator",
   "safety-officer",
-  "hod",
+  "permit-approver",
   "tenant-owner", "tenant-admin",
   "platform-admin",
-  "job-issuer",
+  "permit-receiver",
   "viewer",
 ] as const;
 
 export const RESTORATION_READ_ROLES = [
-  "operator",
+  "permit-operator",
   "safety-officer",
-  "hod",
+  "permit-approver",
   "tenant-owner", "tenant-admin",
   "platform-admin",
-  "job-issuer",
+  "permit-receiver",
   "viewer",
 ] as const;
 
 export const SIMOPS_READ_ROLES = [
-  "hod",
+  "permit-approver",
   "tenant-owner", "tenant-admin",
   "platform-admin",
-  "job-issuer",
+  "permit-receiver",
   "safety-officer",
   "viewer",
 ] as const;
 
 /** Roles that can run SIMOPS analysis (matches the API). */
-export const SIMOPS_ANALYSE_ROLES = ["hod", "tenant-owner", "tenant-admin", "platform-admin", "job-issuer"] as const;
-export const SIMOPS_RESOLVE_ROLES = ["hod", "tenant-owner", "tenant-admin", "platform-admin"] as const;
+export const SIMOPS_ANALYSE_ROLES = ["permit-approver", "tenant-owner", "tenant-admin", "platform-admin", "permit-receiver"] as const;
+export const SIMOPS_RESOLVE_ROLES = ["permit-approver", "tenant-owner", "tenant-admin", "platform-admin"] as const;
 
 export const INCIDENT_READ_ROLES = [
-  "operator",
-  "job-issuer",
-  "hod",
+  "permit-operator",
+  "permit-receiver",
+  "permit-approver",
   "safety-officer",
   "tenant-owner", "tenant-admin",
   "platform-admin",
@@ -176,38 +180,38 @@ export const INCIDENT_READ_ROLES = [
 ] as const;
 
 export const INCIDENT_REPORT_ROLES = [
-  "operator",
-  "job-issuer",
-  "hod",
+  "permit-operator",
+  "permit-receiver",
+  "permit-approver",
   "safety-officer",
   "tenant-owner", "tenant-admin",
   "platform-admin",
 ] as const;
 
 export const NOTIFICATION_READ_ROLES = [
-  "operator",
-  "job-issuer",
-  "hod",
+  "permit-operator",
+  "permit-receiver",
+  "permit-approver",
   "safety-officer",
   "tenant-owner", "tenant-admin",
   "platform-admin",
   "viewer",
 ] as const;
 
-export const BILLING_READ_ROLES = ["tenant-owner", "platform-admin", "safety-officer", "hod"] as const;
+export const BILLING_READ_ROLES = ["tenant-owner", "platform-admin", "safety-officer", "permit-approver"] as const;
 
 export const CLOSURE_READ_ROLES = [
-  "job-issuer",
-  "hod",
+  "permit-receiver",
+  "permit-approver",
   "tenant-owner", "tenant-admin",
   "platform-admin",
   "viewer",
 ] as const;
 
 export const SAFETY_HUB_ROLES = [
-  "job-issuer",
-  "operator",
-  "hod",
+  "permit-receiver",
+  "permit-operator",
+  "permit-approver",
   "tenant-owner", "tenant-admin",
   "platform-admin",
   "viewer",
@@ -217,36 +221,37 @@ export const SAFETY_HUB_ROLES = [
 /** Sidebar visibility — tenant-owner sees every operational and admin tab. */
 export const NAV_ORGANISATION_ROLES = ["tenant-owner", "tenant-admin", "platform-admin"] as const;
 export const NAV_WORKFORCE_ROLES = ["tenant-owner", "tenant-admin", "platform-admin"] as const;
-export const NAV_PERMITS_ROLES = ["job-issuer", "operator", "hod", "safety-officer", "tenant-owner", "tenant-admin", "viewer"] as const;
-export const NAV_DRAFTS_ROLES = ["job-issuer", "tenant-owner", "tenant-admin"] as const;
-export const NAV_ACTIVE_WORK_ROLES = ["job-issuer", "operator", "hod", "tenant-owner", "tenant-admin", "viewer"] as const;
-export const NAV_APPROVALS_ROLES = ["hod", "job-issuer", "tenant-owner", "tenant-admin", "viewer"] as const;
-export const NAV_DEFERRED_ROLES = ["hod", "job-issuer", "tenant-owner", "tenant-admin"] as const;
-export const NAV_OPERATOR_DRAFTS_ROLES = ["operator"] as const;
-export const NAV_EXECUTION_ROLES = ["operator", "hod", "job-issuer", "tenant-owner", "tenant-admin", "viewer"] as const;
-export const NAV_LOTOTO_ROLES = ["hod", "operator", "tenant-owner", "tenant-admin", "viewer"] as const;
-export const NAV_SIMOPS_ROLES = ["hod", "safety-officer", "job-issuer", "tenant-owner", "tenant-admin", "viewer"] as const;
+export const NAV_PERMITS_ROLES = ["permit-receiver", "permit-operator", "permit-approver", "safety-officer", "tenant-owner", "tenant-admin", "viewer"] as const;
+export const NAV_DRAFTS_ROLES = ["permit-receiver", "tenant-owner", "tenant-admin"] as const;
+export const NAV_ACTIVE_WORK_ROLES = ["permit-receiver", "permit-operator", "permit-approver", "tenant-owner", "tenant-admin", "viewer"] as const;
+export const NAV_APPROVALS_ROLES = ["permit-approver", "permit-receiver", "tenant-owner", "tenant-admin", "viewer"] as const;
+export const NAV_DEFERRED_ROLES = ["permit-approver", "permit-receiver", "tenant-owner", "tenant-admin"] as const;
+export const NAV_OPERATOR_DRAFTS_ROLES = ["permit-operator"] as const;
+export const NAV_SAFETY_DRAFTS_ROLES = ["safety-officer"] as const;
+export const NAV_EXECUTION_ROLES = ["permit-operator", "permit-approver", "permit-receiver", "tenant-owner", "tenant-admin", "viewer"] as const;
+export const NAV_LOTOTO_ROLES = ["permit-approver", "permit-operator", "tenant-owner", "tenant-admin", "viewer"] as const;
+export const NAV_SIMOPS_ROLES = ["permit-approver", "safety-officer", "permit-receiver", "tenant-owner", "tenant-admin", "viewer"] as const;
 export const NAV_INCIDENTS_ROLES = [
-  "operator",
-  "job-issuer",
-  "hod",
+  "permit-operator",
+  "permit-receiver",
+  "permit-approver",
   "safety-officer",
   "tenant-owner", "tenant-admin",
   "viewer",
 ] as const;
-export const NAV_CLOSURE_ROLES = ["job-issuer", "hod", "tenant-owner", "tenant-admin", "viewer"] as const;
+export const NAV_CLOSURE_ROLES = ["permit-receiver", "permit-approver", "tenant-owner", "tenant-admin", "viewer"] as const;
 export const NAV_SAFETY_ROLES = [
   "safety-officer",
-  "hod",
-  "job-issuer",
-  "operator",
+  "permit-approver",
+  "permit-receiver",
+  "permit-operator",
   "tenant-owner", "tenant-admin",
   "viewer",
 ] as const;
 
 /** Incident follow-up, mirroring app/src/modules/{incidents,investigation,incident-closure} constants. */
-export const INCIDENT_HOD_DECISION_ROLES = ["hod", "tenant-owner", "tenant-admin"] as const;
+export const INCIDENT_HOD_DECISION_ROLES = ["permit-approver", "tenant-owner", "tenant-admin"] as const;
 export const INVESTIGATION_ASSIGN_ROLES = ["safety-officer", "tenant-owner", "tenant-admin", "platform-admin"] as const;
-export const INVESTIGATION_WRITE_ROLES = [...INVESTIGATION_ASSIGN_ROLES, "hod"] as const;
+export const INVESTIGATION_WRITE_ROLES = [...INVESTIGATION_ASSIGN_ROLES, "permit-approver"] as const;
 export const INCIDENT_VERIFY_ROLES = ["safety-officer", "tenant-owner", "tenant-admin", "platform-admin"] as const;
-export const INCIDENT_CLOSE_ROLES = ["safety-officer", "hod", "tenant-owner", "tenant-admin", "platform-admin"] as const;
+export const INCIDENT_CLOSE_ROLES = ["safety-officer", "permit-approver", "tenant-owner", "tenant-admin", "platform-admin"] as const;

@@ -96,9 +96,9 @@ export class WorkstationService {
     return row;
   }
 
-  async remove(id: string, user: AuthenticatedUser) {
+  async remove(id: string, user: AuthenticatedUser, force = false) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
-    await this.referenceIntegrity.assertWorkstationNotReferenced(tenantId, id);
+    await this.referenceIntegrity.assertWorkstationNotReferenced(tenantId, id, force);
 
     const [row] = await this.db
       .delete(workstationCatalogue)

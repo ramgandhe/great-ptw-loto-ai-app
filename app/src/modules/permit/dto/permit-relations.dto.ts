@@ -48,6 +48,10 @@ export class PermitLototoExtraPointDto {
 
   @IsOptional()
   @IsString()
+  energyOtherText?: string;
+
+  @IsOptional()
+  @IsString()
   magnitude?: string;
 
   @IsOptional()

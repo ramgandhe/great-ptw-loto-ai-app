@@ -177,9 +177,9 @@ describe('Dashboards HTTP API (PUS-206)', () => {
   httpTest('rejects restricted dashboard kind for operator', async () => {
     const operatorApp = await createTestApp({
       id: randomUUID(),
-      username: 'operator',
+      username: 'permit-operator',
       tenantId,
-      roles: ['operator'],
+      roles: ['permit-operator'],
     });
 
     try {

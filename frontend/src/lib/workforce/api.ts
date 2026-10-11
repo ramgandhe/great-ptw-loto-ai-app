@@ -1,4 +1,5 @@
 import { fetchApi } from "@/lib/api";
+import { forceQuery } from "@/lib/confirm-delete";
 import type { CompetencyRecord, CreatedTenantUser, TenantUser, WorkforceRecord } from "./types";
 
 function crud<T extends { id: string }>(basePath: string) {
@@ -8,7 +9,8 @@ function crud<T extends { id: string }>(basePath: string) {
       fetchApi<T>(basePath, { method: "POST", body: JSON.stringify(payload) }),
     update: (id: string, payload: Partial<T>) =>
       fetchApi<T>(`${basePath}/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
-    archive: (id: string) => fetchApi<void>(`${basePath}/${id}`, { method: "DELETE" }),
+    archive: (id: string, force = false) =>
+      fetchApi<void>(`${basePath}/${id}${forceQuery(force)}`, { method: "DELETE" }),
     deactivate: (id: string) => fetchApi<T>(`${basePath}/${id}/deactivate`, { method: "POST" }),
     reactivate: (id: string) => fetchApi<T>(`${basePath}/${id}/reactivate`, { method: "POST" }),
   };
@@ -49,7 +51,8 @@ export function updateTenantUser(userId: string, payload: { departmentId?: strin
 export function createTenantUser(payload: {
   name: string;
   email: string;
-  role: string;
+  role?: string;
+  roles: string[];
   departmentId?: string;
 }) {
   return fetchApi<CreatedTenantUser>("/tenant-users", {
@@ -58,10 +61,10 @@ export function createTenantUser(payload: {
   });
 }
 
-export function updateTenantUserRole(userId: string, role: string) {
-  return fetchApi<{ id: string; role: string }>(`/tenant-users/${userId}/role`, {
+export function updateTenantUserRole(userId: string, roles: string[]) {
+  return fetchApi<{ id: string; role: string; roles: string[] }>(`/tenant-users/${userId}/role`, {
     method: "PATCH",
-    body: JSON.stringify({ role }),
+    body: JSON.stringify({ roles }),
   });
 }
 
@@ -73,8 +76,8 @@ export function reactivateTenantUser(userId: string) {
   return fetchApi<TenantUser>(`/tenant-users/${userId}/reactivate`, { method: "POST" });
 }
 
-export function deleteTenantUser(userId: string) {
-  return fetchApi<{ id: string; deleted: boolean }>(`/tenant-users/${userId}`, {
+export function deleteTenantUser(userId: string, force = false) {
+  return fetchApi<{ id: string; deleted: boolean }>(`/tenant-users/${userId}${forceQuery(force)}`, {
     method: "DELETE",
   });
 }

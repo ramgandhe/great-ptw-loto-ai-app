@@ -8,6 +8,7 @@ import {
   permitHazards,
   permitPpe,
   permitGasTesting,
+  permitSafetyOfficers,
   permits,
 } from '../../database/schema';
 import type { PermitLototoDetail } from './permit.service';
@@ -19,6 +20,7 @@ export interface PermitSubmissionRecord {
   lototo: PermitLototoDetail[];
   gasTesting: (typeof permitGasTesting.$inferSelect)[];
   executors: (typeof permitExecutors.$inferSelect)[];
+  safetyOfficers?: (typeof permitSafetyOfficers.$inferSelect)[];
   attachments: (typeof permitAttachments.$inferSelect)[];
 }
 
@@ -90,6 +92,12 @@ export class PermitValidationService {
     if (permit.gasTestingRequired) {
       if (gasTesting.length === 0) {
         errors.push('at least one gas testing item is required when gas testing is required');
+      }
+    }
+
+    if ((record.safetyOfficers ?? []).length > 0) {
+      if (!permit.safetyApprovalComment?.trim() || !permit.safetyApprovalSignedName?.trim()) {
+        errors.push('Safety Approval comment and typed name are required when a safety officer is assigned');
       }
     }
 

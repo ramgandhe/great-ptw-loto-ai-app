@@ -6,6 +6,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
+import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { LOTOTO_LIBRARY_WRITE_ROLES } from "@/lib/auth/roles";
@@ -18,9 +19,11 @@ import {
   publishLototoProcedure,
   reactivateLototoProcedure,
   removeLototoPointPhoto,
+  removeLototoStepPhoto,
   reviseLototoProcedure,
   updateLototoProcedure,
   uploadLototoPointPhoto,
+  uploadLototoStepPhoto,
 } from "@/lib/lototo/api";
 import type {
   LototoLockoutPoint,
@@ -35,10 +38,10 @@ const FIELD =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 const ROLE_OPTIONS = [
-  { value: "operator", label: "Job executor" },
+  { value: "permit-operator", label: "Permit operator" },
   { value: "safety-officer", label: "Safety officer" },
-  { value: "hod", label: "Head of Department" },
-  { value: "job-issuer", label: "Job issuer" },
+  { value: "permit-approver", label: "Permit approver" },
+  { value: "permit-receiver", label: "Permit receiver" },
 ];
 
 function emptyPoint(order: number): LototoLockoutPoint {
@@ -46,6 +49,7 @@ function emptyPoint(order: number): LototoLockoutPoint {
     sortOrder: order,
     pointCode: "",
     energyType: "electrical",
+    energyOtherText: "",
     magnitude: "",
     locationText: "",
     action: "",
@@ -55,7 +59,7 @@ function emptyPoint(order: number): LototoLockoutPoint {
 }
 
 function emptyStep(phase: "apply" | "remove", order: number): LototoSequenceStep {
-  return { phase, sequenceOrder: order, title: "", description: "" };
+  return { phase, sequenceOrder: order, title: "", action: "", infoText: "", verification: "", note: "", description: "" };
 }
 
 type FormState = {
@@ -123,6 +127,7 @@ function payloadOf(form: FormState): LototoProcedurePayload {
         sortOrder: i + 1,
         pointCode: p.pointCode.trim(),
         energyType: p.energyType,
+        energyOtherText: p.energyType === "other" ? p.energyOtherText?.trim() || undefined : undefined,
         magnitude: p.magnitude?.trim() || undefined,
         locationText: p.locationText?.trim() || undefined,
         action: p.action?.trim() || undefined,
@@ -136,6 +141,10 @@ function payloadOf(form: FormState): LototoProcedurePayload {
           phase: "apply" as const,
           sequenceOrder: i + 1,
           title: s.title.trim(),
+          action: s.action?.trim() || undefined,
+          infoText: s.infoText?.trim() || undefined,
+          verification: s.verification?.trim() || undefined,
+          note: s.note?.trim() || undefined,
           description: s.description?.trim() || undefined,
         })),
       ...form.removeSteps
@@ -144,6 +153,10 @@ function payloadOf(form: FormState): LototoProcedurePayload {
           phase: "remove" as const,
           sequenceOrder: i + 1,
           title: s.title.trim(),
+          action: s.action?.trim() || undefined,
+          infoText: s.infoText?.trim() || undefined,
+          verification: s.verification?.trim() || undefined,
+          note: s.note?.trim() || undefined,
           description: s.description?.trim() || undefined,
         })),
     ],
@@ -308,11 +321,12 @@ export function LototoProcedureEditor({
   }
 
   async function remove() {
-    if (!procedureId || !window.confirm("Delete this unused procedure?")) {
-      return;
-    }
+    if (!procedureId) return;
     try {
-      await deleteLototoProcedure(procedureId);
+      const ok = await deleteWithAssignmentConfirm(form.title || "this procedure", (force) =>
+        deleteLototoProcedure(procedureId, force).then(() => undefined),
+      );
+      if (!ok) return;
       router.push("/lototo");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not delete.");
@@ -463,12 +477,21 @@ export function LototoProcedureEditor({
             </div>
             <input className={FIELD} placeholder="Point ID (E-1)" disabled={readOnly} value={point.pointCode} onChange={(e) => setPoint(index, { pointCode: e.target.value })} />
             <select className={FIELD} disabled={readOnly} value={point.energyType} onChange={(e) => setPoint(index, { energyType: e.target.value })}>
-              {ENERGY_SOURCE_OPTIONS.map((opt) => (
+              {ENERGY_SOURCE_OPTIONS.filter((opt) => opt.value !== "gravitational" || point.energyType === "gravitational").map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
               ))}
             </select>
+            {point.energyType === "other" ? (
+              <input
+                className={`${FIELD} sm:col-span-2`}
+                placeholder="Describe other energy source"
+                disabled={readOnly}
+                value={point.energyOtherText ?? ""}
+                onChange={(e) => setPoint(index, { energyOtherText: e.target.value })}
+              />
+            ) : null}
             <input className={FIELD} placeholder="Magnitude (415 Volts)" disabled={readOnly} value={point.magnitude ?? ""} onChange={(e) => setPoint(index, { magnitude: e.target.value })} />
             <input className={FIELD} placeholder="Device" disabled={readOnly} value={point.device ?? ""} onChange={(e) => setPoint(index, { device: e.target.value })} />
             <input className={`${FIELD} sm:col-span-2`} placeholder="Location" disabled={readOnly} value={point.locationText ?? ""} onChange={(e) => setPoint(index, { locationText: e.target.value })} />
@@ -550,11 +573,11 @@ export function LototoProcedureEditor({
               )}
             </div>
             {steps.map((step, index) => (
-              <div key={index} className="grid gap-2 sm:grid-cols-[auto_1fr_auto]">
+              <div key={index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[auto_1fr_auto]">
                 <span className="pt-2 text-sm text-muted-foreground">{index + 1}</span>
                 <input
                   className={FIELD}
-                  placeholder="Step title"
+                  placeholder="Title"
                   disabled={readOnly}
                   value={step.title}
                   onChange={(e) =>
@@ -578,16 +601,99 @@ export function LototoProcedureEditor({
                 )}
                 <textarea
                   className={`${FIELD} min-h-16 sm:col-span-3`}
-                  placeholder="Description (optional)"
+                  placeholder="Action"
                   disabled={readOnly}
-                  value={step.description ?? ""}
+                  value={step.action ?? ""}
                   onChange={(e) =>
                     setForm((c) => ({
                       ...c,
-                      [key]: c[key].map((row, i) => (i === index ? { ...row, description: e.target.value } : row)),
+                      [key]: c[key].map((row, i) => (i === index ? { ...row, action: e.target.value } : row)),
                     }))
                   }
                 />
+                <textarea
+                  className={`${FIELD} min-h-16 sm:col-span-3`}
+                  placeholder="Info (text)"
+                  disabled={readOnly}
+                  value={step.infoText ?? step.description ?? ""}
+                  onChange={(e) =>
+                    setForm((c) => ({
+                      ...c,
+                      [key]: c[key].map((row, i) => (i === index ? { ...row, infoText: e.target.value } : row)),
+                    }))
+                  }
+                />
+                <input
+                  className={`${FIELD} sm:col-span-3`}
+                  placeholder="Verification"
+                  disabled={readOnly}
+                  value={step.verification ?? ""}
+                  onChange={(e) =>
+                    setForm((c) => ({
+                      ...c,
+                      [key]: c[key].map((row, i) => (i === index ? { ...row, verification: e.target.value } : row)),
+                    }))
+                  }
+                />
+                <input
+                  className={`${FIELD} sm:col-span-3`}
+                  placeholder="Note (optional)"
+                  disabled={readOnly}
+                  value={step.note ?? ""}
+                  onChange={(e) =>
+                    setForm((c) => ({
+                      ...c,
+                      [key]: c[key].map((row, i) => (i === index ? { ...row, note: e.target.value } : row)),
+                    }))
+                  }
+                />
+                <div className="grid gap-2 sm:col-span-3">
+                  <span className="text-xs text-muted-foreground">Info image (optional)</span>
+                  {step.photo?.url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={step.photo.url} alt="" className="max-h-40 w-fit rounded-md border border-border object-contain" />
+                  ) : null}
+                  {readOnly ? null : step.id && procedureId ? (
+                    <div className="flex flex-wrap gap-2">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = "";
+                          if (!file) {
+                            return;
+                          }
+                          void uploadLototoStepPhoto(procedureId, step.id!, file)
+                            .then((saved) => {
+                              setDetail(saved);
+                              setForm(fromProcedure(saved));
+                            })
+                            .catch((err) => setError(err instanceof ApiError ? err.message : "Photo could not be saved."));
+                        }}
+                      />
+                      {step.photo ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            void removeLototoStepPhoto(procedureId, step.id!)
+                              .then((saved) => {
+                                setDetail(saved);
+                                setForm(fromProcedure(saved));
+                              })
+                              .catch((err) => setError(err instanceof ApiError ? err.message : "Photo could not be removed."))
+                          }
+                        >
+                          Remove image
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Save the procedure first to attach an image.</p>
+                  )}
+                </div>
               </div>
             ))}
           </section>

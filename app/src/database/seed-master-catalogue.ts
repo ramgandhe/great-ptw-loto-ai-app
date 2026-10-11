@@ -12,6 +12,7 @@ import {
   ppeCatalogue,
   workstationCatalogue,
 } from './schema';
+import { ensureDefaultHazards } from '../modules/master-data/default-hazards';
 import { DEMO_IDS, DEMO_TENANT_ID, SEED_ACTOR_ID } from './seed-ids';
 
 const DEMO_PLANTS = [
@@ -410,6 +411,7 @@ export async function seedMasterCatalogue(db: Database): Promise<void> {
         updatedAt: sql`now()`,
       },
     });
+  await ensureDefaultHazards(db, DEMO_TENANT_ID, SEED_ACTOR_ID);
 
   await db
     .insert(ppeCatalogue)

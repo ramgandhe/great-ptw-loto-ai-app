@@ -8,7 +8,7 @@ export const INCIDENT_VERIFY_ROLES = [
 
 export const INCIDENT_CLOSE_ROLES = [
   'safety-officer',
-  'hod',
+  'permit-approver',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;

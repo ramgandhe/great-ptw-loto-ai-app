@@ -10,9 +10,9 @@ export const DASHBOARD_ANALYTICS_SNAPSHOT_JOB = 'dashboard.analytics-snapshot';
 export const DASHBOARD_KPI_REFRESH_JOB = 'dashboard.kpi-refresh';
 
 export const DASHBOARD_READ_ROLES = [
-  'operator',
-  'job-issuer',
-  'hod',
+  'permit-operator',
+  'permit-receiver',
+  'permit-approver',
   'safety-officer',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
@@ -20,14 +20,14 @@ export const DASHBOARD_READ_ROLES = [
 ] as const;
 
 export const DASHBOARD_REPORT_ROLES = [
-  'hod',
+  'permit-approver',
   'safety-officer',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
 export const DASHBOARD_ANALYTICS_ROLES = [
-  'hod',
+  'permit-approver',
   'safety-officer',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
@@ -36,7 +36,7 @@ export const DASHBOARD_ANALYTICS_ROLES = [
 /** Roles allowed per dashboard kind (BR-DSH-001 / BR-DSH-002). */
 export const DASHBOARD_KIND_ROLES: Record<DashboardKind, readonly string[]> = {
   personal: DASHBOARD_READ_ROLES,
-  hod: ['hod', 'safety-officer', 'tenant-owner', 'tenant-admin', 'platform-admin'],
+  hod: ['permit-approver', 'safety-officer', 'tenant-owner', 'tenant-admin', 'platform-admin'],
   safety: ['safety-officer', 'tenant-owner', 'tenant-admin', 'platform-admin'],
   management: ['safety-officer', 'tenant-owner', 'tenant-admin', 'platform-admin'],
 };

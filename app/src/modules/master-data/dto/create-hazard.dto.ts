@@ -44,6 +44,12 @@ export class CreateHazardDto {
   controls?: string[];
 
   @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  permitTypeCodes?: string[];
+
+  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 }

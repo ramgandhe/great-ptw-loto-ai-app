@@ -154,7 +154,7 @@ describe('Approval workflow remediation (SP-09.01)', () => {
       id: supervisorId,
       username: 'hod',
       tenantId,
-      roles: ['hod'],
+      roles: ['permit-approver'],
       email: 'supervisor@example.com',
     };
 
@@ -170,7 +170,7 @@ describe('Approval workflow remediation (SP-09.01)', () => {
       id: delegateId,
       username: 'delegate',
       tenantId,
-      roles: ['job-issuer'],
+      roles: ['permit-receiver'],
       email: 'delegate@example.com',
     };
 
@@ -202,10 +202,10 @@ describe('Approval workflow remediation (SP-09.01)', () => {
           permitTypeId,
           stepSequence: 1,
           name: 'Joint sign-off',
-          approverRole: 'hod',
+          approverRole: 'permit-approver',
           stageMode: 'parallel',
           quorumMode,
-          parallelRoles: ['hod', 'safety-officer'],
+          parallelRoles: ['permit-approver', 'safety-officer'],
           createdBy: issuerId,
         })
         .returning();
@@ -276,7 +276,7 @@ describe('Approval workflow remediation (SP-09.01)', () => {
       permitTypeId: permit.permitTypeId,
       stepSequence: 1,
       name: 'Supervisor review',
-      approverRole: 'hod',
+      approverRole: 'permit-approver',
       createdBy: issuerId,
     });
 
@@ -287,7 +287,7 @@ describe('Approval workflow remediation (SP-09.01)', () => {
       tenantId,
       delegatorId: supervisorId,
       delegateId,
-      role: 'hod',
+      role: 'permit-approver',
       validFrom,
       validTo,
       createdBy: supervisorId,
@@ -319,7 +319,7 @@ describe('Approval workflow remediation (SP-09.01)', () => {
       permitTypeId: permit.permitTypeId,
       stepSequence: 1,
       name: 'Supervisor review',
-      approverRole: 'hod',
+      approverRole: 'permit-approver',
       createdBy: issuerId,
     });
 
@@ -408,7 +408,7 @@ describe('Approval workflow remediation (SP-09.01)', () => {
         permitTypeId: permit.permitTypeId,
         stepSequence: 1,
         name: 'Supervisor review',
-        approverRole: 'hod',
+        approverRole: 'permit-approver',
         slaHours: 4,
         stepConfig: { escalationRole: 'safety-officer' },
         createdBy: issuerId,

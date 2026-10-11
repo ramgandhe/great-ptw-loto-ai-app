@@ -6,37 +6,37 @@ export const PERMIT_LIFECYCLE_PHASES = [
   {
     sequence: 1,
     name: 'Issuer initiation',
-    participantRole: 'job-issuer',
+    participantRole: 'permit-receiver',
     kind: 'collaboration',
   },
   {
     sequence: 2,
     name: 'Executor on-site details',
-    participantRole: 'operator',
+    participantRole: 'permit-operator',
     kind: 'collaboration',
   },
   {
     sequence: 3,
     name: 'HOD initial review',
-    participantRole: 'hod',
+    participantRole: 'permit-approver',
     kind: 'approval',
   },
   {
     sequence: 4,
     name: 'Executor pre-work confirmation',
-    participantRole: 'operator',
+    participantRole: 'permit-operator',
     kind: 'execution',
   },
   {
     sequence: 5,
     name: 'Issuer completion approval',
-    participantRole: 'job-issuer',
+    participantRole: 'permit-receiver',
     kind: 'closure',
   },
   {
     sequence: 6,
     name: 'HOD final approval',
-    participantRole: 'hod',
+    participantRole: 'permit-approver',
     kind: 'closure',
   },
 ] as const;
@@ -46,7 +46,7 @@ export const DEFAULT_APPROVAL_WORKFLOW_STEPS = [
   {
     stepSequence: 1,
     name: 'HOD initial review',
-    approverRole: 'hod',
+    approverRole: 'permit-approver',
   },
 ] as const;
 
@@ -54,7 +54,7 @@ export const PLATFORM_DEFAULT_WORKFLOW_CODE = 'PLATFORM_DEFAULT';
 
 export const PLATFORM_DEFAULT_WORKFLOW_NAME = 'Platform default';
 
-export const APPROVAL_APPROVER_ROLES = ['hod', 'job-issuer', 'safety-officer'] as const;
+export const APPROVAL_APPROVER_ROLES = ['permit-approver', 'permit-receiver', 'safety-officer'] as const;
 
 export type ApprovalApproverRole = (typeof APPROVAL_APPROVER_ROLES)[number];
 

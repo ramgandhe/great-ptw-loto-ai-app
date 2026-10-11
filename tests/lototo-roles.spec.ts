@@ -28,7 +28,7 @@ describe('LOTOTO role enforcement (PUS-151)', () => {
   it('allows authorised LOTOTO configuration roles', () => {
     mockRoleGuardReflector(getAllAndOverride, LOTOTO_WRITE_ROLES);
 
-    const result = guard.canActivate(buildContext({ roles: ['hod'] }));
+    const result = guard.canActivate(buildContext({ roles: ['permit-approver'] }));
 
     expect(result).toBe(true);
   });

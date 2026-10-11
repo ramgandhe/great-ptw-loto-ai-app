@@ -246,3 +246,36 @@ curl -fsS http://localhost:4000/api/v1/health/live | jq
 
 Production boots (`NODE_ENV=production`) also require `CORS_ORIGIN`, and refuse
 known local/dev secret defaults.
+
+## Production HTTPS (`permitwiseai.cloud`)
+
+DNS A for `permitwiseai.cloud` (and CNAME `www`) must point at the host before
+Caddy can obtain certificates. Combine the base, demo, and Caddy compose files.
+
+```bash
+export CADDY_SITES="permitwiseai.cloud, www.permitwiseai.cloud, :80"
+export PUBLIC_ORIGIN=https://permitwiseai.cloud
+export DEMO_WEB_URL=https://permitwiseai.cloud
+export DEMO_API_URL=/api/v1
+export DEMO_AUTH_URL=https://permitwiseai.cloud
+export APP_PUBLIC_URL=https://permitwiseai.cloud
+export MINIO_PUBLIC_URL=https://permitwiseai.cloud
+# Optional: keep the old IP origin working until bookmarks move.
+export CORS_ORIGIN=https://permitwiseai.cloud,http://200.234.45.51
+
+docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.caddy.yml up -d --build
+```
+
+Check:
+
+```bash
+curl -fsSI http://permitwiseai.cloud | grep -i location   # 308 → https://permitwiseai.cloud/
+curl -fsS https://permitwiseai.cloud/api/v1/health
+```
+
+Sign-in is the app's own page (API relays to Keycloak). `DEMO_AUTH_URL` /
+`KC_HOSTNAME` must still be `https://permitwiseai.cloud` so JWT issuers match.
+Keycloak's admin console stays on `127.0.0.1:8080` (SSH tunnel).
+
+`:80` in `CADDY_SITES` keeps HTTP on the bare IP. Ports 80 and 443 must be open
+on the host firewall.

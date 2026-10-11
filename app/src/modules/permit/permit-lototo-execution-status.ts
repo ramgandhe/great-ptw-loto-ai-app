@@ -38,6 +38,17 @@ export function isLototoIsolationComplete(
   return points.every((point) => point.status === 'na' || point.status === 'passed');
 }
 
+export function isLototoCrewApplyComplete(
+  points: Array<{ status: LototoPointExecutionStatus }>,
+): boolean {
+  if (points.length === 0) {
+    return false;
+  }
+  return points.every(
+    (point) => point.status === 'na' || point.status === 'pending_verify' || point.status === 'passed',
+  );
+}
+
 export function isLototoRestorationComplete(
   points: Array<{ restoreStatus: LototoPointExecutionStatus }>,
 ): boolean {

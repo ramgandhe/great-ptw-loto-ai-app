@@ -1,15 +1,25 @@
-# Reverse proxy on port 80. Combine with demo overlay for public URLs:
+# Reverse proxy on ports 80/443. Combine with demo overlay for public URLs.
 #
+# HTTP-by-IP (until DNS exists):
 #   export DEMO_WEB_URL=http://<public-ip>
-#   export DEMO_API_URL=/api/v1   # same address as the page, so the IP and any domain both work
+#   export DEMO_API_URL=/api/v1
 #   export DEMO_AUTH_URL=http://<public-ip>
 #   export PUBLIC_ORIGIN=http://<public-ip>
-#   HTTPS for a domain: CADDY_SITES="example.com, :80" and MINIO_PUBLIC_URL=https://example.com
-#   (APP_PUBLIC_URL=https://example.com for emailed links; leave PUBLIC_ORIGIN, it is the sign-in issuer)
+#
+# HTTPS for permitwiseai.cloud (DNS A/AAAA + www CNAME already at this host):
+#   export CADDY_SITES="permitwiseai.cloud, www.permitwiseai.cloud, :80"
+#   export PUBLIC_ORIGIN=https://permitwiseai.cloud
+#   export DEMO_WEB_URL=https://permitwiseai.cloud
+#   export DEMO_API_URL=/api/v1
+#   export DEMO_AUTH_URL=https://permitwiseai.cloud
+#   export APP_PUBLIC_URL=https://permitwiseai.cloud
+#   export MINIO_PUBLIC_URL=https://permitwiseai.cloud
+#   export CORS_ORIGIN=https://permitwiseai.cloud,http://<public-ip>
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.caddy.yml up -d --build
 #
-# When a domain is ready, point DNS here, change PUBLIC_ORIGIN / DEMO_* to https://...
-# and update Caddyfile site addresses.
+# Caddy issues Let's Encrypt certs for names in CADDY_SITES (except :80).
+# Keep :80 so the bare IP still answers over HTTP. Rebuild frontend so
+# NEXT_PUBLIC_* pick up DEMO_WEB_URL.
 
 services:
   caddy:
@@ -41,6 +51,7 @@ services:
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-${PUBLIC_ORIGIN:-http://127.0.0.1}}
       # Evidence links go through Caddy (/ptw-documents/*) to MinIO.
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-${PUBLIC_ORIGIN:-http://127.0.0.1}}
+      CORS_ORIGIN: ${CORS_ORIGIN:-${DEMO_WEB_URL:-${PUBLIC_ORIGIN:-http://127.0.0.1}}}
 
   keycloak:
     ports: !override

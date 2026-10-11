@@ -13,6 +13,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { LOTOTO_SEQUENCE_PHASES } from '../../../database/schema/lototo-procedure';
+import { LOTOTO_ENERGY_TYPES } from '../lototo.constants';
 
 export class LototoLockoutPointDto {
   @IsInt()
@@ -24,10 +25,13 @@ export class LototoLockoutPointDto {
   @MaxLength(64)
   pointCode!: string;
 
+  @IsIn([...LOTOTO_ENERGY_TYPES])
+  energyType!: (typeof LOTOTO_ENERGY_TYPES)[number];
+
+  @IsOptional()
   @IsString()
-  @MinLength(1)
-  @MaxLength(64)
-  energyType!: string;
+  @MaxLength(255)
+  energyOtherText?: string;
 
   @IsOptional()
   @IsString()
@@ -64,6 +68,22 @@ export class LototoSequenceStepDto {
   @MinLength(1)
   @MaxLength(255)
   title!: string;
+
+  @IsOptional()
+  @IsString()
+  action?: string;
+
+  @IsOptional()
+  @IsString()
+  infoText?: string;
+
+  @IsOptional()
+  @IsString()
+  verification?: string;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
 
   @IsOptional()
   @IsString()

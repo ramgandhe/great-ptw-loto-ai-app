@@ -24,6 +24,26 @@ export class PermitLototoExecutionController {
   }
 
   @Roles(...LOTOTO_EXECUTE_ROLES)
+  @Post('instances/:instanceId/start')
+  startIsolation(
+    @Param('permitId', ParseUUIDPipe) permitId: string,
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.executionService.startIsolation(permitId, instanceId, user);
+  }
+
+  @Roles(...LOTOTO_EXECUTE_ROLES)
+  @Post('instances/:instanceId/crew-complete')
+  declareCrewComplete(
+    @Param('permitId', ParseUUIDPipe) permitId: string,
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.executionService.declareCrewComplete(permitId, instanceId, user);
+  }
+
+  @Roles(...LOTOTO_EXECUTE_ROLES)
   @Post('instances/:instanceId/crew')
   recordCrew(
     @Param('permitId', ParseUUIDPipe) permitId: string,

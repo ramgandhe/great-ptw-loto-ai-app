@@ -1,4 +1,5 @@
 import { fetchApi } from "@/lib/api";
+import { forceQuery } from "@/lib/confirm-delete";
 
 export type SafetyChecklistItem = {
   id: string;
@@ -48,5 +49,6 @@ export const checklistsApi = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
-  archive: (id: string) => fetchApi<SafetyChecklist>(`/checklists/${id}`, { method: "DELETE" }),
+  archive: (id: string, force = false) =>
+    fetchApi<SafetyChecklist>(`/checklists/${id}${forceQuery(force)}`, { method: "DELETE" }),
 };

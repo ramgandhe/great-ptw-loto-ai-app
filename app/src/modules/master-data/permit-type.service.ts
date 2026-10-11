@@ -8,6 +8,7 @@ import { CreatePermitTypeDto } from './dto/create-permit-type.dto';
 import { UpdatePermitTypeDto } from './dto/update-permit-type.dto';
 import { MasterDataCacheService } from './master-data-cache.service';
 import { MasterDataLogService } from './master-data-log.service';
+import { ensureDefaultPermitTypes } from './default-permit-types';
 import { ReferenceIntegrityService } from './reference-integrity.service';
 
 @Injectable()
@@ -47,6 +48,23 @@ export class PermitTypeService {
       }
       throw error;
     }
+  }
+
+  async importDefaults(user: AuthenticatedUser) {
+    const tenantId = this.referenceIntegrity.requireTenant(user);
+    const result = await ensureDefaultPermitTypes(this.db, tenantId, user.id);
+    await this.cacheService.invalidate(tenantId, 'permit-types');
+    if (result.created + result.updated > 0) {
+      await this.auditService.log({
+        action: 'permit-type.defaults-imported',
+        entityType: 'permit_type',
+        entityId: tenantId,
+        userId: user.id,
+        tenantId,
+        metadata: result,
+      });
+    }
+    return result;
   }
 
   async findAll(user: AuthenticatedUser) {
@@ -98,9 +116,9 @@ export class PermitTypeService {
     }
   }
 
-  async remove(id: string, user: AuthenticatedUser) {
+  async remove(id: string, user: AuthenticatedUser, force = false) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
-    await this.referenceIntegrity.assertPermitTypeNotReferenced(tenantId, id);
+    await this.referenceIntegrity.assertPermitTypeNotReferenced(tenantId, id, force);
 
     const [row] = await this.db
       .delete(permitTypes)

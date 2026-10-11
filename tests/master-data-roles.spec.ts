@@ -28,7 +28,7 @@ describe('Master data role enforcement (PUS-70)', () => {
 
   it('denies operator from modifying master data', () => {
     mockRoleGuardReflector(getAllAndOverride, MASTER_DATA_WRITE_ROLES);
-    expect(() => guard.canActivate(buildContext({ roles: ['operator'] }))).toThrow(
+    expect(() => guard.canActivate(buildContext({ roles: ['permit-operator'] }))).toThrow(
       ForbiddenException,
     );
   });

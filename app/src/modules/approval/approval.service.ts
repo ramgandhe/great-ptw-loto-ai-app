@@ -5,11 +5,12 @@ import {
   Inject,
   Injectable,
 } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   permitApprovals,
+  permitExecutors,
   permits,
   workflowAssignments,
   workflowSteps,
@@ -29,6 +30,7 @@ import { DelegationService } from './delegation.service';
 import { NotificationService } from './notification.service';
 import { WorkflowEngineService } from './workflow-engine.service';
 import { SimopsService } from '../simops/simops.service';
+import { isAssignedExecutor } from '../permit/permit-collaboration';
 
 @Injectable()
 export class ApprovalService {
@@ -80,10 +82,35 @@ export class ApprovalService {
         ),
       );
 
+    const executorRows =
+      rows.length === 0
+        ? []
+        : await this.db
+            .select({
+              permitId: permitExecutors.permitId,
+              workforceUserId: permitExecutors.workforceUserId,
+            })
+            .from(permitExecutors)
+            .where(
+              inArray(
+                permitExecutors.permitId,
+                [...new Set(rows.map((row) => row.permit.id))],
+              ),
+            );
+    const executorIdsByPermit = new Map<string, Set<string>>();
+    for (const row of executorRows) {
+      const ids = executorIdsByPermit.get(row.permitId) ?? new Set<string>();
+      ids.add(row.workforceUserId);
+      executorIdsByPermit.set(row.permitId, ids);
+    }
+
     const eligible = [];
     for (const row of rows) {
       // Your own submissions wait for someone else (see prepareDecision).
       if (row.permit.submittedBy === user.id) {
+        continue;
+      }
+      if (executorIdsByPermit.get(row.permit.id)?.has(user.id)) {
         continue;
       }
       const canAct = await this.canUserActOnAssignment(
@@ -208,7 +235,13 @@ export class ApprovalService {
       } else {
         await tx
           .update(permits)
-          .set({ status: 'approved', updatedBy: user.id })
+          .set({
+            status: 'approved',
+            approvedAt: new Date(),
+            approvedBy: user.id,
+            approvedSignedName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.username,
+            updatedBy: user.id,
+          })
           .where(and(eq(permits.id, permitId), eq(permits.tenantId, permit.tenantId)));
 
         await freezePermitLototo(tx, permitId, user.id);
@@ -394,6 +427,11 @@ export class ApprovalService {
     // Separation of duties: whoever submitted a permit cannot also approve it.
     if (decision === 'approve' && permit.submittedBy === user.id) {
       throw new ForbiddenException('You submitted this permit, so another approver must approve it');
+    }
+    if (isAssignedExecutor(detail, user.id)) {
+      throw new ForbiddenException(
+        'You are a permit operator on this permit, so another person must approve it',
+      );
     }
 
     const existingAssignments = await this.workflowEngine.listAssignmentsForPermit(permitId);

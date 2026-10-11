@@ -14,6 +14,7 @@ export type HazardRecord = MasterDataRecord & {
   severity?: string;
   consequences?: string[];
   controls?: string[];
+  permitTypeCodes?: string[];
 };
 
 export const masterDataApi = {

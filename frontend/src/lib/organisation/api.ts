@@ -1,4 +1,5 @@
 import { fetchApi } from "@/lib/api";
+import { forceQuery } from "@/lib/confirm-delete";
 import type { HazardRecord } from "@/lib/master-data/api";
 import type { MachineryRecord, NotificationPreference, Organisation, OrgRecord } from "./types";
 
@@ -12,7 +13,8 @@ function crud<T extends { id: string }>(basePath: string) {
       fetchApi<T>(basePath, { method: "POST", body: JSON.stringify(payload) }),
     update: (id: string, payload: Partial<T>) =>
       fetchApi<T>(`${basePath}/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
-    archive: (id: string) => fetchApi<void>(`${basePath}/${id}`, { method: "DELETE" }),
+    archive: (id: string, force = false) =>
+      fetchApi<void>(`${basePath}/${id}${forceQuery(force)}`, { method: "DELETE" }),
   };
 }
 
@@ -26,7 +28,8 @@ export const organisationsApi = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
-  archive: (id: string) => fetchApi<void>(`/organisations/${id}`, { method: "DELETE" }),
+  archive: (id: string, force = false) =>
+    fetchApi<void>(`/organisations/${id}${forceQuery(force)}`, { method: "DELETE" }),
 };
 
 export const plantsApi = crud<OrgRecord>("/plants");

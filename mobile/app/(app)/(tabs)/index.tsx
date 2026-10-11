@@ -14,8 +14,8 @@ import { useOffline } from "@/providers/offline-provider";
 import { useTheme } from "@/providers/theme-provider";
 import { blend, readable, tint } from "@/theme/tokens";
 
-const APPROVAL_READ = ["job-issuer", "hod", "tenant-owner", "tenant-admin", "platform-admin", "viewer"];
-const CREATE = ["job-issuer", "tenant-owner", "tenant-admin"];
+const APPROVAL_READ = ["permit-receiver", "permit-approver", "tenant-owner", "tenant-admin", "platform-admin", "viewer"];
+const CREATE = ["permit-receiver", "tenant-owner", "tenant-admin"];
 const MORE: { label: string; href: string; icon: LucideIcon }[] = [
   { label: "Permits", href: "/permits", icon: FileText },
   { label: "LOTOTO", href: "/lototo", icon: Lock },

@@ -82,7 +82,7 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
     id: randomUUID(),
     username: 'hod',
     tenantId,
-    roles: ['hod'],
+    roles: ['permit-approver'],
     email: 'supervisor@example.com',
   };
 
@@ -198,7 +198,7 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
       permitTypeId,
       stepSequence: 1,
       name: 'Supervisor Approval',
-      approverRole: 'hod',
+      approverRole: 'permit-approver',
       createdBy: userId,
     });
 
@@ -239,7 +239,16 @@ describe('MS-02 lifecycle HTTP integration (PUS-225)', () => {
 
     const activateRes = await request(app.getHttpServer())
       .post(`/api/v1/permits/${permitId}/activate`)
-      .send({ comment: 'Work started' })
+      .send({
+        comment: 'Work started',
+        start: {
+          toolboxTalk: true,
+          hazardControls: [`hazard:${hazardCategoryId}`],
+          ppeIds: [ppeCatalogueId],
+          lototoVerified: false,
+          gasReadings: [],
+        },
+      })
       .expect(201);
     expect(activateRes.body.data.permit.status).toBe('active');
 

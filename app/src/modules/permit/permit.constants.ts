@@ -10,15 +10,15 @@ export function isSubmittablePermitStatus(status: string): boolean {
   return (SUBMITTABLE_PERMIT_STATUSES as readonly string[]).includes(status);
 }
 
-export const PERMIT_CREATE_ROLES = ['job-issuer', 'tenant-owner', 'tenant-admin', 'platform-admin'] as const;
+export const PERMIT_CREATE_ROLES = ['permit-receiver', 'tenant-owner', 'tenant-admin', 'platform-admin'] as const;
 
-export const PERMIT_SUBMIT_ROLES = ['job-issuer', 'tenant-owner', 'tenant-admin', 'platform-admin'] as const;
+export const PERMIT_SUBMIT_ROLES = ['permit-receiver', 'tenant-owner', 'tenant-admin', 'platform-admin'] as const;
 
 export const PERMIT_DELETE_ROLES = ['tenant-owner', 'tenant-admin'] as const;
 
-export const PERMIT_EXECUTOR_DRAFT_ROLES = ['operator'] as const;
+export const PERMIT_EXECUTOR_DRAFT_ROLES = ['permit-operator'] as const;
 
-/** Roles that may list Job executor logins for permit assignment. */
+/** Roles that may list permit operator logins for permit assignment. */
 export const PERMIT_EXECUTOR_CANDIDATE_ROLES = [
   ...PERMIT_CREATE_ROLES,
   ...PERMIT_EXECUTOR_DRAFT_ROLES,
@@ -27,13 +27,14 @@ export const PERMIT_EXECUTOR_CANDIDATE_ROLES = [
 export const PERMIT_WRITE_ROLES = [
   ...PERMIT_CREATE_ROLES,
   ...PERMIT_EXECUTOR_DRAFT_ROLES,
-  'hod',
+  'permit-approver',
+  'safety-officer',
 ] as const;
 
-export const PERMIT_READ_ROLES = [...PERMIT_WRITE_ROLES, 'viewer', 'safety-officer'] as const;
+export const PERMIT_READ_ROLES = [...PERMIT_WRITE_ROLES, 'viewer'] as const;
 
 export const LOTOTO_EXECUTE_ROLES = [
-  'operator',
+  'permit-operator',
   'safety-officer',
   'tenant-owner',
   'tenant-admin',

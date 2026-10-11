@@ -145,7 +145,7 @@ describe('EvidenceService MinIO upload (PUS-145)', () => {
 
   const operator: AuthenticatedUser = {
     id: 'operator-id',
-    username: 'operator',
+    username: 'permit-operator',
     tenantId: 'tenant-1',
     roles: ['tenant-owner'],
   };

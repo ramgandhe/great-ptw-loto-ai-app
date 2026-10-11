@@ -34,9 +34,12 @@ import {
   lototoProcedureLockoutPoints,
   lototoProcedures,
   gasTestingCatalogue,
+  hazardCategories,
+  permitTypes,
   revalidationHistory,
   tenantUsers,
 } from '../../database/schema';
+import { hazardFitsPermitType } from '../master-data/default-hazards';
 import { MailService } from '../../infrastructure/mail/mail.service';
 import { StorageService } from '../../infrastructure/storage/storage.service';
 import { AuditService } from '../logging/audit.service';
@@ -61,6 +64,7 @@ import { isEditablePermitStatus, isSubmittablePermitStatus } from './permit.cons
 import {
   assertDraftUpdateAllowed,
   assertPeopleReassignAllowed,
+  assertPermitSegregationOfDuties,
   assertPermitCreateAllowed,
   assertPermitSubmitAllowed,
   sanitizeCreatePermitDto,
@@ -174,6 +178,7 @@ export class PermitService {
           permitTypeId: dto.permitTypeId,
           title: dto.title,
           workScope: dto.workScope,
+          emergencyPhone: dto.emergencyPhone?.trim() || null,
           plantId: dto.plantId,
           departmentId: dto.departmentId,
           locationId: dto.locationId,
@@ -380,6 +385,7 @@ export class PermitService {
       if (dto.permitTypeId !== undefined) permitUpdates.permitTypeId = dto.permitTypeId;
       if (dto.title !== undefined) permitUpdates.title = dto.title;
       if (dto.workScope !== undefined) permitUpdates.workScope = dto.workScope;
+      if (dto.emergencyPhone !== undefined) permitUpdates.emergencyPhone = dto.emergencyPhone.trim() || null;
       if (dto.plantId !== undefined) permitUpdates.plantId = dto.plantId;
       if (dto.departmentId !== undefined) permitUpdates.departmentId = dto.departmentId;
       if (dto.locationId !== undefined) permitUpdates.locationId = dto.locationId;
@@ -389,6 +395,26 @@ export class PermitService {
       if (dto.gasTestingRequired !== undefined) permitUpdates.gasTestingRequired = dto.gasTestingRequired;
       if (dto.plannedStartAt !== undefined) permitUpdates.plannedStartAt = dto.plannedStartAt;
       if (dto.plannedEndAt !== undefined) permitUpdates.plannedEndAt = dto.plannedEndAt;
+      if (dto.safetyApprovalComment !== undefined || dto.safetyApprovalSignedName !== undefined) {
+        const comment = (dto.safetyApprovalComment ?? existing.permit.safetyApprovalComment ?? '').trim();
+        const signedName = (dto.safetyApprovalSignedName ?? existing.permit.safetyApprovalSignedName ?? '').trim();
+        permitUpdates.safetyApprovalComment = comment || null;
+        permitUpdates.safetyApprovalSignedName = signedName || null;
+        permitUpdates.safetyApprovedBy = comment && signedName ? user.id : null;
+        permitUpdates.safetyApprovedAt = comment && signedName ? new Date() : null;
+      }
+      if (dto.safetyOfficers !== undefined) {
+        const officerIds = dto.safetyOfficers
+          .map((row) => row.workforceUserId)
+          .filter((id): id is string => Boolean(id));
+        const signer = permitUpdates.safetyApprovedBy ?? existing.permit.safetyApprovedBy;
+        if (officerIds.length === 0 || (signer && !officerIds.includes(signer))) {
+          permitUpdates.safetyApprovalComment = null;
+          permitUpdates.safetyApprovalSignedName = null;
+          permitUpdates.safetyApprovedBy = null;
+          permitUpdates.safetyApprovedAt = null;
+        }
+      }
 
       await tx
         .update(permits)
@@ -410,7 +436,8 @@ export class PermitService {
       if (dto.hazards !== undefined) {
         await tx.delete(permitHazards).where(eq(permitHazards.permitId, id));
         if (dto.hazards.length > 0) {
-          await this.insertHazards(tx, id, user.id, dto.hazards);
+          const permitTypeId = dto.permitTypeId ?? existing.permit.permitTypeId;
+          await this.insertHazards(tx, id, user.id, tenantId, permitTypeId, dto.hazards);
         }
       }
 
@@ -459,7 +486,10 @@ export class PermitService {
       if (dto.executors !== undefined) {
         await tx.delete(permitExecutors).where(eq(permitExecutors.permitId, id));
         if (dto.executors.length > 0) {
-          await this.insertExecutors(tx, id, user.id, dto.executors);
+          await this.insertExecutors(tx, id, user.id, dto.executors, [
+            existing.permit.createdBy,
+            existing.permit.submittedBy,
+          ]);
         }
       }
 
@@ -517,7 +547,10 @@ export class PermitService {
     const updated = await this.db.transaction(async (tx) => {
       if (dto.executors) {
         await tx.delete(permitExecutors).where(eq(permitExecutors.permitId, id));
-        await this.insertExecutors(tx, id, user.id, dto.executors);
+        await this.insertExecutors(tx, id, user.id, dto.executors, [
+          existing.permit.createdBy,
+          existing.permit.submittedBy,
+        ]);
       }
       if (dto.lototo) {
         for (const item of dto.lototo) {
@@ -580,10 +613,15 @@ export class PermitService {
         detail,
         missingFormAnswers(applicable, detail.permit.formResponses as PermitFormResponse[]),
       );
+      assertPermitSegregationOfDuties({
+        receiverIds: [detail.permit.createdBy, user.id],
+        executorIds: detail.executors.map((row) => row.workforceUserId),
+      });
 
       const fromStatus = detail.permit.status;
       const isResubmit = fromStatus === 'deferred' || fromStatus === 'rejected';
       const reference = detail.permit.reference ?? (await generatePermitReference(tx, tenantId));
+      const submittedAt = new Date();
 
       // Bumping the revision here means a tab opened before submit cannot save over the permit
       // after it is rejected or deferred back to an editable status.
@@ -592,8 +630,14 @@ export class PermitService {
         .set({
           status: 'pending_approval',
           reference,
-          submittedAt: new Date(),
+          submittedAt,
           submittedBy: user.id,
+          submittedSignedName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.username,
+          permitVersion: isResubmit ? detail.permit.permitVersion + 1 : 1,
+          permitVersionAt: submittedAt,
+          approvedAt: null,
+          approvedBy: null,
+          approvedSignedName: null,
           updatedBy: user.id,
           updatedAt: new Date(),
           draftRevision: detail.permit.draftRevision + 1,
@@ -670,7 +714,7 @@ export class PermitService {
       throw new ConflictException('Only expired permits can be renewed');
     }
 
-    if (!user.roles.includes('job-issuer') && source.permit.submittedBy !== user.id) {
+    if (!user.roles.includes('permit-receiver') && source.permit.submittedBy !== user.id) {
       throw new ForbiddenException('Only the original issuer can renew this permit');
     }
 
@@ -683,6 +727,7 @@ export class PermitService {
           permitTypeId: source.permit.permitTypeId,
           title: source.permit.title,
           workScope: source.permit.workScope,
+          emergencyPhone: source.permit.emergencyPhone,
           plantId: source.permit.plantId,
           departmentId: source.permit.departmentId,
           locationId: source.permit.locationId,
@@ -782,9 +827,10 @@ export class PermitService {
         );
       }
 
-      if (source.executors.length > 0) {
+      const renewalExecutors = source.executors.filter((executor) => executor.workforceUserId !== user.id);
+      if (renewalExecutors.length > 0) {
         await tx.insert(permitExecutors).values(
-          source.executors.map((executor) => ({
+          renewalExecutors.map((executor) => ({
             permitId: renewal.id,
             workforceUserId: executor.workforceUserId,
             isPrimary: executor.isPrimary,
@@ -990,7 +1036,7 @@ export class PermitService {
     dto: CreatePermitDto | UpdatePermitDto,
   ): Promise<void> {
     if (dto.hazards?.length) {
-      await this.insertHazards(db, permitId, userId, dto.hazards);
+      await this.insertHazards(db, permitId, userId, tenantId, dto.permitTypeId, dto.hazards);
     }
     if (dto.ppe?.length) {
       await this.insertPpe(db, permitId, userId, dto.ppe);
@@ -1002,7 +1048,7 @@ export class PermitService {
       await this.insertGasTesting(db, permitId, userId, tenantId, workstationId, dto.gasTesting);
     }
     if (dto.executors?.length) {
-      await this.insertExecutors(db, permitId, userId, dto.executors);
+      await this.insertExecutors(db, permitId, userId, dto.executors, [userId]);
     }
     if (dto.viewers?.length) {
       await this.insertAssignees(db, permitViewers, permitId, userId, dto.viewers);
@@ -1013,14 +1059,18 @@ export class PermitService {
   }
 
   private async insertHazards(
-    db: Pick<Database, 'insert'>,
+    db: Pick<Database, 'insert' | 'select'>,
     permitId: string,
     userId: string,
+    tenantId: string,
+    permitTypeId: string | null | undefined,
     hazards: NonNullable<CreatePermitDto['hazards']>,
   ): Promise<void> {
     if (hazards.length === 0) {
       return;
     }
+
+    await this.assertHazardsFitPermitType(db, tenantId, permitTypeId, hazards);
 
     await db.insert(permitHazards).values(
       hazards.map((hazard) => ({
@@ -1032,6 +1082,39 @@ export class PermitService {
         updatedBy: userId,
       })),
     );
+  }
+
+  private async assertHazardsFitPermitType(
+    db: Pick<Database, 'select'>,
+    tenantId: string,
+    permitTypeId: string | null | undefined,
+    hazards: NonNullable<CreatePermitDto['hazards']>,
+  ): Promise<void> {
+    if (!permitTypeId) {
+      return;
+    }
+    const [permitType] = await db
+      .select({ code: permitTypes.code })
+      .from(permitTypes)
+      .where(and(eq(permitTypes.id, permitTypeId), eq(permitTypes.tenantId, tenantId)));
+    if (!permitType?.code) {
+      return;
+    }
+    const ids = [...new Set(hazards.map((hazard) => hazard.hazardCategoryId))];
+    const rows = await db
+      .select({
+        id: hazardCategories.id,
+        name: hazardCategories.name,
+        permitTypeCodes: hazardCategories.permitTypeCodes,
+      })
+      .from(hazardCategories)
+      .where(and(eq(hazardCategories.tenantId, tenantId), inArray(hazardCategories.id, ids)));
+    const unfit = rows.filter((row) => !hazardFitsPermitType(row.permitTypeCodes, permitType.code));
+    if (unfit.length > 0) {
+      throw new BadRequestException(
+        `${unfit.map((row) => row.name).join(', ')} ${unfit.length === 1 ? 'is' : 'are'} not used on this permit type`,
+      );
+    }
   }
 
   private async insertPpe(
@@ -1201,6 +1284,7 @@ export class PermitService {
             sortOrder: index,
             pointCode: point.pointCode.trim(),
             energyType: point.energyType.trim(),
+            energyOtherText: point.energyOtherText?.trim() || null,
             magnitude: point.magnitude,
             locationText: point.locationText,
             action: point.action,
@@ -1318,10 +1402,16 @@ export class PermitService {
     permitId: string,
     userId: string,
     executors: NonNullable<CreatePermitDto['executors']>,
+    receiverIds: Array<string | null | undefined>,
   ): Promise<void> {
     if (executors.length === 0) {
       return;
     }
+
+    assertPermitSegregationOfDuties({
+      receiverIds,
+      executorIds: executors.map((executor) => executor.workforceUserId),
+    });
 
     await db.insert(permitExecutors).values(
       executors.map((executor) => ({

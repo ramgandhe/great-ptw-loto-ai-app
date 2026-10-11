@@ -9,6 +9,7 @@ import {
   EXECUTION_SUSPEND_ROLES,
 } from './execution.constants';
 import { ActivatePermitDto } from './dto/activate-permit.dto';
+import { ExecutionStartDto } from './dto/execution-start.dto';
 import { CompleteExecutionDto, SendBackDto } from './dto/complete-execution.dto';
 import { SuspendPermitDto } from './dto/suspend-permit.dto';
 import { ExecutionService } from './execution.service';
@@ -21,6 +22,16 @@ export class ExecutionController {
   @Get('active')
   listActive(@CurrentUser() user: AuthenticatedUser) {
     return this.executionService.listActive(user);
+  }
+
+  @Roles(...EXECUTION_ACTION_ROLES)
+  @Post(':id/execution-start')
+  saveExecutionStart(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ExecutionStartDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.executionService.saveExecutionStart(id, dto, user);
   }
 
   @Roles(...EXECUTION_ACTION_ROLES)
@@ -68,7 +79,7 @@ export class ExecutionController {
     return this.executionService.completeExecution(id, dto, user);
   }
 
-  @Roles('job-issuer', 'tenant-owner', 'tenant-admin', 'platform-admin')
+  @Roles('permit-receiver', 'tenant-owner', 'tenant-admin', 'platform-admin')
   @Post(':id/send-back-to-executor')
   sendBackToExecutor(
     @Param('id', ParseUUIDPipe) id: string,
@@ -78,7 +89,7 @@ export class ExecutionController {
     return this.executionService.sendBackToExecutor(id, dto, user);
   }
 
-  @Roles('hod', 'tenant-owner', 'tenant-admin', 'platform-admin')
+  @Roles('permit-approver', 'tenant-owner', 'tenant-admin', 'platform-admin')
   @Post(':id/send-back-to-issuer')
   sendBackToIssuer(
     @Param('id', ParseUUIDPipe) id: string,

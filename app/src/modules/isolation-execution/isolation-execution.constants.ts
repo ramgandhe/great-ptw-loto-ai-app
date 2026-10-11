@@ -16,25 +16,25 @@ export const VERIFICATION_FAIL = 'fail' as const;
 
 // RBAC roles aligned with PRD personas (operator, safety-officer, hod) plus tenancy admins.
 export const ISOLATION_ACTION_ROLES = [
-  'operator',
-  'hod',
+  'permit-operator',
+  'permit-approver',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
 export const ISOLATION_VERIFY_ROLES = [
   'safety-officer',
-  'hod',
+  'permit-approver',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
 export const ISOLATION_READ_ROLES = [
-  'operator',
+  'permit-operator',
   'safety-officer',
-  'hod',
+  'permit-approver',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
-  'job-issuer',
+  'permit-receiver',
   'viewer',
 ] as const;

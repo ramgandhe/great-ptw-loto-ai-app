@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { ForceQuery } from '../../common/decorators/force-query.decorator';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -10,6 +11,12 @@ import { PermitTypeService } from './permit-type.service';
 @Controller('permit-types')
 export class PermitTypeController {
   constructor(private readonly permitTypeService: PermitTypeService) {}
+
+  @Roles(...MASTER_DATA_WRITE_ROLES)
+  @Post('import-defaults')
+  importDefaults(@CurrentUser() user: AuthenticatedUser) {
+    return this.permitTypeService.importDefaults(user);
+  }
 
   @Roles(...MASTER_DATA_WRITE_ROLES)
   @Post()
@@ -35,7 +42,11 @@ export class PermitTypeController {
 
   @Roles(...MASTER_DATA_WRITE_ROLES)
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.permitTypeService.remove(id, user);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.permitTypeService.remove(id, user, force);
   }
 }

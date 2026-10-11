@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileDown, Plus, Search } from "lucide-react";
 import { ApiError } from "@/lib/api";
+import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { masterDataApi, type MasterDataRecord } from "@/lib/master-data/api";
 import { KIND_LABEL, fieldCount, permitTemplatesApi, type PermitTemplate } from "@/lib/organisation/templates";
 import { AdminPage, AdminPageHeader } from "@/components/layout/admin-page-header";
@@ -82,9 +83,13 @@ export default function TemplatesPage() {
               onClick={() =>
                 void run(async () => {
                   const result = await permitTemplatesApi.importReference();
-                  return result.created
-                    ? `Imported ${result.created} reference template${result.created === 1 ? "" : "s"}.`
-                    : "All reference templates are already here.";
+                  if (result.created) {
+                    return `Imported ${result.created} reference template${result.created === 1 ? "" : "s"}.`;
+                  }
+                  if (result.relinked) {
+                    return `Linked ${result.relinked} check sheet${result.relinked === 1 ? "" : "s"} to permit types.`;
+                  }
+                  return "All reference templates are already here.";
                 })
               }
             >
@@ -208,12 +213,16 @@ export default function TemplatesPage() {
                         danger: true,
                         disabled: busy,
                         onClick: () => {
-                          if (window.confirm(`Delete “${template.name}”? Permits that used it keep their filled-in form.`)) {
-                            void run(async () => {
-                              await permitTemplatesApi.archive(template.id);
-                              return `${template.name} deleted`;
-                            });
-                          }
+                          void (async () => {
+                            const ok = await deleteWithAssignmentConfirm(template.name, (force) =>
+                              permitTemplatesApi.archive(template.id, force),
+                            );
+                            if (!ok) return;
+                            toast(`${template.name} deleted`);
+                            await load();
+                          })().catch((err) =>
+                            setError(err instanceof ApiError ? err.message : "Delete failed"),
+                          );
                         },
                       },
                     ]}

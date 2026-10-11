@@ -46,7 +46,7 @@ export class ClosureService {
       throw new ConflictException('Only pending-closure permits can be closed');
     }
 
-    if (!isTenantPrivileged(user.roles) && !user.roles.includes('platform-admin') && !user.roles.includes('hod')) {
+    if (!isTenantPrivileged(user.roles) && !user.roles.includes('platform-admin') && !user.roles.includes('permit-approver')) {
       throw new ForbiddenException('Only the HOD can close this permit');
     }
 

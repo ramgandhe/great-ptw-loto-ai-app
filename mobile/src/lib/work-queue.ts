@@ -22,7 +22,7 @@ export type ActionKind = "decide" | "fix" | "do";
 
 export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string; kind: ActionKind }> = {
   review: { group: "Waiting for your approval", verb: "Review", kind: "decide" },
-  "safety-check": { group: "Safety check before work starts", verb: "Check", kind: "decide" },
+  "safety-check": { group: "Safety Approval", verb: "Sign off", kind: "decide" },
   "final-approval": { group: "Waiting for final sign-off", verb: "Sign off", kind: "decide" },
   "approve-completion": { group: "Work finished, confirm completion", verb: "Confirm", kind: "decide" },
   revalidate: { group: "Suspended, needs revalidation", verb: "Revalidate", kind: "fix" },
@@ -36,11 +36,11 @@ export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string; kin
 export type WorkItem = { key: string; action: WorkAction; permit: PermitRecord; href: string; urgent: boolean };
 
 const has = (roles: string[], allowed: string[]) => roles.some((role) => allowed.includes(role));
-const CREATE = ["job-issuer", "tenant-owner", "tenant-admin"];
-const EXECUTOR = ["operator"];
-const REVALIDATE = ["job-issuer", "hod", "tenant-owner", "tenant-admin"];
-const COMPLETION = ["job-issuer", "tenant-owner", "tenant-admin"];
-const FINAL = ["hod", "tenant-owner", "tenant-admin"];
+const CREATE = ["permit-receiver", "tenant-owner", "tenant-admin"];
+const EXECUTOR = ["permit-operator"];
+const REVALIDATE = ["permit-receiver", "permit-approver", "tenant-owner", "tenant-admin"];
+const COMPLETION = ["permit-receiver", "tenant-owner", "tenant-admin"];
+const FINAL = ["permit-approver", "tenant-owner", "tenant-admin"];
 
 export function buildWorkQueue(roles: string[], permits: PermitRecord[], approvals: PendingApprovalItem[]): WorkItem[] {
   const items: WorkItem[] = [];
@@ -53,9 +53,15 @@ export function buildWorkQueue(roles: string[], permits: PermitRecord[], approva
   const isSafetyOfficer = roles.includes("safety-officer");
   for (const permit of permits) {
     if (reviewing.has(permit.id)) continue;
-    if (isSafetyOfficer && (permit.status === "pending_approval" || permit.status === "approved")) {
-      add("safety-check", permit, `/permits/${permit.id}`);
-      continue;
+    if (isSafetyOfficer) {
+      if (permit.status === "draft" || permit.status === "deferred" || permit.status === "rejected") {
+        add("safety-check", permit, `/permits/${permit.id}/edit`);
+        continue;
+      }
+      if (permit.status === "pending_approval" || permit.status === "approved") {
+        add("safety-check", permit, `/permits/${permit.id}`);
+        continue;
+      }
     }
     switch (permit.status) {
       case "draft":

@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
@@ -84,12 +84,17 @@ describe('ExecutionService integration (PUS-141)', () => {
           throw new Error('Permit not found');
         }
 
+        const executors = await db
+          .select()
+          .from(schema.permitExecutors)
+          .where(eq(schema.permitExecutors.permitId, permitId));
+
         return {
           permit,
           draft: null,
           hazards: [],
           ppe: [],
-          executors: [],
+          executors,
           lototo: [],
           gasTesting: [],
           viewers: [],
@@ -157,9 +162,9 @@ describe('ExecutionService integration (PUS-141)', () => {
 
     const executorUser: AuthenticatedUser = {
       id: executorId,
-      username: 'operator',
+      username: 'permit-operator',
       tenantId,
-      roles: ['operator'],
+      roles: ['permit-operator'],
       email: 'operator@example.com',
     };
 
@@ -167,7 +172,7 @@ describe('ExecutionService integration (PUS-141)', () => {
       id: outsiderId,
       username: 'outsider',
       tenantId,
-      roles: ['operator'],
+      roles: ['permit-operator'],
       email: 'outsider@example.com',
     };
 
@@ -198,8 +203,16 @@ describe('ExecutionService integration (PUS-141)', () => {
       return permit;
     }
 
+    const startOk = {
+      toolboxTalk: true,
+      hazardControls: [] as string[],
+      ppeIds: [] as string[],
+      lototoVerified: false,
+      gasReadings: [] as Array<{ gasTestingCatalogueId: string; value: number }>,
+    };
+
     async function activatePermit(permitId: string, user = executorUser) {
-      return executionService.activate(permitId, {}, user);
+      return executionService.activate(permitId, { start: startOk }, user);
     }
 
     return {
@@ -209,32 +222,45 @@ describe('ExecutionService integration (PUS-141)', () => {
       outsiderUser,
       createApprovedPermit,
       activatePermit,
+      startOk,
     };
   }
 
   dbTest('rejects activation when permit is not approved', async () => {
-    const { executorUser, createApprovedPermit } = testContext();
+    const { executorUser, createApprovedPermit, startOk } = testContext();
     const permit = await createApprovedPermit('draft');
 
-    await expect(executionService.activate(permit.id, {}, executorUser)).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      executionService.activate(permit.id, { start: startOk }, executorUser),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   dbTest('rejects activation when user is not an assigned executor', async () => {
-    const { outsiderUser, createApprovedPermit } = testContext();
+    const { outsiderUser, createApprovedPermit, startOk } = testContext();
     const permit = await createApprovedPermit();
 
-    await expect(executionService.activate(permit.id, {}, outsiderUser)).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      executionService.activate(permit.id, { start: startOk }, outsiderUser),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  dbTest('rejects activation when toolbox talk is not ticked', async () => {
+    const { executorUser, createApprovedPermit, startOk } = testContext();
+    const permit = await createApprovedPermit();
+    await expect(
+      executionService.activate(
+        permit.id,
+        { start: { ...startOk, toolboxTalk: false } },
+        executorUser,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   dbTest('activates approved permit and records status history', async () => {
-    const { executorUser, createApprovedPermit } = testContext();
+    const { executorUser, createApprovedPermit, startOk } = testContext();
     const permit = await createApprovedPermit();
 
-    const result = await executionService.activate(permit.id, {}, executorUser);
+    const result = await executionService.activate(permit.id, { start: startOk }, executorUser);
 
     expect(result.permit.status).toBe('active');
     expect(result.execution.permitId).toBe(permit.id);
@@ -374,11 +400,59 @@ describe('ExecutionService integration (PUS-141)', () => {
     expect(entries).toHaveLength(1);
   });
 
+  dbTest('completes execution without LOTOTO or gas checks when those are not required', async () => {
+    const { executorUser, createApprovedPermit, activatePermit } = testContext();
+    const permit = await createApprovedPermit();
+    await activatePermit(permit.id);
+
+    const completed = await executionService.completeExecution(
+      permit.id,
+      {
+        comment: 'Work finished',
+        checklist: {
+          workDescribedComplete: true,
+          procedureFollowed: true,
+          lototoDone: false,
+          gasTestingDone: false,
+        },
+      },
+      executorUser,
+    );
+
+    expect(completed.permit.status).toBe('execution_completed');
+  });
+
+  dbTest('rejects completion when LOTOTO is required and not done', async () => {
+    const { executorUser, createApprovedPermit, activatePermit } = testContext();
+    const permit = await createApprovedPermit();
+    await db
+      .update(schema.permits)
+      .set({ lototoRequired: true })
+      .where(eq(schema.permits.id, permit.id));
+    await activatePermit(permit.id);
+
+    await expect(
+      executionService.completeExecution(
+        permit.id,
+        {
+          comment: 'Work finished',
+          checklist: {
+            workDescribedComplete: true,
+            procedureFollowed: true,
+            lototoDone: false,
+            gasTestingDone: true,
+          },
+        },
+        executorUser,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
   dbTest('invalidates execution cache after status change', async () => {
-    const { executorUser, createApprovedPermit } = testContext();
+    const { executorUser, createApprovedPermit, startOk } = testContext();
     const permit = await createApprovedPermit();
 
-    await executionService.activate(permit.id, {}, executorUser);
+    await executionService.activate(permit.id, { start: startOk }, executorUser);
 
     expect(executionCacheService.invalidatePermit).toHaveBeenCalledWith(
       expect.any(String),

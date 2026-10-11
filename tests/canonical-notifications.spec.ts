@@ -160,7 +160,7 @@ describe('CanonicalNotificationService (FR-NOT-002–008)', () => {
   it('tells org admins and whoever sent it back when a permit is resubmitted', async () => {
     // Each db.select() chain resolves to the next queued result, in call order.
     const results: unknown[][] = [
-      [{ role: 'hod', slot: 'default' }], // active approval stage
+      [{ role: 'permit-approver', slot: 'default' }], // active approval stage
       [{ departmentId: null }], // permit department
       [], // tenant_users departments
       [{ actorId: 'hod-2' }], // last deferral
@@ -175,9 +175,9 @@ describe('CanonicalNotificationService (FR-NOT-002–008)', () => {
     const queueDb = { select: jest.fn(() => chain(results.shift() ?? [])) };
     const people = [
       { id: 'admin-1', enabled: true, roles: ['tenant-admin'] },
-      { id: 'hod-1', enabled: true, roles: ['hod'] },
-      { id: 'hod-2', enabled: true, roles: ['hod'] },
-      { id: 'issuer-1', enabled: true, roles: ['job-issuer', 'tenant-admin'] },
+      { id: 'hod-1', enabled: true, roles: ['permit-approver'] },
+      { id: 'hod-2', enabled: true, roles: ['permit-approver'] },
+      { id: 'issuer-1', enabled: true, roles: ['permit-receiver', 'tenant-admin'] },
     ];
     const resubmitService = new CanonicalNotificationService(queueDb as never, notificationsService, {
       listUsersForTenant: jest.fn().mockResolvedValue(people),

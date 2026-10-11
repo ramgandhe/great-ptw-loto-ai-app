@@ -35,13 +35,29 @@ export function getPermitLototoExecution(permitId: string) {
   return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/execution`);
 }
 
+export function startPermitLototo(
+  permitId: string,
+  instanceId: string,
+) {
+  return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/instances/${instanceId}/start`, {
+    method: "POST",
+  });
+}
+
+export function declarePermitLototoCrewComplete(permitId: string, instanceId: string) {
+  return fetchApi<PermitLototoExecutionBoard>(
+    `/permits/${permitId}/lototo/instances/${instanceId}/crew-complete`,
+    { method: "POST" },
+  );
+}
+
 export function recordPermitLototoCrew(
   permitId: string,
   instanceId: string,
   payload: {
     basePointId?: string;
     extraPointId?: string;
-    lockTagId: string;
+    lockTagId?: string;
     reading?: string;
     comment?: string;
   },
@@ -90,7 +106,7 @@ export function recordPermitLototoVerify(
 export function recordPermitLototoRestore(
   permitId: string,
   instanceId: string,
-  payload: { basePointId?: string; extraPointId?: string; lockTagId: string; comment?: string },
+  payload: { basePointId?: string; extraPointId?: string; lockTagId?: string; comment?: string },
 ) {
   return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/instances/${instanceId}/restore`, {
     method: "POST",

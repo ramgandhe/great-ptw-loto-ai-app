@@ -78,20 +78,33 @@ describe('Permit templates against the database', () => {
       .returning();
 
     try {
-      expect(await service.importReferenceTemplates(user)).toEqual({ created: REFERENCE_TEMPLATES.length, alreadyPresent: 0 });
-      expect(await service.importReferenceTemplates(user)).toEqual({ created: 0, alreadyPresent: REFERENCE_TEMPLATES.length });
+      expect(await service.importReferenceTemplates(user)).toEqual({
+        created: REFERENCE_TEMPLATES.length,
+        alreadyPresent: 0,
+        relinked: 0,
+      });
+      expect(await service.importReferenceTemplates(user)).toEqual({
+        created: 0,
+        alreadyPresent: REFERENCE_TEMPLATES.length,
+        relinked: 0,
+      });
 
-      // A deleted reference template comes back on the next import.
+      // A deleted reference template is added again on the next import.
       const f1 = (await service.listTemplates(user)).find((t) => t.code === 'SOP-ES-023-F1')!;
       await service.archiveTemplate(f1.id, user);
-      expect(await service.importReferenceTemplates(user)).toEqual({ created: 1, alreadyPresent: REFERENCE_TEMPLATES.length - 1 });
-      expect((await service.listTemplates(user)).some((t) => t.id === f1.id)).toBe(true);
+      expect(await service.importReferenceTemplates(user)).toEqual({
+        created: 1,
+        alreadyPresent: REFERENCE_TEMPLATES.length - 1,
+        relinked: 0,
+      });
+      expect((await service.listTemplates(user)).some((t) => t.code === 'SOP-ES-023-F1')).toBe(true);
 
       const templates = await service.listTemplates(user);
       const byCode = new Map(templates.map((t) => [t.code, t]));
       expect(byCode.get('SOP-ES-023-F1')).toMatchObject({ appliesToAllTypes: true, permitTypeIds: [] });
       expect(byCode.get('SOP-ES-023-F4')!.appliesToAllTypes).toBe(false);
       expect(byCode.get('SOP-ES-023-F4')!.permitTypeIds).toEqual([hotWork.id]);
+      expect(byCode.get('SOP-ES-023-F2')!.permitTypeIds).toEqual([electrical.id]);
       expect(byCode.get('SOP-ES-023-F7')!.permitTypeIds).toEqual([]);
 
       const hot = byCode.get('SOP-ES-023-F4')!;
@@ -122,6 +135,25 @@ describe('Permit templates against the database', () => {
       expect(all).toMatchObject({ appliesToAllTypes: true, permitTypeIds: [] });
       const some = await service.updateTemplate(copy.id, { appliesToAllTypes: false, permitTypeIds: [hotWork.id] }, user);
       expect(some).toMatchObject({ appliesToAllTypes: false, permitTypeIds: [hotWork.id] });
+    } finally {
+      await db.delete(schema.permitTemplates).where(eq(schema.permitTemplates.tenantId, tenantId));
+      await db.delete(schema.permitTypes).where(eq(schema.permitTypes.tenantId, tenantId));
+    }
+  });
+
+  it('links check sheets to standard permit type codes on a later import', async () => {
+    if (!canConnect) return;
+    const db = drizzle(pool, { schema });
+    const service = new OrganisationService(db as never, { log: jest.fn() } as unknown as AuditService);
+    const tenantId = randomUUID();
+    const user = { id: randomUUID(), username: 't', tenantId, roles: ['tenant-owner'] };
+
+    try {
+      expect(await service.importReferenceTemplates(user)).toMatchObject({ created: REFERENCE_TEMPLATES.length, relinked: 0 });
+      const [hot] = await db.insert(schema.permitTypes).values({ tenantId, code: 'HOT', name: 'Hot Work Permit' }).returning();
+      expect(await service.importReferenceTemplates(user)).toMatchObject({ created: 0, relinked: 1 });
+      const sheets = await service.listTemplates(user);
+      expect(sheets.find((t) => t.code === 'SOP-ES-023-F4')?.permitTypeIds).toEqual([hot.id]);
     } finally {
       await db.delete(schema.permitTemplates).where(eq(schema.permitTemplates.tenantId, tenantId));
       await db.delete(schema.permitTypes).where(eq(schema.permitTypes.tenantId, tenantId));

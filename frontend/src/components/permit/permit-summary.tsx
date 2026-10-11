@@ -8,7 +8,7 @@ import type { PermitAttachment, PermitFormState } from "@/lib/permit/types";
 import { gasTestingApi, masterDataApi, type GasTestingRecord, type HazardRecord } from "@/lib/master-data/api";
 import { getLototoProcedure, getLototoProcedureVersion, listLototoProcedures } from "@/lib/lototo/api";
 import type { LototoProcedureVersion } from "@/lib/lototo/types";
-import { formatWindow } from "@/lib/format";
+import { formatDateTime, formatWindow } from "@/lib/format";
 import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
 import { PermitStatusBadge } from "./permit-status-badge";
 
@@ -106,16 +106,58 @@ function Chips({ items, empty, missing = false }: { items: string[]; empty: stri
   );
 }
 
+export type PermitIdentity = {
+  number?: string | null;
+  version?: number;
+  versionAt?: string | null;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  initiatorId?: string | null;
+  submittedSignedName?: string | null;
+  approvedBy?: string | null;
+  approvedSignedName?: string | null;
+  safetyApprovedAt?: string | null;
+};
+
+export function identityFromPermit(permit: {
+  reference?: string | null;
+  permitVersion?: number | null;
+  permitVersionAt?: string | null;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  createdBy?: string | null;
+  submittedBy?: string | null;
+  submittedSignedName?: string | null;
+  approvedBy?: string | null;
+  approvedSignedName?: string | null;
+  safetyApprovedAt?: string | null;
+}): PermitIdentity {
+  return {
+    number: permit.reference ?? null,
+    version: permit.permitVersion ?? 1,
+    versionAt: permit.permitVersionAt ?? null,
+    submittedAt: permit.submittedAt ?? null,
+    approvedAt: permit.approvedAt ?? null,
+    initiatorId: permit.submittedBy ?? permit.createdBy ?? null,
+    submittedSignedName: permit.submittedSignedName ?? null,
+    approvedBy: permit.approvedBy ?? null,
+    approvedSignedName: permit.approvedSignedName ?? null,
+    safetyApprovedAt: permit.safetyApprovedAt ?? null,
+  };
+}
+
 export function PermitSummary({
   form,
   status = "draft",
   reference,
+  identity,
   attachments = [],
   showHeader = true,
 }: {
   form: PermitFormState;
   status?: string;
   reference?: string | null;
+  identity?: PermitIdentity;
   attachments?: PermitAttachment[];
   /** Pages that already show the title, reference and status pass false to avoid repeating them. */
   showHeader?: boolean;
@@ -190,6 +232,7 @@ export function PermitSummary({
     .map((p) => `${pick(catalogues?.ppe, p.ppeCatalogueId)}${p.quantity > 1 ? ` × ${p.quantity}` : ""}`);
   const gasRows = form.gasTesting.filter((g) => g.gasTestingCatalogueId);
   const executors = form.executors.filter((e) => e.workforceUserId);
+  const operator = executors.find((e) => e.isPrimary) ?? executors[0];
   const officers = form.safetyOfficers.filter((e) => e.workforceUserId).map((e) => person(e.workforceUserId));
   const viewers = form.viewers.filter((e) => e.workforceUserId).map((e) => person(e.workforceUserId));
   const gaps = permitGaps(form);
@@ -217,9 +260,22 @@ export function PermitSummary({
         </div>
       ) : null}
 
+      <Section kind="work" title="Permit">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Number">{identity?.number || reference || "Not issued until submitted"}</Field>
+          <Field label="Version">
+            {`v${identity?.version ?? 1}`}
+            {identity?.versionAt ? ` · ${formatDateTime(identity.versionAt)}` : ""}
+          </Field>
+          <Field label="Submitted">{identity?.submittedAt ? formatDateTime(identity.submittedAt) : "Not submitted"}</Field>
+          <Field label="Approved">{identity?.approvedAt ? formatDateTime(identity.approvedAt) : "Not approved"}</Field>
+        </div>
+      </Section>
+
       <Section kind="work" title="Work" color={type?.color ?? undefined}>
         <Field label="Permit type">{type ? <PermitTypeChip name={type.name} color={type.color} /> : lookups ? "Not set" : loading}</Field>
         {form.workScope ? <p className="whitespace-pre-wrap leading-6">{form.workScope}</p> : null}
+        {form.emergencyPhone.trim() ? <Field label="Emergency phone">{form.emergencyPhone.trim()}</Field> : null}
       </Section>
 
       <Section kind="where" title="Where" icon={form.machineryId ? DOMAIN_ICONS.machinery : undefined}>
@@ -238,7 +294,11 @@ export function PermitSummary({
       </Section>
 
       <Section kind="when" title="When">
-        <p className="font-medium">{formatWindow(form.plannedStartAt, form.plannedEndAt)}</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Planned start">{form.plannedStartAt ? formatDateTime(form.plannedStartAt) : "Not set"}</Field>
+          <Field label="Planned end (expiry)">{form.plannedEndAt ? formatDateTime(form.plannedEndAt) : "Not set"}</Field>
+        </div>
+        <p className="text-muted-foreground">{formatWindow(form.plannedStartAt, form.plannedEndAt)}</p>
       </Section>
 
       <Section kind="hazards" title="Hazards">
@@ -441,7 +501,25 @@ export function PermitSummary({
       </Section>
 
       <Section kind="people" title="People">
-        <Field label="Executors">
+        <Field label="Initiator (receiver)">
+          {identity?.initiatorId ? person(identity.initiatorId) : <span className="font-normal text-muted-foreground">Not submitted</span>}
+        </Field>
+        <Field label="Received">{identity?.submittedAt ? formatDateTime(identity.submittedAt) : "—"}</Field>
+        <Field label="Initiator signature">{identity?.submittedSignedName?.trim() || "—"}</Field>
+        {officers.length > 0 ? (
+          <>
+            <Field label="Safety officer">{officers.join(", ")}</Field>
+            <Field label="Safety officer signed">
+              {identity?.safetyApprovedAt ? formatDateTime(identity.safetyApprovedAt) : "Not signed"}
+            </Field>
+            <Field label="Safety officer signature">
+              {form.safetyApprovalSignedName.trim()
+                ? `${form.safetyApprovalSignedName.trim()}${form.safetyApprovalComment.trim() ? ` — ${form.safetyApprovalComment.trim()}` : ""}`
+                : "—"}
+            </Field>
+          </>
+        ) : null}
+        <Field label="Crew">
           {executors.length === 0 ? (
             <span className="font-normal text-muted-foreground">Not assigned</span>
           ) : (
@@ -450,12 +528,27 @@ export function PermitSummary({
                 <li key={e.workforceUserId}>
                   {person(e.workforceUserId)}
                   {e.isPrimary ? <span className="ml-2 text-xs font-normal text-muted-foreground">Primary</span> : null}
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">signature —</span>
                 </li>
               ))}
             </ul>
           )}
         </Field>
-        {officers.length > 0 ? <Field label="Safety officers">{officers.join(", ")}</Field> : null}
+        <Field label="Approver">
+          {identity?.approvedBy ? person(identity.approvedBy) : <span className="font-normal text-muted-foreground">Not approved</span>}
+        </Field>
+        <Field label="Approved">{identity?.approvedAt ? formatDateTime(identity.approvedAt) : "—"}</Field>
+        <Field label="Approver signature">{identity?.approvedSignedName?.trim() || "—"}</Field>
+        <Field label="Operator">
+          {operator ? (
+            <>
+              {person(operator.workforceUserId)}
+              <span className="ml-2 text-xs font-normal text-muted-foreground">signature —</span>
+            </>
+          ) : (
+            <span className="font-normal text-muted-foreground">Not assigned</span>
+          )}
+        </Field>
         {viewers.length > 0 ? <Field label="Viewers">{viewers.join(", ")}</Field> : null}
       </Section>
 

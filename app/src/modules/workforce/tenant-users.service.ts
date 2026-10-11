@@ -9,17 +9,30 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { ConfigService } from '@nestjs/config';
-import { and, eq, isNotNull, ne } from 'drizzle-orm';
+import { and, arrayContains, eq, isNotNull, ne, or, sql } from 'drizzle-orm';
 import {
   canActorAssignRole,
   canActorManageTargetUser,
+  normalizeAssignedRoles,
+  storedUserRoles,
   TENANT_OWNER_ROLE,
+  userHasStoredRole,
 } from '../../common/constants/tenant-roles';
 import { optionalUuid } from '../../common/helpers/optional-uuid';
 import { requireTenant } from '../../common/helpers/tenant-context';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { agencies, contractors, tenantUsers } from '../../database/schema';
+import { throwInUse } from '../../common/http/in-use';
+import {
+  agencies,
+  contractors,
+  permitExecutors,
+  permitSafetyOfficers,
+  permitViewers,
+  permits,
+  tenantUsers,
+  workflowAssignments,
+} from '../../database/schema';
 import { KeycloakAdminService } from '../../infrastructure/keycloak/keycloak-admin.service';
 import { AuditService } from '../logging/audit.service';
 import { AssignRoleDto, CreateTenantUserDto, UpdateTenantUserDto } from './dto/workforce.dto';
@@ -109,7 +122,8 @@ export class TenantUsersService implements OnApplicationBootstrap {
           email,
           firstName,
           lastName,
-          role: 'operator',
+          role: 'permit-operator',
+          roles: ['permit-operator'],
           createdBy: actorId,
           updatedBy: actorId,
         });
@@ -118,7 +132,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
     }
 
     const created = await this.create(
-      { name: params.name, email, role: 'operator' },
+      { name: params.name, email, role: 'permit-operator' },
       actor,
     );
     return {
@@ -136,7 +150,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
       .where(
         and(
           eq(tenantUsers.tenantId, tenantId),
-          eq(tenantUsers.role, 'operator'),
+          or(arrayContains(tenantUsers.roles, ['permit-operator']), eq(tenantUsers.role, 'permit-operator')),
           eq(tenantUsers.status, 'active'),
         ),
       );
@@ -195,7 +209,9 @@ export class TenantUsersService implements OnApplicationBootstrap {
       .where(
         and(
           eq(tenantUsers.tenantId, tenantId),
-          role ? eq(tenantUsers.role, role) : undefined,
+          role
+            ? or(arrayContains(tenantUsers.roles, [role]), eq(tenantUsers.role, role))
+            : undefined,
           eq(tenantUsers.status, 'active'),
         ),
       );
@@ -204,24 +220,28 @@ export class TenantUsersService implements OnApplicationBootstrap {
 
   async create(dto: CreateTenantUserDto, actor: AuthenticatedUser) {
     const tenantId = requireTenant(actor);
-    this.assertAssignable(dto.role, actor);
+    const roles = this.requireAssignableRoles(dto, actor);
+    const role = roles[0];
     const email = dto.email.trim().toLowerCase();
     const { firstName, lastName } = splitPersonName(dto.name);
     const actorId = optionalUuid(actor.id);
     const temporaryPassword = randomBytes(12).toString('base64url');
 
     const [existing] = await this.db
-      .select({ id: tenantUsers.id })
+      .select({ id: tenantUsers.id, status: tenantUsers.status })
       .from(tenantUsers)
       .where(and(eq(tenantUsers.tenantId, tenantId), eq(tenantUsers.email, email)));
-    if (existing) {
+    if (existing?.status === 'archived') {
+      await this.db.delete(tenantUsers).where(eq(tenantUsers.id, existing.id));
+    } else if (existing) {
       throw new ConflictException('A user with this email already exists in the organisation');
     }
 
     const created = await this.keycloakAdmin.createTenantUser({
       email,
       tenantId,
-      role: dto.role,
+      role,
+      roles,
       firstName,
       lastName,
       temporaryPassword,
@@ -234,7 +254,8 @@ export class TenantUsersService implements OnApplicationBootstrap {
         email,
         firstName,
         lastName,
-        role: dto.role,
+        role,
+        roles,
         departmentId: optionalUuid(dto.departmentId) ?? null,
         createdBy: actorId,
         updatedBy: actorId,
@@ -250,7 +271,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
       entityId: created.id,
       userId: actorId,
       tenantId,
-      metadata: { email, role: dto.role },
+      metadata: { email, role, roles },
     });
 
     const appPublicUrl = (
@@ -261,7 +282,8 @@ export class TenantUsersService implements OnApplicationBootstrap {
       id: created.id,
       name: [firstName, lastName].filter(Boolean).join(' '),
       email,
-      role: dto.role,
+      role,
+      roles,
       temporaryPassword,
       signInUrl: `${appPublicUrl}/login`,
       signInHint:
@@ -271,7 +293,8 @@ export class TenantUsersService implements OnApplicationBootstrap {
 
   async updateRole(userId: string, dto: AssignRoleDto, actor: AuthenticatedUser) {
     const tenantId = requireTenant(actor);
-    this.assertAssignable(dto.role, actor);
+    const roles = this.requireAssignableRoles(dto, actor);
+    const role = roles[0];
     const actorId = optionalUuid(actor.id);
 
     const [row] = await this.db
@@ -288,15 +311,15 @@ export class TenantUsersService implements OnApplicationBootstrap {
       throw new NotFoundException('User not found in this organisation');
     }
 
-    if (row.role === TENANT_OWNER_ROLE && dto.role !== TENANT_OWNER_ROLE) {
+    if (userHasStoredRole(row, TENANT_OWNER_ROLE) && !roles.includes(TENANT_OWNER_ROLE)) {
       await this.assertNotLastOwner(tenantId, row.id);
     }
 
     await this.keycloakAdmin.ensureTenantAttribute(userId, tenantId);
-    await this.keycloakAdmin.setUserRoleInTenant(userId, tenantId, dto.role);
+    await this.keycloakAdmin.setUserRolesInTenant(userId, tenantId, roles);
     await this.db
       .update(tenantUsers)
-      .set({ role: dto.role, updatedBy: actorId, updatedAt: new Date() })
+      .set({ role, roles, updatedBy: actorId, updatedAt: new Date() })
       .where(eq(tenantUsers.id, row.id));
 
     await this.auditService.log({
@@ -305,15 +328,15 @@ export class TenantUsersService implements OnApplicationBootstrap {
       entityId: userId,
       userId: actorId,
       tenantId,
-      metadata: { role: dto.role },
+      metadata: { role, roles },
     });
-    // Tell the person: their menu and work queue change with the role.
+    const label = roles.map((entry) => entry.replace(/-/g, ' ')).join(', ');
     await this.notificationsService
       .generateSystem(tenantId, actor.id, {
         eventType: 'role_changed',
         category: 'system',
         priority: 'medium',
-        title: `Your role is now ${dto.role.replace(/-/g, ' ')}`,
+        title: `Your role is now ${label}`,
         body: 'Your access has changed. Sign out and back in if the menu does not update.',
         recipientUserIds: [userId],
         entityType: 'user',
@@ -321,7 +344,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
         sourceModule: 'workforce',
       })
       .catch(() => undefined);
-    return { id: userId, role: dto.role };
+    return { id: userId, role, roles };
   }
 
   async updateProfile(userId: string, dto: UpdateTenantUserDto, actor: AuthenticatedUser) {
@@ -346,7 +369,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
     if (row.status === 'disabled') {
       return this.toListItem({ ...row, status: 'disabled' });
     }
-    if (row.role === TENANT_OWNER_ROLE) {
+    if (userHasStoredRole(row, TENANT_OWNER_ROLE)) {
       await this.assertNotLastOwner(row.tenantId, row.id);
     }
 
@@ -392,18 +415,20 @@ export class TenantUsersService implements OnApplicationBootstrap {
     return this.toListItem({ ...row, status: 'active' });
   }
 
-  async remove(userId: string, actor: AuthenticatedUser) {
+  async remove(userId: string, actor: AuthenticatedUser, force = false) {
     const row = await this.loadManageableUser(userId, actor, { allowDisabled: true });
-    if (row.role === TENANT_OWNER_ROLE) {
+    if (userHasStoredRole(row, TENANT_OWNER_ROLE)) {
       await this.assertNotLastOwner(row.tenantId, row.id);
+    }
+
+    const assignments = await this.listAssignments(userId);
+    if (assignments.length > 0 && !force) {
+      throwInUse(assignments);
     }
 
     const actorId = optionalUuid(actor.id);
     await this.keycloakAdmin.deleteUserById(userId);
-    await this.db
-      .update(tenantUsers)
-      .set({ status: 'archived', updatedBy: actorId, updatedAt: new Date() })
-      .where(eq(tenantUsers.id, row.id));
+    await this.db.delete(tenantUsers).where(eq(tenantUsers.id, row.id));
 
     await this.auditService.log({
       action: 'tenant.user.deleted',
@@ -411,10 +436,69 @@ export class TenantUsersService implements OnApplicationBootstrap {
       entityId: userId,
       userId: actorId,
       tenantId: row.tenantId,
-      metadata: { email: row.email, role: row.role },
+      metadata: { email: row.email, role: row.role, roles: storedUserRoles(row), force },
     });
 
     return { id: userId, deleted: true };
+  }
+
+  private async listAssignments(userId: string): Promise<string[]> {
+    const lines: string[] = [];
+    const add = async (
+      query: Promise<{ n: number }[]>,
+      singular: string,
+      plural: string,
+    ) => {
+      const [row] = await query;
+      const n = Number(row?.n ?? 0);
+      if (n === 1) {
+        lines.push(singular);
+      } else if (n > 1) {
+        lines.push(`${n} ${plural}`);
+      }
+    };
+
+    await add(
+      this.db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(permits)
+        .where(or(eq(permits.createdBy, userId), eq(permits.submittedBy, userId))),
+      'Created or submitted 1 permit',
+      'permits created or submitted',
+    );
+    await add(
+      this.db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(permitExecutors)
+        .where(eq(permitExecutors.workforceUserId, userId)),
+      'Permit operator on 1 permit',
+      'permits as operator',
+    );
+    await add(
+      this.db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(workflowAssignments)
+        .where(eq(workflowAssignments.assigneeId, userId)),
+      'Assigned as approver on 1 permit',
+      'permits as approver',
+    );
+    await add(
+      this.db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(permitViewers)
+        .where(eq(permitViewers.workforceUserId, userId)),
+      'Viewer on 1 permit',
+      'permits as viewer',
+    );
+    await add(
+      this.db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(permitSafetyOfficers)
+        .where(eq(permitSafetyOfficers.workforceUserId, userId)),
+      'Safety officer on 1 permit',
+      'permits as safety officer',
+    );
+    return lines;
   }
 
   private async loadManageableUser(
@@ -443,7 +527,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
     if (!options?.allowDisabled && row.status === 'disabled') {
       // still allow operations that explicitly allow disabled
     }
-    if (!canActorManageTargetUser(actor.roles, row.role)) {
+    if (!canActorManageTargetUser(actor.roles, storedUserRoles(row))) {
       throw new BadRequestException('You cannot manage this user');
     }
     return row;
@@ -456,7 +540,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
       .where(
         and(
           eq(tenantUsers.tenantId, tenantId),
-          eq(tenantUsers.role, TENANT_OWNER_ROLE),
+          or(arrayContains(tenantUsers.roles, [TENANT_OWNER_ROLE]), eq(tenantUsers.role, TENANT_OWNER_ROLE)),
           eq(tenantUsers.status, 'active'),
         ),
       );
@@ -475,15 +559,25 @@ export class TenantUsersService implements OnApplicationBootstrap {
       firstName: row.firstName,
       lastName: row.lastName,
       enabled: row.status === 'active',
-      roles: [row.role],
+      roles: storedUserRoles(row),
       departmentId: row.departmentId,
     };
   }
 
-  private assertAssignable(role: string, actor: AuthenticatedUser) {
-    if (!canActorAssignRole(actor.roles, role)) {
-      throw new BadRequestException('This role cannot be assigned by the current user');
+  private requireAssignableRoles(
+    dto: { role?: string; roles?: string[] },
+    actor: AuthenticatedUser,
+  ): string[] {
+    const roles = normalizeAssignedRoles(dto);
+    if (roles.length === 0) {
+      throw new BadRequestException('At least one role is required');
     }
+    for (const role of roles) {
+      if (!canActorAssignRole(actor.roles, role)) {
+        throw new BadRequestException('This role cannot be assigned by the current user');
+      }
+    }
+    return roles;
   }
 }
 

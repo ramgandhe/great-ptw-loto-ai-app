@@ -5,9 +5,9 @@ export const NOTIFICATION_DELIVERY_RETRY_JOB = 'notification.delivery-retry';
 export const NOTIFICATION_TASK_REMINDER_JOB = 'notification.task-reminder';
 
 export const NOTIFICATION_READ_ROLES = [
-  'operator',
-  'job-issuer',
-  'hod',
+  'permit-operator',
+  'permit-receiver',
+  'permit-approver',
   'safety-officer',
   'tenant-owner', 'tenant-admin',
   'platform-admin',

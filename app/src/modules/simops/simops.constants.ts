@@ -1,8 +1,8 @@
 export const SIMOPS_WRITE_ROLES = [
-  'hod',
+  'permit-approver',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
-  'job-issuer',
+  'permit-receiver',
 ] as const;
 
 /** Safety officers review conflicts (PRD 4.6) but do not run analysis or resolve them. */
@@ -16,11 +16,11 @@ export const ANALYSABLE_PERMIT_STATUSES = [
 ] as const;
 
 export const SIMOPS_RESOLVE_ROLES = [
-  'hod',
+  'permit-approver',
   'tenant-owner', 'tenant-admin',
   'platform-admin',
 ] as const;
 
 export const RESOLVED_CONFLICT_STATUSES = ['approved', 'rejected'] as const;
 
-export const ALERT_RECIPIENT_ROLES = ['hod', 'tenant-owner', 'tenant-admin'] as const;
+export const ALERT_RECIPIENT_ROLES = ['permit-approver', 'tenant-owner', 'tenant-admin'] as const;

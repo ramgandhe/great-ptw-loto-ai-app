@@ -90,9 +90,9 @@ export class PpeService {
     return row;
   }
 
-  async remove(id: string, user: AuthenticatedUser) {
+  async remove(id: string, user: AuthenticatedUser, force = false) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
-    await this.referenceIntegrity.assertPpeNotReferenced(id);
+    await this.referenceIntegrity.assertPpeNotReferenced(id, force);
 
     const [row] = await this.db
       .delete(ppeCatalogue)

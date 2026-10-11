@@ -137,6 +137,7 @@ export const hazardCategories = pgTable(
     severity: varchar('severity', { length: 32 }).notNull().default('medium'),
     consequences: jsonb('consequences').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     controls: jsonb('controls').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    permitTypeCodes: varchar('permit_type_codes', { length: 16 }).array().notNull().default([]),
     isActive: boolean('is_active').notNull().default(true),
   },
   (table) => [

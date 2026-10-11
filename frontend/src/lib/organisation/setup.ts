@@ -134,7 +134,10 @@ export const SETUP_STEPS: SetupStep[] = [
     title: "Hazards",
     summary: "Hazard categories people pick on a permit.",
     why: "Hazards drive the controls, PPE and checks a permit asks for, and feed incident analytics.",
-    tips: ["Common starters: Hot surfaces, Confined space, Working at height, Electrical, Toxic gas.", "Severity sets how strongly a hazard is flagged."],
+    tips: [
+      "Add the standard set (fire, electrical, confined space, height, excavation, and the rest of the catalogue) or create your own.",
+      "Link each hazard to the permit types it belongs on.",
+    ],
     href: "/organisation/hazards",
     measure: async () => active(await hazardsApi.list()),
   },
@@ -154,7 +157,10 @@ export const SETUP_STEPS: SetupStep[] = [
     title: "Permit types",
     summary: "The kinds of permit you issue.",
     why: "People start every permit by choosing a type; its colour marks the permit everywhere in the app.",
-    tips: ["Typical set: Hot work, Cold work, Confined space, Work at height, Electrical, Excavation.", "Switch a type off instead of deleting it once permits use it."],
+    tips: [
+      "Add the standard set (Hot, Cold, Confined space, Electrical, Work at height, Excavation) or create your own.",
+      "Switch a type off instead of deleting it once permits use it.",
+    ],
     href: "/organisation/permit-types",
     measure: async () => active(await masterDataApi.permitTypes()),
   },

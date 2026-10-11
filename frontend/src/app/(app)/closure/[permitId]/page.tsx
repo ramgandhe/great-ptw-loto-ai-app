@@ -204,9 +204,9 @@ export default function PermitClosurePage() {
     return <p className="p-8 text-sm text-muted-foreground">Loading permit closure...</p>;
   }
 
-  const canVerify = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["job-issuer", "tenant-owner", "tenant-admin", "platform-admin"]);
-  const canSendBackToExecutor = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["job-issuer", "tenant-owner", "tenant-admin", "platform-admin"]);
-  const canClose = Boolean(verification) && detail.permit.status === "pending_closure" && hasAnyRole(roles, ["hod", "tenant-owner", "tenant-admin", "platform-admin"]);
+  const canVerify = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["permit-receiver", "tenant-owner", "tenant-admin", "platform-admin"]);
+  const canSendBackToExecutor = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["permit-receiver", "tenant-owner", "tenant-admin", "platform-admin"]);
+  const canClose = Boolean(verification) && detail.permit.status === "pending_closure" && hasAnyRole(roles, ["permit-approver", "tenant-owner", "tenant-admin", "platform-admin"]);
   const stageLeft = stageAnswersLeft(detail.permit.formResponses ?? [], "closure", stageEdits);
   const stageFields = (
     <StageAnswers
@@ -218,7 +218,7 @@ export default function PermitClosurePage() {
       disabled={isSubmitting}
     />
   );
-  const canSendBackToIssuer = detail.permit.status === "pending_closure" && hasAnyRole(roles, ["hod", "tenant-owner", "tenant-admin", "platform-admin"]);
+  const canSendBackToIssuer = detail.permit.status === "pending_closure" && hasAnyRole(roles, ["permit-approver", "tenant-owner", "tenant-admin", "platform-admin"]);
 
   return (
     <PermitPageShell>

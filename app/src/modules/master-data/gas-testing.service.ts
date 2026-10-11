@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { throwInUse } from '../../common/http/in-use';
 import { and, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
@@ -119,14 +120,14 @@ export class GasTestingService {
     }
   }
 
-  async remove(id: string, user: AuthenticatedUser) {
+  async remove(id: string, user: AuthenticatedUser, force = false) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
     const [referenced] = await this.db
       .select({ id: permitGasTesting.id })
       .from(permitGasTesting)
       .where(eq(permitGasTesting.gasTestingCatalogueId, id));
-    if (referenced) {
-      throw new ConflictException('This gas testing item is used on a permit and cannot be deleted');
+    if (referenced && !force) {
+      throwInUse(['This gas testing item is used on a permit']);
     }
 
     const [row] = await this.db

@@ -16,6 +16,9 @@ import { optionalUuid } from '../../common/helpers/optional-uuid';
 import { AuditService } from '../logging/audit.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { ensureDefaultApprovalWorkflow } from '../approval/ensure-default-workflow';
+import { ensureDefaultHazards } from '../master-data/default-hazards';
+import { ensureDefaultPermitTypes } from '../master-data/default-permit-types';
+import { ensureReferenceTemplates } from '../organisation/ensure-reference-templates';
 
 @Injectable()
 export class PlatformTenantsService {
@@ -208,11 +211,16 @@ export class PlatformTenantsService {
           firstName: dto.ownerFirstName?.trim(),
           lastName: dto.ownerLastName?.trim(),
           role: 'tenant-owner',
+          roles: ['tenant-owner'],
           createdBy: actorId,
           updatedBy: actorId,
         });
 
         await ensureDefaultApprovalWorkflow(tx, tenantId, actorId);
+        const catalogueActor = actorId ?? keycloakUser.id;
+        await ensureDefaultPermitTypes(tx, tenantId, catalogueActor);
+        await ensureDefaultHazards(tx, tenantId, catalogueActor);
+        await ensureReferenceTemplates(tx, tenantId, catalogueActor);
 
         return { organisation, invite };
       });
