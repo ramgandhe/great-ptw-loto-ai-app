@@ -284,6 +284,12 @@ export class TenantUsersController {
   }
 
   @Roles(...WORKFORCE_WRITE_ROLES)
+  @Post(':id/reset-password')
+  resetPassword(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.tenantUsersService.resetPassword(id, user);
+  }
+
+  @Roles(...WORKFORCE_WRITE_ROLES)
   @Post(':id/deactivate')
   deactivate(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.tenantUsersService.deactivate(id, user);

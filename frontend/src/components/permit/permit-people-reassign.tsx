@@ -9,7 +9,7 @@ import type { PermitDetail } from "@/lib/permit/types";
 import { fieldClassName } from "@/components/permit/form-field";
 import { Button } from "@/components/ui/button";
 import { formatWorkforceOptionLabel } from "@/components/lototo/select-field";
-import { listPermitExecutors, listWorkforceDirectory } from "@/lib/workforce/api";
+import { listPermitExecutors, listPermitSafetyOfficers, listWorkforceDirectory } from "@/lib/workforce/api";
 import type { TenantUser, WorkforceRecord } from "@/lib/workforce/types";
 
 const HOD_REASSIGN_ROLES = ["permit-approver", "tenant-owner", "tenant-admin", "platform-admin"] as const;
@@ -45,12 +45,14 @@ export function PermitPeopleReassign({
     })),
   );
   const [executorOptions, setExecutorOptions] = useState<TenantUser[]>([]);
+  const [safetyOfficers, setSafetyOfficers] = useState<TenantUser[]>([]);
   const [people, setPeople] = useState<WorkforceRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     listPermitExecutors().then(setExecutorOptions).catch(() => setExecutorOptions([]));
+    listPermitSafetyOfficers().then(setSafetyOfficers).catch(() => setSafetyOfficers([]));
     listWorkforceDirectory().then(setPeople).catch(() => setPeople([]));
   }, []);
 
@@ -63,8 +65,11 @@ export function PermitPeopleReassign({
     for (const person of executorOptions) {
       map.set(person.id, userLabel(person));
     }
+    for (const person of safetyOfficers) {
+      map.set(person.id, userLabel(person));
+    }
     return map;
-  }, [people, executorOptions]);
+  }, [people, executorOptions, safetyOfficers]);
 
   if (!visible) {
     return null;
@@ -212,11 +217,13 @@ export function PermitPeopleReassign({
                   }
                 >
                   <option value="">Select verifier</option>
-                  {people.map((person) => (
-                    <option key={person.id} value={person.id}>
-                      {formatWorkforceOptionLabel(person)}
-                    </option>
-                  ))}
+                  {[...executorOptions, ...safetyOfficers.filter((row) => !executorOptions.some((e) => e.id === row.id))].map(
+                    (person) => (
+                      <option key={person.id} value={person.id}>
+                        {userLabel(person)}
+                      </option>
+                    ),
+                  )}
                 </select>
               ))}
               <Button

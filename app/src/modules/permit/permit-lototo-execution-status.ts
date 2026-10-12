@@ -54,3 +54,29 @@ export function isLototoRestorationComplete(
 ): boolean {
   return isLototoIsolationComplete(points.map((point) => ({ status: point.restoreStatus })));
 }
+
+export function nextSequenceStepId(
+  steps: Array<{ id: string; sequenceOrder: number }>,
+  tickedStepIds: string[],
+): string | null {
+  const ticked = new Set(tickedStepIds);
+  const ordered = steps.slice().sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+  return ordered.find((step) => !ticked.has(step.id))?.id ?? null;
+}
+
+export function canConfirmSequencePhase(
+  steps: Array<{ id: string }>,
+  tickedStepIds: string[],
+): boolean {
+  if (steps.length === 0) {
+    return true;
+  }
+  const ticked = new Set(tickedStepIds);
+  return steps.every((step) => ticked.has(step.id));
+}
+
+export function isLototoSequencePhasePassed(
+  run: { result: string | null } | null,
+): boolean {
+  return run?.result === 'pass';
+}

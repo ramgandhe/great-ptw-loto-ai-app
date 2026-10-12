@@ -296,6 +296,11 @@ export class KeycloakAdminService implements OnApplicationBootstrap {
     }
   }
 
+  async resetTemporaryPassword(userId: string, password: string): Promise<void> {
+    const token = await this.adminToken();
+    await this.setTemporaryPassword(token, userId, password);
+  }
+
   private async setTemporaryPassword(
     token: string,
     userId: string,

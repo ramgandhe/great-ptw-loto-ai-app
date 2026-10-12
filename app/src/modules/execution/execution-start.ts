@@ -25,14 +25,29 @@ export function hazardControlKey(hazardCategoryId: string, control?: string): st
   return control ? `hazard:${hazardCategoryId}:${control}` : `hazard:${hazardCategoryId}`;
 }
 
+export function catalogueLinesForPermit(
+  catalogue: string[] | null | undefined,
+  omitted: string[] | null | undefined,
+): string[] {
+  const skip = new Set((omitted ?? []).map((line) => line.trim()).filter(Boolean));
+  return (catalogue ?? []).map((line) => line.trim()).filter((line) => line && !skip.has(line));
+}
+
 export function requiredHazardControlKeys(
-  hazards: Array<{ hazardCategoryId: string; extraControls?: string[] | null }>,
+  hazards: Array<{
+    hazardCategoryId: string;
+    extraControls?: string[] | null;
+    omittedControls?: string[] | null;
+  }>,
   catalogues: Map<string, { controls?: string[] | null }>,
 ): string[] {
   const keys: string[] = [];
   for (const hazard of hazards) {
     const cat = catalogues.get(hazard.hazardCategoryId);
-    const controls = [...(cat?.controls ?? []), ...(hazard.extraControls ?? [])]
+    const controls = [
+      ...catalogueLinesForPermit(cat?.controls, hazard.omittedControls),
+      ...(hazard.extraControls ?? []),
+    ]
       .map((line) => line.trim())
       .filter(Boolean);
     if (controls.length === 0) {

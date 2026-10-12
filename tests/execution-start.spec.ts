@@ -47,6 +47,12 @@ describe('execution start steps', () => {
       hazardControlKey(hazardId, 'Lock the gate'),
       hazardControlKey(hazardId, 'Barricade'),
     ]);
+    expect(
+      requiredHazardControlKeys(
+        [{ hazardCategoryId: hazardId, extraControls: ['Barricade'], omittedControls: ['Lock the gate'] }],
+        new Map([[hazardId, { controls: ['Lock the gate'] }]]),
+      ),
+    ).toEqual([hazardControlKey(hazardId, 'Barricade')]);
     expect(() =>
       assertExecutionStartReady({
         ...base,

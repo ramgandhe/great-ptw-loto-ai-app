@@ -26,6 +26,7 @@ import {
   permitLototoInstances,
   permitLototoStepNa,
   permitLototoVerifiers,
+  permitLototoVerificationRuns,
   permitGasTesting,
   permitViewers,
   permitSafetyOfficers,
@@ -124,6 +125,12 @@ export type PermitLototoDetail = {
   }>;
   crew: Array<{ workforceUserId: string }>;
   verifiers: Array<{ workforceUserId: string }>;
+  verification: Array<{
+    phase: string;
+    result: string | null;
+    signedName: string | null;
+    verifiedAt: Date | null;
+  }>;
 };
 
 export interface PermitDetail {
@@ -190,6 +197,9 @@ export class PermitService {
           plannedEndAt: dto.plannedEndAt,
           createdBy: user.id,
           updatedBy: user.id,
+          receiverSiteVisited: dto.receiverSiteVisited ?? false,
+          executorSiteVisited: dto.executorSiteVisited ?? false,
+          safetyOfficerSiteVisited: dto.safetyOfficerSiteVisited ?? false,
         })
         .returning();
 
@@ -395,6 +405,11 @@ export class PermitService {
       if (dto.gasTestingRequired !== undefined) permitUpdates.gasTestingRequired = dto.gasTestingRequired;
       if (dto.plannedStartAt !== undefined) permitUpdates.plannedStartAt = dto.plannedStartAt;
       if (dto.plannedEndAt !== undefined) permitUpdates.plannedEndAt = dto.plannedEndAt;
+      if (dto.receiverSiteVisited !== undefined) permitUpdates.receiverSiteVisited = dto.receiverSiteVisited;
+      if (dto.executorSiteVisited !== undefined) permitUpdates.executorSiteVisited = dto.executorSiteVisited;
+      if (dto.safetyOfficerSiteVisited !== undefined) {
+        permitUpdates.safetyOfficerSiteVisited = dto.safetyOfficerSiteVisited;
+      }
       if (dto.safetyApprovalComment !== undefined || dto.safetyApprovalSignedName !== undefined) {
         const comment = (dto.safetyApprovalComment ?? existing.permit.safetyApprovalComment ?? '').trim();
         const signedName = (dto.safetyApprovalSignedName ?? existing.permit.safetyApprovalSignedName ?? '').trim();
@@ -448,6 +463,16 @@ export class PermitService {
         }
       }
 
+      if (dto.executors !== undefined) {
+        await tx.delete(permitExecutors).where(eq(permitExecutors.permitId, id));
+        if (dto.executors.length > 0) {
+          await this.insertExecutors(tx, id, user.id, dto.executors, [
+            existing.permit.createdBy,
+            existing.permit.submittedBy,
+          ]);
+        }
+      }
+
       if (dto.lototo !== undefined) {
         await this.replaceLototo(
           tx,
@@ -481,16 +506,6 @@ export class PermitService {
         dto.workstationId !== existing.permit.workstationId
       ) {
         await tx.delete(permitGasTesting).where(eq(permitGasTesting.permitId, id));
-      }
-
-      if (dto.executors !== undefined) {
-        await tx.delete(permitExecutors).where(eq(permitExecutors.permitId, id));
-        if (dto.executors.length > 0) {
-          await this.insertExecutors(tx, id, user.id, dto.executors, [
-            existing.permit.createdBy,
-            existing.permit.submittedBy,
-          ]);
-        }
       }
 
       if (dto.viewers !== undefined) {
@@ -764,6 +779,8 @@ export class PermitService {
             hazardCategoryId: hazard.hazardCategoryId,
             extraConsequences: hazard.extraConsequences ?? [],
             extraControls: hazard.extraControls ?? [],
+            omittedConsequences: hazard.omittedConsequences ?? [],
+            omittedControls: hazard.omittedControls ?? [],
             createdBy: user.id,
             updatedBy: user.id,
           })),
@@ -1041,14 +1058,14 @@ export class PermitService {
     if (dto.ppe?.length) {
       await this.insertPpe(db, permitId, userId, dto.ppe);
     }
+    if (dto.executors?.length) {
+      await this.insertExecutors(db, permitId, userId, dto.executors, [userId]);
+    }
     if (dto.lototo?.length) {
       await this.replaceLototo(db, permitId, userId, tenantId, machineryId, dto.lototo);
     }
     if (dto.gasTesting?.length) {
       await this.insertGasTesting(db, permitId, userId, tenantId, workstationId, dto.gasTesting);
-    }
-    if (dto.executors?.length) {
-      await this.insertExecutors(db, permitId, userId, dto.executors, [userId]);
     }
     if (dto.viewers?.length) {
       await this.insertAssignees(db, permitViewers, permitId, userId, dto.viewers);
@@ -1078,6 +1095,8 @@ export class PermitService {
         hazardCategoryId: hazard.hazardCategoryId,
         extraConsequences: (hazard.extraConsequences ?? []).map((value) => value.trim()).filter(Boolean),
         extraControls: (hazard.extraControls ?? []).map((value) => value.trim()).filter(Boolean),
+        omittedConsequences: (hazard.omittedConsequences ?? []).map((value) => value.trim()).filter(Boolean),
+        omittedControls: (hazard.omittedControls ?? []).map((value) => value.trim()).filter(Boolean),
         createdBy: userId,
         updatedBy: userId,
       })),
@@ -1167,6 +1186,10 @@ export class PermitService {
       .select()
       .from(permitLototoVerifiers)
       .where(inArray(permitLototoVerifiers.instanceId, instanceIds));
+    const verificationRuns = await db
+      .select()
+      .from(permitLototoVerificationRuns)
+      .where(inArray(permitLototoVerificationRuns.instanceId, instanceIds));
 
     const extrasByInstance = new Map<string, typeof extras>();
     for (const extra of extras) {
@@ -1196,6 +1219,14 @@ export class PermitService {
       verifiers: verifiers
         .filter((row) => row.instanceId === instance.id)
         .map((row) => ({ workforceUserId: row.workforceUserId })),
+      verification: verificationRuns
+        .filter((row) => row.instanceId === instance.id && row.signedName)
+        .map((row) => ({
+          phase: row.phase,
+          result: row.result,
+          signedName: row.signedName,
+          verifiedAt: row.verifiedAt,
+        })),
     }));
   }
 
@@ -1324,8 +1355,17 @@ export class PermitService {
       }
 
       const crewIds = [...new Set((item.crew ?? []).map((row) => row.workforceUserId).filter(Boolean))];
+      const [primaryOperator] = await db
+        .select({ workforceUserId: permitExecutors.workforceUserId })
+        .from(permitExecutors)
+        .where(and(eq(permitExecutors.permitId, permitId), eq(permitExecutors.isPrimary, true)));
       const verifierIds = [
-        ...new Set((item.verifiers ?? []).map((row) => row.workforceUserId).filter(Boolean)),
+        ...new Set(
+          [
+            ...(item.verifiers ?? []).map((row) => row.workforceUserId),
+            ...(item.verifiers?.length ? [] : [primaryOperator?.workforceUserId]),
+          ].filter(Boolean),
+        ),
       ];
       if (crewIds.length > 0) {
         await db.insert(permitLototoCrew).values(

@@ -45,7 +45,7 @@ export function createEmptyPermitForm(): PermitFormState {
     lototoRequired: false,
     plannedStartAt: "",
     plannedEndAt: "",
-    hazards: [{ hazardCategoryId: "", extraConsequences: [], extraControls: [] }],
+    hazards: [{ hazardCategoryId: "", extraConsequences: [], extraControls: [], omittedConsequences: [], omittedControls: [] }],
     ppe: [{ ppeCatalogueId: "", quantity: 1 }],
     lototo: [],
     gasTestingRequired: false,
@@ -81,8 +81,10 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
             hazardCategoryId: h.hazardCategoryId,
             extraConsequences: h.extraConsequences ?? [],
             extraControls: h.extraControls ?? [],
+            omittedConsequences: h.omittedConsequences ?? [],
+            omittedControls: h.omittedControls ?? [],
           }))
-        : [{ hazardCategoryId: "", extraConsequences: [], extraControls: [] }],
+        : [{ hazardCategoryId: "", extraConsequences: [], extraControls: [], omittedConsequences: [], omittedControls: [] }],
     ppe:
       ppe.length > 0
         ? ppe.map((item) => ({

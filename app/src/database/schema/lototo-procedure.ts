@@ -369,6 +369,67 @@ export const permitLototoRestorations = pgTable(
   (table) => [index('permit_lototo_restorations_instance_id_idx').on(table.instanceId)],
 );
 
+export const PERMIT_LOTOTO_VERIFY_PHASES = ['apply', 'remove'] as const;
+export type PermitLototoVerifyPhase = (typeof PERMIT_LOTOTO_VERIFY_PHASES)[number];
+
+export const PERMIT_LOTOTO_RUN_STATUSES = ['in_progress', 'passed', 'failed'] as const;
+export type PermitLototoRunStatus = (typeof PERMIT_LOTOTO_RUN_STATUSES)[number];
+
+export const permitLototoVerificationRuns = pgTable(
+  'permit_lototo_verification_runs',
+  {
+    ...auditColumns,
+    instanceId: uuid('instance_id')
+      .notNull()
+      .references(() => permitLototoInstances.id, { onDelete: 'cascade' }),
+    phase: varchar('phase', { length: 16 }).notNull(),
+    runNumber: integer('run_number').notNull(),
+    status: varchar('status', { length: 32 }).notNull().default('in_progress'),
+    result: varchar('result', { length: 32 }),
+    tryOutCompleted: boolean('try_out_completed').notNull().default(false),
+    lockTagId: varchar('lock_tag_id', { length: 64 }),
+    reading: varchar('reading', { length: 128 }),
+    note: text('note'),
+    signedName: varchar('signed_name', { length: 255 }),
+    photoFileName: varchar('photo_file_name', { length: 255 }),
+    photoContentType: varchar('photo_content_type', { length: 128 }),
+    photoStorageKey: varchar('photo_storage_key', { length: 512 }),
+    verifiedBy: uuid('verified_by'),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('permit_lototo_verification_runs_instance_phase_run_unique').on(
+      table.instanceId,
+      table.phase,
+      table.runNumber,
+    ),
+    index('permit_lototo_verification_runs_instance_id_idx').on(table.instanceId),
+  ],
+);
+
+export const permitLototoSequenceTicks = pgTable(
+  'permit_lototo_sequence_ticks',
+  {
+    ...auditColumns,
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => permitLototoVerificationRuns.id, { onDelete: 'cascade' }),
+    sequenceStepId: uuid('sequence_step_id')
+      .notNull()
+      .references(() => lototoProcedureSequenceSteps.id, { onDelete: 'restrict' }),
+    note: text('note'),
+    photoFileName: varchar('photo_file_name', { length: 255 }),
+    photoContentType: varchar('photo_content_type', { length: 128 }),
+    photoStorageKey: varchar('photo_storage_key', { length: 512 }),
+    tickedBy: uuid('ticked_by').notNull(),
+    tickedAt: timestamp('ticked_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('permit_lototo_sequence_ticks_run_step_unique').on(table.runId, table.sequenceStepId),
+    index('permit_lototo_sequence_ticks_run_id_idx').on(table.runId),
+  ],
+);
+
 export const permitLototoRestorationVerifications = pgTable(
   'permit_lototo_restoration_verifications',
   {

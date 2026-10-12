@@ -7,6 +7,7 @@ import type { PermitDetail } from "@/lib/permit/types";
 import type { HazardRecord } from "@/lib/master-data/api";
 import type { PermitFormState } from "@/lib/permit/types";
 import { hazardControlKey, type ExecutionStartState } from "@/lib/execution/start";
+import { permitControlLines } from "@/lib/permit/form";
 
 const STEPS = [
   { id: "toolbox", label: "Toolbox talk" },
@@ -55,7 +56,7 @@ export function StartExecutionSteps({
       .filter((row) => row.hazardCategoryId)
       .flatMap((row) => {
         const catalogue = hazards.get(row.hazardCategoryId);
-        const controls = [...(catalogue?.controls ?? []), ...(row.extraControls ?? [])].map((line) => line.trim()).filter(Boolean);
+        const controls = permitControlLines(catalogue?.controls, row.extraControls, row.omittedControls);
         if (controls.length === 0) {
           return [{ key: hazardControlKey(row.hazardCategoryId), label: catalogue?.name ?? "Hazard" }];
         }

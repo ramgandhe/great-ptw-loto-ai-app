@@ -240,6 +240,7 @@ export class ApprovalService {
             approvedAt: new Date(),
             approvedBy: user.id,
             approvedSignedName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.username,
+            approverSiteVisited: dto.siteVisited === true,
             updatedBy: user.id,
           })
           .where(and(eq(permits.id, permitId), eq(permits.tenantId, permit.tenantId)));

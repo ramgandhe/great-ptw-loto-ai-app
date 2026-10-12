@@ -27,6 +27,18 @@ export class PermitHazardDto {
   @ArrayMaxSize(50)
   @IsString({ each: true })
   extraControls?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  omittedConsequences?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  omittedControls?: string[];
 }
 
 export class PermitPpeDto {

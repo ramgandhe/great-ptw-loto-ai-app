@@ -35,6 +35,73 @@ export function getPermitLototoExecution(permitId: string) {
   return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/execution`);
 }
 
+export function tickPermitLototoSequenceStep(
+  permitId: string,
+  instanceId: string,
+  payload: { sequenceStepId: string; note?: string; file?: File | null },
+) {
+  const formData = new FormData();
+  formData.append("sequenceStepId", payload.sequenceStepId);
+  if (payload.note) {
+    formData.append("note", payload.note);
+  }
+  if (payload.file) {
+    formData.append("file", payload.file);
+  }
+  return fetchApi<PermitLototoExecutionBoard>(
+    `/permits/${permitId}/lototo/instances/${instanceId}/sequence-ticks`,
+    { method: "POST", body: formData },
+  );
+}
+
+export function confirmPermitLototoPhase(
+  permitId: string,
+  instanceId: string,
+  payload: {
+    phase: "apply" | "remove";
+    result: "pass" | "fail";
+    tryOutCompleted: boolean;
+    signedName: string;
+    lockTagId?: string;
+    reading?: string;
+    note?: string;
+    file?: File | null;
+  },
+) {
+  const formData = new FormData();
+  formData.append("phase", payload.phase);
+  formData.append("result", payload.result);
+  formData.append("tryOutCompleted", payload.tryOutCompleted ? "true" : "false");
+  formData.append("signedName", payload.signedName);
+  if (payload.lockTagId) {
+    formData.append("lockTagId", payload.lockTagId);
+  }
+  if (payload.reading) {
+    formData.append("reading", payload.reading);
+  }
+  if (payload.note) {
+    formData.append("note", payload.note);
+  }
+  if (payload.file) {
+    formData.append("file", payload.file);
+  }
+  return fetchApi<PermitLototoExecutionBoard>(
+    `/permits/${permitId}/lototo/instances/${instanceId}/phase-confirm`,
+    { method: "POST", body: formData },
+  );
+}
+
+export function restartPermitLototoVerification(
+  permitId: string,
+  instanceId: string,
+  phase: "apply" | "remove",
+) {
+  return fetchApi<PermitLototoExecutionBoard>(
+    `/permits/${permitId}/lototo/instances/${instanceId}/restart-verification`,
+    { method: "POST", body: JSON.stringify({ phase }) },
+  );
+}
+
 export function startPermitLototo(
   permitId: string,
   instanceId: string,

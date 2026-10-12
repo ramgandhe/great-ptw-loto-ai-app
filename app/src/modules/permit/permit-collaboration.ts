@@ -21,6 +21,7 @@ export const ISSUER_ONLY_FIELDS = [
   'plannedStartAt',
   'plannedEndAt',
   'viewers',
+  'receiverSiteVisited',
 ] as const satisfies readonly (keyof UpdatePermitDto)[];
 
 export const EXECUTOR_FIELDS = [
@@ -37,11 +38,13 @@ export const EXECUTOR_FIELDS = [
   'currentStep',
   'formSnapshot',
   'formResponses',
+  'executorSiteVisited',
 ] as const satisfies readonly (keyof UpdatePermitDto)[];
 
 export const SAFETY_APPROVAL_FIELDS = [
   'safetyApprovalComment',
   'safetyApprovalSignedName',
+  'safetyOfficerSiteVisited',
 ] as const satisfies readonly (keyof UpdatePermitDto)[];
 
 function hasAnyRole(user: AuthenticatedUser, roles: readonly string[]): boolean {

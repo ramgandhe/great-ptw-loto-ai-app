@@ -1,11 +1,11 @@
 import { BadGatewayException, BadRequestException, Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNotNull } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { UserProfile } from '@ptw/shared';
 import { optionalUuid } from '../../common/helpers/optional-uuid';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { userProfiles } from '../../database/schema';
+import { tenantUsers, userProfiles } from '../../database/schema';
 import { StorageService } from '../../infrastructure/storage/storage.service';
 import { UploadedFilePayload } from '../permit/uploaded-file.interface';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
@@ -21,6 +21,10 @@ export class AuthService {
   ) {}
 
   async getProfile(user: AuthenticatedUser): Promise<UserProfile> {
+    await this.db
+      .update(tenantUsers)
+      .set({ temporaryPassword: null, updatedAt: new Date() })
+      .where(and(eq(tenantUsers.keycloakUserId, user.id), isNotNull(tenantUsers.temporaryPassword)));
     const profile = await this.findProfileRow(user.id);
     return this.toUserProfile(user, profile);
   }

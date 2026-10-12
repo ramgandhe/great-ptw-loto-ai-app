@@ -65,6 +65,10 @@ export const permits = pgTable(
     approvedAt: timestamp('approved_at', { withTimezone: true }),
     approvedBy: uuid('approved_by'),
     approvedSignedName: varchar('approved_signed_name', { length: 255 }),
+    receiverSiteVisited: boolean('receiver_site_visited').notNull().default(false),
+    executorSiteVisited: boolean('executor_site_visited').notNull().default(false),
+    safetyOfficerSiteVisited: boolean('safety_officer_site_visited').notNull().default(false),
+    approverSiteVisited: boolean('approver_site_visited').notNull().default(false),
     /** Permit templates filled in on this permit: see PermitFormResponse in modules/permit/permit-forms.ts. */
     formResponses: jsonb('form_responses').$type<unknown[]>().notNull().default([]),
     /** Bumped by every draft save and by submit; saves and submits must send the revision they loaded. */
@@ -128,6 +132,8 @@ export const permitHazards = pgTable(
     description: text('description'),
     extraConsequences: jsonb('extra_consequences').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     extraControls: jsonb('extra_controls').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    omittedConsequences: jsonb('omitted_consequences').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    omittedControls: jsonb('omitted_controls').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   },
   (table) => [
     uniqueIndex('permit_hazards_permit_hazard_unique').on(

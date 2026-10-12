@@ -148,6 +148,7 @@ describe('Safety Approval collaboration', () => {
     const dto = { safetyApprovalComment: 'OK to proceed', safetyApprovalSignedName: 'A. Rao' };
     expect(sanitizeDraftUpdateDto(so, { ...dto, title: 'ignored' })).toEqual(dto);
     expect(() => assertDraftUpdateAllowed(so, assigned, dto)).not.toThrow();
+    expect(() => assertDraftUpdateAllowed(so, assigned, {})).not.toThrow();
   });
 
   it('lets a permit approver assign safety officers only', () => {

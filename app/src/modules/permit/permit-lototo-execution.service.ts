@@ -6,11 +6,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   lototoProcedureLockoutPoints,
+  lototoProcedureSequenceSteps,
   lototoProcedures,
   permitExecutors,
   permitLototoCrew,
@@ -20,23 +22,33 @@ import {
   permitLototoPointVerifications,
   permitLototoRestorationVerifications,
   permitLototoRestorations,
+  permitLototoSequenceTicks,
   permitLototoStepNa,
+  permitLototoVerificationRuns,
   permitLototoVerifiers,
+  tenantUsers,
 } from '../../database/schema';
 import {
+  ConfirmLototoPhaseDto,
   RecordLototoCrewActionDto,
   RecordLototoPointVerificationDto,
   RecordLototoRestoreVerificationDto,
+  RestartLototoVerificationDto,
+  TickLototoSequenceStepDto,
 } from './dto/permit-lototo-execution.dto';
 import {
+  canConfirmSequencePhase,
   isLototoCrewApplyComplete,
-  isLototoIsolationComplete,
-  isLototoRestorationComplete,
+  isLototoSequencePhasePassed,
   lototoPointExecutionStatus,
+  nextSequenceStepId,
 } from './permit-lototo-execution-status';
 import { PermitService } from './permit.service';
 import { isTenantPrivileged } from '../../common/constants/tenant-roles';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageService } from '../../infrastructure/storage/storage.service';
+import { UploadedFilePayload } from './uploaded-file.interface';
+import { MAX_ATTACHMENT_SIZE_BYTES } from './permit.constants';
 
 const EXECUTABLE_STATUSES = ['approved', 'active'] as const;
 
@@ -46,6 +58,7 @@ export class PermitLototoExecutionService {
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly permitService: PermitService,
     private readonly notificationsService: NotificationsService,
+    private readonly storageService: StorageService,
   ) {}
 
   async getBoard(permitId: string, user: AuthenticatedUser) {
@@ -65,12 +78,11 @@ export class PermitLototoExecutionService {
       boards.push(await this.loadInstanceBoard(row.instance, row.procedureTitle, row.procedureCode));
     }
 
-    const points = boards.flatMap((board) => board.points);
     return {
       permitId,
       permitStatus: detail.permit.status,
-      isolated: isLototoIsolationComplete(points),
-      restored: isLototoRestorationComplete(points),
+      isolated: boards.length > 0 && boards.every((board) => isLototoSequencePhasePassed(board.applyRun)),
+      restored: boards.length > 0 && boards.every((board) => isLototoSequencePhasePassed(board.removeRun)),
       instances: boards,
     };
   }
@@ -215,6 +227,131 @@ export class PermitLototoExecutionService {
       updatedBy: user.id,
     });
 
+    return this.getBoard(permitId, user);
+  }
+
+  async tickSequenceStep(
+    permitId: string,
+    instanceId: string,
+    dto: TickLototoSequenceStepDto,
+    user: AuthenticatedUser,
+    file?: UploadedFilePayload,
+  ) {
+    const [frozen] = await this.db
+      .select({ procedureVersionId: permitLototoInstances.procedureVersionId })
+      .from(permitLototoInstances)
+      .where(and(eq(permitLototoInstances.id, instanceId), eq(permitLototoInstances.permitId, permitId)));
+    if (!frozen) {
+      throw new NotFoundException('LOTOTO procedure is not attached to this permit');
+    }
+    const step = await this.requireSequenceStep(frozen.procedureVersionId, dto.sequenceStepId);
+    const phase = step.phase as 'apply' | 'remove';
+    const { instance } =
+      phase === 'remove'
+        ? await this.prepareRestoreWrite(permitId, instanceId, user)
+        : await this.prepareWrite(permitId, instanceId, user);
+    await this.assertVerifier(instanceId, user);
+    const run = await this.requireOpenRun(instance.id, phase, user.id);
+    const steps = await this.phaseSteps(instance.procedureVersionId, phase);
+    const ticks = await this.db
+      .select()
+      .from(permitLototoSequenceTicks)
+      .where(eq(permitLototoSequenceTicks.runId, run.id));
+    const nextId = nextSequenceStepId(
+      steps,
+      ticks.map((row) => row.sequenceStepId),
+    );
+    if (nextId !== dto.sequenceStepId) {
+      throw new ConflictException('Tick LOTOTO steps in order');
+    }
+    const photo = await this.storeOptionalPhoto(permitId, instance.id, user.tenantId, file);
+    await this.db.insert(permitLototoSequenceTicks).values({
+      runId: run.id,
+      sequenceStepId: dto.sequenceStepId,
+      note: dto.note?.trim() || null,
+      photoFileName: photo?.fileName ?? null,
+      photoContentType: photo?.contentType ?? null,
+      photoStorageKey: photo?.storageKey ?? null,
+      tickedBy: user.id,
+      createdBy: user.id,
+      updatedBy: user.id,
+    });
+    return this.getBoard(permitId, user);
+  }
+
+  async confirmPhase(
+    permitId: string,
+    instanceId: string,
+    dto: ConfirmLototoPhaseDto,
+    user: AuthenticatedUser,
+    file?: UploadedFilePayload,
+  ) {
+    const write =
+      dto.phase === 'remove'
+        ? await this.prepareRestoreWrite(permitId, instanceId, user)
+        : await this.prepareWrite(permitId, instanceId, user);
+    await this.assertVerifier(instanceId, user);
+    const run = await this.requireOpenRun(write.instance.id, dto.phase, user.id);
+    const steps = await this.phaseSteps(write.instance.procedureVersionId, dto.phase);
+    const ticks = await this.db
+      .select()
+      .from(permitLototoSequenceTicks)
+      .where(eq(permitLototoSequenceTicks.runId, run.id));
+    if (!canConfirmSequencePhase(steps, ticks.map((row) => row.sequenceStepId))) {
+      throw new ConflictException('Tick every sequence step before the final confirm');
+    }
+    if (dto.result === 'pass' && !dto.tryOutCompleted) {
+      throw new BadRequestException('Try-out is required to pass LOTOTO verification');
+    }
+    const signedName = dto.signedName.trim();
+    if (!signedName) {
+      throw new BadRequestException('A typed name is required to complete LOTOTO verification');
+    }
+    const photo = await this.storeOptionalPhoto(permitId, write.instance.id, user.tenantId, file);
+    await this.db
+      .update(permitLototoVerificationRuns)
+      .set({
+        status: dto.result === 'pass' ? 'passed' : 'failed',
+        result: dto.result,
+        tryOutCompleted: dto.tryOutCompleted,
+        lockTagId: dto.lockTagId?.trim() || null,
+        reading: dto.reading?.trim() || null,
+        note: dto.note?.trim() || null,
+        signedName,
+        photoFileName: photo?.fileName ?? null,
+        photoContentType: photo?.contentType ?? null,
+        photoStorageKey: photo?.storageKey ?? null,
+        verifiedBy: user.id,
+        verifiedAt: new Date(),
+        updatedBy: user.id,
+      })
+      .where(eq(permitLototoVerificationRuns.id, run.id));
+    return this.getBoard(permitId, user);
+  }
+
+  async restartVerification(
+    permitId: string,
+    instanceId: string,
+    dto: RestartLototoVerificationDto,
+    user: AuthenticatedUser,
+  ) {
+    const write =
+      dto.phase === 'remove'
+        ? await this.prepareRestoreWrite(permitId, instanceId, user)
+        : await this.prepareWrite(permitId, instanceId, user);
+    await this.assertVerifier(instanceId, user);
+    const latest = await this.latestRun(write.instance.id, dto.phase);
+    if (latest?.result !== 'fail') {
+      throw new ConflictException('Restart LOTOTO verification only after a failed confirm');
+    }
+    await this.db.insert(permitLototoVerificationRuns).values({
+      instanceId: write.instance.id,
+      phase: dto.phase,
+      runNumber: latest.runNumber + 1,
+      status: 'in_progress',
+      createdBy: user.id,
+      updatedBy: user.id,
+    });
     return this.getBoard(permitId, user);
   }
 
@@ -559,6 +696,55 @@ export class PermitLototoExecutionService {
         ),
     ];
 
+    const [sequenceSteps, crewAssign, applyRun, removeRun] = await Promise.all([
+      this.db
+        .select()
+        .from(lototoProcedureSequenceSteps)
+        .where(eq(lototoProcedureSequenceSteps.versionId, instance.procedureVersionId)),
+      this.db
+        .select({ workforceUserId: permitLototoCrew.workforceUserId })
+        .from(permitLototoCrew)
+        .where(eq(permitLototoCrew.instanceId, instance.id)),
+      this.latestRun(instance.id, 'apply'),
+      this.latestRun(instance.id, 'remove'),
+    ]);
+    const crewIds = [...new Set(crewAssign.map((row) => String(row.workforceUserId)))];
+    const crewUsers =
+      crewIds.length === 0
+        ? []
+        : await this.db
+            .select({
+              keycloakUserId: tenantUsers.keycloakUserId,
+              firstName: tenantUsers.firstName,
+              lastName: tenantUsers.lastName,
+              email: tenantUsers.email,
+            })
+            .from(tenantUsers)
+            .where(inArray(tenantUsers.keycloakUserId, crewIds));
+    const crewById = new Map(crewUsers.map((row) => [row.keycloakUserId, row]));
+
+    const applyTicks = applyRun
+      ? await this.db
+          .select()
+          .from(permitLototoSequenceTicks)
+          .where(eq(permitLototoSequenceTicks.runId, applyRun.id))
+      : [];
+    const removeTicks = removeRun
+      ? await this.db
+          .select()
+          .from(permitLototoSequenceTicks)
+          .where(eq(permitLototoSequenceTicks.runId, removeRun.id))
+      : [];
+
+    const applySteps = sequenceSteps
+      .filter((step) => step.phase === 'apply')
+      .slice()
+      .sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+    const removeSteps = sequenceSteps
+      .filter((step) => step.phase === 'remove')
+      .slice()
+      .sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+
     return {
       instanceId: instance.id,
       procedureId: instance.procedureId,
@@ -568,7 +754,137 @@ export class PermitLototoExecutionService {
       frozenAt: instance.frozenAt,
       startedAt: instance.startedAt,
       crewCompletedAt: instance.crewCompletedAt,
+      crew: crewAssign.map((row) => {
+        const person = crewById.get(String(row.workforceUserId));
+        const name = [person?.firstName, person?.lastName].filter(Boolean).join(' ').trim();
+        return {
+          workforceUserId: row.workforceUserId,
+          name: name || person?.email || row.workforceUserId,
+        };
+      }),
+      applySteps,
+      removeSteps,
+      applyRun: this.serializeRun(applyRun, applyTicks, applySteps),
+      removeRun: this.serializeRun(removeRun, removeTicks, removeSteps),
       points,
+    };
+  }
+
+  private serializeRun(
+    run: typeof permitLototoVerificationRuns.$inferSelect | null,
+    ticks: (typeof permitLototoSequenceTicks.$inferSelect)[],
+    steps: Array<{ id: string; sequenceOrder: number }>,
+  ) {
+    if (!run) {
+      return null;
+    }
+    const tickedIds = ticks.map((row) => row.sequenceStepId);
+    return {
+      id: run.id,
+      runNumber: run.runNumber,
+      status: run.status,
+      result: run.result,
+      tryOutCompleted: run.tryOutCompleted,
+      lockTagId: run.lockTagId,
+      reading: run.reading,
+      note: run.note,
+      signedName: run.signedName,
+      verifiedAt: run.verifiedAt,
+      photoFileName: run.photoFileName,
+      ticks: ticks.map((row) => ({
+        sequenceStepId: row.sequenceStepId,
+        note: row.note,
+        photoFileName: row.photoFileName,
+        tickedAt: row.tickedAt,
+      })),
+      nextStepId: run.status === 'in_progress' ? nextSequenceStepId(steps, tickedIds) : null,
+      canConfirm: run.status === 'in_progress' && canConfirmSequencePhase(steps, tickedIds),
+    };
+  }
+
+  private async requireSequenceStep(versionId: string, stepId: string) {
+    const [step] = await this.db
+      .select()
+      .from(lototoProcedureSequenceSteps)
+      .where(and(eq(lototoProcedureSequenceSteps.id, stepId), eq(lototoProcedureSequenceSteps.versionId, versionId)));
+    if (!step) {
+      throw new BadRequestException('Sequence step is not on this procedure');
+    }
+    return step;
+  }
+
+  private async phaseSteps(versionId: string, phase: 'apply' | 'remove') {
+    const steps = await this.db
+      .select()
+      .from(lototoProcedureSequenceSteps)
+      .where(
+        and(eq(lototoProcedureSequenceSteps.versionId, versionId), eq(lototoProcedureSequenceSteps.phase, phase)),
+      );
+    return steps.slice().sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+  }
+
+  private async latestRun(instanceId: string, phase: 'apply' | 'remove') {
+    const [run] = await this.db
+      .select()
+      .from(permitLototoVerificationRuns)
+      .where(
+        and(eq(permitLototoVerificationRuns.instanceId, instanceId), eq(permitLototoVerificationRuns.phase, phase)),
+      )
+      .orderBy(desc(permitLototoVerificationRuns.runNumber))
+      .limit(1);
+    return run ?? null;
+  }
+
+  private async requireOpenRun(instanceId: string, phase: 'apply' | 'remove', userId: string) {
+    const latest = await this.latestRun(instanceId, phase);
+    if (latest?.status === 'in_progress') {
+      return latest;
+    }
+    if (latest?.result === 'pass') {
+      throw new ConflictException('LOTOTO verification already passed');
+    }
+    if (latest?.result === 'fail') {
+      throw new ConflictException('Restart LOTOTO verification after a failed confirm');
+    }
+    const [created] = await this.db
+      .insert(permitLototoVerificationRuns)
+      .values({
+        instanceId,
+        phase,
+        runNumber: 1,
+        status: 'in_progress',
+        createdBy: userId,
+        updatedBy: userId,
+      })
+      .returning();
+    return created;
+  }
+
+  private async storeOptionalPhoto(
+    permitId: string,
+    instanceId: string,
+    tenantId: string | null | undefined,
+    file?: UploadedFilePayload,
+  ) {
+    if (!file) {
+      return null;
+    }
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context is required');
+    }
+    if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+      throw new BadRequestException(`File exceeds maximum size of ${MAX_ATTACHMENT_SIZE_BYTES} bytes`);
+    }
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'] as const;
+    if (!allowed.includes(file.mimetype as (typeof allowed)[number])) {
+      throw new BadRequestException('LOTOTO photos must be JPEG, PNG or WebP');
+    }
+    const storageKey = `${tenantId}/${permitId}/lototo/${instanceId}/${randomUUID()}-${file.originalname}`;
+    await this.storageService.putObject(storageKey, file.buffer, file.mimetype, file.size);
+    return {
+      fileName: file.originalname,
+      contentType: file.mimetype,
+      storageKey,
     };
   }
 

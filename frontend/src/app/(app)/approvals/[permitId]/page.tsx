@@ -66,6 +66,7 @@ export default function PermitReviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [comment, setComment] = useState("");
+  const [siteVisited, setSiteVisited] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -123,7 +124,12 @@ export default function PermitReviewPage() {
     try {
       const updated =
         decision === "approve"
-          ? await approvePermit(permitId, comment.trim(), stageAnswersPayload(stageEdits, review!.permit.draftRevision))
+          ? await approvePermit(
+              permitId,
+              comment.trim(),
+              stageAnswersPayload(stageEdits, review!.permit.draftRevision),
+              siteVisited,
+            )
           : await (decision === "reject" ? rejectPermit : deferPermit)(permitId, comment.trim());
       setReview(updated);
       setDecision(null);
@@ -244,6 +250,16 @@ export default function PermitReviewPage() {
                           </p>
                         ) : null}
                       </div>
+                    ) : null}
+                    {decision === "approve" ? (
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={siteVisited}
+                          onChange={(e) => setSiteVisited(e.target.checked)}
+                        />
+                        Site visited and verified
+                      </label>
                     ) : null}
                     <label htmlFor="decision-comment" className="text-sm font-medium">
                       {DECISIONS[decision].prompt}

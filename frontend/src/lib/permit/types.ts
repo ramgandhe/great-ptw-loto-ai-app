@@ -35,6 +35,10 @@ export type PermitRecord = {
   approvedAt?: string | null;
   approvedBy?: string | null;
   approvedSignedName?: string | null;
+  receiverSiteVisited?: boolean | null;
+  executorSiteVisited?: boolean | null;
+  safetyOfficerSiteVisited?: boolean | null;
+  approverSiteVisited?: boolean | null;
   safetyApprovalComment?: string | null;
   safetyApprovalSignedName?: string | null;
   safetyApprovedBy?: string | null;
@@ -54,6 +58,8 @@ export type PermitHazardInput = {
   description?: string;
   extraConsequences: string[];
   extraControls: string[];
+  omittedConsequences: string[];
+  omittedControls: string[];
 };
 
 export type PermitPpeInput = {
@@ -86,6 +92,12 @@ export type PermitLototoInput = {
   stepNa: PermitLototoStepNaInput[];
   crew: PermitAssigneeInput[];
   verifiers: PermitAssigneeInput[];
+  verification?: Array<{
+    phase: string;
+    result: string | null;
+    signedName: string | null;
+    verifiedAt: string | null;
+  }>;
 };
 
 export type PermitGasTestingInput = {
@@ -124,6 +136,9 @@ export type PermitFormState = {
   safetyOfficers: PermitAssigneeInput[];
   safetyApprovalComment: string;
   safetyApprovalSignedName: string;
+  receiverSiteVisited: boolean;
+  executorSiteVisited: boolean;
+  safetyOfficerSiteVisited: boolean;
   /** Answers per permit template id. */
   formResponses: Record<string, FormAnswers>;
   currentStep: number;
@@ -153,6 +168,8 @@ export type PermitDetail = {
     hazardCategoryId: string;
     extraConsequences?: string[] | null;
     extraControls?: string[] | null;
+    omittedConsequences?: string[] | null;
+    omittedControls?: string[] | null;
   }>;
   ppe: Array<{ ppeCatalogueId: string; quantity: number | null }>;
   lototo: PermitLototoInput[];
@@ -187,6 +204,9 @@ export type CreatePermitPayload = {
   safetyOfficers?: PermitAssigneeInput[];
   safetyApprovalComment?: string;
   safetyApprovalSignedName?: string;
+  receiverSiteVisited?: boolean;
+  executorSiteVisited?: boolean;
+  safetyOfficerSiteVisited?: boolean;
   formResponses?: { templateId: string; answers: FormAnswers }[];
 };
 
@@ -218,6 +238,33 @@ export type PermitLototoExecutionPoint = {
   restoreVerificationLatest: { result: "pass" | "fail"; comment: string | null; verifiedAt: string } | null;
 };
 
+export type PermitLototoSequenceStep = {
+  id: string;
+  phase: "apply" | "remove";
+  sequenceOrder: number;
+  title: string;
+  action: string | null;
+  infoText: string | null;
+  verification: string | null;
+};
+
+export type PermitLototoVerificationRun = {
+  id: string;
+  runNumber: number;
+  status: string;
+  result: string | null;
+  tryOutCompleted: boolean;
+  lockTagId: string | null;
+  reading: string | null;
+  note: string | null;
+  signedName: string | null;
+  verifiedAt: string | null;
+  photoFileName: string | null;
+  ticks: Array<{ sequenceStepId: string; note: string | null; photoFileName: string | null; tickedAt: string }>;
+  nextStepId: string | null;
+  canConfirm: boolean;
+};
+
 export type PermitLototoExecutionBoard = {
   permitId: string;
   permitStatus: string;
@@ -230,6 +277,11 @@ export type PermitLototoExecutionBoard = {
     procedureTitle: string;
     startedAt?: string | null;
     crewCompletedAt?: string | null;
+    crew: Array<{ workforceUserId: string; name: string }>;
+    applySteps: PermitLototoSequenceStep[];
+    removeSteps: PermitLototoSequenceStep[];
+    applyRun: PermitLototoVerificationRun | null;
+    removeRun: PermitLototoVerificationRun | null;
     points: PermitLototoExecutionPoint[];
   }>;
 };

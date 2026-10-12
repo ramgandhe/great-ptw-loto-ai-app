@@ -40,6 +40,8 @@ export const tenantUsers = pgTable(
     roles: varchar('roles', { length: 64 }).array().notNull().default([]),
     departmentId: uuid('department_id'),
     status: varchar('status', { length: 32 }).notNull().default('active'),
+    /** Temporary login password, shown to owner/admin until the user first signs in. */
+    temporaryPassword: varchar('temporary_password', { length: 128 }),
   },
   (table) => [
     uniqueIndex('tenant_users_keycloak_user_id_unique').on(table.keycloakUserId),

@@ -68,6 +68,10 @@ export function updateTenantUserRole(userId: string, roles: string[]) {
   });
 }
 
+export function resetTenantUserPassword(userId: string) {
+  return fetchApi<TenantUser>(`/tenant-users/${userId}/reset-password`, { method: "POST" });
+}
+
 export function deactivateTenantUser(userId: string) {
   return fetchApi<TenantUser>(`/tenant-users/${userId}/deactivate`, { method: "POST" });
 }

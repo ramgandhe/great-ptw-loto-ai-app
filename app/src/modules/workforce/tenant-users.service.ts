@@ -71,7 +71,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
       .from(tenantUsers)
       .where(and(eq(tenantUsers.tenantId, tenantId), ne(tenantUsers.status, 'archived')));
 
-    return rows.map((row) => this.toListItem(row));
+    return rows.map((row) => this.toListItem(row, true));
   }
 
   async listNames(actor: AuthenticatedUser) {
@@ -259,6 +259,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
         departmentId: optionalUuid(dto.departmentId) ?? null,
         createdBy: actorId,
         updatedBy: actorId,
+        temporaryPassword,
       });
     } catch (error) {
       await this.keycloakAdmin.deleteUserById(created.id).catch(() => undefined);
@@ -289,6 +290,25 @@ export class TenantUsersService implements OnApplicationBootstrap {
       signInHint:
         'The user signs in with this email. Keycloak will require a password change on first login.',
     };
+  }
+
+  async resetPassword(userId: string, actor: AuthenticatedUser) {
+    const row = await this.loadManageableUser(userId, actor, { allowDisabled: true });
+    const temporaryPassword = randomBytes(12).toString('base64url');
+    const actorId = optionalUuid(actor.id);
+    await this.keycloakAdmin.resetTemporaryPassword(userId, temporaryPassword);
+    await this.db
+      .update(tenantUsers)
+      .set({ temporaryPassword, updatedBy: actorId, updatedAt: new Date() })
+      .where(eq(tenantUsers.id, row.id));
+    await this.auditService.log({
+      action: 'tenant.user.password.reset',
+      entityType: 'user',
+      entityId: userId,
+      userId: actorId,
+      tenantId: row.tenantId,
+    });
+    return this.toListItem({ ...row, temporaryPassword }, true);
   }
 
   async updateRole(userId: string, dto: AssignRoleDto, actor: AuthenticatedUser) {
@@ -550,7 +570,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
     }
   }
 
-  private toListItem(row: typeof tenantUsers.$inferSelect) {
+  private toListItem(row: typeof tenantUsers.$inferSelect, revealPassword = false) {
     return {
       id: row.keycloakUserId,
       email: row.email,
@@ -561,6 +581,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
       enabled: row.status === 'active',
       roles: storedUserRoles(row),
       departmentId: row.departmentId,
+      temporaryPassword: revealPassword ? row.temporaryPassword ?? null : undefined,
     };
   }
 

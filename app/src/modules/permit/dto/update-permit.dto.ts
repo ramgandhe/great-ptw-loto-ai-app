@@ -144,4 +144,16 @@ export class UpdatePermitDto {
   @IsString()
   @MaxLength(255)
   safetyApprovalSignedName?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  receiverSiteVisited?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  executorSiteVisited?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  safetyOfficerSiteVisited?: boolean;
 }

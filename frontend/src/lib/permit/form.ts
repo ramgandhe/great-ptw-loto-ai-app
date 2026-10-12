@@ -4,6 +4,7 @@ import type {
   FormAnswer,
   PermitDetail,
   PermitFormState,
+  PermitHazardInput,
   PermitLototoExtraInput,
   PermitLototoInput,
 } from "./types";
@@ -44,8 +45,14 @@ export function titleFromScope(scope: string): string {
   return cut.slice(0, cut.lastIndexOf(" ") > 60 ? cut.lastIndexOf(" ") : 120).trimEnd() + "…";
 }
 
-export function emptyPermitLototo(procedureId: string): PermitLototoInput {
-  return { procedureId, extraPoints: [], stepNa: [], crew: [], verifiers: [] };
+export function emptyPermitLototo(procedureId: string, operatorId?: string): PermitLototoInput {
+  return {
+    procedureId,
+    extraPoints: [],
+    stepNa: [],
+    crew: [],
+    verifiers: operatorId ? [{ workforceUserId: operatorId }] : [],
+  };
 }
 
 export function emptyLototoExtraPoint(): PermitLototoExtraInput {
@@ -98,6 +105,35 @@ export function canRoleSubmitPermit(roles: string[]): boolean {
   );
 }
 
+export function emptyPermitHazard(hazardCategoryId = ""): PermitHazardInput {
+  return {
+    hazardCategoryId,
+    extraConsequences: [],
+    extraControls: [],
+    omittedConsequences: [],
+    omittedControls: [],
+  };
+}
+
+export function catalogueLinesForPermit(
+  catalogue: string[] | null | undefined,
+  omitted: string[] | null | undefined,
+): string[] {
+  const skip = new Set((omitted ?? []).map((line) => line.trim()).filter(Boolean));
+  return (catalogue ?? []).map((line) => line.trim()).filter((line) => line && !skip.has(line));
+}
+
+export function permitControlLines(
+  catalogue: string[] | null | undefined,
+  extra: string[] | null | undefined,
+  omitted: string[] | null | undefined,
+): string[] {
+  return [
+    ...catalogueLinesForPermit(catalogue, omitted),
+    ...(extra ?? []).map((line) => line.trim()).filter(Boolean),
+  ];
+}
+
 export function createEmptyPermitForm(): PermitFormState {
   return {
     permitTypeId: "",
@@ -111,7 +147,7 @@ export function createEmptyPermitForm(): PermitFormState {
     machineryId: "",
     plannedStartAt: "",
     plannedEndAt: "",
-    hazards: [{ hazardCategoryId: "", extraConsequences: [], extraControls: [] }],
+    hazards: [emptyPermitHazard()],
     ppe: [{ ppeCatalogueId: "", quantity: 1 }],
     lototoRequired: false,
     lototo: [],
@@ -122,6 +158,9 @@ export function createEmptyPermitForm(): PermitFormState {
     safetyOfficers: [],
     safetyApprovalComment: "",
     safetyApprovalSignedName: "",
+    receiverSiteVisited: false,
+    executorSiteVisited: false,
+    safetyOfficerSiteVisited: false,
     formResponses: {},
     currentStep: 0,
   };
@@ -164,8 +203,10 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
             hazardCategoryId: h.hazardCategoryId,
             extraConsequences: h.extraConsequences ?? [],
             extraControls: h.extraControls ?? [],
+            omittedConsequences: h.omittedConsequences ?? [],
+            omittedControls: h.omittedControls ?? [],
           }))
-        : [{ hazardCategoryId: "", extraConsequences: [], extraControls: [] }],
+        : [emptyPermitHazard()],
     ppe:
       ppe.length > 0
         ? ppe.map((item) => ({
@@ -183,6 +224,7 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
             stepNa: item.stepNa ?? [],
             crew: item.crew ?? [],
             verifiers: item.verifiers ?? [],
+            verification: item.verification ?? [],
           }))
         : [],
     gasTestingRequired: permit.gasTestingRequired === true,
@@ -201,6 +243,9 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
     safetyOfficers: (safetyOfficers ?? []).map((row) => ({ workforceUserId: row.workforceUserId })),
     safetyApprovalComment: permit.safetyApprovalComment ?? "",
     safetyApprovalSignedName: permit.safetyApprovalSignedName ?? "",
+    receiverSiteVisited: permit.receiverSiteVisited === true,
+    executorSiteVisited: permit.executorSiteVisited === true,
+    safetyOfficerSiteVisited: permit.safetyOfficerSiteVisited === true,
     formResponses: Object.fromEntries((permit.formResponses ?? []).map((response) => [response.templateId, response.answers])),
     currentStep: draft?.currentStep ?? 0,
   };
@@ -210,13 +255,21 @@ export function shouldSaveExecutorPayload(roles: string[]): boolean {
   return roles.includes("permit-operator") && !canRoleSubmitPermit(roles);
 }
 
+export function shouldSaveSafetyApprovalOnly(roles: string[]): boolean {
+  return (
+    roles.includes("safety-officer") &&
+    !canRoleSubmitPermit(roles) &&
+    !shouldSaveExecutorPayload(roles)
+  );
+}
+
 function optionalUuid(value: string): string | undefined {
   return value.trim() ? value.trim() : undefined;
 }
 
 export function formToSavePayload(
   form: PermitFormState,
-  options?: { executorOnly?: boolean; includeSafetyApproval?: boolean },
+  options?: { executorOnly?: boolean; includeSafetyApproval?: boolean; safetyApprovalOnly?: boolean },
 ): DraftFields {
   const payload = {
     permitTypeId: form.permitTypeId,
@@ -237,6 +290,8 @@ export function formToSavePayload(
         hazardCategoryId: h.hazardCategoryId,
         extraConsequences: (h.extraConsequences ?? []).map((value) => value.trim()).filter(Boolean),
         extraControls: (h.extraControls ?? []).map((value) => value.trim()).filter(Boolean),
+        omittedConsequences: (h.omittedConsequences ?? []).map((value) => value.trim()).filter(Boolean),
+        omittedControls: (h.omittedControls ?? []).map((value) => value.trim()).filter(Boolean),
       })),
     ppe: form.ppe.filter((p) => p.ppeCatalogueId.trim()),
     lototoRequired: form.lototoRequired,
@@ -275,14 +330,21 @@ export function formToSavePayload(
     viewers: form.viewers.filter((e) => (e.workforceUserId ?? "").trim()),
     safetyOfficers: form.safetyOfficers.filter((e) => (e.workforceUserId ?? "").trim()),
     formResponses: Object.entries(form.formResponses).map(([templateId, answers]) => ({ templateId, answers })),
+    receiverSiteVisited: form.receiverSiteVisited,
+    executorSiteVisited: form.executorSiteVisited,
   };
 
-  const safetyApproval = options?.includeSafetyApproval
+  const safetyApproval = options?.includeSafetyApproval || options?.safetyApprovalOnly
     ? {
         safetyApprovalComment: form.safetyApprovalComment.trim(),
         safetyApprovalSignedName: form.safetyApprovalSignedName.trim(),
+        safetyOfficerSiteVisited: form.safetyOfficerSiteVisited,
       }
     : {};
+
+  if (options?.safetyApprovalOnly) {
+    return safetyApproval;
+  }
 
   if (!options?.executorOnly) {
     return { ...payload, ...safetyApproval };
@@ -301,6 +363,7 @@ export function formToSavePayload(
     executors: payload.executors,
     safetyOfficers: payload.safetyOfficers,
     formResponses: payload.formResponses,
+    executorSiteVisited: payload.executorSiteVisited,
     ...safetyApproval,
   };
 }

@@ -36,6 +36,10 @@ describe('PermitValidationService', () => {
       approvedAt: null,
       approvedBy: null,
       approvedSignedName: null,
+      receiverSiteVisited: false,
+      executorSiteVisited: false,
+      safetyOfficerSiteVisited: false,
+      approverSiteVisited: false,
       executionStart: {},
       formResponses: [],
       draftRevision: 0,
@@ -53,6 +57,8 @@ describe('PermitValidationService', () => {
         description: null,
         extraConsequences: [],
         extraControls: [],
+        omittedConsequences: [],
+        omittedControls: [],
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: 'user-id',
@@ -144,6 +150,7 @@ describe('PermitValidationService', () => {
         stepNa: [],
         crew: [],
         verifiers: [],
+        verification: [],
       },
     ];
 

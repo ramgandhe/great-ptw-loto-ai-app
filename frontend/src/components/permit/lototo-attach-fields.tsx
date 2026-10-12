@@ -50,6 +50,7 @@ export function LototoAttachFields({
   procedures,
   detail,
   people,
+  verifierPeople,
   disabled,
   onChange,
   onRemove,
@@ -59,6 +60,7 @@ export function LototoAttachFields({
   procedures: LototoProcedureListItem[];
   detail: LototoProcedure | undefined;
   people: WorkforceRecord[];
+  verifierPeople?: WorkforceRecord[];
   disabled: boolean;
   onChange: (next: PermitLototoInput) => void;
   onRemove: () => void;
@@ -369,7 +371,7 @@ export function LototoAttachFields({
 
       <div className="grid gap-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium">Verifiers</p>
+          <p className="text-sm font-medium">Verifiers <span className="font-normal text-muted-foreground">(defaults to the permit operator)</span></p>
           <Button
             type="button"
             variant="outline"
@@ -387,7 +389,7 @@ export function LototoAttachFields({
                 id={`verifier-${index}-${verifierIndex}`}
                 value={row.workforceUserId}
                 disabled={disabled}
-                options={people}
+                options={verifierPeople ?? people}
                 placeholder="Select verifier"
                 onChange={(workforceUserId) => {
                   const verifiers = [...item.verifiers];

@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsDate,
   IsInt,
   IsObject,
@@ -66,4 +67,16 @@ export class CreatePermitDto extends PermitRelationsDto {
   @IsOptional()
   @IsObject()
   formSnapshot?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsBoolean()
+  receiverSiteVisited?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  executorSiteVisited?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  safetyOfficerSiteVisited?: boolean;
 }

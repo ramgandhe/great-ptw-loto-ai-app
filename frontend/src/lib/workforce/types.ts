@@ -34,6 +34,7 @@ export type TenantUser = {
   roles: string[];
   departmentId?: string | null;
   executorKind?: "internal" | "contractor" | "agency";
+  temporaryPassword?: string | null;
 };
 
 export type CreatedTenantUser = {

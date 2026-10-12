@@ -5,6 +5,7 @@ import { ChevronRight, Paperclip, TriangleAlert, type LucideIcon } from "lucide-
 import { DOMAIN_ICONS } from "@/lib/domain-icons";
 import { PermitTypeChip } from "./permit-type-chip";
 import type { PermitAttachment, PermitFormState } from "@/lib/permit/types";
+import { catalogueLinesForPermit } from "@/lib/permit/form";
 import { gasTestingApi, masterDataApi, type GasTestingRecord, type HazardRecord } from "@/lib/master-data/api";
 import { getLototoProcedure, getLototoProcedureVersion, listLototoProcedures } from "@/lib/lototo/api";
 import type { LototoProcedureVersion } from "@/lib/lototo/types";
@@ -117,6 +118,7 @@ export type PermitIdentity = {
   approvedBy?: string | null;
   approvedSignedName?: string | null;
   safetyApprovedAt?: string | null;
+  approverSiteVisited?: boolean | null;
 };
 
 export function identityFromPermit(permit: {
@@ -131,6 +133,7 @@ export function identityFromPermit(permit: {
   approvedBy?: string | null;
   approvedSignedName?: string | null;
   safetyApprovedAt?: string | null;
+  approverSiteVisited?: boolean | null;
 }): PermitIdentity {
   return {
     number: permit.reference ?? null,
@@ -143,6 +146,7 @@ export function identityFromPermit(permit: {
     approvedBy: permit.approvedBy ?? null,
     approvedSignedName: permit.approvedSignedName ?? null,
     safetyApprovedAt: permit.safetyApprovedAt ?? null,
+    approverSiteVisited: permit.approverSiteVisited ?? null,
   };
 }
 
@@ -319,9 +323,9 @@ export function PermitSummary({
                   </p>
                   {catalogue?.description ? <p className="whitespace-pre-wrap text-sm">{catalogue.description}</p> : null}
                   <Field label="Potential consequences">
-                    {(catalogue?.consequences ?? []).length ? (
+                    {catalogueLinesForPermit(catalogue?.consequences, item.omittedConsequences).length ? (
                       <ul className="list-disc pl-5 font-normal">
-                        {(catalogue?.consequences ?? []).map((line) => (
+                        {catalogueLinesForPermit(catalogue?.consequences, item.omittedConsequences).map((line) => (
                           <li key={line}>{line}</li>
                         ))}
                       </ul>
@@ -339,9 +343,9 @@ export function PermitSummary({
                     </Field>
                   ) : null}
                   <Field label="Controls">
-                    {(catalogue?.controls ?? []).length ? (
+                    {catalogueLinesForPermit(catalogue?.controls, item.omittedControls).length ? (
                       <ul className="list-disc pl-5 font-normal">
-                        {(catalogue?.controls ?? []).map((line) => (
+                        {catalogueLinesForPermit(catalogue?.controls, item.omittedControls).map((line) => (
                           <li key={line}>{line}</li>
                         ))}
                       </ul>
@@ -463,6 +467,17 @@ export function PermitSummary({
                               .join(", ")
                           : "Not assigned"}
                       </Field>
+                      {(item.verification ?? []).filter((row) => row.signedName).length > 0 ? (
+                        <Field label="Who reviewed LOTOTO">
+                          {(item.verification ?? [])
+                            .filter((row) => row.signedName)
+                            .map(
+                              (row) =>
+                                `${row.phase === "remove" ? "Restore" : "Isolation"}: ${row.signedName}${row.verifiedAt ? ` · ${formatDateTime(row.verifiedAt)}` : ""}${row.result ? ` (${row.result})` : ""}`,
+                            )
+                            .join("; ")}
+                        </Field>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -550,6 +565,15 @@ export function PermitSummary({
           )}
         </Field>
         {viewers.length > 0 ? <Field label="Viewers">{viewers.join(", ")}</Field> : null}
+        <Field label="Site visited and verified">
+          Receiver: {form.receiverSiteVisited ? "Yes" : "No"}
+          {" · "}
+          Operator: {form.executorSiteVisited ? "Yes" : "No"}
+          {officers.length > 0 ? ` · Safety officer: ${form.safetyOfficerSiteVisited ? "Yes" : "No"}` : ""}
+          {identity?.approverSiteVisited != null
+            ? ` · Approver: ${identity.approverSiteVisited ? "Yes" : "No"}`
+            : ""}
+        </Field>
       </Section>
 
       {attachments.length > 0 ? (

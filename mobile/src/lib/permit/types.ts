@@ -39,6 +39,8 @@ export type PermitHazardInput = {
   hazardCategoryId: string;
   extraConsequences: string[];
   extraControls: string[];
+  omittedConsequences: string[];
+  omittedControls: string[];
 };
 
 export type PermitPpeInput = {
@@ -100,6 +102,8 @@ export type PermitDetail = {
     hazardCategoryId: string;
     extraConsequences?: string[] | null;
     extraControls?: string[] | null;
+    omittedConsequences?: string[] | null;
+    omittedControls?: string[] | null;
   }>;
   ppe: Array<{ ppeCatalogueId: string; quantity: number | null }>;
   lototo?: Array<{ procedureId: string }>;

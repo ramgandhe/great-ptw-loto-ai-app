@@ -12,6 +12,7 @@ import {
   deleteTenantUser,
   listTenantUsers,
   reactivateTenantUser,
+  resetTenantUserPassword,
   updateTenantUser,
   updateTenantUserRole,
 } from "@/lib/workforce/api";
@@ -47,6 +48,7 @@ export default function UserRolesPage() {
   const [saving, setSaving] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [revealedPasswordIds, setRevealedPasswordIds] = useState<Record<string, boolean>>({});
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
 
   function loadUsers() {
@@ -233,7 +235,7 @@ export default function UserRolesPage() {
               <dd className="font-medium">{(created.roles ?? [created.role]).map(formatRoleLabel).join(", ")}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Temporary password (shown once)</dt>
+              <dt className="text-muted-foreground">Temporary password</dt>
               <dd className="flex items-center gap-2">
                 <span className="font-mono">{created.temporaryPassword}</span>
                 <Button
@@ -337,6 +339,7 @@ export default function UserRolesPage() {
                   <th className="px-4 py-2.5">Roles</th>
                   <th className="px-4 py-2.5">Approver department</th>
                   <th className="px-4 py-2.5">Status</th>
+                  <th className="px-4 py-2.5">Password</th>
                   <th className="px-4 py-2.5 text-right font-medium">
                     <span className="sr-only">Actions</span>
                   </th>
@@ -429,6 +432,44 @@ export default function UserRolesPage() {
                         <OrgStatusBadge status={user.enabled ? "active" : "disabled"} />
                       </td>
                       <td className="px-4 py-3">
+                        {user.temporaryPassword ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono text-xs">
+                              {revealedPasswordIds[user.id] ? user.temporaryPassword : "••••••••"}
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              disabled={busy}
+                              onClick={() =>
+                                setRevealedPasswordIds((current) => ({
+                                  ...current,
+                                  [user.id]: !current[user.id],
+                                }))
+                              }
+                            >
+                              {revealedPasswordIds[user.id] ? "Hide" : "Show"}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              disabled={busy}
+                              onClick={() =>
+                                void copyText(user.temporaryPassword ?? "").then((ok) =>
+                                  toast(ok ? "Temporary password copied" : "Copy failed", ok ? "success" : "error"),
+                                )
+                              }
+                            >
+                              Copy
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
                         {manageable ? (
                           <RowActions
                             actions={[
@@ -443,6 +484,26 @@ export default function UserRolesPage() {
                                   }
                                   setEditingRoles((prev) => ({ ...prev, [user.id]: user.roles }));
                                   setEditingUserId(user.id);
+                                },
+                              },
+                              {
+                                label: "Reset password",
+                                disabled: busy,
+                                onClick: () => {
+                                  if (!window.confirm(`Reset password for ${user.email ?? user.username}? A new temporary password will be generated.`)) {
+                                    return;
+                                  }
+                                  setUpdatingId(user.id);
+                                  resetTenantUserPassword(user.id)
+                                    .then((next) => {
+                                      toast("Password reset. Copy the new temporary password.");
+                                      setRevealedPasswordIds((current) => ({ ...current, [user.id]: true }));
+                                      setUsers((current) => current.map((row) => (row.id === next.id ? next : row)));
+                                    })
+                                    .catch((err) =>
+                                      setError(err instanceof ApiError ? err.message : "Failed to reset password"),
+                                    )
+                                    .finally(() => setUpdatingId(null));
                                 },
                               },
                               user.enabled

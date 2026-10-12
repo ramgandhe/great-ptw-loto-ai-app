@@ -1,8 +1,11 @@
 import {
+  canConfirmSequencePhase,
   isLototoCrewApplyComplete,
   isLototoIsolationComplete,
   isLototoRestorationComplete,
+  isLototoSequencePhasePassed,
   lototoPointExecutionStatus,
+  nextSequenceStepId,
 } from '../app/src/modules/permit/permit-lototo-execution-status';
 
 describe('LOTOTO isolation point status', () => {
@@ -64,5 +67,23 @@ describe('LOTOTO isolation point status', () => {
     expect(isLototoRestorationComplete([])).toBe(false);
     expect(isLototoRestorationComplete([{ restoreStatus: 'na' }, { restoreStatus: 'passed' }])).toBe(true);
     expect(isLototoRestorationComplete([{ restoreStatus: 'na' }, { restoreStatus: 'pending_crew' }])).toBe(false);
+  });
+
+  it('ticks sequence steps in order and confirms only when every step is ticked', () => {
+    const steps = [
+      { id: 'a', sequenceOrder: 1 },
+      { id: 'b', sequenceOrder: 2 },
+    ];
+    expect(nextSequenceStepId(steps, [])).toBe('a');
+    expect(nextSequenceStepId(steps, ['a'])).toBe('b');
+    expect(nextSequenceStepId(steps, ['a', 'b'])).toBeNull();
+    expect(canConfirmSequencePhase(steps, ['a'])).toBe(false);
+    expect(canConfirmSequencePhase(steps, ['a', 'b'])).toBe(true);
+  });
+
+  it('treats isolation as ready only after a passed sequence confirm', () => {
+    expect(isLototoSequencePhasePassed(null)).toBe(false);
+    expect(isLototoSequencePhasePassed({ result: 'fail' })).toBe(false);
+    expect(isLototoSequencePhasePassed({ result: 'pass' })).toBe(true);
   });
 });

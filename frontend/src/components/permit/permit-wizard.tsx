@@ -35,6 +35,7 @@ import {
   applicableTemplates,
   canRoleEditWizardStep,
   canRoleSubmitPermit,
+  emptyPermitHazard,
   emptyPermitLototo,
   createEmptyPermitForm,
   formToSavePayload,
@@ -43,8 +44,10 @@ import {
   needsSafetyApproval,
   PERMIT_EDITOR_SECTIONS,
   type PermitEditorSectionId,
+  permitControlLines,
   permitDetailToForm,
   shouldSaveExecutorPayload,
+  shouldSaveSafetyApprovalOnly,
   titleFromScope,
   validateStep,
 } from "@/lib/permit/form";
@@ -282,7 +285,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       machineryApi.list(),
       masterDataApi.hazards(),
       masterDataApi.ppe(),
-      listPermitExecutors(),
+      listPermitExecutors().catch(() => []),
       listPermitViewers().catch(() => []),
       listPermitSafetyOfficers().catch(() => []),
       getProfile(),
@@ -520,16 +523,19 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     const roles = authRoles.length > 0 ? authRoles : userRoles;
     const payload = formToSavePayload(prefilled, {
       executorOnly: shouldSaveExecutorPayload(roles),
+      safetyApprovalOnly: shouldSaveSafetyApprovalOnly(roles),
       includeSafetyApproval:
         hasAnyRole(roles, ["safety-officer", "tenant-owner", "tenant-admin", "platform-admin"]) &&
         needsSafetyApproval(prefilled),
     });
-    if (templatesLoaded) {
-      // Answers for templates that no longer apply (the permit type changed) are dropped.
-      const ids = new Set(applicableTemplates(templates, form.permitTypeId).map((t) => t.id));
-      payload.formResponses = payload.formResponses?.filter((response) => ids.has(response.templateId));
-    } else {
-      delete payload.formResponses;
+    if (!shouldSaveSafetyApprovalOnly(roles)) {
+      if (templatesLoaded) {
+        // Answers for templates that no longer apply (the permit type changed) are dropped.
+        const ids = new Set(applicableTemplates(templates, form.permitTypeId).map((t) => t.id));
+        payload.formResponses = payload.formResponses?.filter((response) => ids.has(response.templateId));
+      } else {
+        delete payload.formResponses;
+      }
     }
 
     let id = permitId;
@@ -653,6 +659,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         formResponses: {},
         safetyApprovalComment: "",
         safetyApprovalSignedName: "",
+        receiverSiteVisited: false,
+        executorSiteVisited: false,
+        safetyOfficerSiteVisited: false,
         currentStep: 0,
       });
       setTitleEdited(copy.title !== titleFromScope(copy.workScope));
@@ -811,6 +820,13 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const personName = (id: string) =>
     executorOptions.find((o) => o.id === id)?.name ?? (id ? "Person no longer available" : "");
   const hazardRows = form.hazards.filter((h) => h.hazardCategoryId);
+  const permitSafetyControls = hazardRows.flatMap((hazard) => {
+    const catalogue = hazards.find((row) => row.id === hazard.hazardCategoryId);
+    return permitControlLines(catalogue?.controls, hazard.extraControls, hazard.omittedControls).map((control) => ({
+      hazard: catalogue?.name ?? "Hazard",
+      control,
+    }));
+  });
   const permitTypeCode = permitTypes.find((type) => type.id === form.permitTypeId)?.code;
   const selectedHazardIds = new Set(hazardRows.map((h) => h.hazardCategoryId));
   const offeredHazards = hazards.filter(
@@ -974,7 +990,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                       edit({
                         ...form,
                         permitTypeId: type.id,
-                        hazards: kept.length ? kept : [{ hazardCategoryId: "", extraConsequences: [], extraControls: [] }],
+                        hazards: kept.length ? kept : [emptyPermitHazard()],
                       });
                     }}
                     className={cn(
@@ -1255,7 +1271,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                   ...current,
                   hazards: rows.some((h) => h.hazardCategoryId === hazardCategoryId)
                     ? rows.filter((h) => h.hazardCategoryId !== hazardCategoryId)
-                    : [...rows, { hazardCategoryId, extraConsequences: [], extraControls: [] }],
+                    : [...rows, emptyPermitHazard(hazardCategoryId)],
                 };
               })
             }
@@ -1280,6 +1296,16 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                   title="Consequences"
                   empty="No consequences configured for this hazard."
                   items={catalogue?.consequences ?? []}
+                  omitted={hazard.omittedConsequences ?? []}
+                  disabled={!siteEditable}
+                  onOmit={(omittedConsequences) =>
+                    edit((current) => ({
+                      ...current,
+                      hazards: current.hazards.map((h) =>
+                        h.hazardCategoryId === hazard.hazardCategoryId ? { ...h, omittedConsequences } : h,
+                      ),
+                    }))
+                  }
                 />
                 <ExtraStringList
                   label="Additional consequences"
@@ -1298,6 +1324,16 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                   title="Safety / controls"
                   empty="No controls configured for this hazard."
                   items={catalogue?.controls ?? []}
+                  omitted={hazard.omittedControls ?? []}
+                  disabled={!siteEditable}
+                  onOmit={(omittedControls) =>
+                    edit((current) => ({
+                      ...current,
+                      hazards: current.hazards.map((h) =>
+                        h.hazardCategoryId === hazard.hazardCategoryId ? { ...h, omittedControls } : h,
+                      ),
+                    }))
+                  }
                 />
                 <ExtraStringList
                   label="Additional controls"
@@ -1380,7 +1416,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                   ? []
                   : form.lototo.length || machineryLototo.length !== 1
                     ? form.lototo
-                    : [emptyPermitLototo(machineryLototo[0].id)],
+                    : [emptyPermitLototo(machineryLototo[0].id, form.executors.find((e) => e.isPrimary)?.workforceUserId || form.executors[0]?.workforceUserId)],
               })
             }
           />
@@ -1415,6 +1451,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     procedures={machineryLototo}
                     detail={lototoDetails[item.procedureId]}
                     people={sodExecutorOptions}
+                    verifierPeople={[
+                      ...sodExecutorOptions,
+                      ...safetyOfficerOptions.filter((person) => !sodExecutorOptions.some((row) => row.id === person.id)),
+                    ]}
                     disabled={!siteEditable || Boolean(item.frozenAt)}
                     onChange={(next) =>
                       edit((current) => ({
@@ -1438,7 +1478,13 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                   onClick={() =>
                     edit((current) => ({
                       ...current,
-                      lototo: [...current.lototo, emptyPermitLototo(machineryLototo.length === 1 ? machineryLototo[0].id : "")],
+                      lototo: [
+                        ...current.lototo,
+                        emptyPermitLototo(
+                          machineryLototo.length === 1 ? machineryLototo[0].id : "",
+                          current.executors.find((e) => e.isPrimary)?.workforceUserId || current.executors[0]?.workforceUserId,
+                        ),
+                      ],
                     }))
                   }
                 >
@@ -1541,6 +1587,15 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           )
         ) : null}
 
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            disabled={!siteEditable}
+            checked={form.executorSiteVisited}
+            onChange={(e) => edit({ ...form, executorSiteVisited: e.target.checked })}
+          />
+          Site visited and verified
+        </label>
       </EditorSection>
       ) : null}
 
@@ -1724,6 +1779,30 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         <p className="text-sm text-muted-foreground">
           One assigned safety officer comments and types their name. That is enough to pass this step.
         </p>
+        <div className="grid gap-2">
+          <h3 className="text-sm font-semibold">Safety controls on this permit</h3>
+          <p className="text-sm text-muted-foreground">Set by the operator in Site safety. Preview only here.</p>
+          {permitSafetyControls.length ? (
+            <ul className="list-disc space-y-1 pl-5 text-sm">
+              {permitSafetyControls.map((line) => (
+                <li key={`${line.hazard}:${line.control}`}>
+                  {line.hazard} — {line.control}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">No safety controls listed on this permit.</p>
+          )}
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            disabled={!safetyEditable}
+            checked={form.safetyOfficerSiteVisited}
+            onChange={(e) => edit({ ...form, safetyOfficerSiteVisited: e.target.checked })}
+          />
+          Site visited and verified
+        </label>
         <ul className="grid gap-1 text-sm">
           {form.safetyOfficers
             .filter((row) => row.workforceUserId)
@@ -1795,6 +1874,15 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         ) : (
           <p className="text-sm text-(--status-success)">Everything needed for submission is filled in.</p>
         )}
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            disabled={isExecutor}
+            checked={form.receiverSiteVisited}
+            onChange={(e) => edit({ ...form, receiverSiteVisited: e.target.checked })}
+          />
+          Site visited and verified
+        </label>
         <p className="text-sm text-muted-foreground">
           {isExecutor
             ? `${saveLabel} when you are done. The job issuer reviews the permit and submits it for approval.`
@@ -1932,19 +2020,72 @@ function ChipPicker({
   );
 }
 
-function ConfiguredList({ title, items, empty }: { title: string; items: string[]; empty: string }) {
+function ConfiguredList({
+  title,
+  items,
+  empty,
+  omitted = [],
+  disabled,
+  onOmit,
+}: {
+  title: string;
+  items: string[];
+  empty: string;
+  omitted?: string[];
+  disabled?: boolean;
+  onOmit?: (omitted: string[]) => void;
+}) {
+  const skip = new Set(omitted);
+  const visible = items.filter((item) => !skip.has(item));
+  const removed = omitted.filter((item) => items.includes(item));
   return (
     <div className="grid gap-1">
       <p className="text-sm font-medium">{title}</p>
-      {items.length ? (
-        <ul className="list-disc space-y-0.5 pl-5 text-sm">
-          {items.map((item) => (
-            <li key={item}>{item}</li>
+      {visible.length ? (
+        <ul className="space-y-1 text-sm">
+          {visible.map((item) => (
+            <li key={item} className="flex items-start justify-between gap-2">
+              <span>{item}</span>
+              {onOmit ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={disabled}
+                  aria-label={`Remove ${item} from this permit`}
+                  onClick={() => onOmit([...omitted, item])}
+                >
+                  <X aria-hidden />
+                </Button>
+              ) : null}
+            </li>
           ))}
         </ul>
       ) : (
         <p className="text-sm text-muted-foreground">{empty}</p>
       )}
+      {removed.length && onOmit ? (
+        <div className="grid gap-1">
+          <p className="text-xs text-muted-foreground">Removed for this permit only. Catalogue is unchanged.</p>
+          <ul className="space-y-1 text-sm text-muted-foreground">
+            {removed.map((item) => (
+              <li key={`omitted-${item}`} className="flex items-start justify-between gap-2">
+                <span className="line-through">{item}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={disabled}
+                  aria-label={`Restore ${item} on this permit`}
+                  onClick={() => onOmit(omitted.filter((line) => line !== item))}
+                >
+                  Restore
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }
