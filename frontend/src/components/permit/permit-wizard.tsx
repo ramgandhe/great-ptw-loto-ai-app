@@ -25,7 +25,9 @@ import { gasTestingApi, type GasTestingRecord } from "@/lib/master-data/api";
 import {
   createPermit,
   getPermit,
+  handoffPermitDraft,
   removePermitAttachment,
+  returnPermitDraft,
   savePermitDraft,
   isRevisionConflict,
   submitPermit,
@@ -51,6 +53,19 @@ import {
   titleFromScope,
   validateStep,
 } from "@/lib/permit/form";
+import {
+  handoffButtonLabel,
+  handoffSectionFor,
+  holderNextWork,
+  holderStageLabel,
+  nextHandoffTarget,
+  parseDraftHolder,
+  returnButtonLabel,
+  returnHandoffTarget,
+  returnSectionFor,
+  stepsEditableForHolder,
+  type DraftHolder,
+} from "@/lib/permit/handoff";
 import type {
   FormAnswer,
   PermitAttachment,
@@ -214,6 +229,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [status, setStatus] = useState(initialDetail?.permit.status ?? "draft");
   // The revision this form was loaded or last saved at; the server refuses saves made against an older one.
   const [revision, setRevision] = useState(initialDetail?.permit.draftRevision ?? 0);
+  const [draftHolder, setDraftHolder] = useState<DraftHolder>(parseDraftHolder(initialDetail?.permit.draftHolder));
+  const [draftHeldBy, setDraftHeldBy] = useState<string | null>(initialDetail?.permit.draftHeldBy ?? initialDetail?.permit.createdBy ?? null);
+  const [handoffNotice, setHandoffNotice] = useState<string | null>(null);
+  const [returnReason, setReturnReason] = useState(initialDetail?.permit.draftReturnReason ?? "");
+  const [returnReasonDraft, setReturnReasonDraft] = useState("");
+  const [showReturnForm, setShowReturnForm] = useState(false);
   // Set when someone else saved first: local values stay, and saving again is an explicit choice.
   const [conflict, setConflict] = useState(false);
   // The form as last loaded or saved: the common ancestor when someone else's save has to be merged in.
@@ -331,7 +352,6 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             profile.roles.includes("permit-receiver") ||
             profile.roles.includes("tenant-owner") ||
             profile.roles.includes("tenant-admin");
-          const excludedReceiverId = initialDetail?.permit.createdBy ?? (isReceiver ? profile.id : undefined);
           const byId = new Map<string, WorkforceRecord>();
           for (const user of executorUsers) {
             const name =
@@ -347,17 +367,14 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               executorKind: user.executorKind ?? "internal",
             });
           }
-          if (isOperator && !isReceiver && !byId.has(profile.id)) {
+          if ((isOperator || isReceiver) && !byId.has(profile.id)) {
             byId.set(profile.id, {
               id: profile.id,
               name: `${displayName} (you)`,
               email: profile.email ?? null,
-              role: "Permit operator",
+              role: isOperator ? "Permit operator" : "Permit receiver",
               executorKind: "internal",
             });
-          }
-          if (excludedReceiverId) {
-            byId.delete(excludedReceiverId);
           }
           setExecutorOptions(
             Array.from(byId.values()).sort((a, b) =>
@@ -564,6 +581,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     try {
       const saved = await savePermitDraft(id, { ...payload, expectedRevision: baseRevision });
       setRevision(saved.permit.draftRevision);
+      setDraftHolder(parseDraftHolder(saved.permit.draftHolder));
+      setDraftHeldBy(saved.permit.draftHeldBy ?? saved.permit.createdBy ?? null);
+      setReturnReason(saved.permit.draftReturnReason ?? "");
       // What the server now holds, exactly: the ancestor for any later merge.
       setBase(permitDetailToForm(saved));
       setConflict(false);
@@ -676,10 +696,25 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const isReadOnly = !isEditablePermitStatus(status);
   const isResubmit = status === "deferred" || status === "rejected";
   const canSubmit = canRoleSubmitPermit(userRoles);
-  const excludedReceiverId = receiverId ?? (canSubmit ? authProfile?.id : undefined);
-  const sodExecutorOptions = executorOptions.filter((person) => person.id !== excludedReceiverId);
+  const sodExecutorOptions = executorOptions;
   const isExecutor = shouldSaveExecutorPayload(userRoles);
-  const editable = (step: number) => !isReadOnly && canRoleEditWizardStep(userRoles, step);
+  const privilegedEditor = hasAnyRole(userRoles, ["tenant-owner", "tenant-admin", "platform-admin"]);
+  const assignedExecutor = form.executors.some((row) => row.workforceUserId && row.workforceUserId === authProfile?.id);
+  const primaryExecutorId = form.executors.find((e) => e.isPrimary)?.workforceUserId || form.executors[0]?.workforceUserId || "";
+  const selfOperator = Boolean(authProfile?.id && primaryExecutorId === authProfile.id);
+  const hasSafetyOfficer = needsSafetyApproval(form);
+  const nextHold = nextHandoffTarget(draftHolder, hasSafetyOfficer);
+  const returnHold = returnHandoffTarget(draftHolder, hasSafetyOfficer);
+  const effectiveHeldBy = draftHeldBy ?? receiverId ?? (mode === "create" ? authProfile?.id : null);
+  const isCurrentHolder = Boolean(authProfile?.id && effectiveHeldBy === authProfile.id) || privilegedEditor;
+  const editable = (step: number) => {
+    if (isReadOnly) return false;
+    if (privilegedEditor) return true;
+    if (!stepsEditableForHolder(draftHolder).includes(step)) return false;
+    if (draftHolder === "operator") return assignedExecutor;
+    if (draftHolder === "safety_officer") return hasAnyRole(userRoles, ["safety-officer"]);
+    return canRoleEditWizardStep(userRoles, step);
+  };
   const soAssignable =
     !isReadOnly &&
     hasAnyRole(userRoles, [
@@ -704,6 +739,20 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     safety: validateStep(prefilled, 5),
     review: [],
   };
+  const showHandoff =
+    isEditablePermitStatus(status) &&
+    Boolean(nextHold) &&
+    isCurrentHolder &&
+    handoffSectionFor(draftHolder) === active &&
+    (draftHolder === "receiver"
+      ? missing.work.length + missing.place.length === 0
+      : draftHolder === "operator"
+        ? missing.site.length + missing.crew.length + missing.forms.length === 0
+        : draftHolder === "safety_officer"
+          ? missing.safety.length === 0
+          : false);
+  const showReturn =
+    isEditablePermitStatus(status) && Boolean(returnHold) && isCurrentHolder && returnSectionFor(draftHolder) === active;
 
   // Leaving with unsaved changes asks first: tab close and in-app links alike.
   useLeaveGuard(dirty);
@@ -737,6 +786,87 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       return;
     }
     goTo(visibleSections[activeIndex + 1].id);
+  };
+
+  const applyHandoffDetail = (detail: PermitDetail, message: string) => {
+    setRevision(detail.permit.draftRevision);
+    setDraftHolder(parseDraftHolder(detail.permit.draftHolder));
+    setDraftHeldBy(detail.permit.draftHeldBy ?? detail.permit.createdBy ?? null);
+    setReturnReason(detail.permit.draftReturnReason ?? "");
+    setShowReturnForm(false);
+    setReturnReasonDraft("");
+    setHandoffNotice(message);
+    setDirty(false);
+  };
+
+  const holderSectionsComplete = () => {
+    if (draftHolder === "receiver") return missing.work.length + missing.place.length === 0;
+    if (draftHolder === "operator") return missing.site.length + missing.crew.length + missing.forms.length === 0;
+    if (draftHolder === "safety_officer") return missing.safety.length === 0;
+    return true;
+  };
+
+  const handleHandoff = async () => {
+    if (!nextHold) return;
+    const stepErrors = holderSectionsComplete() ? [] : [
+      ...(draftHolder === "receiver" ? [...errorsFor("work"), ...errorsFor("place")] : []),
+      ...(draftHolder === "operator" ? [...errorsFor("site"), ...errorsFor("crew"), ...errorsFor("forms")] : []),
+      ...(draftHolder === "safety_officer" ? errorsFor("safety") : []),
+    ];
+    setErrors(stepErrors);
+    if (stepErrors.length) {
+      requestAnimationFrame(() => document.getElementById("validation-summary")?.focus());
+      return;
+    }
+    const label = handoffButtonLabel(nextHold, selfOperator);
+    const nextName = nextHold === "operator" ? personName(primaryExecutorId) : nextHold === "safety_officer" ? "the assigned safety officer" : "the permit receiver";
+    if (!window.confirm(`${label}? ${selfOperator && nextHold === "operator" ? "You will continue as operator on this permit." : `${nextName} will be notified. Your sections will lock.`}`)) {
+      return;
+    }
+    setIsSaving(true);
+    setApiError(null);
+    try {
+      const saved = await persistDraft();
+      const result = await handoffPermitDraft(saved.id, { to: nextHold, expectedRevision: saved.revision });
+      applyHandoffDetail(
+        result,
+        selfOperator && nextHold === "operator"
+          ? "You now hold the draft as operator. Fill Site safety, Crew, and Forms."
+          : `Your part is done. ${nextName} has been notified.`,
+      );
+      if (nextHold === "operator") setActive("site");
+      else if (nextHold === "safety_officer") setActive("safety");
+      else setActive("review");
+    } catch (error) {
+      setApiError(error instanceof ApiError ? error.message : "Could not hand over the draft");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleReturnDraft = async () => {
+    if (!returnHold) return;
+    const reason = returnReasonDraft.trim();
+    if (!reason) {
+      setApiError("Why return is required");
+      return;
+    }
+    setIsSaving(true);
+    setApiError(null);
+    try {
+      if (dirty) {
+        await persistDraft();
+      }
+      const result = await returnPermitDraft(permitId!, revision, reason);
+      applyHandoffDetail(
+        result,
+        `Draft returned. ${holderStageLabel(parseDraftHolder(result.permit.draftHolder))} holds it now.`,
+      );
+    } catch (error) {
+      setApiError(error instanceof ApiError ? error.message : "Could not return the draft");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSaveDraft = async () => {
@@ -885,6 +1015,20 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         </nav>
       </PageHeader>
 
+      {status === "draft" || status === "deferred" || status === "rejected" ? (
+        <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm">
+          <p>
+            Held by {effectiveHeldBy ? personName(effectiveHeldBy) : holderStageLabel(draftHolder)} ({holderStageLabel(draftHolder)}) — {holderNextWork(draftHolder)}.
+          </p>
+          {returnReason.trim() ? (
+            <p className="mt-1">
+              Why return: {returnReason.trim()}
+            </p>
+          ) : null}
+          {handoffNotice ? <p className="mt-1 font-medium text-(--status-success)">{handoffNotice}</p> : null}
+        </div>
+      ) : null}
+
       {status === "draft" ? <DraftBanner /> : null}
 
       {active === "work" && mode === "create" && !permitId && recentPermits.length > 0 && editable(0) ? (
@@ -961,7 +1105,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       ) : null}
 
       {active === "work" ? (
-      <EditorSection id="work" title="Work" owner="Permit receiver" editable={editable(0)} left={missing.work.length}>
+      <EditorSection id="work" title="Work" owner="Permit receiver" editable={editable(0)} left={missing.work.length} note={!editable(0) ? "Read-only until the current holder returns the draft." : undefined}>
         <div className="grid gap-2">
           <p id="permit-type-label" className="text-sm font-medium">
             Permit type
@@ -1050,7 +1194,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       ) : null}
 
       {active === "place" ? (
-      <EditorSection id="place" title="Place and schedule" owner="Permit receiver" editable={placeEditable} left={missing.place.length}>
+      <EditorSection id="place" title="Place and schedule" owner="Permit receiver" editable={placeEditable} left={missing.place.length} note={!placeEditable ? "Read-only until the current holder returns the draft." : undefined}>
         <div className="grid gap-4 md:grid-cols-2">
           <FormField label="Location" htmlFor="locationId" error={fieldError("locationId")}>
             <MasterDataSelect
@@ -1099,7 +1243,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           <FormField
             label="Primary executor"
             htmlFor="primary-executor" error={fieldError("primary-executor")}
-            hint="They add the site details, crew and form answers; you then review and submit."
+            hint="Permit operators or permit receivers (including you). They fill Site safety, Crew and Forms."
           >
             <PersonSelect
               id="primary-executor"
@@ -1107,7 +1251,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               disabled={!placeEditable || masterDataLoading}
               options={sodExecutorOptions}
               placeholder="Select executor"
-              internalGroupLabel="Internal — Permit operators"
+              internalGroupLabel="Internal — Operators and receivers"
               onChange={(workforceUserId) =>
                 edit((current) => ({
                   ...current,
@@ -1216,7 +1360,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         owner="Permit operator"
         editable={siteEditable}
         left={missing.site.length}
-        note="The permit operator adds these after you save: workstation, machinery, isolation, gas tests, hazards and PPE."
+        note={!siteEditable ? "Read-only until the operator holds the draft (or returns it)." : "Workstation, machinery, isolation, gas tests, hazards and PPE."}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <FormField label="Workstation" htmlFor="workstationId" error={fieldError("workstationId")}>
@@ -1600,7 +1744,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       ) : null}
 
       {active === "crew" ? (
-      <EditorSection id="crew" title="Crew" owner="Permit operator" editable={crewEditable} left={missing.crew.length} note="The permit operator adds the crew after you save.">
+      <EditorSection id="crew" title="Crew" owner="Permit operator" editable={crewEditable} left={missing.crew.length} note={!crewEditable ? "Read-only until the operator holds the draft." : undefined}>
         <div className="grid gap-2">
           <ul className="grid gap-2">
             {crewRows.map((executor) => (
@@ -1646,7 +1790,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 disabled={masterDataLoading}
                 options={sodExecutorOptions.filter((person) => !crewRows.some((row) => row.workforceUserId === person.id))}
                 placeholder="Add crew member"
-                internalGroupLabel="Internal — Permit operators"
+                internalGroupLabel="Internal — Operators and receivers"
                 onChange={(workforceUserId) =>
                   workforceUserId &&
                   edit((current) => ({
@@ -1844,7 +1988,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       ) : null}
 
       {active === "review" ? (
-      <EditorSection id="review" title="Review" owner="Permit receiver" editable left={0}>
+      <EditorSection id="review" title="Review" owner="Permit receiver" editable={draftHolder === "ready_for_review" && canSubmit} left={0} note={draftHolder !== "ready_for_review" ? "Submit after the last handoff (Ready for review)." : undefined}>
         <div className="flex flex-wrap gap-2">
           {visibleSections.filter((section) => section.id !== "review").map((section) => (
             <Button key={section.id} type="button" variant="ghost" className="min-h-11" onClick={() => goTo(section.id)}>
@@ -1910,6 +2054,38 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             {isSaving ? "Saving…" : saveLabel}
           </Button>
         ) : null}
+        {showReturn && showReturnForm && returnHold ? (
+          <div className="flex w-full flex-col gap-2 sm:max-w-md">
+            <label htmlFor="why-return" className="text-sm font-medium">
+              Why return
+            </label>
+            <textarea
+              id="why-return"
+              className={`${fieldClassName} min-h-20 py-2`}
+              value={returnReasonDraft}
+              onChange={(e) => setReturnReasonDraft(e.target.value)}
+              required
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="lg" variant="outline" className="min-h-11 px-4" disabled={isSaving} onClick={() => setShowReturnForm(false)}>
+                Cancel
+              </Button>
+              <Button type="button" size="lg" className="min-h-11 px-4" disabled={isSaving || isSubmitting || !returnReasonDraft.trim()} onClick={() => void handleReturnDraft()}>
+                {returnButtonLabel(returnHold)}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+        {showReturn && !showReturnForm ? (
+          <Button type="button" size="lg" variant="outline" className="min-h-11 px-4" disabled={isSaving || isSubmitting} onClick={() => setShowReturnForm(true)}>
+            {returnHold ? returnButtonLabel(returnHold) : "Return"}
+          </Button>
+        ) : null}
+        {showHandoff ? (
+          <Button type="button" size="lg" className="min-h-11 px-4" disabled={isSaving || isSubmitting || conflict} onClick={() => void handleHandoff()}>
+            {nextHold ? handoffButtonLabel(nextHold, selfOperator) : "Hand over"}
+          </Button>
+        ) : null}
         {activeIndex > 0 ? (
           <Button type="button" size="lg" variant="outline" className="min-h-11 px-4" onClick={() => goTo(visibleSections[activeIndex - 1].id)}>
             <ChevronLeft aria-hidden />
@@ -1921,7 +2097,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             Next
             <ChevronRight aria-hidden />
           </Button>
-        ) : canSubmit ? (
+        ) : canSubmit && draftHolder === "ready_for_review" ? (
           <Button type="button" size="lg" className="min-h-11 px-4" onClick={() => void handleSubmit()} disabled={isSubmitting || isSaving || isReadOnly || conflict}>
             {isSubmitting ? "Submitting…" : isResubmit ? "Resubmit permit" : "Submit permit"}
           </Button>
@@ -1966,7 +2142,7 @@ function EditorSection({
           {left ? ` · ${left} to do` : ""}
         </p>
       </header>
-      {!editable && note ? <p className="rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground">{note}</p> : null}
+      {note ? <p className="rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground">{note}</p> : null}
       {children}
     </section>
   );

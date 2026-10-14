@@ -20,7 +20,7 @@ describe('permit workspace (S4)', () => {
   });
 
   it('sends an assigned safety officer to the draft editor for Safety Approval', () => {
-    const permit = { id: 'd', status: 'draft', title: 'd', permitTypeId: 't', updatedAt: '', createdAt: '' } as unknown as PermitRecord;
+    const permit = { id: 'd', status: 'draft', title: 'd', permitTypeId: 't', draftHolder: 'safety_officer', updatedAt: '', createdAt: '' } as unknown as PermitRecord;
     const items = buildWorkQueue(['safety-officer'], [permit], []);
     expect(items.map((item) => [item.action, item.href])).toEqual([['safety-check', '/permits/d/edit']]);
   });

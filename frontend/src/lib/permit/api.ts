@@ -31,6 +31,20 @@ export function submitPermit(id: string, expectedRevision: number) {
   });
 }
 
+export function handoffPermitDraft(id: string, payload: { to: string; expectedRevision: number }) {
+  return fetchApi<PermitDetail>(`/permits/${id}/handoff`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function returnPermitDraft(id: string, expectedRevision: number, reason: string) {
+  return fetchApi<PermitDetail>(`/permits/${id}/return-draft`, {
+    method: "POST",
+    body: JSON.stringify({ expectedRevision, reason }),
+  });
+}
+
 export function getPermitLototoExecution(permitId: string) {
   return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/execution`);
 }

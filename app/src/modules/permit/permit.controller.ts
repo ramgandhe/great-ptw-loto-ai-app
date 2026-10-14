@@ -15,6 +15,7 @@ import { CreatePermitDto } from './dto/create-permit.dto';
 import { ReassignPermitPeopleDto } from './dto/reassign-permit-people.dto';
 import { RenewPermitDto } from './dto/renew-permit.dto';
 import { SubmitPermitDto } from './dto/save-draft.dto';
+import { PermitDraftHandoffDto, PermitDraftReturnDto } from './dto/permit-draft-handoff.dto';
 import {
   PERMIT_CREATE_ROLES,
   PERMIT_DELETE_ROLES,
@@ -79,6 +80,26 @@ export class PermitController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.permitService.renewFromExpired(id, dto, user);
+  }
+
+  @Roles(...PERMIT_WRITE_ROLES)
+  @Post(':id/handoff')
+  handoff(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PermitDraftHandoffDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.permitService.handoffDraft(id, dto, user);
+  }
+
+  @Roles(...PERMIT_WRITE_ROLES)
+  @Post(':id/return-draft')
+  returnDraft(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PermitDraftReturnDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.permitService.returnDraft(id, dto, user);
   }
 
   @Roles(...PERMIT_SUBMIT_ROLES)

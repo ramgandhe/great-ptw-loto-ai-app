@@ -519,6 +519,20 @@
       "when": 1792800000000,
       "tag": "0071_permit_hazard_omissions",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1792900000000,
+      "tag": "0072_permit_draft_handoff",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1793000000000,
+      "tag": "0073_permit_draft_return_reason",
+      "breakpoints": true
     }
   ]
 }

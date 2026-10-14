@@ -73,6 +73,12 @@ export const permits = pgTable(
     formResponses: jsonb('form_responses').$type<unknown[]>().notNull().default([]),
     /** Bumped by every draft save and by submit; saves and submits must send the revision they loaded. */
     draftRevision: integer('draft_revision').notNull().default(0),
+    /** Who currently owns the draft: receiver, operator, safety_officer, ready_for_review. */
+    draftHolder: varchar('draft_holder', { length: 32 }).notNull().default('receiver'),
+    /** Keycloak user currently holding the draft. */
+    draftHeldBy: uuid('draft_held_by'),
+    /** Required when the current holder returns the draft. Cleared on the next handoff. */
+    draftReturnReason: text('draft_return_reason'),
     /** Ordered start-of-execution ticks (toolbox, hazard controls, PPE, LOTOTO, gas readings). */
     executionStart: jsonb('execution_start').$type<Record<string, unknown>>().notNull().default({}),
   },

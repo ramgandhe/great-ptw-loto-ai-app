@@ -48,6 +48,9 @@ export type PermitRecord = {
   formResponses?: StoredFormResponse[];
   /** Send back on every save and submit; the server refuses an older one with PERMIT_REVISION_CONFLICT. */
   draftRevision: number;
+  draftHolder?: string | null;
+  draftHeldBy?: string | null;
+  draftReturnReason?: string | null;
   executionStart?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;

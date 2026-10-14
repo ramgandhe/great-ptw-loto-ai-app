@@ -42,6 +42,17 @@ import {
 } from '../../database/schema';
 import { hazardFitsPermitType } from '../master-data/default-hazards';
 import { MailService } from '../../infrastructure/mail/mail.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import {
+  holderNextWork,
+  holderStageLabel,
+  nextHandoffTarget,
+  parseDraftHolder,
+  returnHandoffTarget,
+  type DraftHolder,
+} from './permit-draft-handoff';
+import { isAssignedSafetyOfficer } from './permit-access';
+import { isTenantPrivileged } from '../../common/constants/tenant-roles';
 import { StorageService } from '../../infrastructure/storage/storage.service';
 import { AuditService } from '../logging/audit.service';
 import { ApprovalHistoryService } from '../approval/approval-history.service';
@@ -70,6 +81,7 @@ import {
   assertPermitSubmitAllowed,
   sanitizeCreatePermitDto,
   sanitizeDraftUpdateDto,
+  isAssignedExecutor,
 } from './permit-collaboration';
 import type { PermitLototoDto } from './dto/permit-relations.dto';
 import { ReassignPermitPeopleDto } from './dto/reassign-permit-people.dto';
@@ -166,6 +178,7 @@ export class PermitService {
     private readonly simopsService: SimopsService,
     // Optional so specs that build the service by hand need not provide storage.
     @Optional() private readonly storageService?: StorageService,
+    @Optional() private readonly notificationsService?: NotificationsService,
   ) {}
 
   async create(rawDto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -197,6 +210,8 @@ export class PermitService {
           plannedEndAt: dto.plannedEndAt,
           createdBy: user.id,
           updatedBy: user.id,
+          draftHolder: 'receiver',
+          draftHeldBy: user.id,
           receiverSiteVisited: dto.receiverSiteVisited ?? false,
           executorSiteVisited: dto.executorSiteVisited ?? false,
           safetyOfficerSiteVisited: dto.safetyOfficerSiteVisited ?? false,
@@ -238,7 +253,6 @@ export class PermitService {
       const detail = await this.loadDetail(tx, permit.id, tenantId);
       return { ...detail, draft };
     });
-    await this.notifyAssignedExecutors(created, tenantId, new Set());
     return created;
   }
 
@@ -357,16 +371,14 @@ export class PermitService {
   ): Promise<PermitDetail> {
     const tenantId = this.requireTenant(user);
     const { expectedRevision, ...rawDto } = input;
-    const dto = sanitizeDraftUpdateDto(user, rawDto);
-    const formResponses =
-      dto.formResponses !== undefined ? await this.resolveFormResponses(tenantId, dto.formResponses) : undefined;
-
-    let previousExecutorIds = new Set<string>();
     const updated = await this.db.transaction(async (tx) => {
       const existing = await this.loadLockedDetail(tx, id, tenantId);
       if (!isEditablePermitStatus(existing.permit.status)) {
         throw new ConflictException('Only draft, deferred or rejected permits can be updated');
       }
+      const dto = sanitizeDraftUpdateDto(user, rawDto, existing);
+      const formResponses =
+        dto.formResponses !== undefined ? await this.resolveFormResponses(tenantId, dto.formResponses) : undefined;
       assertDraftUpdateAllowed(user, existing, dto);
       assertExpectedRevision(existing, expectedRevision);
       if (
@@ -377,7 +389,6 @@ export class PermitService {
       ) {
         assertLototoWritable(existing.lototo);
       }
-      previousExecutorIds = new Set(existing.executors.map((row) => row.workforceUserId));
       const revision = existing.permit.draftRevision + 1;
 
       const permitUpdates: Partial<typeof permits.$inferInsert> = {
@@ -543,9 +554,6 @@ export class PermitService {
 
       return this.loadDetail(tx, id, tenantId);
     });
-    if (dto.executors !== undefined) {
-      await this.notifyAssignedExecutors(updated, tenantId, previousExecutorIds);
-    }
     return updated;
   }
 
@@ -610,6 +618,91 @@ export class PermitService {
     return updated;
   }
 
+  async handoffDraft(
+    id: string,
+    dto: { to: DraftHolder; expectedRevision: number },
+    user: AuthenticatedUser,
+  ): Promise<PermitDetail> {
+    const tenantId = this.requireTenant(user);
+    const updated = await this.db.transaction(async (tx) => {
+      const detail = await this.loadLockedDetail(tx, id, tenantId);
+      if (!isEditablePermitStatus(detail.permit.status)) {
+        throw new ConflictException('Only an editable permit can be handed over');
+      }
+      assertExpectedRevision(detail, dto.expectedRevision);
+      const holder = parseDraftHolder(detail.permit.draftHolder);
+      const hasSafetyOfficer = detail.safetyOfficers.length > 0;
+      const expected = nextHandoffTarget(holder, hasSafetyOfficer);
+      if (!expected || dto.to !== expected) {
+        throw new BadRequestException('That handoff is not allowed from the current holder');
+      }
+      this.assertCanMoveDraft(user, detail, 'handoff');
+      this.assertHandoffReady(detail, expected);
+
+      const heldBy = this.heldByFor(expected, detail);
+      const revision = detail.permit.draftRevision + 1;
+      await tx
+        .update(permits)
+        .set({
+          draftHolder: expected,
+          draftHeldBy: heldBy,
+          draftReturnReason: null,
+          draftRevision: revision,
+          updatedBy: user.id,
+          updatedAt: new Date(),
+        })
+        .where(eq(permits.id, id));
+      await this.permitCacheService.invalidatePermit(tenantId, id);
+      return this.loadDetail(tx, id, tenantId);
+    });
+    await this.notifyDraftHolder(updated, tenantId, user.id, 'handoff');
+    return updated;
+  }
+
+  async returnDraft(
+    id: string,
+    dto: { expectedRevision: number; reason: string },
+    user: AuthenticatedUser,
+  ): Promise<PermitDetail> {
+    const tenantId = this.requireTenant(user);
+    const updated = await this.db.transaction(async (tx) => {
+      const detail = await this.loadLockedDetail(tx, id, tenantId);
+      if (!isEditablePermitStatus(detail.permit.status)) {
+        throw new ConflictException('Only an editable permit can be returned');
+      }
+      assertExpectedRevision(detail, dto.expectedRevision);
+      const holder = parseDraftHolder(detail.permit.draftHolder);
+      const hasSafetyOfficer = detail.safetyOfficers.length > 0;
+      const expected = returnHandoffTarget(holder, hasSafetyOfficer);
+      if (!expected) {
+        throw new BadRequestException('This draft cannot be returned further');
+      }
+      this.assertCanMoveDraft(user, detail, 'return');
+      const reason = dto.reason.trim();
+      if (!reason) {
+        throw new BadRequestException('Why return is required');
+      }
+
+      const heldBy = this.heldByFor(expected, detail);
+      const revision = detail.permit.draftRevision + 1;
+      await tx
+        .update(permits)
+        .set({
+          draftHolder: expected,
+          draftHeldBy: heldBy,
+          draftReturnReason: reason,
+          draftRevision: revision,
+          updatedBy: user.id,
+          updatedAt: new Date(),
+        })
+        .where(eq(permits.id, id));
+      await this.permitCacheService.invalidatePermit(tenantId, id);
+      return this.loadDetail(tx, id, tenantId);
+    });
+    await this.notifyDraftHolder(updated, tenantId, user.id, 'return');
+    return updated;
+  }
+
   async submit(id: string, dto: SubmitPermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
     assertPermitSubmitAllowed(user);
     const tenantId = this.requireTenant(user);
@@ -620,6 +713,9 @@ export class PermitService {
       const detail = await this.loadLockedDetail(tx, id, tenantId);
       if (!isSubmittablePermitStatus(detail.permit.status)) {
         throw new ConflictException('Permit cannot be submitted in its current status');
+      }
+      if (parseDraftHolder(detail.permit.draftHolder) !== 'ready_for_review') {
+        throw new BadRequestException('Submit after the draft is handed over for review');
       }
       assertExpectedRevision(detail, dto.expectedRevision);
 
@@ -1483,6 +1579,138 @@ export class PermitService {
         updatedBy: userId,
       })),
     );
+  }
+
+  private assertCanMoveDraft(
+    user: AuthenticatedUser,
+    detail: PermitDetail,
+    action: 'handoff' | 'return',
+  ): void {
+    if (isTenantPrivileged(user.roles) || user.roles.includes('platform-admin')) {
+      return;
+    }
+    if (action === 'handoff') {
+      const holder = parseDraftHolder(detail.permit.draftHolder);
+      if (holder === 'receiver' && detail.permit.createdBy === user.id) {
+        return;
+      }
+      if (holder === 'operator' && isAssignedExecutor(detail, user.id)) {
+        return;
+      }
+      if (holder === 'safety_officer' && isAssignedSafetyOfficer(detail, user.id)) {
+        return;
+      }
+      throw new ForbiddenException('Only the current holder can hand this draft over');
+    }
+    const heldBy = detail.permit.draftHeldBy;
+    if (heldBy && heldBy === user.id) {
+      return;
+    }
+    const holder = parseDraftHolder(detail.permit.draftHolder);
+    if (holder === 'operator' && isAssignedExecutor(detail, user.id)) {
+      return;
+    }
+    if (holder === 'safety_officer' && isAssignedSafetyOfficer(detail, user.id)) {
+      return;
+    }
+    if (holder === 'ready_for_review' && detail.permit.createdBy === user.id) {
+      return;
+    }
+    throw new ForbiddenException('Only the current holder can return this draft');
+  }
+
+  private assertHandoffReady(detail: PermitDetail, to: DraftHolder): void {
+    const { permit, executors, hazards, ppe } = detail;
+    const errors: string[] = [];
+    if (to === 'operator') {
+      if (!permit.title?.trim()) errors.push('title is required');
+      if (!permit.departmentId) errors.push('departmentId is required');
+      if (!permit.locationId) errors.push('locationId is required');
+      if (!permit.plannedStartAt || !permit.plannedEndAt) errors.push('planned start and end are required');
+      if (executors.length === 0) errors.push('assign a primary executor');
+    }
+    if (to === 'safety_officer' || to === 'ready_for_review') {
+      if (!permit.workstationId) errors.push('workstation is required');
+      if (hazards.length === 0) errors.push('at least one hazard is required');
+      if (ppe.length === 0) errors.push('at least one PPE item is required');
+    }
+    if (to === 'ready_for_review' && parseDraftHolder(detail.permit.draftHolder) === 'safety_officer') {
+      if (!permit.safetyApprovalComment?.trim() || !permit.safetyApprovalSignedName?.trim()) {
+        errors.push('Safety Approval comment and typed name are required');
+      }
+    }
+    if (errors.length > 0) {
+      throw new BadRequestException({
+        message: 'Complete your sections before handing over',
+        error: 'VALIDATION_ERROR',
+        details: errors,
+      });
+    }
+  }
+
+  private heldByFor(holder: DraftHolder, detail: PermitDetail): string | null {
+    if (holder === 'receiver' || holder === 'ready_for_review') {
+      return detail.permit.createdBy;
+    }
+    if (holder === 'operator') {
+      const primary = detail.executors.find((row) => row.isPrimary) ?? detail.executors[0];
+      return primary?.workforceUserId ?? null;
+    }
+    return detail.safetyOfficers[0]?.workforceUserId ?? null;
+  }
+
+  private async notifyDraftHolder(
+    detail: PermitDetail,
+    tenantId: string,
+    actorId: string,
+    action: 'handoff' | 'return',
+  ): Promise<void> {
+    const heldBy = detail.permit.draftHeldBy;
+    if (!heldBy || heldBy === actorId) {
+      return;
+    }
+    const holder = parseDraftHolder(detail.permit.draftHolder);
+    const work = holderNextWork(holder);
+    const role = holderStageLabel(holder);
+    const appUrl = (this.configService.get<string>('appPublicUrl') ?? 'http://localhost:3000').replace(/\/$/, '');
+    const permitUrl = `${appUrl}/permits/${detail.permit.id}/edit`;
+    const title = detail.permit.title;
+    const verb = action === 'handoff' ? 'handed over to you' : 'returned to you';
+    const reason = action === 'return' ? detail.permit.draftReturnReason?.trim() : '';
+    const body = [
+      `Permit "${title}" was ${verb}. You hold the draft as ${role}. Complete: ${work}.`,
+      reason ? `Why return: ${reason}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    try {
+      await this.notificationsService?.generateSystem(tenantId, actorId, {
+        eventType: 'task_reminder',
+        category: 'workflow',
+        title: action === 'handoff' ? `Draft handed to you: ${title}` : `Draft returned to you: ${title}`,
+        body,
+        entityType: 'permit',
+        entityId: detail.permit.id,
+        recipientUserIds: [heldBy],
+        sourceModule: 'permit',
+      });
+    } catch {
+      // In-app notify is best-effort; email still goes out.
+    }
+
+    const [recipient] = await this.db
+      .select({ email: tenantUsers.email, firstName: tenantUsers.firstName })
+      .from(tenantUsers)
+      .where(and(eq(tenantUsers.tenantId, tenantId), eq(tenantUsers.keycloakUserId, heldBy)))
+      .limit(1);
+    if (recipient?.email) {
+      await this.mailService.send({
+        to: recipient.email,
+        subject: action === 'handoff' ? `Draft handed to you: ${title}` : `Draft returned to you: ${title}`,
+        text: `Hello${recipient.firstName ? ` ${recipient.firstName}` : ''},\n\n${body}\n\nOpen the permit: ${permitUrl}\n`,
+      });
+    }
   }
 
   private async notifyAssignedExecutors(

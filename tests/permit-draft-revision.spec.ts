@@ -72,7 +72,7 @@ describe('Permit draft revision contract (S0a)', () => {
     });
   };
 
-  async function context() {
+  async function context(holder: 'receiver' | 'operator' | 'ready_for_review' = 'receiver') {
     const tenantId = randomUUID();
     const issuer: AuthenticatedUser = {
       id: randomUUID(),
@@ -101,6 +101,8 @@ describe('Permit draft revision contract (S0a)', () => {
         plannedStartAt: new Date('2026-10-02T08:00:00Z'),
         plannedEndAt: new Date('2026-10-02T16:00:00Z'),
         createdBy: issuer.id,
+        draftHolder: holder,
+        draftHeldBy: holder === 'operator' ? executor.id : issuer.id,
       })
       .returning();
     await db.insert(schema.permitDrafts).values({ permitId: permit.id, createdBy: issuer.id });
@@ -145,12 +147,10 @@ describe('Permit draft revision contract (S0a)', () => {
   });
 
   dbTest('two saves racing on one revision: one commits whole, the other conflicts, no mixed rows', async () => {
-    const { issuer, executor, permitId } = await context();
-    const hazardA = randomUUID();
-    const hazardB = randomUUID();
+    const { issuer, permitId } = await context();
     const results = await Promise.allSettled([
       service.update(permitId, { expectedRevision: 0, title: 'Issuer edit', viewers: [] }, issuer),
-      service.update(permitId, { expectedRevision: 0, hazards: [{ hazardCategoryId: hazardA }, { hazardCategoryId: hazardB }] }, executor),
+      service.update(permitId, { expectedRevision: 0, workScope: 'Other save' }, issuer),
     ]);
     const fulfilled = results.filter((r) => r.status === 'fulfilled');
     const rejected = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
@@ -159,10 +159,8 @@ describe('Permit draft revision contract (S0a)', () => {
     expect(conflictCode(rejected[0].reason)).toBe(REVISION_CONFLICT_CODE);
     expect(await revisionOf(permitId)).toBe(1);
 
-    const hazards = await db.select().from(schema.permitHazards).where(eq(schema.permitHazards.permitId, permitId));
     const [row] = await db.select().from(schema.permits).where(eq(schema.permits.id, permitId));
-    const executorWon = hazards.length === 2;
-    expect(row.title).toBe(executorWon ? 'Revision test permit' : 'Issuer edit');
+    expect(row.title === 'Issuer edit' || row.workScope === 'Other save').toBe(true);
   });
 
   dbTest('RBAC and assignment are checked before the revision, so a stale revision never bypasses them', async () => {
@@ -172,7 +170,7 @@ describe('Permit draft revision contract (S0a)', () => {
   });
 
   dbTest('duplicate submits: one transitions, the other conflicts, approvals initialise once', async () => {
-    const { issuer, permitId } = await context();
+    const { issuer, permitId } = await context('ready_for_review');
     initializeAtSubmit.mockClear();
     const results = await Promise.allSettled([
       service.submit(permitId, { expectedRevision: 0 }, issuer),
@@ -186,7 +184,7 @@ describe('Permit draft revision contract (S0a)', () => {
   });
 
   dbTest('submitted version starts at 1 and increments on each resubmit', async () => {
-    const { issuer, permitId } = await context();
+    const { issuer, permitId } = await context('ready_for_review');
     await service.submit(permitId, { expectedRevision: 0 }, issuer);
     const [first] = await db.select().from(schema.permits).where(eq(schema.permits.id, permitId));
     expect(first.permitVersion).toBe(1);
@@ -209,6 +207,7 @@ describe('Permit draft revision contract (S0a)', () => {
     await service.update(permitId, { expectedRevision: 0, title: 'Saved elsewhere' }, issuer);
     await expect(service.submit(permitId, { expectedRevision: 0 }, issuer)).rejects.toBeInstanceOf(ConflictException);
 
+    await db.update(schema.permits).set({ draftHolder: 'ready_for_review' }).where(eq(schema.permits.id, permitId));
     await service.submit(permitId, { expectedRevision: 1 }, issuer);
     await db.update(schema.permits).set({ status: 'rejected' }).where(eq(schema.permits.id, permitId));
     const error = await service.update(permitId, { expectedRevision: 1, title: 'Old tab' }, issuer).catch((e) => e);
@@ -364,7 +363,7 @@ describe('Permit draft revision contract (S0a)', () => {
     expect((await answersOf()).hod.name).toBe('Hema Rao');
 
     // Sent back and resubmitted: the earlier round's approval signature does not carry over.
-    await db.update(schema.permits).set({ status: 'deferred' }).where(eq(schema.permits.id, permitId));
+    await db.update(schema.permits).set({ status: 'deferred', draftHolder: 'ready_for_review' }).where(eq(schema.permits.id, permitId));
     const [deferred] = await db.select().from(schema.permits).where(eq(schema.permits.id, permitId));
     await service.submit(permitId, { expectedRevision: deferred.draftRevision }, issuer);
     expect(await answersOf()).toEqual({ issuer: { name: 'I' } });

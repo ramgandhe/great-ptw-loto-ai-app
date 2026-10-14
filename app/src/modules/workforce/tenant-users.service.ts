@@ -150,7 +150,12 @@ export class TenantUsersService implements OnApplicationBootstrap {
       .where(
         and(
           eq(tenantUsers.tenantId, tenantId),
-          or(arrayContains(tenantUsers.roles, ['permit-operator']), eq(tenantUsers.role, 'permit-operator')),
+          or(
+            arrayContains(tenantUsers.roles, ['permit-operator']),
+            eq(tenantUsers.role, 'permit-operator'),
+            arrayContains(tenantUsers.roles, ['permit-receiver']),
+            eq(tenantUsers.role, 'permit-receiver'),
+          ),
           eq(tenantUsers.status, 'active'),
         ),
       );

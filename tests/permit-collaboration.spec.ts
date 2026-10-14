@@ -17,9 +17,9 @@ function operator(id = 'executor-user'): AuthenticatedUser {
   };
 }
 
-function detail(assignedUserId = 'executor-user'): PermitDetail {
+function detail(assignedUserId = 'executor-user', holder = 'operator'): PermitDetail {
   return {
-    permit: { id: 'permit-id', tenantId: 'tenant-id', status: 'draft' } as PermitDetail['permit'],
+    permit: { id: 'permit-id', tenantId: 'tenant-id', status: 'draft', draftHolder: holder } as PermitDetail['permit'],
     draft: null,
     hazards: [],
     ppe: [],
@@ -73,7 +73,7 @@ describe('sanitizeDraftUpdateDto', () => {
       tenantId: 'tenant-id',
     };
 
-    expect(sanitizeDraftUpdateDto(issuer, dto)).toEqual(dto);
+    expect(sanitizeDraftUpdateDto(issuer, dto)).toEqual({ title: 'Hot work' });
   });
 
   it('strips LOTOTO attach fields from permit-receiver patches', () => {
@@ -95,13 +95,14 @@ describe('sanitizeDraftUpdateDto', () => {
 });
 
 describe('permit segregation of duties', () => {
-  it('blocks the receiver from also being an operator', () => {
+  it('allows the receiver to also be an executor', () => {
     expect(() =>
       assertPermitSegregationOfDuties({
         receiverIds: ['issuer-1'],
         executorIds: ['issuer-1'],
+        approverIds: ['hod-1'],
       }),
-    ).toThrow(BadRequestException);
+    ).not.toThrow();
   });
 
   it('blocks an operator from also being the approver', () => {
@@ -133,7 +134,7 @@ describe('Safety Approval collaboration', () => {
       roles: ['safety-officer'],
       tenantId: 'tenant-id',
     };
-    const assigned = detail();
+    const assigned = detail('executor-user', 'safety_officer');
     assigned.safetyOfficers = [
       {
         id: 'row',
@@ -161,7 +162,7 @@ describe('Safety Approval collaboration', () => {
     const dto = { safetyOfficers: [{ workforceUserId: 'so-1' }], title: 'ignored' };
     expect(sanitizeDraftUpdateDto(hod, dto)).toEqual({ safetyOfficers: [{ workforceUserId: 'so-1' }] });
     expect(() =>
-      assertDraftUpdateAllowed(hod, detail(), { safetyOfficers: [{ workforceUserId: 'so-1' }] }),
+      assertDraftUpdateAllowed(hod, detail('executor-user', 'receiver'), { safetyOfficers: [{ workforceUserId: 'so-1' }] }),
     ).not.toThrow();
   });
 });

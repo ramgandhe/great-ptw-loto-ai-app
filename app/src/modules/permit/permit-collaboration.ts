@@ -9,6 +9,7 @@ import {
 import type { PermitDetail } from './permit.service';
 import type { UpdatePermitDto } from './dto/update-permit.dto';
 import { isAssignedSafetyOfficer } from './permit-access';
+import { parseDraftHolder, stepsEditableForHolder } from './permit-draft-handoff';
 
 export const ISSUER_ONLY_FIELDS = [
   'permitTypeId',
@@ -67,22 +68,16 @@ export function isAssignedExecutor(detail: PermitDetail, userId: string): boolea
   return detail.executors.some((executor) => executor.workforceUserId === userId);
 }
 
-/** Same person cannot be receiver and operator, or operator and approver, on one permit. */
+/** Same person cannot be operator and approver on one permit. Receiver may also be executor. */
 export function assertPermitSegregationOfDuties(params: {
   receiverIds: Array<string | null | undefined>;
   executorIds: Array<string | null | undefined>;
   approverIds?: Array<string | null | undefined>;
 }): void {
-  const receivers = new Set(params.receiverIds.filter((id): id is string => Boolean(id)));
   const executors = new Set(params.executorIds.filter((id): id is string => Boolean(id)));
   const approvers = new Set((params.approverIds ?? []).filter((id): id is string => Boolean(id)));
 
   for (const id of executors) {
-    if (receivers.has(id)) {
-      throw new BadRequestException(
-        'The permit receiver cannot also be a permit operator on the same permit',
-      );
-    }
     if (approvers.has(id)) {
       throw new BadRequestException(
         'A permit operator cannot also approve the same permit',
@@ -125,20 +120,43 @@ function pickFields(dto: UpdatePermitDto, allowed: ReadonlySet<string>): UpdateP
   return sanitized;
 }
 
+const RECEIVER_STAGE_FIELDS = [
+  ...ISSUER_ONLY_FIELDS,
+  'executors',
+  'currentStep',
+  'formSnapshot',
+] as const satisfies readonly (keyof UpdatePermitDto)[];
+
 export function sanitizeDraftUpdateDto(
   user: AuthenticatedUser,
   dto: UpdatePermitDto,
+  detail?: PermitDetail,
 ): UpdatePermitDto {
   if (isPrivilegedPermitEditor(user)) {
     return dto;
   }
 
+  const holder = parseDraftHolder(detail?.permit.draftHolder);
+
+  if (holder === 'operator') {
+    const allowed = new Set<string>([...EXECUTOR_FIELDS, ...SAFETY_APPROVAL_FIELDS]);
+    return pickFields(dto, allowed);
+  }
+
+  if (holder === 'safety_officer') {
+    return pickFields(dto, new Set<string>(SAFETY_APPROVAL_FIELDS));
+  }
+
+  if (holder === 'ready_for_review') {
+    return pickFields(dto, new Set<string>(['receiverSiteVisited', 'currentStep']));
+  }
+
   if (hasAnyRole(user, PERMIT_CREATE_ROLES) && !hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES)) {
-    return stripLototoAttach(dto);
+    return stripLototoAttach(pickFields(dto, new Set<string>(RECEIVER_STAGE_FIELDS)));
   }
 
   if (hasAnyRole(user, PERMIT_CREATE_ROLES)) {
-    return dto;
+    return stripLototoAttach(pickFields(dto, new Set<string>(RECEIVER_STAGE_FIELDS)));
   }
 
   if (hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES)) {
@@ -171,15 +189,38 @@ export function assertDraftUpdateAllowed(
     throw new ForbiddenException('Only an assigned safety officer can complete Safety Approval');
   }
 
+  const holder = parseDraftHolder(detail.permit.draftHolder);
+  if (holder === 'operator' && !isAssignedExecutor(detail, user.id) && !hasAnyRole(user, PERMIT_CREATE_ROLES)) {
+    throw new ForbiddenException('Only the assigned operator can update this permit while they hold the draft');
+  }
+
   if (hasAnyRole(user, PERMIT_CREATE_ROLES) && !hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES)) {
+    if (holder !== 'receiver' && holder !== 'ready_for_review') {
+      throw new ForbiddenException('The permit receiver cannot edit while another role holds the draft');
+    }
     return;
   }
 
-  if (hasAnyRole(user, PERMIT_CREATE_ROLES)) {
+  if (hasAnyRole(user, PERMIT_CREATE_ROLES) && holder === 'receiver') {
+    return;
+  }
+
+  if (hasAnyRole(user, PERMIT_CREATE_ROLES) && holder === 'operator' && isAssignedExecutor(detail, user.id)) {
+    const touchedIssuerFields = ISSUER_ONLY_FIELDS.filter((field) => dto[field] !== undefined);
+    if (touchedIssuerFields.length > 0) {
+      throw new ForbiddenException('Return the draft before changing receiver details');
+    }
+    return;
+  }
+
+  if (hasAnyRole(user, PERMIT_CREATE_ROLES) && holder === 'ready_for_review') {
     return;
   }
 
   if (hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES)) {
+    if (holder !== 'operator') {
+      throw new ForbiddenException('The assigned operator can edit only while they hold the draft');
+    }
     if (!isAssignedExecutor(detail, user.id)) {
       throw new ForbiddenException('You are not assigned as an executor on this permit');
     }
@@ -200,6 +241,9 @@ export function assertDraftUpdateAllowed(
   }
 
   if (user.roles.includes('safety-officer') && isAssignedSafetyOfficer(detail, user.id)) {
+    if (holder !== 'safety_officer') {
+      throw new ForbiddenException('The safety officer can edit only while they hold the draft');
+    }
     const touchedFields = Object.keys(dto) as (keyof UpdatePermitDto)[];
     const allowed = new Set<string>(SAFETY_APPROVAL_FIELDS);
     if (touchedFields.some((field) => !allowed.has(field))) {
@@ -247,19 +291,25 @@ export function canEditWizardStep(
   step: number,
   detail: PermitDetail,
 ): boolean {
-  if (hasAnyRole(user, PERMIT_CREATE_ROLES)) {
-    if (isTenantPrivileged(user.roles)) {
-      return true;
-    }
-    return step === 0 || step === 1 || step === 4 || step === 6;
+  if (isPrivilegedPermitEditor(user)) {
+    return true;
   }
 
-  if (hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES) && isAssignedExecutor(detail, user.id)) {
-    return step === 2 || step === 3 || step === 4;
+  const holder = parseDraftHolder(detail.permit.draftHolder);
+  if (!stepsEditableForHolder(holder).includes(step)) {
+    return false;
   }
 
-  if (user.roles.includes('safety-officer') && isAssignedSafetyOfficer(detail, user.id)) {
-    return step === 5;
+  if (holder === 'receiver' || holder === 'ready_for_review') {
+    return hasAnyRole(user, PERMIT_CREATE_ROLES);
+  }
+
+  if (holder === 'operator') {
+    return isAssignedExecutor(detail, user.id);
+  }
+
+  if (holder === 'safety_officer') {
+    return user.roles.includes('safety-officer') && isAssignedSafetyOfficer(detail, user.id);
   }
 
   return false;

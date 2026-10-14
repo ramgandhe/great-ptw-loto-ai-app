@@ -29,7 +29,7 @@ type WorkQueueValue = {
 const WorkQueueContext = createContext<WorkQueueValue>({ items: [], permits: [], counts: {}, loaded: false, failed: [], retry: () => undefined });
 
 export function WorkQueueProvider({ children }: { children: React.ReactNode }) {
-  const { roles, isLoading } = useAuthProfile();
+  const { roles, isLoading, profile } = useAuthProfile();
   const pathname = usePathname();
   const [data, setData] = useState<{
     permits: PermitRecord[];
@@ -69,9 +69,9 @@ export function WorkQueueProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<WorkQueueValue>(() => {
     const retry = () => setAttempt((n) => n + 1);
     if (!data) return { items: [], permits: [], counts: {}, loaded: false, failed: [], retry };
-    const items = buildWorkQueue(roles, data.permits, data.approvals, data.conflicts, data.incidents);
+    const items = buildWorkQueue(roles, data.permits, data.approvals, data.conflicts, data.incidents, Date.now(), profile?.id);
     return { items, permits: data.permits, counts: workCountsByRoute(items), loaded: true, failed: data.failed, retry };
-  }, [data, roles]);
+  }, [data, roles, profile?.id]);
 
   return <WorkQueueContext.Provider value={value}>{children}</WorkQueueContext.Provider>;
 }

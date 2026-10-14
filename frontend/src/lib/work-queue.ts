@@ -107,6 +107,7 @@ export function buildWorkQueue(
   conflicts: SimopsConflict[] = [],
   incidents: Incident[] = [],
   now = Date.now(),
+  userId?: string,
 ): WorkItem[] {
   const items: WorkItem[] = [];
   const add = (action: WorkAction, permit: PermitRecord, href: string, note?: string, urgent = false) =>
@@ -136,9 +137,15 @@ export function buildWorkQueue(
 
   for (const permit of permits) {
     if (reviewing.has(permit.id)) continue;
+    const holder = permit.draftHolder ?? "receiver";
+    if (userId && permit.draftHeldBy && permit.draftHeldBy !== userId) {
+      if (permit.status === "draft" || permit.status === "deferred" || permit.status === "rejected") {
+        continue;
+      }
+    }
     if (isSafetyOfficer) {
       if (permit.status === "draft" || permit.status === "deferred" || permit.status === "rejected") {
-        add("safety-check", permit, `/permits/${permit.id}/edit`);
+        if (holder === "safety_officer") add("safety-check", permit, `/permits/${permit.id}/edit`);
         continue;
       }
       if (permit.status === "pending_approval" || permit.status === "approved") {
@@ -148,7 +155,15 @@ export function buildWorkQueue(
     }
     switch (permit.status) {
       case "draft":
-        if (canCreate) add("finish-draft", permit, `/permits/${permit.id}/edit`);
+        if (holder === "operator") {
+          if (isExecutor || (canCreate && (!userId || permit.draftHeldBy === userId))) {
+            add("site-details", permit, `/permits/${permit.id}/edit`);
+          }
+        } else if (holder === "safety_officer") {
+          if (isSafetyOfficer) add("safety-check", permit, `/permits/${permit.id}/edit`);
+        } else if (holder === "ready_for_review") {
+          if (canCreate) add("finish-draft", permit, `/permits/${permit.id}/edit`, "Ready for your submit");
+        } else if (canCreate) add("finish-draft", permit, `/permits/${permit.id}/edit`);
         else if (isExecutor) add("site-details", permit, `/permits/${permit.id}/edit`);
         break;
       case "deferred":
