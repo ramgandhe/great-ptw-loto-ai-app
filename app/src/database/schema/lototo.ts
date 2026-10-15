@@ -175,3 +175,19 @@ export const isolationSequences = pgTable(
     ),
   ],
 );
+
+/** Copied from the platform list when the tenant is created. Existing tenants have none. */
+export const energySources = pgTable(
+  'energy_sources',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    code: varchar('code', { length: 64 }).notNull(),
+    name: varchar('name', { length: 64 }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('energy_sources_tenant_code_unique').on(table.tenantId, table.code),
+    uniqueIndex('energy_sources_tenant_name_unique').on(table.tenantId, table.name),
+    index('energy_sources_tenant_id_idx').on(table.tenantId),
+  ],
+);

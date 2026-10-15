@@ -116,6 +116,81 @@ export const platformTenantsApi = {
     fetchApi<{ id: string; deleted: boolean }>(`/platform/tenants/${id}`, { method: "DELETE" }),
 };
 
+export type DefaultLocationType = {
+  id: string;
+  name: string;
+  description: string | null;
+};
+
+export type DefaultPpeCategory = {
+  id: string;
+  name: string;
+  isFallback: boolean;
+};
+
+export type DefaultPpeItem = {
+  id: string;
+  code: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  description: string | null;
+};
+
+export type DefaultPermitType = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  color: string;
+};
+
+const defaults = "/platform/defaults";
+
+export const platformDefaultsApi = {
+  locationTypes: () => fetchApi<DefaultLocationType[]>(`${defaults}/location-types`),
+  createLocationType: (body: { name: string; description?: string }) =>
+    fetchApi<DefaultLocationType>(`${defaults}/location-types`, { method: "POST", body: JSON.stringify(body) }),
+  updateLocationType: (id: string, body: { name: string; description?: string }) =>
+    fetchApi<DefaultLocationType>(`${defaults}/location-types/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  removeLocationType: (id: string) =>
+    fetchApi<{ id: string; deleted: boolean }>(`${defaults}/location-types/${id}`, { method: "DELETE" }),
+
+  ppeCategories: () => fetchApi<DefaultPpeCategory[]>(`${defaults}/ppe-categories`),
+  createPpeCategory: (name: string) =>
+    fetchApi<DefaultPpeCategory>(`${defaults}/ppe-categories`, { method: "POST", body: JSON.stringify({ name }) }),
+  updatePpeCategory: (id: string, name: string) =>
+    fetchApi<DefaultPpeCategory>(`${defaults}/ppe-categories/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+  removePpeCategory: (id: string, force = false) =>
+    fetchApi<{ id: string; deleted: boolean }>(`${defaults}/ppe-categories/${id}${force ? "?force=true" : ""}`, {
+      method: "DELETE",
+    }),
+
+  ppeItems: () => fetchApi<DefaultPpeItem[]>(`${defaults}/ppe-items`),
+  createPpeItem: (body: { code: string; name: string; categoryId: string; description?: string }) =>
+    fetchApi<DefaultPpeItem>(`${defaults}/ppe-items`, { method: "POST", body: JSON.stringify(body) }),
+  updatePpeItem: (id: string, body: { code: string; name: string; categoryId: string; description?: string }) =>
+    fetchApi<DefaultPpeItem>(`${defaults}/ppe-items/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  removePpeItem: (id: string) =>
+    fetchApi<{ id: string; deleted: boolean }>(`${defaults}/ppe-items/${id}`, { method: "DELETE" }),
+
+  energySources: () => fetchApi<DefaultPpeCategory[]>(`${defaults}/energy-sources`),
+  createEnergySource: (name: string) =>
+    fetchApi<DefaultPpeCategory>(`${defaults}/energy-sources`, { method: "POST", body: JSON.stringify({ name }) }),
+  updateEnergySource: (id: string, name: string) =>
+    fetchApi<DefaultPpeCategory>(`${defaults}/energy-sources/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+  removeEnergySource: (id: string) =>
+    fetchApi<{ id: string; deleted: boolean }>(`${defaults}/energy-sources/${id}`, { method: "DELETE" }),
+
+  permitTypes: () => fetchApi<DefaultPermitType[]>(`${defaults}/permit-types`),
+  createPermitType: (body: { code: string; name: string; description?: string; color: string }) =>
+    fetchApi<DefaultPermitType>(`${defaults}/permit-types`, { method: "POST", body: JSON.stringify(body) }),
+  updatePermitType: (id: string, body: { code: string; name: string; description?: string; color: string }) =>
+    fetchApi<DefaultPermitType>(`${defaults}/permit-types/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  removePermitType: (id: string) =>
+    fetchApi<{ id: string; deleted: boolean }>(`${defaults}/permit-types/${id}`, { method: "DELETE" }),
+};
+
 export const industriesApi = {
   list: () => fetchApi<Industry[]>("/platform/industries"),
   create: (name: string) =>

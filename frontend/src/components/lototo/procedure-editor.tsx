@@ -10,7 +10,7 @@ import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { LOTOTO_LIBRARY_WRITE_ROLES } from "@/lib/auth/roles";
-import { ENERGY_SOURCE_OPTIONS } from "@/lib/lototo/form-options";
+import { energySourceChoices, useEnergySourceOptions } from "@/lib/lototo/energy-sources";
 import {
   createLototoProcedure,
   deactivateLototoProcedure,
@@ -197,6 +197,7 @@ export function LototoProcedureEditor({
   initialMachineryId?: string;
 }) {
   const router = useRouter();
+  const energyOptions = useEnergySourceOptions();
   const { roles } = useAuthProfile();
   const canWrite = hasAnyRole(roles, LOTOTO_LIBRARY_WRITE_ROLES);
   const [assets, setAssets] = useState<AssetRecord[]>([]);
@@ -506,7 +507,7 @@ export function LototoProcedureEditor({
             </div>
             <input className={FIELD} placeholder="Point ID (E-1)" disabled={readOnly} value={point.pointCode} onChange={(e) => setPoint(index, { pointCode: e.target.value })} />
             <select className={FIELD} disabled={readOnly} value={point.energyType} onChange={(e) => setPoint(index, { energyType: e.target.value })}>
-              {ENERGY_SOURCE_OPTIONS.filter((opt) => opt.value !== "gravitational" || point.energyType === "gravitational").map((opt) => (
+              {energySourceChoices(energyOptions, point.energyType).map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>

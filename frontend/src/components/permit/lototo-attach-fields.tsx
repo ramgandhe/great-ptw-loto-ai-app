@@ -6,7 +6,7 @@ import { MasterDataSelect } from "./master-data-select";
 import { formatWorkforceOptionLabel } from "@/components/lototo/select-field";
 import type { LototoProcedure, LototoProcedureListItem } from "@/lib/lototo/types";
 import { emptyLototoExtraPoint } from "@/lib/permit/form";
-import { ENERGY_SOURCE_OPTIONS } from "@/lib/lototo/form-options";
+import { energySourceChoices, useEnergySourceOptions } from "@/lib/lototo/energy-sources";
 import type { PermitLototoInput } from "@/lib/permit/types";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { X } from "lucide-react";
@@ -65,6 +65,7 @@ export function LototoAttachFields({
   onChange: (next: PermitLototoInput) => void;
   onRemove: () => void;
 }) {
+  const energyOptions = useEnergySourceOptions();
   const basePoints = detail?.publishedVersion?.lockoutPoints ?? [];
   const naBase = new Map(
     item.stepNa.filter((row) => row.basePointId).map((row) => [row.basePointId, row]),
@@ -223,7 +224,7 @@ export function LototoAttachFields({
                     onChange({ ...item, extraPoints });
                   }}
                 >
-                  {ENERGY_SOURCE_OPTIONS.filter((opt) => opt.value !== "gravitational" || point.energyType === "gravitational").map((opt) => (
+                  {energySourceChoices(energyOptions, point.energyType).map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>

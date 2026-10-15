@@ -46,6 +46,7 @@ import {
   revalidationHistory,
   tenantUsers,
 } from '../../database/schema';
+import { allowedEnergyCodes } from '../lototo/energy-source-codes';
 import { hazardFitsPermitType } from '../master-data/default-hazards';
 import { limitIsLooser } from '../master-data/gas-test-defaults';
 import { GasTestingService } from '../master-data/gas-testing.service';
@@ -1537,9 +1538,13 @@ export class PermitService {
 
       const extraPoints = (item.extraPoints ?? []).filter((point) => point.pointCode.trim());
       const extraByCode = new Map<string, string>();
+      const allowedEnergy = await allowedEnergyCodes(db, tenantId);
       for (const [index, point] of extraPoints.entries()) {
         if (!point.energyType.trim()) {
           throw new BadRequestException('Extra isolation points need an energy type');
+        }
+        if (!allowedEnergy.has(point.energyType.trim())) {
+          throw new BadRequestException('Choose an energy source from the list');
         }
         const [extra] = await db
           .insert(permitLototoExtraPoints)

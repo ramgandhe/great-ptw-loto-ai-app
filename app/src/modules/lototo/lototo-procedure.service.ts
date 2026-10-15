@@ -30,6 +30,7 @@ import {
   LototoProcedureContentDto,
   UpdateLototoProcedureDto,
 } from './dto/lototo-procedure.dto';
+import { assertAllowedEnergyType } from './energy-source-codes';
 import { LototoValidationService } from './lototo-validation.service';
 
 @Injectable()
@@ -43,6 +44,7 @@ export class LototoProcedureService {
 
   async create(dto: CreateLototoProcedureDto, user: AuthenticatedUser) {
     const tenantId = this.validationService.requireTenant(user);
+    await this.assertEnergyTypes(tenantId, dto.lockoutPoints);
     const target = await this.validationService.resolveAssetLink(tenantId, dto);
     if (dto.workstationId) {
       await this.validationService.assertWorkstationExists(tenantId, dto.workstationId);
@@ -147,6 +149,7 @@ export class LototoProcedureService {
 
   async update(id: string, dto: UpdateLototoProcedureDto, user: AuthenticatedUser) {
     const tenantId = this.validationService.requireTenant(user);
+    await this.assertEnergyTypes(tenantId, dto.lockoutPoints);
     const procedure = await this.requireProcedure(id, tenantId);
     this.assertMutable(procedure);
     const target =
@@ -687,6 +690,13 @@ export class LototoProcedureService {
       return null;
     }
     return row;
+  }
+
+  private async assertEnergyTypes(tenantId: string, points: { energyType: string }[] | undefined) {
+    if (!points?.length) return;
+    for (const point of points) {
+      await assertAllowedEnergyType(this.db, tenantId, point.energyType);
+    }
   }
 
   private hasContent(dto: LototoProcedureContentDto) {

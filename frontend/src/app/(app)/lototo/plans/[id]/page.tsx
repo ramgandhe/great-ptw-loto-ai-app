@@ -12,11 +12,8 @@ import {
   configureIsolationSequence,
   getLototoPlan,
 } from "@/lib/lototo/api";
-import {
-  ASSIGNMENT_ROLE_OPTIONS,
-  ENERGY_SOURCE_OPTIONS,
-  loadLototoFormOptions,
-} from "@/lib/lototo/form-options";
+import { ASSIGNMENT_ROLE_OPTIONS, loadLototoFormOptions } from "@/lib/lototo/form-options";
+import { energySourceChoices, useEnergySourceOptions } from "@/lib/lototo/energy-sources";
 import { placeApi, type AssetRecord } from "@/lib/place/api";
 import type {
   IsolationPoint,
@@ -51,6 +48,7 @@ export default function LototoPlanDetailPage() {
 
   const [isolationNumber, setIsolationNumber] = useState("");
   const [isolationDescription, setIsolationDescription] = useState("");
+  const energyOptions = useEnergySourceOptions();
   const [energySourceType, setEnergySourceType] = useState("electrical");
   const [workforceUserId, setWorkforceUserId] = useState("");
   const [assignmentRole, setAssignmentRole] = useState<LototoAssignmentRole>("permit-operator");
@@ -309,10 +307,7 @@ export default function LototoPlanDetailPage() {
                 required
                 value={energySourceType}
                 onChange={setEnergySourceType}
-                options={ENERGY_SOURCE_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: option.label,
-                }))}
+                options={energySourceChoices(energyOptions, energySourceType)}
               />
 
               <FormField label="Description" htmlFor="isolation-description">

@@ -3,7 +3,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { EquipmentService } from './equipment.service';
 import { IsolationController } from './isolation.controller';
 import { IsolationService } from './isolation.service';
-import { LototoController } from './lototo.controller';
+import { LototoController, LototoEnergySourcesController } from './lototo.controller';
 import { LototoProcedureController, LototoProcedureVersionController } from './lototo-procedure.controller';
 import { LototoCacheService } from './lototo-cache.service';
 import { LototoJobsService } from './lototo-jobs.service';
@@ -16,7 +16,7 @@ import { SequenceService } from './sequence.service';
 
 @Module({
   imports: [NotificationsModule],
-  controllers: [LototoController, IsolationController, LototoProcedureController, LototoProcedureVersionController],
+  controllers: [LototoEnergySourcesController, LototoController, IsolationController, LototoProcedureController, LototoProcedureVersionController],
   providers: [
     LototoService,
     LototoProcedureService,

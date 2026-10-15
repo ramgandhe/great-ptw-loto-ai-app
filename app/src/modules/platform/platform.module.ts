@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { KeycloakAdminModule } from '../../infrastructure/keycloak/keycloak-admin.module';
+import { PlatformDefaultsController } from './platform-defaults.controller';
+import { PlatformDefaultsService } from './platform-defaults.service';
 import {
   AccessRequestsController,
   PlatformAccessRequestsController,
@@ -18,7 +20,8 @@ import { PlatformTenantsService } from './platform-tenants.service';
     PlatformTenantInvitesController,
     AccessRequestsController,
     PlatformAccessRequestsController,
+    PlatformDefaultsController,
   ],
-  providers: [PlatformTenantsService, PlatformAccessRequestsService],
+  providers: [PlatformTenantsService, PlatformAccessRequestsService, PlatformDefaultsService],
 })
 export class PlatformModule {}

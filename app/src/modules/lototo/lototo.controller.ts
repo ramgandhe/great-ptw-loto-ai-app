@@ -7,6 +7,17 @@ import { CreateLototoPlanDto } from './dto/create-lototo-plan.dto';
 import { LOTOTO_READ_ROLES, LOTOTO_WRITE_ROLES } from './lototo.constants';
 import { LototoService } from './lototo.service';
 
+@Controller('lototo/energy-sources')
+export class LototoEnergySourcesController {
+  constructor(private readonly lototoService: LototoService) {}
+
+  @Roles(...LOTOTO_READ_ROLES)
+  @Get()
+  list(@CurrentUser() user: AuthenticatedUser) {
+    return this.lototoService.listEnergySources(user);
+  }
+}
+
 @Controller('lototo/plans')
 export class LototoController {
   constructor(private readonly lototoService: LototoService) {}

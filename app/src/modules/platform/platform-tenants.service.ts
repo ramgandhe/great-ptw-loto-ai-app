@@ -20,9 +20,8 @@ import { CreateTenantDto, IndustryNameDto, UpdateTenantDto } from './dto/create-
 import { defaultSiteLabel, formatOrganisationAddress } from './tenant-site';
 import { ensureDefaultApprovalWorkflow } from '../approval/ensure-default-workflow';
 import { ensureDefaultHazards } from '../master-data/default-hazards';
-import { ensureDefaultPermitTypes } from '../master-data/default-permit-types';
 import { ensureReferenceTemplates } from '../organisation/ensure-reference-templates';
-import { ensureDefaultPlaceCatalogues } from '../place/default-catalogues';
+import { copyPlatformDefaults } from './copy-platform-defaults';
 
 @Injectable()
 export class PlatformTenantsService {
@@ -256,9 +255,8 @@ export class PlatformTenantsService {
 
         await ensureDefaultApprovalWorkflow(tx, tenantId, actorId);
         const catalogueActor = actorId ?? keycloakUser.id;
-        await ensureDefaultPermitTypes(tx, tenantId, catalogueActor);
+        await copyPlatformDefaults(tx, tenantId, catalogueActor);
         await ensureDefaultHazards(tx, tenantId, catalogueActor);
-        await ensureDefaultPlaceCatalogues(tx, tenantId, catalogueActor);
         await ensureReferenceTemplates(tx, tenantId, catalogueActor);
 
         return { organisation, invite };

@@ -6,6 +6,7 @@ import {
   isolationPoints,
   isolationSequences,
   lototoAssignments,
+  energySources,
   lototoPlans,
   permitLototo,
 } from '../../database/schema';
@@ -27,6 +28,15 @@ export class LototoService {
     private readonly lototoCacheService: LototoCacheService,
     private readonly notificationService: NotificationService,
   ) {}
+
+  async listEnergySources(user: AuthenticatedUser) {
+    const tenantId = this.validationService.requireTenant(user);
+    return this.db
+      .select({ code: energySources.code, name: energySources.name })
+      .from(energySources)
+      .where(eq(energySources.tenantId, tenantId))
+      .orderBy(asc(energySources.name));
+  }
 
   async create(dto: CreateLototoPlanDto, user: AuthenticatedUser) {
     const tenantId = this.validationService.requireTenant(user);

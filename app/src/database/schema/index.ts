@@ -6,6 +6,7 @@ export * from './master-data';
 export * from './organisation';
 export * from './place';
 export * from './platform';
+export * from './platform-defaults';
 export * from './workforce';
 export * from './permit';
 export * from './approval';

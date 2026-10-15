@@ -5,6 +5,7 @@ import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { isolationPoints } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { AddIsolationPointDto } from './dto/add-isolation-point.dto';
+import { assertAllowedEnergyType } from './energy-source-codes';
 import { EquipmentService } from './equipment.service';
 import { LototoCacheService } from './lototo-cache.service';
 import { LototoLogService } from './lototo-log.service';
@@ -32,6 +33,9 @@ export class IsolationService {
       machineryId: dto.machineryId ?? plan.machineryId,
     });
     await this.validationService.assertIsolationNumberAvailable(planId, dto.isolationNumber);
+    if (dto.energySource?.energySourceType) {
+      await assertAllowedEnergyType(this.db, tenantId, dto.energySource.energySourceType);
+    }
 
     const equipmentEnergySourceId = await this.equipmentService.resolveEnergySourceId(
       planId,
