@@ -13,6 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { auditColumns } from './base';
 import { locations } from './organisation';
+import { assets, workLocations } from './place';
 
 export const CHECKLIST_STATUSES = ['draft', 'published'] as const;
 export type ChecklistStatus = (typeof CHECKLIST_STATUSES)[number];
@@ -41,6 +42,20 @@ export const permitTypes = pgTable(
   (table) => [
     uniqueIndex('permit_types_tenant_code_unique').on(table.tenantId, table.code),
     index('permit_types_tenant_id_idx').on(table.tenantId),
+  ],
+);
+
+export const ppeCategories = pgTable(
+  'ppe_categories',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    name: varchar('name', { length: 128 }).notNull(),
+    status: varchar('status', { length: 32 }).notNull().default('active'),
+  },
+  (table) => [
+    uniqueIndex('ppe_categories_tenant_name_unique').on(table.tenantId, table.name),
+    index('ppe_categories_tenant_id_idx').on(table.tenantId),
   ],
 );
 
@@ -105,9 +120,13 @@ export const gasTestingCatalogue = pgTable(
   {
     ...auditColumns,
     tenantId: uuid('tenant_id').notNull(),
-    workstationId: uuid('workstation_id')
-      .notNull()
-      .references(() => workstationCatalogue.id, { onDelete: 'restrict' }),
+    workstationId: uuid('workstation_id').references(() => workstationCatalogue.id, {
+      onDelete: 'restrict',
+    }),
+    workLocationId: uuid('work_location_id').references(() => workLocations.id, {
+      onDelete: 'restrict',
+    }),
+    assetId: uuid('asset_id').references(() => assets.id, { onDelete: 'restrict' }),
     parameter: varchar('parameter', { length: 255 }).notNull(),
     unit: varchar('unit', { length: 32 }).notNull(),
     minimum: doublePrecision('minimum').notNull(),
@@ -120,8 +139,16 @@ export const gasTestingCatalogue = pgTable(
       table.workstationId,
       table.parameter,
     ),
+    uniqueIndex('gas_testing_catalogue_tenant_location_parameter_unique')
+      .on(table.tenantId, table.workLocationId, table.parameter)
+      .where(sql`${table.workLocationId} IS NOT NULL`),
+    uniqueIndex('gas_testing_catalogue_tenant_asset_parameter_unique')
+      .on(table.tenantId, table.assetId, table.parameter)
+      .where(sql`${table.assetId} IS NOT NULL`),
     index('gas_testing_catalogue_tenant_id_idx').on(table.tenantId),
     index('gas_testing_catalogue_workstation_id_idx').on(table.workstationId),
+    index('gas_testing_catalogue_work_location_id_idx').on(table.workLocationId),
+    index('gas_testing_catalogue_asset_id_idx').on(table.assetId),
   ],
 );
 

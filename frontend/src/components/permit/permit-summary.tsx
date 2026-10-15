@@ -26,12 +26,12 @@ const named = <T extends { id: string }>(rows: T[], label: (row: T) => string) =
 /** Plain-language list of what the permit is still missing. */
 export function permitGaps(form: PermitFormState): string[] {
   const gaps: string[] = [];
-  if (!form.locationId && !form.workstationId && !form.machineryId) gaps.push("Where the work happens");
+  if (!form.workLocationId && !form.locationId && !form.workstationId && !form.machineryId) gaps.push("Where the work happens");
   if (!form.plannedStartAt || !form.plannedEndAt) gaps.push("Planned start and end");
   if (!form.hazards.some((h) => h.hazardCategoryId)) gaps.push("Hazards");
   if (!form.ppe.some((p) => p.ppeCatalogueId)) gaps.push("PPE");
   if (form.lototoRequired && !form.lototo.some((l) => l.procedureId)) gaps.push("LOTOTO procedure (marked as required)");
-  if (form.gasTestingRequired && !form.gasTesting.some((g) => g.gasTestingCatalogueId)) gaps.push("Gas tests (marked as required)");
+  if (form.gasTestingRequired && !form.gasTesting.some((g) => !g.removedReason?.trim() && (g.gasTestingCatalogueId || g.parameter?.trim()))) gaps.push("Gas tests (marked as required)");
   if (!form.executors.some((e) => e.workforceUserId)) gaps.push("Executor");
   return gaps;
 }
@@ -157,12 +157,14 @@ export function PermitSummary({
   identity,
   attachments = [],
   showHeader = true,
+  placeText,
 }: {
   form: PermitFormState;
   status?: string;
   reference?: string | null;
   identity?: PermitIdentity;
   attachments?: PermitAttachment[];
+  placeText?: string;
   /** Pages that already show the title, reference and status pass false to avoid repeating them. */
   showHeader?: boolean;
 }) {
@@ -234,7 +236,7 @@ export function PermitSummary({
   const ppe = form.ppe
     .filter((p) => p.ppeCatalogueId)
     .map((p) => `${pick(catalogues?.ppe, p.ppeCatalogueId)}${p.quantity > 1 ? ` × ${p.quantity}` : ""}`);
-  const gasRows = form.gasTesting.filter((g) => g.gasTestingCatalogueId);
+  const gasRows = form.gasTesting.filter((g) => g.gasTestingCatalogueId || g.parameter?.trim());
   const executors = form.executors.filter((e) => e.workforceUserId);
   const operator = executors.find((e) => e.isPrimary) ?? executors[0];
   const officers = form.safetyOfficers.filter((e) => e.workforceUserId).map((e) => person(e.workforceUserId));
@@ -282,8 +284,10 @@ export function PermitSummary({
         {form.emergencyPhone.trim() ? <Field label="Emergency phone">{form.emergencyPhone.trim()}</Field> : null}
       </Section>
 
-      <Section kind="where" title="Where" icon={form.machineryId ? DOMAIN_ICONS.machinery : undefined}>
-        {path.length > 0 ? (
+      <Section kind="where" title="Where" icon={form.assetIds.length || form.machineryId ? DOMAIN_ICONS.machinery : undefined}>
+        {placeText ? (
+          <p className="font-medium">{placeText}</p>
+        ) : path.length > 0 ? (
           <p className="flex flex-wrap items-center gap-1 font-medium">
             {path.map((part, index) => (
               <span key={`${part}-${index}`} className="flex items-center gap-1">
@@ -497,14 +501,20 @@ export function PermitSummary({
           ) : (
             <div className="grid gap-3">
               {gasRows.map((item) => {
-                const row = catalogues?.gas.get(item.gasTestingCatalogueId);
+                const row = item.gasTestingCatalogueId ? catalogues?.gas.get(item.gasTestingCatalogueId) : undefined;
+                const minimum = item.minimum ?? row?.minimum;
+                const maximum = item.maximum ?? row?.maximum;
                 return (
                   <div key={item.gasTestingCatalogueId} className="grid gap-1">
-                    <p className="font-medium">{row?.parameter ?? (catalogues ? "Unknown parameter" : loading)}</p>
-                    <Field label="Acceptable range">
-                      {row ? `${row.minimum}–${row.maximum}` : catalogues ? "—" : loading}
-                    </Field>
-                    <Field label="Unit">{row?.unit ?? (catalogues ? "—" : loading)}</Field>
+                    <p className="font-medium">{item.parameter || row?.parameter || (catalogues ? "Unknown parameter" : loading)}{item.removedReason ? " (removed for this permit)" : ""}</p>
+                    {item.removedReason ? <p className="text-muted-foreground">{item.removedReason}</p> : (
+                      <>
+                        <Field label="Acceptable range">
+                          {minimum != null && maximum != null ? `${minimum}–${maximum}` : catalogues ? "—" : loading}
+                        </Field>
+                        <Field label="Unit">{item.unit || row?.unit || (catalogues ? "—" : loading)}</Field>
+                      </>
+                    )}
                   </div>
                 );
               })}

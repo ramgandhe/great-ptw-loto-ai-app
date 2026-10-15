@@ -22,6 +22,8 @@ export interface PermitSubmissionRecord {
   executors: (typeof permitExecutors.$inferSelect)[];
   safetyOfficers?: (typeof permitSafetyOfficers.$inferSelect)[];
   attachments: (typeof permitAttachments.$inferSelect)[];
+  /** Assets linked to the permit. Falls back to machineryId when omitted. */
+  assetIds?: string[];
 }
 
 @Injectable()
@@ -39,16 +41,12 @@ export class PermitValidationService {
       errors.push('title is required');
     }
 
-    if (!permit.departmentId) {
-      errors.push('departmentId is required');
+    if (!permit.siteId) {
+      errors.push('site is required');
     }
 
-    if (!permit.locationId) {
-      errors.push('locationId is required');
-    }
-
-    if (!permit.workstationId) {
-      errors.push('workstation is required');
+    if (!permit.workLocationId) {
+      errors.push('work location is required');
     }
 
     if (!permit.plannedStartAt || !permit.plannedEndAt) {
@@ -70,8 +68,9 @@ export class PermitValidationService {
     }
 
     if (permit.lototoRequired) {
-      if (!permit.machineryId) {
-        errors.push('machinery is required when LOTOTO is required');
+      const assetIds = record.assetIds ?? (permit.machineryId ? [permit.machineryId] : []);
+      if (assetIds.length === 0) {
+        errors.push('at least one asset is required when LOTOTO is required');
       }
       if (lototo.length === 0) {
         errors.push('at least one LOTOTO procedure is required when LOTOTO is required');
@@ -89,8 +88,13 @@ export class PermitValidationService {
       }
     }
 
+    const activeGasTests = gasTesting.filter((row) => !row.removedReason?.trim());
+    if (gasTesting.some((row) => row.removedReason !== null && row.removedReason !== undefined && !row.removedReason.trim())) {
+      errors.push('a removed gas test needs a reason');
+    }
+
     if (permit.gasTestingRequired) {
-      if (gasTesting.length === 0) {
+      if (activeGasTests.length === 0) {
         errors.push('at least one gas testing item is required when gas testing is required');
       }
     }

@@ -12,9 +12,10 @@ export default function WorkstationsPage() {
   return (
     <EntityCrudPage
       title="Workstations"
-      description="Manage workstations within locations."
+      description="Kept from before work locations. Read only."
       resource="workstations"
       fields={fields}
+      readOnly
     />
   );
 }

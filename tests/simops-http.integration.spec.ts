@@ -11,6 +11,7 @@ import { AuthenticatedUser } from '../app/src/common/interfaces/authenticated-us
 import { QueueService } from '../app/src/infrastructure/queue/queue.service';
 import * as schema from '../app/src/database/schema';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
+import { insertAssetTarget } from './helpers/place-fixture';
 
 function authGuardAs(user: AuthenticatedUser) {
   return {
@@ -125,6 +126,8 @@ describe('SIMOPS HTTP integration (PUS-166 / PUS-171)', () => {
         createdBy: supervisorId,
       })
       .returning();
+
+    await insertAssetTarget(db, { tenantId, createdBy: supervisorId, name: 'Shared compressor', assetId: machinery.id });
 
     const shared = {
       tenantId,

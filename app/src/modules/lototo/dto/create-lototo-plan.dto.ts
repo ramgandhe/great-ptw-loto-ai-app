@@ -1,8 +1,13 @@
 import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class CreateLototoPlanDto {
+  @IsOptional()
   @IsUUID()
-  machineryId!: string;
+  machineryId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  assetId?: string;
 
   @IsString()
   @MaxLength(255)

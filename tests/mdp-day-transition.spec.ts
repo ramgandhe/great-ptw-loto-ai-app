@@ -110,10 +110,15 @@ describe('MDP day-transition and renewal (SP-09.03 / FR-MDP-009)', () => {
     };
 
     async function seedOrg(timezone = 'UTC') {
+      const [fallback] = await db
+        .select({ id: schema.industries.id })
+        .from(schema.industries)
+        .where(eq(schema.industries.isFallback, true));
       await db.insert(schema.organisations).values({
         tenantId,
         name: 'Test Org',
         timezone,
+        industryId: fallback!.id,
         createdBy: issuerId,
       });
     }

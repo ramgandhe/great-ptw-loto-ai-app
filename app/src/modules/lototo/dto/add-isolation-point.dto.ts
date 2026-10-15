@@ -29,8 +29,13 @@ export class EnergySourceDto {
 }
 
 export class AddIsolationPointDto {
+  @IsOptional()
   @IsUUID()
-  machineryId!: string;
+  machineryId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  assetId?: string;
 
   @IsString()
   @MaxLength(64)

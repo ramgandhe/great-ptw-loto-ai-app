@@ -15,7 +15,7 @@ import type { AuditLogEntry, PermitHistoryEntry } from "@/lib/closure/types";
 import { permitTemplatesApi, type PermitTemplate } from "@/lib/organisation/templates";
 import { applicableTemplates, getWizardStepOwner, needsSafetyApproval, PERMIT_WIZARD_STEPS, permitDetailToForm, validateStep } from "@/lib/permit/form";
 import { buildJourney, EDGES, formatDuration, NODE_BY_ID, stageTitle, type Journey } from "@/lib/permit/process";
-import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
+import { loadLookups, nameOf, placeOf, type Lookups } from "@/lib/lookups";
 import { formatDateTime, formatRelative, formatWindow } from "@/lib/format";
 import { useWorkQueue } from "@/lib/work-queue-context";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
@@ -220,7 +220,7 @@ export function PermitJourney({ id, part = "all" }: { id: string; part?: "all" |
 
   const facts: [string, React.ReactNode][] = [
     ["Permit type", nameOf(lookups?.permitTypes, permit.permitTypeId) ?? "—"],
-    ["Location", [nameOf(lookups?.plants, permit.plantId), nameOf(lookups?.locations, permit.locationId), nameOf(lookups?.workstations, permit.workstationId)].filter(Boolean).join(" · ") || "—"],
+    ["Location", placeOf(permit, lookups) ?? "—"],
     ["Equipment", nameOf(lookups?.machinery, permit.machineryId) ?? "—"],
     ["Planned window", formatWindow(permit.plannedStartAt, permit.plannedEndAt) || "Not set"],
     ["Issuer", person(permit.submittedBy ?? permit.createdBy) ?? "—"],

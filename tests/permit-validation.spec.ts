@@ -24,6 +24,10 @@ describe('PermitValidationService', () => {
       locationId: 'location-id',
       workstationId: 'workstation-id',
       machineryId: null,
+      siteId: 'site-id',
+      workLocationId: 'work-location-id',
+      exactSpot: null,
+      placePath: null,
       lototoRequired: false,
       gasTestingRequired: false,
       plannedStartAt: new Date('2026-08-01T08:00:00Z'),
@@ -43,6 +47,9 @@ describe('PermitValidationService', () => {
       executionStart: {},
       formResponses: [],
       draftRevision: 0,
+      draftHolder: 'receiver',
+      draftHeldBy: null,
+      draftReturnReason: null,
       renewedFromPermitId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -99,16 +106,16 @@ describe('PermitValidationService', () => {
     expect(() => service.validateForSubmit(baseRecord())).not.toThrow();
   });
 
-  it('rejects submission without location', () => {
+  it('rejects submission without a site', () => {
     const record = baseRecord();
-    record.permit.locationId = null;
+    record.permit.siteId = null;
 
     expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
   });
 
-  it('rejects submission without workstation', () => {
+  it('rejects submission without a work location', () => {
     const record = baseRecord();
-    record.permit.workstationId = null;
+    record.permit.workLocationId = null;
 
     expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
   });
@@ -127,10 +134,31 @@ describe('PermitValidationService', () => {
     expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
   });
 
+  it('rejects LOTOTO required without an asset', () => {
+    const record = baseRecord();
+    record.permit.lototoRequired = true;
+    record.assetIds = [];
+    record.lototo = [
+      {
+        id: 'instance-id',
+        procedureId: 'procedure-id',
+        procedureVersionId: 'version-id',
+        frozenAt: null,
+        extraPoints: [],
+        stepNa: [],
+        crew: [{ workforceUserId: 'crew-id' }],
+        verifiers: [{ workforceUserId: 'verifier-id' }],
+        verification: [],
+      },
+    ];
+
+    expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
+  });
+
   it('rejects LOTOTO required without a procedure', () => {
     const record = baseRecord();
     record.permit.lototoRequired = true;
-    record.permit.machineryId = 'machinery-id';
+    record.assetIds = ['asset-id'];
     record.lototo = [];
 
     expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);

@@ -28,6 +28,7 @@ export function PermitCard({
 }) {
   const { tokens } = useTheme();
   const type = names.permitType(permit.permitTypeId);
+  const place = [permit.placePath, permit.exactSpot].filter(Boolean).join(" · ") || (permit.workLocationId || permit.locationId ? names.location(permit.workLocationId || permit.locationId || "") : "");
   return (
     <Card accent={accent} onPress={onPress} accessibilityLabel={`${permit.title}${permit.reference ? `, ${permit.reference}` : ""}`}>
       <AppText variant="subheading">{permit.title}</AppText>
@@ -36,10 +37,10 @@ export function PermitCard({
         <RefChip reference={permit.reference} />
         {type ? <PermitTypeChip name={type.name} color={type.color} /> : null}
       </ChipRow>
-      {permit.locationId ? (
+      {place ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <MapPin size={14} color={tokens.colors.mutedForeground} />
-          <AppText variant="caption">{names.location(permit.locationId)}</AppText>
+          <AppText variant="caption">{place}</AppText>
         </View>
       ) : null}
       <AppText variant="caption">{formatWindow(permit.plannedStartAt, permit.plannedEndAt)}</AppText>

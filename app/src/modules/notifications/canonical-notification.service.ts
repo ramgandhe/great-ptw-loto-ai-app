@@ -4,11 +4,11 @@ import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   approvalHistory,
   permits,
-  tenantUsers,
   workflowAssignments,
   workflowSteps,
   type NotificationEventType,
 } from '../../database/schema';
+import { areaAuthorityIds, isAreaAuthorityRole } from '../permit/permit-access';
 import type { ApprovalNotificationPayload } from '../approval/notification.service';
 import type { LototoNotificationPayload } from '../lototo/notification.service';
 import type { ValidityNotificationPayload } from '../revalidation/revalidation-notification.service';
@@ -223,8 +223,8 @@ export class CanonicalNotificationService {
   }
 
   /**
-   * People holding the role of the active approval stage. An HOD only hears about their own
-   * department (or every department when they have none), matching what their queue shows.
+   * People holding the role of the active approval stage. Area-authority stages go to the
+   * work location's approvers. If that location has none, every approver is told.
    */
   private async resolveNextApprovers(permitId: string, tenantId: string, actorId: string): Promise<string[]> {
     const active = await this.db
@@ -237,23 +237,19 @@ export class CanonicalNotificationService {
       return [];
     }
     const [permit] = await this.db
-      .select({ departmentId: permits.departmentId })
+      .select({ workLocationId: permits.workLocationId })
       .from(permits)
       .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
-    // Roles live in Keycloak (seeded and invited users alike); departments live on tenant_users.
-    const [people, departments] = await Promise.all([
-      this.keycloakAdmin.listUsersForTenant(tenantId).catch(() => []),
-      this.db
-        .select({ id: tenantUsers.keycloakUserId, departmentId: tenantUsers.departmentId })
-        .from(tenantUsers)
-        .where(eq(tenantUsers.tenantId, tenantId)),
-    ]);
-    const departmentOf = new Map(departments.map((row) => [row.id, row.departmentId]));
+    const authorities = roles.some((role) => isAreaAuthorityRole(role))
+      ? await areaAuthorityIds(this.db, tenantId, permit?.workLocationId ?? null)
+      : null;
+    const people = await this.keycloakAdmin.listUsersForTenant(tenantId).catch(() => []);
     return people
       .filter((person) => person.enabled && person.id !== actorId && person.roles.some((role) => roles.includes(role)))
       .filter((person) => {
-        const department = departmentOf.get(person.id);
-        return !permit?.departmentId || !department || department === permit.departmentId;
+        const holdsOtherRole = person.roles.some((role) => roles.includes(role) && !isAreaAuthorityRole(role));
+        if (holdsOtherRole) return true;
+        return !authorities || authorities.includes(person.id);
       })
       .map((person) => person.id);
   }

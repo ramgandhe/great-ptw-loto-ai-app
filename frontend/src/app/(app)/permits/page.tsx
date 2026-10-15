@@ -16,7 +16,9 @@ import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { PERMIT_CREATE_ROLES } from "@/lib/auth/roles";
 import { formatRelative, formatWindow } from "@/lib/format";
-import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
+import { idsUnder, PlaceFilter } from "@/components/place/place-filter";
+import { loadLookups, nameOf, placeOf, type Lookups } from "@/lib/lookups";
+import type { WorkLocationRecord } from "@/lib/place/api";
 import { PERMIT_STATUSES, permitStatusColor } from "@/lib/permit/status";
 import { QUEUE_VIEWS, inQueueView, queueViewFrom } from "@/lib/permit/queue-views";
 import type { PermitRecord } from "@/lib/permit/types";
@@ -24,14 +26,6 @@ import { cn } from "@/lib/utils";
 import { useWorkQueue } from "@/lib/work-queue-context";
 
 const listParam = (value: string | null) => (value ? value.split(",").filter(Boolean) : []);
-
-function placeOf(permit: PermitRecord, lookups: Lookups | null): string | null {
-  return (
-    nameOf(lookups?.machinery, permit.machineryId) ??
-    nameOf(lookups?.workstations, permit.workstationId) ??
-    nameOf(lookups?.locations, permit.locationId)
-  );
-}
 
 function PermitsBoard() {
   const router = useRouter();
@@ -46,6 +40,9 @@ function PermitsBoard() {
 
   const statuses = listParam(params.get("status"));
   const types = listParam(params.get("type"));
+  const siteId = params.get("site") ?? "";
+  const locationId = params.get("location") ?? "";
+  const [placeRows, setPlaceRows] = useState<WorkLocationRecord[]>([]);
 
   useEffect(() => {
     loadLookups().then(setLookups, () => undefined);
@@ -57,7 +54,7 @@ function PermitsBoard() {
     p.delete("scope");
     for (const [key, raw] of Object.entries(next)) {
       const value = Array.isArray(raw) ? raw.join(",") : raw;
-      if (value && value !== "all") p.set(key, value);
+      if (value) p.set(key, value);
       else p.delete(key);
     }
     router.replace(`${pathname}${p.size ? `?${p}` : ""}`, { scroll: false });
@@ -68,13 +65,16 @@ function PermitsBoard() {
 
   const searched = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return permits;
-    return permits.filter((permit) =>
-      [permit.reference, permit.title, nameOf(lookups?.permitTypes, permit.permitTypeId), placeOf(permit, lookups)]
+    const under = locationId ? idsUnder(locationId, placeRows) : null;
+    return permits.filter((permit) => {
+      if (siteId && permit.siteId !== siteId && permit.plantId !== siteId) return false;
+      if (under && ![permit.workLocationId, permit.locationId, permit.workstationId].some((id) => id && under.has(id))) return false;
+      if (!q) return true;
+      return [permit.reference, permit.title, nameOf(lookups?.permitTypes, permit.permitTypeId), placeOf(permit, lookups)]
         .filter(Boolean)
-        .some((text) => text!.toLowerCase().includes(q)),
-    );
-  }, [permits, query, lookups]);
+        .some((text) => text!.toLowerCase().includes(q));
+    });
+  }, [permits, query, lookups, siteId, locationId, placeRows]);
 
   // Each count honours the other filters, so every number predicts what a click shows.
   const inView = (p: PermitRecord, key = view) => inQueueView(key, p.status, actionByPermit.has(p.id));
@@ -110,10 +110,12 @@ function PermitsBoard() {
     }))
     .sort((a, b) => b.count - a.count);
 
-  const filterCount = statuses.length + types.length;
+  const filterCount = statuses.length + types.length + (siteId ? 1 : 0) + (locationId ? 1 : 0);
   const chips = [
     ...statuses.map((key) => ({ key, label: PERMIT_STATUSES.find((st) => st.key === key)?.label ?? key, remove: () => setParams({ status: statuses.filter((x) => x !== key) }) })),
     ...types.map((key) => ({ key, label: lookups?.permitTypes.get(key)?.name ?? "Permit type", remove: () => setParams({ type: types.filter((x) => x !== key) }) })),
+    ...(siteId ? [{ key: "site", label: placeRows.find((row) => row.siteId === siteId)?.pathText?.split(" › ")[0] ?? "Site", remove: () => setParams({ site: "", location: "" }) }] : []),
+    ...(locationId ? [{ key: "location", label: placeRows.find((row) => row.id === locationId)?.pathText || "Work location", remove: () => setParams({ location: "" }) }] : []),
   ];
 
   return (
@@ -192,7 +194,7 @@ function PermitsBoard() {
                 <X className="size-3.5" aria-hidden />
               </button>
             ))}
-            <button type="button" onClick={() => setParams({ status: [], type: [] })} className="min-h-9 px-2 text-sm font-medium text-primary hover:underline">
+            <button type="button" onClick={() => setParams({ status: [], type: [], site: "", location: "" })} className="min-h-9 px-2 text-sm font-medium text-primary hover:underline">
               Clear
             </button>
           </div>
@@ -203,6 +205,12 @@ function PermitsBoard() {
             {typeOptions.length > 1 ? (
               <MultiToggle label="Permit type" options={typeOptions} selected={types} onChange={(next) => setParams({ type: next })} />
             ) : null}
+            <PlaceFilter
+              siteId={siteId}
+              workLocationId={locationId}
+              onLocations={setPlaceRows}
+              onChange={(next) => setParams({ site: next.siteId, location: next.workLocationId })}
+            />
           </div>
         ) : null}
       </PageHeader>

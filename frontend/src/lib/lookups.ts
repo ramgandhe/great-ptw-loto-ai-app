@@ -66,6 +66,27 @@ export function loadLookups(): Promise<Lookups> {
   return cache;
 }
 
+/** Saved place path when the permit has one, otherwise the older plant chain. */
+export function placeOf(
+  permit: {
+    placePath?: string | null;
+    exactSpot?: string | null;
+    machineryId?: string | null;
+    workstationId?: string | null;
+    locationId?: string | null;
+  },
+  lookups: Lookups | null,
+): string | null {
+  if (permit.placePath?.trim()) {
+    return [permit.placePath.trim(), permit.exactSpot?.trim()].filter(Boolean).join(" — ");
+  }
+  return (
+    nameOf(lookups?.machinery, permit.machineryId) ??
+    nameOf(lookups?.workstations, permit.workstationId) ??
+    nameOf(lookups?.locations, permit.locationId)
+  );
+}
+
 /** Name for an ID, or null when it is unset or not visible to this user (never the raw ID). */
 export function nameOf(map: Map<string, { name: string }> | undefined, id: string | null | undefined): string | null {
   if (!id) return null;

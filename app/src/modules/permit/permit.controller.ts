@@ -40,8 +40,10 @@ export class PermitController {
   findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query('status') status?: string,
+    @Query('siteId') siteId?: string,
+    @Query('workLocationId') workLocationId?: string,
   ) {
-    return this.permitService.findAll(user, status);
+    return this.permitService.findAll(user, status, siteId, workLocationId);
   }
 
   @Roles(...PERMIT_READ_ROLES)

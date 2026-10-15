@@ -32,13 +32,10 @@ import { TemplateFormFill } from "@/components/permit/template-form-fill";
 import { applicableTemplates, missingFormAnswers, withPrefill, type TemplatePrefillSource } from "@/lib/permit/forms";
 import { listLototoProcedures } from "@/lib/lototo/api";
 import type { LototoProcedureListItem } from "@/lib/lototo/types";
-import { listGasTesting, type GasTestingRecord } from "@/lib/master-data/api";
-import {
-  filterMachineryByWorkstation,
-  formatOrgOptionLabel,
-  formatWorkforceOptionLabel,
-  loadPermitFormOptions,
-} from "@/lib/permit/form-options";
+import { gasDefaults, type GasDefault } from "@/lib/master-data/api";
+import { loadAssetDirectory, loadSiteDirectory, loadWorkLocationDirectory } from "@/lib/organisation/offline";
+import type { AssetRecord, PlaceSite, WorkLocationRecord } from "@/lib/place/api";
+import { formatWorkforceOptionLabel, loadPermitFormOptions } from "@/lib/permit/form-options";
 import { mergeAfterConflict, resolveConflict, type FieldConflict } from "@/lib/permit/conflict";
 import { useTheme } from "@/providers/theme-provider";
 
@@ -74,26 +71,20 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     null,
   );
   const [optionsLoading, setOptionsLoading] = useState(true);
-  const [machineryLototo, setMachineryLototo] = useState<LototoProcedureListItem[]>([]);
-  const [workstationGasTesting, setWorkstationGasTesting] = useState<GasTestingRecord[]>([]);
-
-  const filteredMachinery = useMemo(
-    () => filterMachineryByWorkstation(formOptions?.machinery ?? [], form.workstationId),
-    [formOptions?.machinery, form.workstationId],
-  );
+  const [assetProcedures, setAssetProcedures] = useState<LototoProcedureListItem[]>([]);
+  const [gasOptions, setGasOptions] = useState<GasDefault[]>([]);
+  const [sites, setSites] = useState<PlaceSite[]>([]);
+  const [workLocations, setWorkLocations] = useState<WorkLocationRecord[]>([]);
+  const [assets, setAssets] = useState<AssetRecord[]>([]);
+  const [searchWholeSite, setSearchWholeSite] = useState(false);
+  const [gasNotice, setGasNotice] = useState<string | null>(null);
+  const [gasLimitError, setGasLimitError] = useState<string | null>(null);
+  const [extraGas, setExtraGas] = useState({ parameter: "", unit: "", minimum: "", maximum: "" });
 
   useEffect(() => {
     loadPermitFormOptions()
       .then((options) => {
         setFormOptions(options);
-        // On a new permit, a list with one entry needs no choosing.
-        const only = (list: { id: string }[], id: string) => id || (mode === "create" && list.length === 1 ? list[0].id : "");
-        setForm((current) => ({
-          ...current,
-          plantId: only(options.plants, current.plantId),
-          departmentId: only(options.departments, current.departmentId),
-          locationId: only(options.locations, current.locationId),
-        }));
         setForm((current) => {
           if (current.executors.some((executor) => (executor.workforceUserId ?? "").trim())) {
             return current;
@@ -111,33 +102,99 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   }, []);
 
   useEffect(() => {
-    if (
-      form.machineryId &&
-      !filteredMachinery.some((item) => item.id === form.machineryId)
-    ) {
-      setForm((current) => ({ ...current, machineryId: "", lototoRequired: false, lototo: [] }));
-    }
-  }, [filteredMachinery, form.machineryId]);
+    loadSiteDirectory()
+      .then((rows) => {
+        setSites(rows);
+        setForm((current) => ({
+          ...current,
+          siteId: current.siteId || (mode === "create" && rows.length === 1 ? rows[0].id : ""),
+        }));
+      })
+      .catch(() => setSites([]));
+  }, [mode]);
 
   useEffect(() => {
-    if (!form.machineryId) {
-      setMachineryLototo([]);
+    if (!form.siteId) {
+      setWorkLocations([]);
       return;
     }
-    listLototoProcedures({ machineryId: form.machineryId, published: true })
-      .then(setMachineryLototo)
-      .catch(() => setMachineryLototo([]));
-  }, [form.machineryId]);
+    loadWorkLocationDirectory(form.siteId).then(setWorkLocations).catch(() => setWorkLocations([]));
+  }, [form.siteId]);
 
   useEffect(() => {
-    if (!form.workstationId) {
-      setWorkstationGasTesting([]);
+    if (!form.siteId || (!form.workLocationId && !searchWholeSite)) {
+      setAssets([]);
       return;
     }
-    listGasTesting(form.workstationId)
-      .then(setWorkstationGasTesting)
-      .catch(() => setWorkstationGasTesting([]));
-  }, [form.workstationId]);
+    loadAssetDirectory(form.siteId, searchWholeSite ? undefined : form.workLocationId).then(setAssets).catch(() => setAssets([]));
+  }, [form.siteId, form.workLocationId, searchWholeSite]);
+
+  const assetKey = form.assetIds.join(",");
+
+  useEffect(() => {
+    if (!assetKey) {
+      setAssetProcedures([]);
+      return;
+    }
+    Promise.all(assetKey.split(",").map((id) => listLototoProcedures({ assetId: id, published: true }).catch(() => [] as LototoProcedureListItem[])))
+      .then((lists) => {
+        const byId = new Map<string, LototoProcedureListItem>();
+        for (const row of lists.flat()) byId.set(row.id, row);
+        setAssetProcedures([...byId.values()]);
+      })
+      .catch(() => setAssetProcedures([]));
+  }, [assetKey]);
+
+  useEffect(() => {
+    if (!form.workLocationId) {
+      setGasOptions([]);
+      return;
+    }
+    let cancelled = false;
+    gasDefaults(form.workLocationId, form.assetIds)
+      .then((rows) => {
+        if (cancelled) return;
+        setGasOptions(rows);
+        const tests = rows.map((row) => ({
+          gasTestingCatalogueId: row.catalogueId,
+          parameter: row.parameter,
+          unit: row.unit,
+          minimum: row.minimum,
+          maximum: row.maximum,
+          sourceName: row.minimumSource?.name,
+        }));
+        if (!form.gasReady && form.gasTesting.length > 0) {
+          setGasNotice("Gas tests were recalculated from this place and the selected assets. Tests you added are kept.");
+        }
+        setForm((current) => {
+          if (current.gasReady) return current;
+          const handAdded = current.gasTesting.filter((row) => !row.gasTestingCatalogueId && row.parameter?.trim());
+          const removedByParameter = new Map(
+            current.gasTesting
+              .filter((row) => row.gasTestingCatalogueId && row.removedReason?.trim())
+              .map((row) => [row.parameter?.trim().toLowerCase() ?? "", row.removedReason]),
+          );
+          return {
+            ...current,
+            gasReady: true,
+            gasTesting: [
+              ...tests.map((row) => ({
+                ...row,
+                removedReason: removedByParameter.get(row.parameter?.trim().toLowerCase() ?? ""),
+              })),
+              ...handAdded,
+            ],
+            gasTestingRequired: tests.length > 0 || handAdded.length > 0,
+          };
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setForm((current) => (current.gasReady ? current : { ...current, gasReady: true }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.workLocationId, assetKey, form.assetIds]);
 
   const permitStatus = initialDetail?.permit.status ?? "draft";
   const isReadOnly = !isEditablePermitStatus(permitStatus);
@@ -149,18 +206,19 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     const crew = form.executors
       .map((e) => formOptions?.executors.find((o) => o.id === e.workforceUserId)?.name.replace(/ \(you\)$/, ""))
       .filter((name): name is string => Boolean(name));
-    const place = [...new Set([nameOf(formOptions?.locations, form.locationId), nameOf(formOptions?.workstations, form.workstationId)].filter(Boolean))];
+    const location = workLocations.find((row) => row.id === form.workLocationId);
+    const equipment = assets.filter((row) => form.assetIds.includes(row.id)).map((row) => row.name);
     return {
       department: nameOf(formOptions?.departments, form.departmentId),
-      location: place.join(", "),
-      equipment: nameOf(formOptions?.machinery, form.machineryId),
+      location: location?.pathText || location?.name || "",
+      equipment: equipment.join(", "),
       "job-description": [form.title, form.workScope].filter((v) => v.trim()).join("\n\n"),
       "valid-from": form.plannedStartAt.slice(0, 10),
       "valid-to": form.plannedEndAt.slice(0, 10),
       "crew-names": crew.join(", "),
       "crew-count": crew.length || "",
     };
-  }, [form, formOptions]);
+  }, [form, formOptions, workLocations, assets]);
   // Those answers are not asked again: they follow the permit and are saved with it.
   const fromPermit = useMemo(
     () => new Set((Object.keys(prefillSources) as TemplatePrefillSource[]).filter((key) => prefillSources[key] !== "")),
@@ -268,7 +326,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     if (typeof value === "boolean") return value ? "Yes" : "No";
     if (Array.isArray(value)) return value.length === 0 ? "none" : `${value.length} item${value.length === 1 ? "" : "s"}`;
     if (typeof value === "object") return (value as { name?: string }).name ?? "set";
-    const lists: (readonly { id: string; name: string }[] | undefined)[] = [formOptions?.permitTypes, formOptions?.plants, formOptions?.departments, formOptions?.locations, formOptions?.workstations, formOptions?.machinery];
+    const lists: (readonly { id: string; name: string }[] | undefined)[] = [formOptions?.permitTypes, formOptions?.departments, sites, workLocations, assets];
     return lists.flatMap((list) => list ?? []).find((row) => row.id === value)?.name ?? String(value);
   };
 
@@ -380,8 +438,10 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     {
       step: 1,
       rows: [
-        ["Location", [nameIn(formOptions?.locations, form.locationId), nameIn(formOptions?.workstations, form.workstationId)].filter(Boolean).join(", ") || notSet],
-        ["Machinery", nameIn(formOptions?.machinery, form.machineryId) ?? "—"],
+        ["Site", nameIn(sites, form.siteId) ?? notSet],
+        ["Work location", workLocations.find((row) => row.id === form.workLocationId)?.pathText || nameIn(workLocations, form.workLocationId) || notSet],
+        ["Exact spot", form.exactSpot.trim() || "—"],
+        ["Assets", assets.filter((row) => form.assetIds.includes(row.id)).map((row) => `${row.tag} — ${row.name}`).join(", ") || "—"],
         ["When", formatWindow(form.plannedStartAt || null, form.plannedEndAt || null)],
       ],
     },
@@ -498,60 +558,86 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
         <>
           <StepCard title="Where">
             <SelectField
-              label="Location"
-              value={form.locationId}
-              options={(formOptions?.locations ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
-              placeholder="Choose location"
+              label="Site"
+              value={form.siteId}
+              options={sites.map((item) => ({ value: item.id, label: item.code ? `${item.name} (${item.code})` : item.name }))}
+              placeholder="Choose site"
               required
               disabled={isReadOnly}
-              onChange={(locationId) => setForm({ ...form, locationId })}
-            />
-            <SelectField
-              label="Workstation"
-              value={form.workstationId}
-              options={(formOptions?.workstations ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
-              placeholder="Optional"
-              disabled={isReadOnly}
-              onChange={(workstationId) =>
+              onChange={(siteId) =>
                 setForm({
                   ...form,
-                  workstationId,
-                  gasTesting: workstationId === form.workstationId ? form.gasTesting : [],
-                  gasTestingRequired: workstationId ? form.gasTestingRequired : false,
+                  siteId,
+                  workLocationId: "",
+                  assetIds: [],
+                  gasReady: false,
+                  gasTesting: [],
+                  gasTestingRequired: false,
+                  lototo: [],
+                  lototoRequired: false,
                 })
               }
             />
             <SelectField
-              label="Machinery"
-              value={form.machineryId}
-              options={filteredMachinery.map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
-              placeholder="Optional: needed for isolation"
-              disabled={isReadOnly}
-              onChange={(machineryId) =>
+              label="Work location"
+              value={form.workLocationId}
+              options={workLocations.map((item) => ({ value: item.id, label: item.pathText || item.name }))}
+              placeholder={form.siteId ? "Choose work location" : "Choose a site first"}
+              required
+              disabled={isReadOnly || !form.siteId}
+              onChange={(workLocationId) =>
                 setForm({
                   ...form,
-                  machineryId,
-                  lototo: machineryId === form.machineryId ? form.lototo : [],
-                  lototoRequired: machineryId ? form.lototoRequired : false,
+                  workLocationId,
+                  assetIds: [],
+                  gasReady: false,
+                  gasTesting: [],
+                  gasTestingRequired: false,
+                  lototo: [],
+                  lototoRequired: false,
                 })
               }
             />
-            <SelectField
-              label="Plant"
-              value={form.plantId}
-              options={(formOptions?.plants ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
-              placeholder="Optional"
-              disabled={isReadOnly}
-              onChange={(plantId) => setForm({ ...form, plantId })}
+            <TextField
+              label="Exact spot"
+              hint="Optional"
+              value={form.exactSpot}
+              editable={!isReadOnly}
+              onChangeText={(exactSpot) => setForm({ ...form, exactSpot })}
+              placeholder="For example: north side of the pump skid"
             />
-            <SelectField
-              label="Department"
-              value={form.departmentId}
-              options={(formOptions?.departments ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
-              placeholder="Optional"
-              disabled={isReadOnly}
-              onChange={(departmentId) => setForm({ ...form, departmentId })}
-            />
+            {form.workLocationId ? (
+              <>
+              {!isReadOnly ? (
+                <Button
+                  label={searchWholeSite ? "Showing the whole site" : "Search the whole site"}
+                  variant="outline"
+                  size="sm"
+                  onPress={() => setSearchWholeSite((on) => !on)}
+                />
+              ) : null}
+              {assets.length === 0 ? (
+                <AppText variant="caption">{searchWholeSite ? "No assets on this site." : "No assets at this work location or its sub-locations."}</AppText>
+              ) : (
+                <ChoiceGroup
+                  label="Assets"
+                  options={assets.map((item) => ({ key: item.id, label: `${item.tag} — ${item.name}` }))}
+                  value={form.assetIds}
+                  disabled={isReadOnly}
+                  onChange={(id) => {
+                    const assetIds = form.assetIds.includes(id) ? form.assetIds.filter((row) => row !== id) : [...form.assetIds, id];
+                    setForm({
+                      ...form,
+                      assetIds,
+                      gasReady: false,
+                      lototo: assetIds.length > 0 ? form.lototo : [],
+                      lototoRequired: assetIds.length > 0 ? form.lototoRequired : false,
+                    });
+                  }}
+                />
+              )}
+              </>
+            ) : null}
           </StepCard>
           <StepCard title="When" description="Pick a common window, or set the start and end yourself.">
             {!isReadOnly ? (
@@ -598,18 +684,18 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
           <StepCard title="Isolation and gas testing">
             <ToggleRow
               label="Isolation (LOTOTO) required"
-              description={form.machineryId ? "Lock out the machinery's energy before work starts." : "Choose machinery in the previous step first."}
+              description={form.assetIds.length > 0 ? "Lock out the asset's energy before work starts." : "Choose an asset in the previous step first."}
               value={form.lototoRequired}
-              disabled={isReadOnly || !form.machineryId}
+              disabled={isReadOnly || form.assetIds.length === 0}
               onChange={(on) => setForm({ ...form, lototoRequired: on, lototo: on ? form.lototo : [] })}
             />
             {form.lototoRequired ? (
-              machineryLototo.length === 0 ? (
-                <AppText variant="caption">No LOTOTO procedures for this machinery.</AppText>
+              assetProcedures.length === 0 ? (
+                <AppText variant="caption">No LOTOTO procedures for the selected assets.</AppText>
               ) : (
                 <ChoiceGroup
                   label="Procedures"
-                  options={machineryLototo.map((plan) => ({ key: plan.id, label: plan.title }))}
+                  options={assetProcedures.map((plan) => ({ key: plan.id, label: plan.title }))}
                   value={form.lototo.map((l) => l.procedureId).filter(Boolean)}
                   disabled={isReadOnly}
                   onChange={(id) =>
@@ -628,23 +714,127 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
             ) : null}
             <ToggleRow
               label="Gas testing required"
-              description={form.workstationId ? "Test the atmosphere at the workstation before work starts." : "Choose a workstation in the previous step first."}
-              value={form.gasTestingRequired}
-              disabled={isReadOnly || !form.workstationId}
+              description={form.workLocationId ? "Tests come from this work location and the selected assets. The strictest limit is kept." : "Choose a work location in the previous step first."}
+              value={form.gasTestingRequired || gasOptions.length > 0}
+              disabled={isReadOnly || !form.workLocationId || gasOptions.length > 0}
               onChange={(on) => setForm({ ...form, gasTestingRequired: on, gasTesting: on ? form.gasTesting : [] })}
             />
-            {form.gasTestingRequired ? (
-              workstationGasTesting.length === 0 ? (
-                <AppText variant="caption">No gas tests set up for this workstation.</AppText>
+            {gasNotice ? <AppText variant="caption">{gasNotice}</AppText> : null}
+            {gasLimitError ? <AppText variant="caption">{gasLimitError}</AppText> : null}
+            {form.gasTestingRequired || form.gasTesting.length > 0 ? (
+              form.gasTesting.length === 0 ? (
+                <AppText variant="caption">No gas tests are set for this place.</AppText>
               ) : (
-                <ChoiceGroup
-                  label="Gas tests"
-                  options={workstationGasTesting.map((row) => ({ key: row.id, label: `${row.parameter} (${row.minimum}–${row.maximum} ${row.unit})` }))}
-                  value={form.gasTesting.map((g) => g.gasTestingCatalogueId).filter(Boolean)}
-                  disabled={isReadOnly}
-                  onChange={(id) => setForm({ ...form, gasTesting: toggleRow(form.gasTesting, "gasTestingCatalogueId", id, {}) })}
-                />
+                form.gasTesting.map((row, index) => {
+                  const baseline = gasOptions.find((item) => item.catalogueId && item.catalogueId === row.gasTestingCatalogueId);
+                  return (
+                    <View key={`${row.gasTestingCatalogueId ?? "added"}-${index}`} style={{ gap: tokens.space[2] }}>
+                      <AppText variant="body" style={row.removedReason ? { textDecorationLine: "line-through" } : undefined}>
+                        {`${row.parameter ?? "Test"} (${row.minimum ?? "—"}–${row.maximum ?? "—"} ${row.unit ?? ""})`}
+                      </AppText>
+                      {row.sourceName ? <AppText variant="caption">{`From ${row.sourceName}`}</AppText> : null}
+                      {row.removedReason ? <AppText variant="caption">{`Removed: ${row.removedReason}`}</AppText> : null}
+                      {!isReadOnly && !row.removedReason ? (
+                        <>
+                          <TextField
+                            label="Minimum"
+                            value={row.minimum == null ? "" : String(row.minimum)}
+                            keyboardType="decimal-pad"
+                            onChangeText={(value) => {
+                              const next = Number(value);
+                              if (value.trim() && !Number.isFinite(next)) return;
+                              if (baseline && Number.isFinite(next) && next < baseline.minimum) {
+                                setGasLimitError("A limit cannot be loosened.");
+                                return;
+                              }
+                              setGasLimitError(null);
+                              setForm({
+                                ...form,
+                                gasReady: true,
+                                gasTesting: form.gasTesting.map((item, i) => (i === index ? { ...item, minimum: value.trim() ? next : undefined } : item)),
+                              });
+                            }}
+                          />
+                          <TextField
+                            label="Maximum"
+                            value={row.maximum == null ? "" : String(row.maximum)}
+                            keyboardType="decimal-pad"
+                            onChangeText={(value) => {
+                              const next = Number(value);
+                              if (value.trim() && !Number.isFinite(next)) return;
+                              if (baseline && Number.isFinite(next) && next > baseline.maximum) {
+                                setGasLimitError("A limit cannot be loosened.");
+                                return;
+                              }
+                              setGasLimitError(null);
+                              setForm({
+                                ...form,
+                                gasReady: true,
+                                gasTesting: form.gasTesting.map((item, i) => (i === index ? { ...item, maximum: value.trim() ? next : undefined } : item)),
+                              });
+                            }}
+                          />
+                          <TextField
+                            label="Reason to remove"
+                            value={row.removedReason ?? ""}
+                            onChangeText={(removedReason) =>
+                              setForm({
+                                ...form,
+                                gasReady: true,
+                                gasTesting: form.gasTesting.map((item, i) => (i === index ? { ...item, removedReason } : item)),
+                              })
+                            }
+                          />
+                        </>
+                      ) : null}
+                      {!isReadOnly && row.removedReason?.trim() ? (
+                        <Button
+                          label="Restore"
+                          variant="outline"
+                          size="sm"
+                          onPress={() =>
+                            setForm({
+                              ...form,
+                              gasReady: true,
+                              gasTesting: form.gasTesting.map((item, i) => (i === index ? { ...item, removedReason: "" } : item)),
+                            })
+                          }
+                        />
+                      ) : null}
+                    </View>
+                  );
+                })
               )
+            ) : null}
+            {!isReadOnly && form.workLocationId ? (
+              <View style={{ gap: tokens.space[2] }}>
+                <AppText variant="label">Add a test for this permit</AppText>
+                <TextField label="Parameter" value={extraGas.parameter} onChangeText={(parameter) => setExtraGas({ ...extraGas, parameter })} />
+                <TextField label="Unit" value={extraGas.unit} onChangeText={(unit) => setExtraGas({ ...extraGas, unit })} />
+                <TextField label="Minimum" value={extraGas.minimum} keyboardType="decimal-pad" onChangeText={(minimum) => setExtraGas({ ...extraGas, minimum })} />
+                <TextField label="Maximum" value={extraGas.maximum} keyboardType="decimal-pad" onChangeText={(maximum) => setExtraGas({ ...extraGas, maximum })} />
+                <Button
+                  label="Add test"
+                  variant="outline"
+                  size="sm"
+                  onPress={() => {
+                    const minimum = Number(extraGas.minimum);
+                    const maximum = Number(extraGas.maximum);
+                    if (!extraGas.parameter.trim() || !extraGas.unit.trim() || !Number.isFinite(minimum) || !Number.isFinite(maximum) || minimum > maximum) {
+                      setGasLimitError("Enter a parameter, a unit and a range.");
+                      return;
+                    }
+                    setGasLimitError(null);
+                    setForm({
+                      ...form,
+                      gasReady: true,
+                      gasTestingRequired: true,
+                      gasTesting: [...form.gasTesting, { parameter: extraGas.parameter.trim(), unit: extraGas.unit.trim(), minimum, maximum }],
+                    });
+                    setExtraGas({ parameter: "", unit: "", minimum: "", maximum: "" });
+                  }}
+                />
+              </View>
             ) : null}
           </StepCard>
         </>

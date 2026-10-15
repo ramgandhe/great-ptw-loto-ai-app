@@ -1,5 +1,4 @@
-import { IsBoolean, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
-import { PPE_CATEGORIES } from '../master-data.constants';
+import { IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreatePpeDto {
   @IsString()
@@ -11,8 +10,9 @@ export class CreatePpeDto {
   name!: string;
 
   @IsString()
-  @IsIn([...PPE_CATEGORIES])
-  category!: (typeof PPE_CATEGORIES)[number];
+  @MinLength(1)
+  @MaxLength(128)
+  category!: string;
 
   @IsOptional()
   @IsString()
@@ -21,4 +21,11 @@ export class CreatePpeDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+}
+
+export class PpeCategoryNameDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  name!: string;
 }

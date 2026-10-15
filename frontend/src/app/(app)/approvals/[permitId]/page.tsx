@@ -67,6 +67,8 @@ export default function PermitReviewPage() {
   const [decision, setDecision] = useState<Decision | null>(null);
   const [comment, setComment] = useState("");
   const [siteVisited, setSiteVisited] = useState(false);
+  const [locationAck, setLocationAck] = useState(false);
+  const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -119,6 +121,10 @@ export default function PermitReviewPage() {
       setActionError("Add a comment before confirming. The issuer needs to know what to change.");
       return;
     }
+    if (decision === "approve" && locationWarning && !locationAck) {
+      setActionError("Acknowledge the nearby work location warning before approving.");
+      return;
+    }
     setIsSubmitting(true);
     setActionError(null);
     try {
@@ -129,6 +135,7 @@ export default function PermitReviewPage() {
               comment.trim(),
               stageAnswersPayload(stageEdits, review!.permit.draftRevision),
               siteVisited,
+              locationAck,
             )
           : await (decision === "reject" ? rejectPermit : deferPermit)(permitId, comment.trim());
       setReview(updated);
@@ -145,6 +152,11 @@ export default function PermitReviewPage() {
         getApprovalReview(permitId).then(setReview).catch(() => undefined);
         setActionError("Someone else updated this permit. It has been reloaded with your entries kept. Check it and confirm again.");
         return;
+      }
+      if (err instanceof ApiError && err.code === "SIMOPS_LOCATION_WARNING") {
+        const rows = Array.isArray(err.details) ? err.details as { summary?: string }[] : [];
+        const text = rows.map((row) => row.summary).filter(Boolean).join(" ");
+        setLocationWarning(text || err.message);
       }
       setActionError(err instanceof ApiError ? err.message : "The decision was not saved. Try again.");
     } finally {
@@ -178,6 +190,7 @@ export default function PermitReviewPage() {
             status={review.permit.status}
             attachments={review.attachments}
             showHeader={false}
+            placeText={[review.permit.placePath, review.permit.exactSpot].filter(Boolean).join(" — ") || undefined}
             identity={identityFromPermit(review.permit)}
           />
           <PermitFormResponses responses={review.permit.formResponses ?? []} />
@@ -259,6 +272,17 @@ export default function PermitReviewPage() {
                           onChange={(e) => setSiteVisited(e.target.checked)}
                         />
                         Site visited and verified
+                      </label>
+                    ) : null}
+                    {decision === "approve" && locationWarning ? (
+                      <label className="flex items-start gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={locationAck}
+                          onChange={(e) => setLocationAck(e.target.checked)}
+                        />
+                        <span>Nearby work in a parent or child location: {locationWarning}</span>
                       </label>
                     ) : null}
                     <label htmlFor="decision-comment" className="text-sm font-medium">

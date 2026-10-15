@@ -7,6 +7,14 @@ export class UpdateGasTestingDto {
   workstationId?: string;
 
   @IsOptional()
+  @IsUUID()
+  workLocationId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  assetId?: string;
+
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(255)

@@ -533,6 +533,48 @@
       "when": 1793000000000,
       "tag": "0073_permit_draft_return_reason",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1793100000000,
+      "tag": "0074_sites_work_locations_assets",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1793200000000,
+      "tag": "0075_place_migration_gaps",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1793300000000,
+      "tag": "0076_gas_test_targets",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1793400000000,
+      "tag": "0077_lototo_asset_target",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1793500000000,
+      "tag": "0078_location_type_description_ppe_categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1793600000000,
+      "tag": "0079_industries_organisation_profile",
+      "breakpoints": true
     }
   ]
 }

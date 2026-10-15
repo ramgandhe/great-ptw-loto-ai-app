@@ -14,6 +14,10 @@ export type PermitRecord = {
   locationId: string | null;
   workstationId: string | null;
   machineryId: string | null;
+  siteId: string | null;
+  workLocationId: string | null;
+  exactSpot?: string | null;
+  placePath?: string | null;
   lototoRequired?: boolean;
   gasTestingRequired?: boolean;
   plannedStartAt: string | null;
@@ -57,7 +61,13 @@ export type PermitLototoInput = {
 };
 
 export type PermitGasTestingInput = {
-  gasTestingCatalogueId: string;
+  gasTestingCatalogueId?: string;
+  parameter?: string;
+  unit?: string;
+  minimum?: number;
+  maximum?: number;
+  removedReason?: string;
+  sourceName?: string;
 };
 
 export type PermitExecutorInput = {
@@ -75,6 +85,12 @@ export type PermitFormState = {
   locationId: string;
   workstationId: string;
   machineryId: string;
+  siteId: string;
+  workLocationId: string;
+  exactSpot: string;
+  assetIds: string[];
+  /** False until gas defaults for the current place and assets have been applied. */
+  gasReady: boolean;
   lototoRequired: boolean;
   plannedStartAt: string;
   plannedEndAt: string;
@@ -107,7 +123,8 @@ export type PermitDetail = {
   }>;
   ppe: Array<{ ppeCatalogueId: string; quantity: number | null }>;
   lototo?: Array<{ procedureId: string }>;
-  gasTesting?: Array<{ gasTestingCatalogueId: string }>;
+  gasTesting?: PermitGasTestingInput[];
+  assets?: Array<{ assetId: string }>;
   executors: Array<{ workforceUserId: string; isPrimary: boolean | null }>;
   safetyOfficers?: Array<{ workforceUserId: string }>;
   attachments: Array<{ id: string; fileName: string; fileSize: number }>;
@@ -151,6 +168,10 @@ export type CreatePermitPayload = {
   locationId?: string;
   workstationId?: string;
   machineryId?: string;
+  siteId?: string;
+  workLocationId?: string;
+  exactSpot?: string;
+  assetIds?: string[];
   lototoRequired?: boolean;
   plannedStartAt?: string;
   plannedEndAt?: string;

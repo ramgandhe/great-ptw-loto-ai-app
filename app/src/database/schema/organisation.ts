@@ -16,6 +16,20 @@ export type RecordStatus = (typeof RECORD_STATUSES)[number];
 
 export type OrganisationSetupProgress = { skipped?: string[]; lastStep?: string };
 
+/** Platform-wide list. Tenants point at one row. Others is the fallback and cannot be removed. */
+export const industries = pgTable(
+  'industries',
+  {
+    ...auditColumns,
+    name: varchar('name', { length: 128 }).notNull(),
+    isFallback: boolean('is_fallback').notNull().default(false),
+  },
+  (table) => [
+    uniqueIndex('industries_name_unique').on(table.name),
+    uniqueIndex('industries_fallback_unique').on(table.isFallback).where(sql`${table.isFallback} = true`),
+  ],
+);
+
 export const organisations = pgTable(
   'organisations',
   {
@@ -27,6 +41,15 @@ export const organisations = pgTable(
     timezone: varchar('timezone', { length: 64 }).notNull().default('UTC'),
     status: varchar('status', { length: 32 }).notNull().default('active'),
     ownerEmail: varchar('owner_email', { length: 255 }),
+    about: text('about'),
+    industryId: uuid('industry_id')
+      .notNull()
+      .references(() => industries.id),
+    addressLine1: varchar('address_line1', { length: 255 }),
+    addressLine2: varchar('address_line2', { length: 255 }),
+    addressState: varchar('address_state', { length: 128 }),
+    addressCountry: varchar('address_country', { length: 128 }),
+    addressPin: varchar('address_pin', { length: 32 }),
     /** Organisation setup wizard: steps the admin skipped and where they left off. */
     setupProgress: jsonb('setup_progress').$type<OrganisationSetupProgress>().notNull().default({}),
   },

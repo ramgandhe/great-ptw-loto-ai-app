@@ -19,6 +19,9 @@ export const ISSUER_ONLY_FIELDS = [
   'plantId',
   'departmentId',
   'locationId',
+  'siteId',
+  'workLocationId',
+  'exactSpot',
   'plannedStartAt',
   'plannedEndAt',
   'viewers',
@@ -28,6 +31,7 @@ export const ISSUER_ONLY_FIELDS = [
 export const EXECUTOR_FIELDS = [
   'workstationId',
   'machineryId',
+  'assetIds',
   'hazards',
   'ppe',
   'lototoRequired',

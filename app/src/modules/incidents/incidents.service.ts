@@ -14,12 +14,15 @@ import { requireActorId } from '../../common/helpers/require-actor-id';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
+  assets,
   incidentEquipment,
   incidentEvidence,
   incidentPermits,
   incidents,
   machineryCatalogue,
   permits,
+  sites,
+  workLocations,
 } from '../../database/schema';
 import { StorageService } from '../../infrastructure/storage/storage.service';
 import { AuditService } from '../logging/audit.service';
@@ -66,6 +69,13 @@ export class IncidentsService {
     if (dto.machineryIds?.length) {
       await this.assertMachineryBelongToTenant(dto.machineryIds, tenantId);
     }
+    if (dto.assetIds?.length) {
+      await this.assertAssetsBelongToTenant(dto.assetIds, tenantId);
+    }
+    const place = await this.resolveIncidentPlace(tenantId, dto);
+    if (submit && (!place.siteId || !place.workLocationId)) {
+      throw new BadRequestException('A site and a work location are required');
+    }
 
     const reference = this.generateReference();
     const now = new Date();
@@ -94,12 +104,14 @@ export class IncidentsService {
         plantId: dto.plantId ?? null,
         locationId: dto.locationId ?? null,
         workstationId: dto.workstationId ?? null,
+        siteId: place.siteId,
+        workLocationId: place.workLocationId,
         createdBy: actorId,
         updatedBy: actorId,
       })
       .returning();
 
-    await this.linkAssociations(row.id, tenantId, actorId, dto.permitIds, dto.machineryIds);
+    await this.linkAssociations(row.id, tenantId, actorId, dto.permitIds, dto.machineryIds, dto.assetIds);
 
     if (submit) {
       await this.severityLifecycle.applyOnSubmit(row.id, tenantId, actorId, severityPath);
@@ -172,6 +184,8 @@ export class IncidentsService {
         locationId: dto.locationId === undefined ? incident.locationId : dto.locationId,
         workstationId:
           dto.workstationId === undefined ? incident.workstationId : dto.workstationId,
+        siteId: dto.siteId === undefined ? incident.siteId : dto.siteId,
+        workLocationId: dto.workLocationId === undefined ? incident.workLocationId : dto.workLocationId,
         updatedBy: actorId,
         updatedAt: new Date(),
       })
@@ -201,6 +215,22 @@ export class IncidentsService {
 
     if (!incident.title?.trim() || !incident.description?.trim()) {
       throw new BadRequestException('Incident title and description are required to submit');
+    }
+    const placed = await this.resolveIncidentPlace(tenantId, {
+      siteId: incident.siteId ?? undefined,
+      workLocationId: incident.workLocationId ?? undefined,
+      plantId: incident.plantId ?? undefined,
+      locationId: incident.locationId ?? undefined,
+      workstationId: incident.workstationId ?? undefined,
+    });
+    if (!placed.siteId || !placed.workLocationId) {
+      throw new BadRequestException('A site and a work location are required');
+    }
+    if (placed.siteId !== incident.siteId || placed.workLocationId !== incident.workLocationId) {
+      await this.db
+        .update(incidents)
+        .set({ siteId: placed.siteId, workLocationId: placed.workLocationId, updatedAt: new Date() })
+        .where(eq(incidents.id, id));
     }
 
     const now = new Date();
@@ -420,6 +450,7 @@ export class IncidentsService {
     actorId: string,
     permitIds?: string[],
     machineryIds?: string[],
+    assetIds?: string[],
   ) {
     if (permitIds?.length) {
       await this.db.insert(incidentPermits).values(
@@ -442,6 +473,89 @@ export class IncidentsService {
           updatedBy: actorId,
         })),
       );
+    }
+    if (assetIds?.length) {
+      const machinery = await this.db
+        .select({ id: machineryCatalogue.id })
+        .from(machineryCatalogue)
+        .where(and(eq(machineryCatalogue.tenantId, tenantId), inArray(machineryCatalogue.id, assetIds)));
+      const machineryIdsPresent = new Set(machinery.map((row) => row.id));
+      await this.db.insert(incidentEquipment).values(
+        assetIds.map((assetId) => ({
+          tenantId,
+          incidentId,
+          assetId,
+          machineryId: machineryIdsPresent.has(assetId) ? assetId : null,
+          createdBy: actorId,
+          updatedBy: actorId,
+        })),
+      );
+    }
+  }
+
+  private async resolveIncidentPlace(
+    tenantId: string,
+    input: {
+      siteId?: string;
+      workLocationId?: string;
+      plantId?: string;
+      locationId?: string;
+      workstationId?: string;
+    },
+  ) {
+    let workLocationId = input.workLocationId ?? null;
+    let siteId = input.siteId ?? null;
+    if (!workLocationId) {
+      for (const candidate of [input.workstationId, input.locationId]) {
+        if (!candidate) continue;
+        const [found] = await this.db
+          .select({ id: workLocations.id, siteId: workLocations.siteId })
+          .from(workLocations)
+          .where(and(eq(workLocations.id, candidate), eq(workLocations.tenantId, tenantId)));
+        if (found) {
+          workLocationId = found.id;
+          siteId = siteId ?? found.siteId;
+          break;
+        }
+      }
+    }
+    if (workLocationId) {
+      const [location] = await this.db
+        .select({ siteId: workLocations.siteId, status: workLocations.status })
+        .from(workLocations)
+        .where(and(eq(workLocations.id, workLocationId), eq(workLocations.tenantId, tenantId)));
+      if (!location || location.status === 'archived') {
+        throw new BadRequestException('Work location not found');
+      }
+      if (siteId && siteId !== location.siteId) {
+        throw new BadRequestException('Work location is not on the selected site');
+      }
+      siteId = location.siteId;
+    }
+    if (!siteId && input.plantId) {
+      const [site] = await this.db
+        .select({ id: sites.id })
+        .from(sites)
+        .where(and(eq(sites.id, input.plantId), eq(sites.tenantId, tenantId)));
+      siteId = site?.id ?? null;
+    }
+    if (siteId) {
+      const [site] = await this.db
+        .select({ id: sites.id, status: sites.status })
+        .from(sites)
+        .where(and(eq(sites.id, siteId), eq(sites.tenantId, tenantId)));
+      if (!site || site.status === 'archived') throw new BadRequestException('Site not found');
+    }
+    return { siteId, workLocationId };
+  }
+
+  private async assertAssetsBelongToTenant(assetIds: string[], tenantId: string) {
+    const rows = await this.db
+      .select({ id: assets.id })
+      .from(assets)
+      .where(and(eq(assets.tenantId, tenantId), inArray(assets.id, assetIds)));
+    if (rows.length !== assetIds.length) {
+      throw new BadRequestException('One or more assets are invalid for this tenant');
     }
   }
 

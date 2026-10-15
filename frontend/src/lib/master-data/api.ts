@@ -49,9 +49,21 @@ export const masterDataApi = {
     fetchApi<{ created: number; updated: number }>("/hazards/import-defaults", { method: "POST" }),
 };
 
+export type GasDefault = {
+  parameter: string;
+  unit: string;
+  minimum: number;
+  maximum: number;
+  catalogueId?: string;
+  minimumSource: { kind: string; id: string; name: string };
+  maximumSource: { kind: string; id: string; name: string };
+};
+
 export type GasTestingRecord = {
   id: string;
-  workstationId: string;
+  workstationId?: string | null;
+  workLocationId?: string | null;
+  assetId?: string | null;
   parameter: string;
   unit: string;
   minimum: number;
@@ -65,7 +77,9 @@ export const gasTestingApi = {
     return fetchApi<GasTestingRecord[]>(`/gas-testing${query}`);
   },
   create: (payload: {
-    workstationId: string;
+    workstationId?: string;
+    workLocationId?: string;
+    assetId?: string;
     parameter: string;
     unit: string;
     minimum: number;
@@ -79,6 +93,8 @@ export const gasTestingApi = {
     id: string,
     payload: {
       workstationId?: string;
+      workLocationId?: string;
+      assetId?: string;
       parameter?: string;
       unit?: string;
       minimum?: number;
@@ -90,6 +106,11 @@ export const gasTestingApi = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
+  defaults: (workLocationId: string, assetIds: string[] = []) => {
+    const params = new URLSearchParams({ workLocationId });
+    for (const id of assetIds) params.append("assetId", id);
+    return fetchApi<GasDefault[]>(`/gas-testing/defaults?${params.toString()}`);
+  },
   remove: (id: string, force = false) =>
     fetchApi<GasTestingRecord>(`/gas-testing/${id}${forceQuery(force)}`, { method: "DELETE" }),
 };

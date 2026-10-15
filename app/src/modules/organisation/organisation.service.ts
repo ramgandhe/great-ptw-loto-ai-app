@@ -10,6 +10,7 @@ import {
   locations,
   notificationPreferences,
   organisations,
+  industries,
   permitTemplates,
   permitTypes,
   plants,
@@ -66,6 +67,14 @@ export class OrganisationService {
       throw new ConflictException('Organisation already registered for tenant');
     }
 
+    const [fallback] = await this.db
+      .select({ id: industries.id })
+      .from(industries)
+      .where(eq(industries.isFallback, true));
+    if (!fallback) {
+      throw new BadRequestException('Default industry is not configured');
+    }
+
     const [row] = await this.db
       .insert(organisations)
       .values({
@@ -73,6 +82,7 @@ export class OrganisationService {
         name: dto.name.trim(),
         legalName: dto.legalName?.trim(),
         registrationNumber: dto.registrationNumber?.trim(),
+        industryId: fallback.id,
         createdBy: user.id,
         updatedBy: user.id,
       })

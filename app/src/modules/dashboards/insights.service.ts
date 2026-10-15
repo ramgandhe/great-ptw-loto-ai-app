@@ -1,5 +1,5 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { and, count, eq, gte, inArray, isNotNull, lt, sql } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, isNotNull, lt, sql, type SQL } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
@@ -13,7 +13,11 @@ import {
   permitTypes,
   permits,
   simopsCases,
+  workLocations,
 } from '../../database/schema';
+import { descendantIds } from '../place/place-rules';
+
+type PlaceFilter = { siteId?: string; workLocationId?: string };
 
 const DAY_MS = 86_400_000;
 const OPEN_INCIDENT_STATUSES = ['open', 'pending_hod_decision', 'investigating', 'pending_verification', 'verified'];
@@ -31,13 +35,19 @@ export class InsightsService {
   constructor(@Inject(DATABASE_CONNECTION) private readonly db: Database) {}
 
   /** Report rows for on-screen reading (replaces file exports). */
-  async viewReport(user: AuthenticatedUser, type: 'permit_summary' | 'incident_summary', days = 30): Promise<ReportView> {
+  async viewReport(
+    user: AuthenticatedUser,
+    type: 'permit_summary' | 'incident_summary',
+    days = 30,
+    place?: PlaceFilter,
+  ): Promise<ReportView> {
     if (!user.tenantId) {
       throw new ForbiddenException('Tenant context is required');
     }
     const now = new Date();
     const from = periodStart(days, now);
     const period = { days, from: from.toISOString(), to: now.toISOString() };
+    const scope = await this.placeScope(user.tenantId, place);
 
     if (type === 'incident_summary') {
       const rows = await this.db
@@ -52,7 +62,7 @@ export class InsightsService {
           place: incidents.locationDescription,
         })
         .from(incidents)
-        .where(and(eq(incidents.tenantId, user.tenantId), gte(incidents.occurredAt, from)))
+        .where(and(eq(incidents.tenantId, user.tenantId), gte(incidents.occurredAt, from), ...scope.incident))
         .orderBy(sql`${incidents.occurredAt} desc`);
       return { type, period, rows };
     }
@@ -76,18 +86,19 @@ export class InsightsService {
       .leftJoin(departments, eq(permits.departmentId, departments.id))
       .leftJoin(machinery, eq(permits.machineryId, machinery.id))
       .leftJoin(locations, eq(permits.locationId, locations.id))
-      .where(and(eq(permits.tenantId, user.tenantId), gte(permits.createdAt, from)))
+      .where(and(eq(permits.tenantId, user.tenantId), gte(permits.createdAt, from), ...scope.permit))
       .orderBy(sql`${permits.createdAt} desc`);
     return { type, period, rows };
   }
 
-  async getInsights(user: AuthenticatedUser, days = 30) {
+  async getInsights(user: AuthenticatedUser, days = 30, place?: PlaceFilter) {
     if (!user.tenantId) {
       throw new ForbiddenException('Tenant context is required');
     }
     const tenantId = user.tenantId;
     const now = new Date();
     const from = periodStart(days, now);
+    const scope = await this.placeScope(tenantId, place);
 
     const [
       byStatus,
@@ -106,19 +117,19 @@ export class InsightsService {
       this.db
         .select({ key: permits.status, count: count() })
         .from(permits)
-        .where(eq(permits.tenantId, tenantId))
+        .where(and(eq(permits.tenantId, tenantId), ...scope.permit))
         .groupBy(permits.status),
       this.db
         .select({ key: permitTypes.id, label: permitTypes.name, color: permitTypes.color, count: count() })
         .from(permits)
         .innerJoin(permitTypes, eq(permits.permitTypeId, permitTypes.id))
-        .where(and(eq(permits.tenantId, tenantId), gte(permits.createdAt, from)))
+        .where(and(eq(permits.tenantId, tenantId), gte(permits.createdAt, from), ...scope.permit))
         .groupBy(permitTypes.id, permitTypes.name, permitTypes.color),
       this.db
         .select({ key: departments.id, label: departments.name, count: count() })
         .from(permits)
         .innerJoin(departments, eq(permits.departmentId, departments.id))
-        .where(and(eq(permits.tenantId, tenantId), gte(permits.createdAt, from)))
+        .where(and(eq(permits.tenantId, tenantId), gte(permits.createdAt, from), ...scope.permit))
         .groupBy(departments.id, departments.name),
       this.db
         .select({
@@ -132,6 +143,7 @@ export class InsightsService {
         .where(
           and(
             eq(permits.tenantId, tenantId),
+            ...scope.permit,
             inArray(permits.status, LIVE_PERMIT_STATUSES),
             sql`coalesce(${machinery.name}, ${locations.name}) is not null`,
           ),
@@ -140,7 +152,7 @@ export class InsightsService {
       this.db
         .select({ day: sql<string>`to_char(date_trunc('day', ${permits.createdAt}), 'YYYY-MM-DD')`, count: count() })
         .from(permits)
-        .where(and(eq(permits.tenantId, tenantId), gte(permits.createdAt, from)))
+        .where(and(eq(permits.tenantId, tenantId), gte(permits.createdAt, from), ...scope.permit))
         .groupBy(sql`1`),
       this.db
         .select({ day: sql<string>`to_char(date_trunc('day', ${permitStatusHistory.createdAt}), 'YYYY-MM-DD')`, count: count() })
@@ -149,6 +161,7 @@ export class InsightsService {
         .where(
           and(
             eq(permits.tenantId, tenantId),
+            ...scope.permit,
             eq(permitStatusHistory.toStatus, 'closed'),
             gte(permitStatusHistory.createdAt, from),
           ),
@@ -158,15 +171,15 @@ export class InsightsService {
         .select({ decision: permitApprovals.decision, decidedAt: permitApprovals.decidedAt, submittedAt: permits.submittedAt })
         .from(permitApprovals)
         .innerJoin(permits, eq(permitApprovals.permitId, permits.id))
-        .where(and(eq(permits.tenantId, tenantId), gte(permitApprovals.decidedAt, from))),
+        .where(and(eq(permits.tenantId, tenantId), gte(permitApprovals.decidedAt, from), ...scope.permit)),
       this.db
         .select({ submittedAt: permits.submittedAt })
         .from(permits)
-        .where(and(eq(permits.tenantId, tenantId), eq(permits.status, 'pending_approval'), isNotNull(permits.submittedAt))),
+        .where(and(eq(permits.tenantId, tenantId), eq(permits.status, 'pending_approval'), isNotNull(permits.submittedAt), ...scope.permit)),
       this.db
         .select({ count: count() })
         .from(permits)
-        .where(and(eq(permits.tenantId, tenantId), eq(permits.status, 'active'), lt(permits.plannedEndAt, now))),
+        .where(and(eq(permits.tenantId, tenantId), eq(permits.status, 'active'), lt(permits.plannedEndAt, now), ...scope.permit)),
       this.db
         .select({
           type: incidents.incidentType,
@@ -175,7 +188,7 @@ export class InsightsService {
           occurredAt: incidents.occurredAt,
         })
         .from(incidents)
-        .where(and(eq(incidents.tenantId, tenantId), gte(incidents.occurredAt, from))),
+        .where(and(eq(incidents.tenantId, tenantId), gte(incidents.occurredAt, from), ...scope.incident)),
       this.db
         .select({ severity: simopsCases.severity, status: simopsCases.status })
         .from(simopsCases)
@@ -256,6 +269,26 @@ export class InsightsService {
         completed: actionRows.filter((a) => a.status === 'completed').length,
       },
     };
+  }
+
+  private async placeScope(tenantId: string, place?: PlaceFilter) {
+    const permit: SQL[] = [];
+    const incident: SQL[] = [];
+    if (place?.siteId) {
+      permit.push(eq(permits.siteId, place.siteId));
+      incident.push(eq(incidents.siteId, place.siteId));
+    }
+    if (place?.workLocationId) {
+      const rows = await this.db
+        .select({ id: workLocations.id, parentId: workLocations.parentId })
+        .from(workLocations)
+        .where(eq(workLocations.tenantId, tenantId));
+      const parentOf = new Map(rows.map((row) => [row.id, row.parentId]));
+      const ids = [place.workLocationId, ...descendantIds(place.workLocationId, parentOf)];
+      permit.push(inArray(permits.workLocationId, ids));
+      incident.push(inArray(incidents.workLocationId, ids));
+    }
+    return { permit, incident };
   }
 }
 

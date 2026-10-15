@@ -15,9 +15,9 @@ import {
 import {
   ASSIGNMENT_ROLE_OPTIONS,
   ENERGY_SOURCE_OPTIONS,
-  filterMachineryByWorkstation,
   loadLototoFormOptions,
 } from "@/lib/lototo/form-options";
+import { placeApi, type AssetRecord } from "@/lib/place/api";
 import type {
   IsolationPoint,
   IsolationSequenceStep,
@@ -26,7 +26,6 @@ import type {
   LototoPlan,
 } from "@/lib/lototo/types";
 import {
-  formatOrgOptionLabel,
   formatWorkforceOptionLabel,
   SelectField,
 } from "@/components/lototo/select-field";
@@ -40,7 +39,7 @@ export default function LototoPlanDetailPage() {
   const planId = params.id;
 
   const [plan, setPlan] = useState<LototoPlan | null>(null);
-  const [machinery, setMachinery] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>>["machinery"]>([]);
+  const [asset, setAsset] = useState<AssetRecord | null>(null);
   const [personnel, setPersonnel] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>>["personnel"]>([]);
   const [isolationPoints, setIsolationPoints] = useState<IsolationPoint[]>([]);
   const [assignments, setAssignments] = useState<LototoAssignment[]>([]);
@@ -51,16 +50,12 @@ export default function LototoPlanDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isolationNumber, setIsolationNumber] = useState("");
-  const [machineryId, setMachineryId] = useState("");
   const [isolationDescription, setIsolationDescription] = useState("");
   const [energySourceType, setEnergySourceType] = useState("electrical");
   const [workforceUserId, setWorkforceUserId] = useState("");
   const [assignmentRole, setAssignmentRole] = useState<LototoAssignmentRole>("permit-operator");
 
-  const filteredMachinery = useMemo(
-    () => filterMachineryByWorkstation(machinery, plan?.workstationId),
-    [machinery, plan?.workstationId],
-  );
+  const assetId = plan?.assetId ?? plan?.machineryId ?? "";
 
   const personnelById = useMemo(
     () => new Map(personnel.map((person) => [person.id, person])),
@@ -73,15 +68,17 @@ export default function LototoPlanDetailPage() {
     setIsolationPoints(detail.isolationPoints);
     setAssignments(detail.assignments);
     setSequence(detail.sequence);
-    if (detail.plan.machineryId) {
-      setMachineryId(detail.plan.machineryId);
+    const target = detail.plan.assetId ?? detail.plan.machineryId;
+    if (target) {
+      placeApi.getAsset(target).then(setAsset).catch(() => setAsset(null));
+    } else {
+      setAsset(null);
     }
   }, [planId]);
 
   useEffect(() => {
     Promise.all([loadDetail(), loadLototoFormOptions()])
       .then(([, options]) => {
-        setMachinery(options.machinery);
         setPersonnel(options.personnel);
       })
       .catch((err) => {
@@ -89,16 +86,10 @@ export default function LototoPlanDetailPage() {
       });
   }, [loadDetail]);
 
-  useEffect(() => {
-    if (machineryId && !filteredMachinery.some((item) => item.id === machineryId)) {
-      setMachineryId(filteredMachinery[0]?.id ?? "");
-    }
-  }, [filteredMachinery, machineryId]);
-
   async function handleAddIsolationPoint(event: React.FormEvent) {
     event.preventDefault();
-    if (!isolationNumber.trim() || !machineryId) {
-      setActionError("Isolation number and machinery are required.");
+    if (!isolationNumber.trim() || !assetId) {
+      setActionError("Isolation number is required, and the plan needs an asset.");
       return;
     }
 
@@ -107,7 +98,7 @@ export default function LototoPlanDetailPage() {
     setMessage(null);
     try {
       await addIsolationPoint(planId, {
-        machineryId,
+        assetId,
         isolationNumber: isolationNumber.trim(),
         description: isolationDescription.trim() || undefined,
         verificationRequired: true,
@@ -240,8 +231,8 @@ export default function LototoPlanDetailPage() {
           ) : (
             <>
               {" · "}
-              <Link href="/organisation/machinery" className="underline">
-                Machinery
+              <Link href="/organisation/assets" className="underline">
+                {asset ? `${asset.tag} — ${asset.name}` : "Asset"}
               </Link>
             </>
           )}
@@ -265,7 +256,9 @@ export default function LototoPlanDetailPage() {
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-border p-4">
           <h2 className="text-lg font-medium">Isolation points</h2>
-          <p className="mb-4 text-sm text-muted-foreground">Define energy sources and isolation points.</p>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {asset ? `Energy sources and isolation points for ${asset.tag} — ${asset.name}.` : assetId ? "Loading the asset…" : "This plan has no asset yet."}
+          </p>
 
           {orderedPoints.length > 0 ? (
             <ol className="mb-4 list-decimal space-y-2 pl-5 text-sm">
@@ -311,26 +304,6 @@ export default function LototoPlanDetailPage() {
               </FormField>
 
               <SelectField
-                id="isolation-machinery"
-                label="Machinery"
-                required
-                value={machineryId}
-                onChange={setMachineryId}
-                placeholder={filteredMachinery.length === 0 ? "No machinery available" : "Select machinery"}
-                hint={
-                  filteredMachinery.length === 0
-                    ? "Add machinery under Organisation → Machinery."
-                    : plan.workstationId
-                      ? "Filtered to this plan's workstation."
-                      : undefined
-                }
-                options={filteredMachinery.map((item) => ({
-                  value: item.id,
-                  label: formatOrgOptionLabel(item),
-                }))}
-              />
-
-              <SelectField
                 id="energy-source"
                 label="Energy source type"
                 required
@@ -353,7 +326,7 @@ export default function LototoPlanDetailPage() {
                 />
               </FormField>
 
-              <Button type="submit" size="sm" disabled={isSubmitting || filteredMachinery.length === 0}>
+              <Button type="submit" size="sm" disabled={isSubmitting || !assetId}>
                 Add isolation point
               </Button>
             </form>

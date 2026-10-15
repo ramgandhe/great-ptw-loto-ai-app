@@ -13,6 +13,7 @@ import { QueueService } from '../app/src/infrastructure/queue/queue.service';
 import { StorageService } from '../app/src/infrastructure/storage/storage.service';
 import * as schema from '../app/src/database/schema';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
+import { insertAssetTarget } from './helpers/place-fixture';
 
 /**
  * PUS-227 — Retroactive MS-04/MS-05 continuous journeys against real Postgres.
@@ -136,6 +137,8 @@ describe('MS-04/MS-05 integration journeys (PUS-227)', () => {
         createdBy: actorId,
       })
       .returning();
+
+    await insertAssetTarget(db, { tenantId, createdBy: actorId, name: 'Shared pump', assetId: machinery.id });
 
     return { workstation, machinery };
   }

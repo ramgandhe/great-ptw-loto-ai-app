@@ -148,8 +148,13 @@ export class LototoProcedureContentDto {
 }
 
 export class CreateLototoProcedureDto extends LototoProcedureContentDto {
+  @IsOptional()
   @IsUUID()
-  machineryId!: string;
+  machineryId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  assetId?: string;
 
   @IsOptional()
   @IsUUID()
@@ -170,6 +175,10 @@ export class UpdateLototoProcedureDto extends LototoProcedureContentDto {
   @IsOptional()
   @IsUUID()
   machineryId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  assetId?: string;
 
   @IsOptional()
   @IsUUID()

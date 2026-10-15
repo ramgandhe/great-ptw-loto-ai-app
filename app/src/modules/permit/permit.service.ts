@@ -7,6 +7,7 @@ import {
   ConflictException,
   forwardRef,
   Optional,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { and, arrayContains, desc, eq, inArray, ne, or } from 'drizzle-orm';
@@ -27,6 +28,7 @@ import {
   permitLototoStepNa,
   permitLototoVerifiers,
   permitLototoVerificationRuns,
+  permitAssets,
   permitGasTesting,
   permitViewers,
   permitSafetyOfficers,
@@ -35,12 +37,19 @@ import {
   lototoProcedureLockoutPoints,
   lototoProcedures,
   gasTestingCatalogue,
+  assets,
+  siteMembers,
+  sites,
+  workLocations,
   hazardCategories,
   permitTypes,
   revalidationHistory,
   tenantUsers,
 } from '../../database/schema';
 import { hazardFitsPermitType } from '../master-data/default-hazards';
+import { limitIsLooser } from '../master-data/gas-test-defaults';
+import { GasTestingService } from '../master-data/gas-testing.service';
+import { descendantIds } from '../place/place-rules';
 import { MailService } from '../../infrastructure/mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
@@ -152,6 +161,7 @@ export interface PermitDetail {
   ppe: (typeof permitPpe.$inferSelect)[];
   lototo: PermitLototoDetail[];
   gasTesting: (typeof permitGasTesting.$inferSelect)[];
+  assets: (typeof permitAssets.$inferSelect)[];
   executors: (typeof permitExecutors.$inferSelect)[];
   viewers: (typeof permitViewers.$inferSelect)[];
   safetyOfficers: (typeof permitSafetyOfficers.$inferSelect)[];
@@ -179,6 +189,7 @@ export class PermitService {
     // Optional so specs that build the service by hand need not provide storage.
     @Optional() private readonly storageService?: StorageService,
     @Optional() private readonly notificationsService?: NotificationsService,
+    @Optional() private readonly gasTestingService?: GasTestingService,
   ) {}
 
   async create(rawDto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -189,6 +200,10 @@ export class PermitService {
     const formResponses = dto.formResponses ? keepLaterStageAnswers([], await this.resolveFormResponses(tenantId, dto.formResponses)) : [];
 
     const created = await this.db.transaction(async (tx) => {
+      const place =
+        dto.siteId || dto.workLocationId
+          ? await this.resolvePermitPlace(tx, tenantId, user, dto.siteId ?? null, dto.workLocationId ?? null)
+          : { siteId: null, workLocationId: null, placePath: null };
       const [permit] = await tx
         .insert(permits)
         .values({
@@ -204,6 +219,10 @@ export class PermitService {
           locationId: dto.locationId,
           workstationId: dto.workstationId,
           machineryId: dto.machineryId,
+          siteId: place.siteId,
+          workLocationId: place.workLocationId,
+          exactSpot: dto.exactSpot?.trim() || null,
+          placePath: place.placePath,
           lototoRequired: dto.lototoRequired ?? false,
           gasTestingRequired: dto.gasTestingRequired ?? false,
           plannedStartAt: dto.plannedStartAt,
@@ -229,7 +248,24 @@ export class PermitService {
         })
         .returning();
 
-      await this.insertRelations(tx, permit.id, user.id, tenantId, dto.machineryId, dto.workstationId, dto);
+      if (dto.assetIds?.length) {
+        await this.replacePermitAssets(tx, permit.id, user.id, tenantId, place.siteId, dto.assetIds);
+      }
+
+      await this.insertRelations(
+        tx,
+        permit.id,
+        user.id,
+        tenantId,
+        dto.machineryId,
+        {
+          workstationId: dto.workstationId,
+          workLocationId: place.workLocationId,
+          assetIds: dto.assetIds,
+        },
+        dto,
+        user,
+      );
 
       await this.auditService.log({
         action: 'permit.created',
@@ -259,11 +295,14 @@ export class PermitService {
   async findAll(
     user: AuthenticatedUser,
     status?: string,
+    siteId?: string,
+    workLocationId?: string,
   ): Promise<(typeof permits.$inferSelect)[]> {
     const tenantId = this.requireTenant(user);
 
+    const listKey = `${tenantId}:${user.id}:${siteId ?? ''}:${workLocationId ?? ''}`;
     const cached = await this.permitCacheService.getPermitList<(typeof permits.$inferSelect)[]>(
-      `${tenantId}:${user.id}`,
+      listKey,
       status,
     );
     if (cached) {
@@ -273,6 +312,18 @@ export class PermitService {
     const conditions = [eq(permits.tenantId, tenantId)];
     if (status) {
       conditions.push(eq(permits.status, status));
+    }
+    if (siteId) {
+      conditions.push(eq(permits.siteId, siteId));
+    }
+    if (workLocationId) {
+      const locations = await this.db
+        .select({ id: workLocations.id, parentId: workLocations.parentId })
+        .from(workLocations)
+        .where(eq(workLocations.tenantId, tenantId));
+      const parentOf = new Map(locations.map((row) => [row.id, row.parentId]));
+      const ids = [workLocationId, ...descendantIds(workLocationId, parentOf)];
+      conditions.push(inArray(permits.workLocationId, ids));
     }
 
     const visibility = await visiblePermitFilter(this.db, user, tenantId);
@@ -308,7 +359,7 @@ export class PermitService {
         .orderBy(desc(permits.createdAt));
     }
 
-    await this.permitCacheService.setPermitList(`${tenantId}:${user.id}`, status, results);
+    await this.permitCacheService.setPermitList(listKey, status, results);
     return results;
   }
 
@@ -368,7 +419,7 @@ export class PermitService {
     id: string,
     input: SaveDraftDto,
     user: AuthenticatedUser,
-  ): Promise<PermitDetail> {
+  ): Promise<PermitDetail & { gasChanges?: string[] }> {
     const tenantId = this.requireTenant(user);
     const { expectedRevision, ...rawDto } = input;
     const updated = await this.db.transaction(async (tx) => {
@@ -412,6 +463,15 @@ export class PermitService {
       if (dto.locationId !== undefined) permitUpdates.locationId = dto.locationId;
       if (dto.workstationId !== undefined) permitUpdates.workstationId = dto.workstationId;
       if (dto.machineryId !== undefined) permitUpdates.machineryId = dto.machineryId;
+      if (dto.siteId !== undefined || dto.workLocationId !== undefined) {
+        const siteId = dto.siteId !== undefined ? dto.siteId : existing.permit.siteId;
+        const workLocationId = dto.workLocationId !== undefined ? dto.workLocationId : existing.permit.workLocationId;
+        const place = await this.resolvePermitPlace(tx, tenantId, user, siteId, workLocationId);
+        permitUpdates.siteId = place.siteId;
+        permitUpdates.workLocationId = place.workLocationId;
+        if (dto.workLocationId !== undefined) permitUpdates.placePath = place.placePath;
+      }
+      if (dto.exactSpot !== undefined) permitUpdates.exactSpot = dto.exactSpot.trim() || null;
       if (dto.lototoRequired !== undefined) permitUpdates.lototoRequired = dto.lototoRequired;
       if (dto.gasTestingRequired !== undefined) permitUpdates.gasTestingRequired = dto.gasTestingRequired;
       if (dto.plannedStartAt !== undefined) permitUpdates.plannedStartAt = dto.plannedStartAt;
@@ -485,6 +545,8 @@ export class PermitService {
       }
 
       if (dto.lototo !== undefined) {
+        const lototoAssets =
+          dto.assetIds ?? (existing.assets ?? []).map((row) => row.assetId);
         await this.replaceLototo(
           tx,
           id,
@@ -492,6 +554,7 @@ export class PermitService {
           tenantId,
           dto.machineryId !== undefined ? dto.machineryId : existing.permit.machineryId,
           dto.lototo,
+          lototoAssets,
         );
       } else if (
         dto.machineryId !== undefined &&
@@ -500,6 +563,12 @@ export class PermitService {
         await this.replaceLototo(tx, id, user.id, tenantId, dto.machineryId, []);
       }
 
+      if (dto.assetIds !== undefined) {
+        const siteId = permitUpdates.siteId !== undefined ? permitUpdates.siteId : existing.permit.siteId;
+        await this.replacePermitAssets(tx, id, user.id, tenantId, siteId, dto.assetIds);
+      }
+
+      let gasChanges: string[] = [];
       if (dto.gasTesting !== undefined) {
         await tx.delete(permitGasTesting).where(eq(permitGasTesting.permitId, id));
         if (dto.gasTesting.length > 0) {
@@ -508,9 +577,29 @@ export class PermitService {
             id,
             user.id,
             tenantId,
-            dto.workstationId !== undefined ? dto.workstationId : existing.permit.workstationId,
+            {
+              workstationId: dto.workstationId !== undefined ? dto.workstationId : existing.permit.workstationId,
+              workLocationId:
+                permitUpdates.workLocationId !== undefined
+                  ? permitUpdates.workLocationId
+                  : existing.permit.workLocationId,
+              assetIds: dto.assetIds ?? (existing.assets ?? []).map((row) => row.assetId),
+            },
             dto.gasTesting,
+            user,
           );
+        }
+      } else if (
+        this.gasTestingService &&
+        (dto.workLocationId !== undefined || dto.assetIds !== undefined)
+      ) {
+        const workLocationId =
+          permitUpdates.workLocationId !== undefined
+            ? permitUpdates.workLocationId
+            : existing.permit.workLocationId;
+        const assetIds = dto.assetIds ?? (existing.assets ?? []).map((row) => row.assetId);
+        if (workLocationId) {
+          gasChanges = await this.syncGasDefaults(tx, id, user, tenantId, workLocationId, assetIds);
         }
       } else if (
         dto.workstationId !== undefined &&
@@ -552,7 +641,8 @@ export class PermitService {
 
       await this.permitCacheService.invalidatePermit(tenantId, id);
 
-      return this.loadDetail(tx, id, tenantId);
+      const detail = await this.loadDetail(tx, id, tenantId);
+      return gasChanges.length > 0 ? { ...detail, gasChanges } : detail;
     });
     return updated;
   }
@@ -719,10 +809,30 @@ export class PermitService {
       }
       assertExpectedRevision(detail, dto.expectedRevision);
 
-      const applicable = await this.applicableTemplates(tx, tenantId, detail.permit.permitTypeId);
+      const placed = await this.backfillPlaceFromLegacy(tx, detail.permit);
+      const applicable = await this.applicableTemplates(tx, tenantId, placed.permitTypeId);
+      const assetRows = await tx
+        .select({ assetId: permitAssets.assetId })
+        .from(permitAssets)
+        .where(eq(permitAssets.permitId, id));
+      if (assetRows.length === 0 && placed.machineryId) {
+        const [asset] = await tx
+          .select({ id: assets.id })
+          .from(assets)
+          .where(and(eq(assets.id, placed.machineryId), eq(assets.tenantId, tenantId)));
+        if (asset) {
+          await tx.insert(permitAssets).values({
+            permitId: id,
+            assetId: asset.id,
+            createdBy: user.id,
+            updatedBy: user.id,
+          });
+          assetRows.push({ assetId: asset.id });
+        }
+      }
       this.validationService.validateForSubmit(
-        detail,
-        missingFormAnswers(applicable, detail.permit.formResponses as PermitFormResponse[]),
+        { ...detail, permit: placed, assetIds: assetRows.map((row) => row.assetId) },
+        missingFormAnswers(applicable, placed.formResponses as PermitFormResponse[]),
       );
       assertPermitSegregationOfDuties({
         receiverIds: [detail.permit.createdBy, user.id],
@@ -844,6 +954,10 @@ export class PermitService {
           locationId: source.permit.locationId,
           workstationId: source.permit.workstationId,
           machineryId: source.permit.machineryId,
+          siteId: source.permit.siteId,
+          workLocationId: source.permit.workLocationId,
+          exactSpot: source.permit.exactSpot,
+          placePath: source.permit.placePath,
           lototoRequired: source.permit.lototoRequired,
           gasTestingRequired: source.permit.gasTestingRequired,
           plannedStartAt: dto.plannedStartAt
@@ -921,6 +1035,18 @@ export class PermitService {
             crew: item.crew,
             verifiers: item.verifiers,
           })),
+          source.assets.map((row) => row.assetId),
+        );
+      }
+
+      if (source.assets.length > 0) {
+        await tx.insert(permitAssets).values(
+          source.assets.map((row) => ({
+            permitId: renewal.id,
+            assetId: row.assetId,
+            createdBy: user.id,
+            updatedBy: user.id,
+          })),
         );
       }
 
@@ -934,6 +1060,10 @@ export class PermitService {
             unit: item.unit,
             minimum: item.minimum,
             maximum: item.maximum,
+            sourceKind: item.sourceKind,
+            sourceId: item.sourceId,
+            removedReason: item.removedReason,
+            handAdded: item.handAdded,
             createdBy: user.id,
             updatedBy: user.id,
           })),
@@ -1109,6 +1239,8 @@ export class PermitService {
       .from(permitGasTesting)
       .where(eq(permitGasTesting.permitId, id));
 
+    const assetsOnPermit = await db.select().from(permitAssets).where(eq(permitAssets.permitId, id));
+
     const executors = await db
       .select()
       .from(permitExecutors)
@@ -1132,6 +1264,7 @@ export class PermitService {
       ppe,
       lototo,
       gasTesting,
+      assets: assetsOnPermit,
       executors,
       viewers,
       safetyOfficers,
@@ -1145,8 +1278,9 @@ export class PermitService {
     userId: string,
     tenantId: string,
     machineryId: string | null | undefined,
-    workstationId: string | null | undefined,
+    place: { workstationId?: string | null; workLocationId?: string | null; assetIds?: string[] },
     dto: CreatePermitDto | UpdatePermitDto,
+    user?: AuthenticatedUser,
   ): Promise<void> {
     if (dto.hazards?.length) {
       await this.insertHazards(db, permitId, userId, tenantId, dto.permitTypeId, dto.hazards);
@@ -1158,10 +1292,10 @@ export class PermitService {
       await this.insertExecutors(db, permitId, userId, dto.executors, [userId]);
     }
     if (dto.lototo?.length) {
-      await this.replaceLototo(db, permitId, userId, tenantId, machineryId, dto.lototo);
+      await this.replaceLototo(db, permitId, userId, tenantId, machineryId, dto.lototo, place.assetIds ?? []);
     }
     if (dto.gasTesting?.length) {
-      await this.insertGasTesting(db, permitId, userId, tenantId, workstationId, dto.gasTesting);
+      await this.insertGasTesting(db, permitId, userId, tenantId, place, dto.gasTesting, user);
     }
     if (dto.viewers?.length) {
       await this.insertAssignees(db, permitViewers, permitId, userId, dto.viewers);
@@ -1333,6 +1467,7 @@ export class PermitService {
     tenantId: string,
     machineryId: string | null | undefined,
     lototoItems: PermitLototoDto[],
+    assetIds: string[] = [],
   ): Promise<void> {
     const existing = await db
       .select({ frozenAt: permitLototoInstances.frozenAt })
@@ -1345,8 +1480,9 @@ export class PermitService {
     if (lototoItems.length === 0) {
       return;
     }
-    if (!machineryId) {
-      throw new BadRequestException('Machinery is required when attaching LOTOTO procedures');
+    const selected = new Set([...assetIds, machineryId].filter((id): id is string => Boolean(id)));
+    if (selected.size === 0) {
+      throw new BadRequestException('An asset is required when attaching LOTOTO procedures');
     }
 
     const ids = [...new Set(lototoItems.map((item) => item.procedureId))];
@@ -1358,6 +1494,7 @@ export class PermitService {
       .select({
         id: lototoProcedures.id,
         machineryId: lototoProcedures.machineryId,
+        assetId: lototoProcedures.assetId,
         publishedVersionId: lototoProcedures.publishedVersionId,
         status: lototoProcedures.status,
       })
@@ -1367,8 +1504,8 @@ export class PermitService {
     if (rows.length !== ids.length) {
       throw new BadRequestException('One or more LOTOTO procedures were not found');
     }
-    if (rows.some((row) => row.machineryId !== machineryId)) {
-      throw new BadRequestException('LOTOTO procedures must belong to the selected machinery');
+    if (rows.some((row) => !selected.has(row.assetId ?? '') && !selected.has(row.machineryId ?? ''))) {
+      throw new BadRequestException('LOTOTO procedures must belong to a selected asset');
     }
     if (rows.some((row) => row.status !== 'published' || !row.publishedVersionId)) {
       throw new BadRequestException('Only published LOTOTO procedures can be attached');
@@ -1486,51 +1623,342 @@ export class PermitService {
     }
   }
 
+  /** Old drafts store plant, location and workstation. Submit copies those onto the new place fields. */
+  private async backfillPlaceFromLegacy(
+    db: Pick<Database, 'select' | 'update'>,
+    permit: typeof permits.$inferSelect,
+  ) {
+    let workLocationId = permit.workLocationId;
+    let siteId = permit.siteId;
+    if (!workLocationId) {
+      for (const candidate of [permit.workstationId, permit.locationId, permit.departmentId]) {
+        if (!candidate) continue;
+        const [found] = await db
+          .select({ id: workLocations.id, siteId: workLocations.siteId })
+          .from(workLocations)
+          .where(and(eq(workLocations.id, candidate), eq(workLocations.tenantId, permit.tenantId)));
+        if (found) {
+          workLocationId = found.id;
+          siteId = siteId ?? found.siteId;
+          break;
+        }
+      }
+    }
+    if (!siteId && permit.plantId) {
+      const [site] = await db
+        .select({ id: sites.id })
+        .from(sites)
+        .where(and(eq(sites.id, permit.plantId), eq(sites.tenantId, permit.tenantId)));
+      siteId = site?.id ?? null;
+    }
+    if (!siteId && workLocationId) {
+      const [location] = await db
+        .select({ siteId: workLocations.siteId })
+        .from(workLocations)
+        .where(eq(workLocations.id, workLocationId));
+      siteId = location?.siteId ?? null;
+    }
+    if (siteId === permit.siteId && workLocationId === permit.workLocationId) {
+      return permit;
+    }
+    const [updated] = await db
+      .update(permits)
+      .set({ siteId, workLocationId, updatedAt: new Date() })
+      .where(eq(permits.id, permit.id))
+      .returning();
+    return updated ?? permit;
+  }
+
+  /** Keep hand-added and removed rows. Add, tighten, or drop catalogue defaults. */
+  private async syncGasDefaults(
+    db: Pick<Database, 'insert' | 'select' | 'delete' | 'update'>,
+    permitId: string,
+    user: AuthenticatedUser,
+    tenantId: string,
+    workLocationId: string,
+    assetIds: string[],
+  ): Promise<string[]> {
+    const defaults = await this.gasTestingService!.defaults(user, workLocationId, assetIds);
+    const current = await db.select().from(permitGasTesting).where(eq(permitGasTesting.permitId, permitId));
+    const byKey = new Map(current.map((row) => [row.parameter.trim().toLowerCase(), row]));
+    const seen = new Set<string>();
+    const changes: string[] = [];
+    for (const item of defaults) {
+      const key = item.parameter.trim().toLowerCase();
+      seen.add(key);
+      const existing = byKey.get(key);
+      if (!existing) {
+        await db.insert(permitGasTesting).values({
+          permitId,
+          gasTestingCatalogueId: null,
+          workstationId: item.minimumSource.id,
+          parameter: item.parameter,
+          unit: item.unit,
+          minimum: item.minimum,
+          maximum: item.maximum,
+          sourceKind: item.minimumSource.kind,
+          sourceId: item.minimumSource.id,
+          handAdded: false,
+          createdBy: user.id,
+          updatedBy: user.id,
+        });
+        changes.push(`Added ${item.parameter} from ${item.minimumSource.name}`);
+        continue;
+      }
+      if (existing.removedReason?.trim() || existing.handAdded) continue;
+      const minimum = Math.max(existing.minimum, item.minimum);
+      const maximum = Math.min(existing.maximum, item.maximum);
+      if (minimum > maximum) continue;
+      if (minimum !== existing.minimum || maximum !== existing.maximum) {
+        await db
+          .update(permitGasTesting)
+          .set({
+            minimum,
+            maximum,
+            unit: item.unit,
+            sourceKind: item.minimumSource.kind,
+            sourceId: item.minimumSource.id,
+            updatedBy: user.id,
+            updatedAt: new Date(),
+          })
+          .where(eq(permitGasTesting.id, existing.id));
+        changes.push(`Tightened ${item.parameter} to ${minimum}–${maximum} ${item.unit}`);
+      }
+    }
+    for (const row of current) {
+      const key = row.parameter.trim().toLowerCase();
+      if (seen.has(key) || row.handAdded || row.removedReason?.trim()) continue;
+      await db.delete(permitGasTesting).where(eq(permitGasTesting.id, row.id));
+      changes.push(`Removed ${row.parameter}; it is no longer a default for this place`);
+    }
+    const remaining = await db
+      .select({ removedReason: permitGasTesting.removedReason })
+      .from(permitGasTesting)
+      .where(eq(permitGasTesting.permitId, permitId));
+    const required = remaining.some((row) => !row.removedReason?.trim());
+    await db
+      .update(permits)
+      .set({ gasTestingRequired: required, updatedAt: new Date() })
+      .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
+    return changes;
+  }
+
   private async insertGasTesting(
     db: Pick<Database, 'insert' | 'select'>,
     permitId: string,
     userId: string,
     tenantId: string,
-    workstationId: string | null | undefined,
+    place: { workstationId?: string | null; workLocationId?: string | null; assetIds?: string[] },
     items: NonNullable<CreatePermitDto['gasTesting']>,
+    user?: AuthenticatedUser,
   ): Promise<void> {
-    if (items.length === 0) {
-      return;
-    }
-    if (!workstationId) {
-      throw new BadRequestException('Workstation is required when attaching gas testing items');
-    }
+    if (items.length === 0) return;
+    const catalogueItems = items.filter((item) => item.gasTestingCatalogueId);
+    const handItems = items.filter((item) => !item.gasTestingCatalogueId);
+    const seen = new Set<string>();
+    const take = (parameter: string) => {
+      const key = parameter.trim().toLowerCase();
+      if (seen.has(key)) {
+        throw new BadRequestException(`Gas test ${parameter.trim()} is listed more than once`);
+      }
+      seen.add(key);
+    };
+    const values: Array<typeof permitGasTesting.$inferInsert> = [];
 
-    const ids = [...new Set(items.map((item) => item.gasTestingCatalogueId))];
-    const rows = await db
-      .select()
-      .from(gasTestingCatalogue)
-      .where(and(eq(gasTestingCatalogue.tenantId, tenantId), inArray(gasTestingCatalogue.id, ids)));
-
-    if (rows.length !== ids.length) {
-      throw new BadRequestException('One or more gas testing items were not found');
-    }
-    if (rows.some((row) => row.workstationId !== workstationId)) {
-      throw new BadRequestException('Gas testing items must belong to the selected workstation');
-    }
-
-    const byId = new Map(rows.map((row) => [row.id, row]));
-    await db.insert(permitGasTesting).values(
-      items.map((item) => {
-        const source = byId.get(item.gasTestingCatalogueId)!;
-        return {
+    if (catalogueItems.length > 0) {
+      const ids = [...new Set(catalogueItems.map((item) => item.gasTestingCatalogueId!))];
+      const rows = await db
+        .select()
+        .from(gasTestingCatalogue)
+        .where(and(eq(gasTestingCatalogue.tenantId, tenantId), inArray(gasTestingCatalogue.id, ids)));
+      if (rows.length !== ids.length) {
+        throw new BadRequestException('One or more gas testing items were not found');
+      }
+      const locationIds = await this.locationAndAncestors(db, tenantId, place.workLocationId);
+      const assetIds = new Set(place.assetIds ?? []);
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      const merged = this.gasTestingService && user && place.workLocationId
+        ? await this.gasTestingService.defaults(user, place.workLocationId, [...assetIds])
+        : [];
+      const mergedByParameter = new Map(merged.map((row) => [row.parameter.trim().toLowerCase(), row]));
+      for (const item of catalogueItems) {
+        const source = byId.get(item.gasTestingCatalogueId!)!;
+        const onAsset = Boolean(source.assetId && assetIds.has(source.assetId));
+        const onLocation = Boolean(
+          (source.workLocationId && locationIds.has(source.workLocationId)) ||
+            (source.workstationId && locationIds.has(source.workstationId)),
+        );
+        const onWorkstation = Boolean(place.workstationId && source.workstationId === place.workstationId);
+        if (!onAsset && !onLocation && !onWorkstation) {
+          throw new BadRequestException('Gas testing items must belong to the selected place or asset');
+        }
+        const minimum = item.minimum ?? source.minimum;
+        const maximum = item.maximum ?? source.maximum;
+        const floor = mergedByParameter.get(source.parameter.trim().toLowerCase()) ?? source;
+        if (limitIsLooser({ minimum, maximum }, floor)) {
+          throw new UnprocessableEntityException(
+            `Gas test ${source.parameter} cannot be given a wider limit than the configured range`,
+          );
+        }
+        const placeId = source.workstationId ?? source.workLocationId ?? source.assetId ?? place.workLocationId ?? place.workstationId;
+        if (!placeId) {
+          throw new BadRequestException('Gas testing item is not linked to a place or asset');
+        }
+        take(source.parameter);
+        values.push({
           permitId,
           gasTestingCatalogueId: source.id,
-          workstationId: source.workstationId,
+          workstationId: placeId,
           parameter: source.parameter,
           unit: source.unit,
-          minimum: source.minimum,
-          maximum: source.maximum,
+          minimum,
+          maximum,
+          removedReason: item.removedReason?.trim() || null,
+          sourceKind: source.assetId ? 'asset' : 'work_location',
+          sourceId: source.assetId ?? source.workLocationId ?? source.workstationId,
+          handAdded: false,
           createdBy: userId,
           updatedBy: userId,
-        };
-      }),
-    );
+        });
+      }
+    }
+
+    if (handItems.length > 0) {
+      const placeId = place.workLocationId ?? place.workstationId;
+      if (!placeId) {
+        throw new BadRequestException('A work location is required when adding a gas test');
+      }
+      for (const item of handItems) {
+        if (item.removedReason) {
+          throw new BadRequestException('A hand-added gas test cannot be removed; leave it out of the list');
+        }
+        const parameter = item.parameter?.trim();
+        const unit = item.unit?.trim();
+        if (!parameter || !unit || item.minimum == null || item.maximum == null) {
+          throw new BadRequestException('A hand-added gas test needs a parameter, unit, minimum and maximum');
+        }
+        if (item.minimum >= item.maximum) {
+          throw new BadRequestException('Minimum must be less than maximum');
+        }
+        take(parameter);
+        values.push({
+          permitId,
+          gasTestingCatalogueId: null,
+          workstationId: placeId,
+          parameter,
+          unit,
+          minimum: item.minimum,
+          maximum: item.maximum,
+          handAdded: true,
+          createdBy: userId,
+          updatedBy: userId,
+        });
+      }
+    }
+
+    if (values.length > 0) {
+      await db.insert(permitGasTesting).values(values);
+    }
+  }
+
+  private async locationAndAncestors(
+    db: Pick<Database, 'select'>,
+    tenantId: string,
+    workLocationId: string | null | undefined,
+  ) {
+    const ids = new Set<string>();
+    const seen = new Set<string>();
+    let current = workLocationId ?? null;
+    while (current && !seen.has(current)) {
+      seen.add(current);
+      ids.add(current);
+      const [row] = await db
+        .select({ parentId: workLocations.parentId })
+        .from(workLocations)
+        .where(and(eq(workLocations.id, current), eq(workLocations.tenantId, tenantId)));
+      current = row?.parentId ?? null;
+    }
+    return ids;
+  }
+
+  private async resolvePermitPlace(
+    db: Pick<Database, 'select'>,
+    tenantId: string,
+    user: AuthenticatedUser,
+    siteId: string | null,
+    workLocationId: string | null,
+  ) {
+    let site = siteId;
+    let placePath: string | null = null;
+    if (workLocationId) {
+      const [location] = await db
+        .select({
+          siteId: workLocations.siteId,
+          pathText: workLocations.pathText,
+          status: workLocations.status,
+        })
+        .from(workLocations)
+        .where(and(eq(workLocations.id, workLocationId), eq(workLocations.tenantId, tenantId)));
+      if (!location || location.status === 'archived') {
+        throw new BadRequestException('Work location not found');
+      }
+      if (site && site !== location.siteId) {
+        throw new BadRequestException('Work location is not on the selected site');
+      }
+      site = location.siteId;
+      placePath = location.pathText;
+    }
+    if (site) {
+      const [found] = await db
+        .select({ id: sites.id, status: sites.status })
+        .from(sites)
+        .where(and(eq(sites.id, site), eq(sites.tenantId, tenantId)));
+      if (!found || found.status === 'archived') {
+        throw new BadRequestException('Site not found');
+      }
+      if (!isTenantPrivileged(user.roles) && !user.roles.includes('platform-admin')) {
+        const [member] = await db
+          .select({ id: siteMembers.id })
+          .from(siteMembers)
+          .where(
+            and(eq(siteMembers.tenantId, tenantId), eq(siteMembers.siteId, site), eq(siteMembers.userId, user.id)),
+          );
+        if (!member) throw new NotFoundException('Site not found');
+      }
+    }
+    return { siteId: site, workLocationId, placePath };
+  }
+
+  private async replacePermitAssets(
+    db: Pick<Database, 'insert' | 'select' | 'delete'>,
+    permitId: string,
+    userId: string,
+    tenantId: string,
+    siteId: string | null,
+    assetIds: string[],
+  ) {
+    const unique = [...new Set(assetIds)];
+    if (unique.length > 0) {
+      if (!siteId) throw new BadRequestException('A site is required when selecting assets');
+      const rows = await db
+        .select({ id: assets.id, siteId: assets.siteId, status: assets.status })
+        .from(assets)
+        .where(and(eq(assets.tenantId, tenantId), inArray(assets.id, unique)));
+      if (rows.length !== unique.length || rows.some((row) => row.siteId !== siteId || row.status === 'archived')) {
+        throw new BadRequestException('Assets must be active records on the permit site');
+      }
+    }
+    await db.delete(permitAssets).where(eq(permitAssets.permitId, permitId));
+    if (unique.length > 0) {
+      await db.insert(permitAssets).values(
+        unique.map((assetId) => ({
+          permitId,
+          assetId,
+          createdBy: userId,
+          updatedBy: userId,
+        })),
+      );
+    }
   }
 
   private async insertExecutors(
@@ -1624,13 +2052,13 @@ export class PermitService {
     const errors: string[] = [];
     if (to === 'operator') {
       if (!permit.title?.trim()) errors.push('title is required');
-      if (!permit.departmentId) errors.push('departmentId is required');
-      if (!permit.locationId) errors.push('locationId is required');
+      if (!permit.siteId && !permit.departmentId) errors.push('site is required');
+      if (!permit.workLocationId && !permit.locationId) errors.push('work location is required');
       if (!permit.plannedStartAt || !permit.plannedEndAt) errors.push('planned start and end are required');
       if (executors.length === 0) errors.push('assign a primary executor');
     }
     if (to === 'safety_officer' || to === 'ready_for_review') {
-      if (!permit.workstationId) errors.push('workstation is required');
+      if (!permit.workLocationId && !permit.workstationId) errors.push('work location is required');
       if (hazards.length === 0) errors.push('at least one hazard is required');
       if (ppe.length === 0) errors.push('at least one PPE item is required');
     }

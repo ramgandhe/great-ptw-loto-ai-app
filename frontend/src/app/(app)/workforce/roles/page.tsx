@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
-import { departmentsApi } from "@/lib/organisation/api";
+import { sitesApi } from "@/lib/organisation/api";
+import { placeApi } from "@/lib/place/api";
 import {
   createTenantUser,
   deactivateTenantUser,
@@ -13,7 +14,6 @@ import {
   listTenantUsers,
   reactivateTenantUser,
   resetTenantUserPassword,
-  updateTenantUser,
   updateTenantUserRole,
 } from "@/lib/workforce/api";
 import type { CreatedTenantUser, TenantUser } from "@/lib/workforce/types";
@@ -26,7 +26,11 @@ import { RowActions } from "@/components/ui/row-actions";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { copyText } from "@/lib/utils";
 import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
-import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
+import {
+  AdminPage,
+  AdminPageHeader,
+  FIELD_CLASS,
+} from "@/components/layout/admin-page-header";
 
 export default function UserRolesPage() {
   const { profile, roles: actorRoles } = useAuthProfile();
@@ -38,9 +42,10 @@ export default function UserRolesPage() {
     name: "",
     email: "",
     roles: [] as string[],
-    departmentId: "",
   });
-  const [editingRoles, setEditingRoles] = useState<Record<string, string[]>>({});
+  const [editingRoles, setEditingRoles] = useState<Record<string, string[]>>(
+    {},
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [created, setCreated] = useState<CreatedTenantUser | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,18 +53,41 @@ export default function UserRolesPage() {
   const [saving, setSaving] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [revealedPasswordIds, setRevealedPasswordIds] = useState<Record<string, boolean>>({});
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [revealedPasswordIds, setRevealedPasswordIds] = useState<
+    Record<string, boolean>
+  >({});
+  const [sitesByUser, setSitesByUser] = useState<Record<string, string[]>>({});
 
   function loadUsers() {
     return listTenantUsers()
       .then(setUsers)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load users"));
+      .catch((err) =>
+        setError(
+          err instanceof ApiError ? err.message : "Failed to load users",
+        ),
+      );
   }
 
   useEffect(() => {
     loadUsers().finally(() => setLoading(false));
-    departmentsApi.list().then((rows) => setDepartments(rows.filter(inUse).map((row) => ({ id: row.id, name: row.name })))).catch(() => setDepartments([]));
+    sitesApi
+      .list()
+      .then(async (sites) => {
+        const groups = await Promise.all(
+          sites.filter(inUse).map(async (site) => ({
+            name: site.name,
+            members: await placeApi.listMembers(site.id).catch(() => []),
+          })),
+        );
+        const next: Record<string, string[]> = {};
+        for (const group of groups) {
+          for (const member of group.members) {
+            (next[member.userId] ??= []).push(group.name);
+          }
+        }
+        setSitesByUser(next);
+      })
+      .catch(() => setSitesByUser({}));
   }, []);
 
   function canManageUser(user: TenantUser) {
@@ -67,13 +95,18 @@ export default function UserRolesPage() {
       return false;
     }
     const allowed = rolesAssignableBy(actorRoles);
-    return user.roles.length > 0 && user.roles.every((role) => allowed.includes(role));
+    return (
+      user.roles.length > 0 &&
+      user.roles.every((role) => allowed.includes(role))
+    );
   }
 
   function toggleFormRole(role: string) {
     setForm((prev) => ({
       ...prev,
-      roles: prev.roles.includes(role) ? prev.roles.filter((entry) => entry !== role) : [...prev.roles, role],
+      roles: prev.roles.includes(role)
+        ? prev.roles.filter((entry) => entry !== role)
+        : [...prev.roles, role],
     }));
   }
 
@@ -91,11 +124,12 @@ export default function UserRolesPage() {
         name: form.name.trim(),
         email: form.email.trim(),
         roles: form.roles,
-        departmentId: form.roles.includes("permit-approver") ? form.departmentId || undefined : undefined,
       });
       setCreated(result);
-      toast(`${result.name} added as ${(result.roles ?? [result.role]).map(formatRoleLabel).join(", ")}`);
-      setForm({ name: "", email: "", roles: [], departmentId: "" });
+      toast(
+        `${result.name} added as ${(result.roles ?? [result.role]).map(formatRoleLabel).join(", ")}`,
+      );
+      setForm({ name: "", email: "", roles: [] });
       setFormOpen(false);
       await loadUsers();
     } catch (err) {
@@ -144,14 +178,18 @@ export default function UserRolesPage() {
       toast(`${user.email ?? user.username} deactivated`);
       await loadUsers();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to deactivate user");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to deactivate user",
+      );
     } finally {
       setUpdatingId(null);
     }
   }
 
   async function handleReactivate(user: TenantUser) {
-    const confirmed = window.confirm(`Activate ${user.email ?? user.username}?`);
+    const confirmed = window.confirm(
+      `Activate ${user.email ?? user.username}?`,
+    );
     if (!confirmed) {
       return;
     }
@@ -162,7 +200,9 @@ export default function UserRolesPage() {
       toast(`${user.email ?? user.username} activated`);
       await loadUsers();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to reactivate user");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to reactivate user",
+      );
     } finally {
       setUpdatingId(null);
     }
@@ -218,7 +258,10 @@ export default function UserRolesPage() {
       ) : null}
 
       {created ? (
-        <div role="status" className="rounded-xl border border-(--status-success)/40 bg-card p-5 text-sm">
+        <div
+          role="status"
+          className="rounded-xl border border-(--status-success)/40 bg-card p-5 text-sm"
+        >
           <p className="font-semibold">User created</p>
           <p className="mt-2 text-muted-foreground">{created.signInHint}</p>
           <dl className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -232,7 +275,11 @@ export default function UserRolesPage() {
             </div>
             <div>
               <dt className="text-muted-foreground">Role</dt>
-              <dd className="font-medium">{(created.roles ?? [created.role]).map(formatRoleLabel).join(", ")}</dd>
+              <dd className="font-medium">
+                {(created.roles ?? [created.role])
+                  .map(formatRoleLabel)
+                  .join(", ")}
+              </dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Temporary password</dt>
@@ -242,7 +289,16 @@ export default function UserRolesPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => void copyText(created.temporaryPassword).then((ok) => toast(ok ? "Temporary password copied" : "Copy failed: select the password and copy it", ok ? "success" : "error"))}
+                  onClick={() =>
+                    void copyText(created.temporaryPassword).then((ok) =>
+                      toast(
+                        ok
+                          ? "Temporary password copied"
+                          : "Copy failed: select the password and copy it",
+                        ok ? "success" : "error",
+                      ),
+                    )
+                  }
                 >
                   Copy
                 </Button>
@@ -253,276 +309,312 @@ export default function UserRolesPage() {
       ) : null}
 
       {formOpen ? (
-      <form onSubmit={handleCreate} className="reveal-in grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
-        <h2 className="font-semibold sm:col-span-2">New user</h2>
-        <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Name</span>
-          <input
-            required
-            pattern={NAME_PATTERN}
-            title={NAME_HINT}
-            maxLength={255}
-            value={form.name}
-            className={FIELD_CLASS}
-            onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-          />
-        </label>
-        <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Email</span>
-          <input
-            required
-            type="email"
-            value={form.email}
-            className={FIELD_CLASS}
-            onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-          />
-        </label>
-        <fieldset className="grid gap-1.5 text-sm sm:col-span-2">
-          <legend className="font-medium">Roles</legend>
-          <p className="text-muted-foreground">A person can hold more than one role, for example Permit receiver and Permit operator.</p>
-          <div className="flex flex-wrap gap-3">
-            {assignableRoles.map((option) => (
-              <label key={option.value} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={form.roles.includes(option.value)}
-                  onChange={() => toggleFormRole(option.value)}
-                />
-                {option.label}
-              </label>
-            ))}
+        <form
+          onSubmit={handleCreate}
+          className="reveal-in grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2"
+        >
+          <h2 className="font-semibold sm:col-span-2">New user</h2>
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-medium">Name</span>
+            <input
+              required
+              pattern={NAME_PATTERN}
+              title={NAME_HINT}
+              maxLength={255}
+              value={form.name}
+              className={FIELD_CLASS}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, name: e.target.value }))
+              }
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-medium">Email</span>
+            <input
+              required
+              type="email"
+              value={form.email}
+              className={FIELD_CLASS}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, email: e.target.value }))
+              }
+            />
+          </label>
+          <fieldset className="grid gap-1.5 text-sm sm:col-span-2">
+            <legend className="font-medium">Roles</legend>
+            <p className="text-muted-foreground">
+              A person can hold more than one role, for example Permit receiver
+              and Permit operator.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {assignableRoles.map((option) => (
+                <label key={option.value} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.roles.includes(option.value)}
+                    onChange={() => toggleFormRole(option.value)}
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="flex flex-wrap gap-2 sm:col-span-2">
+            <Button type="submit" disabled={saving || form.roles.length === 0}>
+              {saving ? "Adding…" : "Add user"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setFormOpen(false)}
+            >
+              Cancel
+            </Button>
           </div>
-        </fieldset>
-        {form.roles.includes("permit-approver") ? (
-        <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">
-            Department <span className="font-normal text-muted-foreground">(this HOD sees and approves its permits only)</span>
-          </span>
-          <select
-            value={form.departmentId}
-            className={FIELD_CLASS}
-            onChange={(e) => setForm((prev) => ({ ...prev, departmentId: e.target.value }))}
-          >
-            <option value="">All departments</option>
-            {departments.map((department) => (
-              <option key={department.id} value={department.id}>
-                {department.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        ) : null}
-        <div className="flex flex-wrap gap-2 sm:col-span-2">
-          <Button type="submit" disabled={saving || form.roles.length === 0}>
-            {saving ? "Adding…" : "Add user"}
-          </Button>
-          <Button type="button" variant="ghost" onClick={() => setFormOpen(false)}>
-            Cancel
-          </Button>
-        </div>
-      </form>
+        </form>
       ) : null}
 
       {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : users.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border px-5 py-10 text-center">
-            <p className="font-medium">No users yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">Add the first user so they can sign in.</p>
-          </div>
-        ) : (
-          <div className="table-box">
-            <table className="min-w-full text-sm">
-              <thead className="table-tone text-left text-xs">
-                <tr className="border-b border-border">
-                  <th className="px-4 py-2.5">Name</th>
-                  <th className="px-4 py-2.5">Roles</th>
-                  <th className="px-4 py-2.5">Approver department</th>
-                  <th className="px-4 py-2.5">Status</th>
-                  <th className="px-4 py-2.5">Password</th>
-                  <th className="px-4 py-2.5 text-right font-medium">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => {
-                  const selectedRoles = editingRoles[user.id] ?? user.roles;
-                  const canChangeRole = user.roles.every((role) =>
-                    assignableRoles.some((option) => option.value === role),
-                  );
-                  const manageable = canManageUser(user);
-                  const busy = updatingId === user.id;
-                  const editing = manageable && editingUserId === user.id;
-                  return (
-                    <tr key={user.id} className="row-hover border-t border-border first:border-t-0">
-                      <td className="px-4 py-3">
-                        <span className="block font-medium">
-                          {user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username}
-                        </span>
-                        <span className="block text-xs text-muted-foreground">{user.email ?? user.username}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {editing && canChangeRole && user.enabled ? (
-                          <div className="grid gap-2">
-                            {assignableRoles.map((option) => (
-                              <label key={option.value} className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  disabled={busy}
-                                  checked={selectedRoles.includes(option.value)}
-                                  onChange={() => {
-                                    setEditingRoles((prev) => {
-                                      const current = prev[user.id] ?? user.roles;
-                                      const next = current.includes(option.value)
-                                        ? current.filter((entry) => entry !== option.value)
-                                        : [...current, option.value];
-                                      return { ...prev, [user.id]: next };
-                                    });
-                                  }}
-                                />
-                                {option.label}
-                              </label>
-                            ))}
-                            <Button
-                              type="button"
-                              size="sm"
-                              disabled={busy}
-                              onClick={() => void handleRoleSave(user.id, selectedRoles)}
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : users.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border px-5 py-10 text-center">
+          <p className="font-medium">No users yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Add the first user so they can sign in.
+          </p>
+        </div>
+      ) : (
+        <div className="table-box">
+          <table className="min-w-full text-sm">
+            <thead className="table-tone text-left text-xs">
+              <tr className="border-b border-border">
+                <th className="px-4 py-2.5">Name</th>
+                <th className="px-4 py-2.5">Roles</th>
+                <th className="px-4 py-2.5">Sites</th>
+                <th className="px-4 py-2.5">Status</th>
+                <th className="px-4 py-2.5">Password</th>
+                <th className="px-4 py-2.5 text-right font-medium">
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => {
+                const selectedRoles = editingRoles[user.id] ?? user.roles;
+                const canChangeRole = user.roles.every((role) =>
+                  assignableRoles.some((option) => option.value === role),
+                );
+                const manageable = canManageUser(user);
+                const busy = updatingId === user.id;
+                const editing = manageable && editingUserId === user.id;
+                return (
+                  <tr
+                    key={user.id}
+                    className="row-hover border-t border-border first:border-t-0"
+                  >
+                    <td className="px-4 py-3">
+                      <span className="block font-medium">
+                        {user.name ||
+                          [user.firstName, user.lastName]
+                            .filter(Boolean)
+                            .join(" ") ||
+                          user.username}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {user.email ?? user.username}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {editing && canChangeRole && user.enabled ? (
+                        <div className="grid gap-2">
+                          {assignableRoles.map((option) => (
+                            <label
+                              key={option.value}
+                              className="flex items-center gap-2"
                             >
-                              Save roles
-                            </Button>
-                          </div>
-                        ) : (
-                          user.roles.map(formatRoleLabel).join(", ")
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {!user.roles.includes("permit-approver") ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : editing ? (
-                          <select
-                            value={user.departmentId ?? ""}
+                              <input
+                                type="checkbox"
+                                disabled={busy}
+                                checked={selectedRoles.includes(option.value)}
+                                onChange={() => {
+                                  setEditingRoles((prev) => {
+                                    const current = prev[user.id] ?? user.roles;
+                                    const next = current.includes(option.value)
+                                      ? current.filter(
+                                          (entry) => entry !== option.value,
+                                        )
+                                      : [...current, option.value];
+                                    return { ...prev, [user.id]: next };
+                                  });
+                                }}
+                              />
+                              {option.label}
+                            </label>
+                          ))}
+                          <Button
+                            type="button"
+                            size="sm"
                             disabled={busy}
-                            className={FIELD_CLASS}
-                            onChange={(e) => {
-                              const departmentId = e.target.value;
-                              setUpdatingId(user.id);
-                              updateTenantUser(user.id, { departmentId })
-                                .then(() => {
-                                  toast("Department updated");
-                                  return loadUsers();
-                                })
-                                .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to update department"))
-                                .finally(() => setUpdatingId(null));
-                            }}
+                            onClick={() =>
+                              void handleRoleSave(user.id, selectedRoles)
+                            }
                           >
-                            <option value="">All departments</option>
-                            {departments.map((department) => (
-                              <option key={department.id} value={department.id}>
-                                {department.name}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          departments.find((department) => department.id === user.departmentId)?.name || "All departments"
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <OrgStatusBadge status={user.enabled ? "active" : "disabled"} />
-                      </td>
-                      <td className="px-4 py-3">
-                        {user.temporaryPassword ? (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-mono text-xs">
-                              {revealedPasswordIds[user.id] ? user.temporaryPassword : "••••••••"}
-                            </span>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              disabled={busy}
-                              onClick={() =>
-                                setRevealedPasswordIds((current) => ({
-                                  ...current,
-                                  [user.id]: !current[user.id],
-                                }))
-                              }
-                            >
-                              {revealedPasswordIds[user.id] ? "Hide" : "Show"}
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              disabled={busy}
-                              onClick={() =>
-                                void copyText(user.temporaryPassword ?? "").then((ok) =>
-                                  toast(ok ? "Temporary password copied" : "Copy failed", ok ? "success" : "error"),
-                                )
-                              }
-                            >
-                              Copy
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {manageable ? (
-                          <RowActions
-                            actions={[
-                              // Role and department change in place while editing; each change saves on its own.
-                              {
-                                label: editing ? "Done" : "Edit",
-                                disabled: busy,
-                                onClick: () => {
-                                  if (editing) {
-                                    setEditingUserId(null);
-                                    return;
-                                  }
-                                  setEditingRoles((prev) => ({ ...prev, [user.id]: user.roles }));
-                                  setEditingUserId(user.id);
-                                },
+                            Save roles
+                          </Button>
+                        </div>
+                      ) : (
+                        user.roles.map(formatRoleLabel).join(", ")
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {user.roles.some(
+                        (role) =>
+                          role === "tenant-owner" ||
+                          role === "tenant-admin" ||
+                          role === "org-admin" ||
+                          role === "platform-admin",
+                      )
+                        ? "All sites"
+                        : sitesByUser[user.id]?.join(", ") || "No sites"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <OrgStatusBadge
+                        status={user.enabled ? "active" : "disabled"}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      {user.temporaryPassword ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs">
+                            {revealedPasswordIds[user.id]
+                              ? user.temporaryPassword
+                              : "••••••••"}
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() =>
+                              setRevealedPasswordIds((current) => ({
+                                ...current,
+                                [user.id]: !current[user.id],
+                              }))
+                            }
+                          >
+                            {revealedPasswordIds[user.id] ? "Hide" : "Show"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() =>
+                              void copyText(user.temporaryPassword ?? "").then(
+                                (ok) =>
+                                  toast(
+                                    ok
+                                      ? "Temporary password copied"
+                                      : "Copy failed",
+                                    ok ? "success" : "error",
+                                  ),
+                              )
+                            }
+                          >
+                            Copy
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {manageable ? (
+                        <RowActions
+                          actions={[
+                            // Role and department change in place while editing; each change saves on its own.
+                            {
+                              label: editing ? "Done" : "Edit",
+                              disabled: busy,
+                              onClick: () => {
+                                if (editing) {
+                                  setEditingUserId(null);
+                                  return;
+                                }
+                                setEditingRoles((prev) => ({
+                                  ...prev,
+                                  [user.id]: user.roles,
+                                }));
+                                setEditingUserId(user.id);
                               },
-                              {
-                                label: "Reset password",
-                                disabled: busy,
-                                onClick: () => {
-                                  if (!window.confirm(`Reset password for ${user.email ?? user.username}? A new temporary password will be generated.`)) {
-                                    return;
-                                  }
-                                  setUpdatingId(user.id);
-                                  resetTenantUserPassword(user.id)
-                                    .then((next) => {
-                                      toast("Password reset. Copy the new temporary password.");
-                                      setRevealedPasswordIds((current) => ({ ...current, [user.id]: true }));
-                                      setUsers((current) => current.map((row) => (row.id === next.id ? next : row)));
-                                    })
-                                    .catch((err) =>
-                                      setError(err instanceof ApiError ? err.message : "Failed to reset password"),
-                                    )
-                                    .finally(() => setUpdatingId(null));
-                                },
+                            },
+                            {
+                              label: "Reset password",
+                              disabled: busy,
+                              onClick: () => {
+                                if (
+                                  !window.confirm(
+                                    `Reset password for ${user.email ?? user.username}? A new temporary password will be generated.`,
+                                  )
+                                ) {
+                                  return;
+                                }
+                                setUpdatingId(user.id);
+                                resetTenantUserPassword(user.id)
+                                  .then((next) => {
+                                    toast(
+                                      "Password reset. Copy the new temporary password.",
+                                    );
+                                    setRevealedPasswordIds((current) => ({
+                                      ...current,
+                                      [user.id]: true,
+                                    }));
+                                    setUsers((current) =>
+                                      current.map((row) =>
+                                        row.id === next.id ? next : row,
+                                      ),
+                                    );
+                                  })
+                                  .catch((err) =>
+                                    setError(
+                                      err instanceof ApiError
+                                        ? err.message
+                                        : "Failed to reset password",
+                                    ),
+                                  )
+                                  .finally(() => setUpdatingId(null));
                               },
-                              user.enabled
-                                ? { label: "Deactivate", disabled: busy, onClick: () => void handleDeactivate(user) }
-                                : { label: "Activate", disabled: busy, onClick: () => void handleReactivate(user) },
-                              { label: "Delete", danger: true, disabled: busy, onClick: () => void handleDelete(user) },
-                            ]}
-                          />
-                        ) : (
-                          <span className="sr-only">No actions</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                            },
+                            user.enabled
+                              ? {
+                                  label: "Deactivate",
+                                  disabled: busy,
+                                  onClick: () => void handleDeactivate(user),
+                                }
+                              : {
+                                  label: "Activate",
+                                  disabled: busy,
+                                  onClick: () => void handleReactivate(user),
+                                },
+                            {
+                              label: "Delete",
+                              danger: true,
+                              disabled: busy,
+                              onClick: () => void handleDelete(user),
+                            },
+                          ]}
+                        />
+                      ) : (
+                        <span className="sr-only">No actions</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </AdminPage>
   );
 }

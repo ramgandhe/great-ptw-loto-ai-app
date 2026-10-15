@@ -12,17 +12,10 @@ import {
   configureIsolationSequence,
   listLototoPlans,
 } from "@/lib/lototo/api";
-import {
-  ASSIGNMENT_ROLE_OPTIONS,
-  ENERGY_SOURCE_OPTIONS,
-  filterMachineryByWorkstation,
-  loadLototoFormOptions,
-} from "@/lib/lototo/form-options";
+import { ASSIGNMENT_ROLE_OPTIONS, ENERGY_SOURCE_OPTIONS, loadLototoFormOptions } from "@/lib/lototo/form-options";
 import type { IsolationPoint, LototoPlan } from "@/lib/lototo/types";
-import {
-  formatOrgOptionLabel,
-  formatWorkforceOptionLabel,
-} from "@/lib/permit/form-options";
+import { getAsset, type AssetRecord } from "@/lib/place/api";
+import { formatWorkforceOptionLabel } from "@/lib/permit/form-options";
 import { useTheme } from "@/providers/theme-provider";
 
 export default function LototoPlanDetailScreen() {
@@ -33,9 +26,8 @@ export default function LototoPlanDetailScreen() {
     null,
   );
   const [points, setPoints] = useState<IsolationPoint[]>([]);
+  const [asset, setAsset] = useState<AssetRecord | null>(null);
   const [isolationNumber, setIsolationNumber] = useState("");
-  const [workstationId, setWorkstationId] = useState("");
-  const [machineryId, setMachineryId] = useState("");
   const [energySourceType, setEnergySourceType] = useState("electrical");
   const [workforceUserId, setWorkforceUserId] = useState("");
   const [assignmentRole, setAssignmentRole] = useState("permit-operator");
@@ -44,19 +36,7 @@ export default function LototoPlanDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const filteredMachinery = useMemo(
-    () => filterMachineryByWorkstation(options?.machinery ?? [], workstationId),
-    [options?.machinery, workstationId],
-  );
-
-  const machineryOptions = useMemo(
-    () =>
-      filteredMachinery.map((item) => ({
-        value: item.id,
-        label: formatOrgOptionLabel(item),
-      })),
-    [filteredMachinery],
-  );
+  const assetId = plan?.assetId ?? plan?.machineryId ?? "";
 
   const personnelOptions = useMemo(
     () =>
@@ -73,11 +53,9 @@ export default function LototoPlanDetailScreen() {
         const match = plans.find((item) => item.id === id) ?? null;
         setPlan(match);
         setOptions(formOptions);
-        if (match?.workstationId) {
-          setWorkstationId(match.workstationId);
-        }
-        if (match?.machineryId) {
-          setMachineryId(match.machineryId);
+        const target = match?.assetId ?? match?.machineryId;
+        if (target) {
+          getAsset(target).then(setAsset).catch(() => setAsset(null));
         }
         if (!match) {
           setError("This LOTOTO plan was not found.");
@@ -89,15 +67,9 @@ export default function LototoPlanDetailScreen() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  useEffect(() => {
-    if (machineryId && !filteredMachinery.some((item) => item.id === machineryId)) {
-      setMachineryId("");
-    }
-  }, [filteredMachinery, machineryId]);
-
   async function handleAddPoint() {
-    if (!id || !isolationNumber.trim() || !machineryId) {
-      setError("Enter the isolation number and choose the machinery.");
+    if (!id || !isolationNumber.trim() || !assetId) {
+      setError("Enter the isolation number. This plan needs an asset.");
       return;
     }
 
@@ -105,7 +77,7 @@ export default function LototoPlanDetailScreen() {
     setError(null);
     try {
       const point = await addIsolationPoint(id, {
-        machineryId,
+        assetId,
         isolationNumber: isolationNumber.trim(),
         energySource: { energySourceType },
       });
@@ -182,7 +154,11 @@ export default function LototoPlanDetailScreen() {
       {message ? <Banner tone="success">{message}</Banner> : null}
 
       <View style={{ gap: tokens.space[3] }}>
-        <SectionTitle title="Isolation points" count={points.length} description="Locked out in this order." />
+        <SectionTitle
+          title="Isolation points"
+          count={points.length}
+          description={asset ? `Energy sources and isolation points for ${asset.tag} — ${asset.name}.` : "Locked out in this order."}
+        />
         <Card style={{ gap: tokens.space[4] }}>
           {points.length === 0 ? <AppText variant="caption">No points added in this visit yet.</AppText> : null}
           {points.map((point, index) => (
@@ -196,14 +172,6 @@ export default function LototoPlanDetailScreen() {
           <View style={{ gap: tokens.space[3], padding: tokens.space[3], borderRadius: tokens.radii.md, borderWidth: 1, borderColor: tokens.colors.border }}>
             <AppText variant="label">Add a point</AppText>
             <TextField label="Isolation number" required value={isolationNumber} onChangeText={setIsolationNumber} placeholder="For example: ISO-01" autoCapitalize="characters" />
-            <SelectField
-              label="Workstation"
-              value={workstationId}
-              options={(options?.workstations ?? []).map((item) => ({ value: item.id, label: formatOrgOptionLabel(item) }))}
-              placeholder="Any workstation"
-              onChange={setWorkstationId}
-            />
-            <SelectField label="Machinery" value={machineryId} options={machineryOptions} placeholder="Choose machinery" required onChange={setMachineryId} />
             <SelectField
               label="Energy source"
               value={energySourceType}

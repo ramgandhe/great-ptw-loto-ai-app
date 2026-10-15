@@ -13,9 +13,10 @@ export default function LocationsPage() {
   return (
     <EntityCrudPage
       title="Locations"
-      description="Manage operational work locations."
+      description="Kept from before work locations. Read only."
       resource="locations"
       fields={fields}
+      readOnly
     />
   );
 }

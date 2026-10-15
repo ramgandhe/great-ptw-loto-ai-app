@@ -33,6 +33,12 @@ export const organisationsApi = {
 };
 
 export const plantsApi = crud<OrgRecord>("/plants");
+export const sitesApi = {
+  ...crud<OrgRecord>("/sites"),
+  archive: async (id: string, _force = false) => {
+    await fetchApi<OrgRecord>(`/sites/${id}/archive`, { method: "POST" });
+  },
+};
 export const departmentsApi = crud<OrgRecord>("/departments");
 export const locationsApi = crud<OrgRecord>("/locations");
 export const workstationsApi = crud<OrgRecord>("/workstations");

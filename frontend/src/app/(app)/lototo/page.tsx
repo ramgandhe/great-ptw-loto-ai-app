@@ -13,27 +13,32 @@ import { hasAnyRole } from "@/lib/auth/rbac";
 import { LOTOTO_LIBRARY_WRITE_ROLES } from "@/lib/auth/roles";
 import { listLototoProcedures, deactivateLototoProcedure, reactivateLototoProcedure, deleteLototoProcedure } from "@/lib/lototo/api";
 import type { LototoProcedureListItem } from "@/lib/lototo/types";
-import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
+import { sitesApi } from "@/lib/organisation/api";
+import { placeApi, type AssetRecord } from "@/lib/place/api";
 
 function ProcedureLibrary() {
   const router = useRouter();
   const params = useSearchParams();
   const machineryId = params.get("machineryId") ?? undefined;
+  const assetId = params.get("assetId") ?? machineryId;
   const { roles } = useAuthProfile();
   const canWrite = hasAnyRole(roles, LOTOTO_LIBRARY_WRITE_ROLES);
   const [rows, setRows] = useState<LototoProcedureListItem[] | null>(null);
-  const [lookups, setLookups] = useState<Lookups | null>(null);
+  const [assets, setAssets] = useState<AssetRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadLookups().then(setLookups, () => undefined);
-    listLototoProcedures(machineryId ? { machineryId } : undefined)
+    sitesApi.list().then(async (sites) => {
+      const groups = await Promise.all(sites.filter((site) => site.status !== "archived").map((site) => placeApi.listAssets(site.id).catch(() => [])));
+      setAssets(groups.flat());
+    }).catch(() => setAssets([]));
+    listLototoProcedures(assetId ? { assetId } : undefined)
       .then(setRows)
       .catch((err) => setError(err instanceof ApiError ? err.message : "Procedures could not be loaded."));
-  }, [machineryId]);
+  }, [assetId]);
 
   async function reload() {
-    const next = await listLototoProcedures(machineryId ? { machineryId } : undefined);
+    const next = await listLototoProcedures(assetId ? { assetId } : undefined);
     setRows(next);
   }
 
@@ -64,10 +69,10 @@ function ProcedureLibrary() {
     <main className="flex flex-1 flex-col gap-6 px-4 pb-8 sm:px-8">
       <PageHeader
         title="LOTOTO procedures"
-        description="Define reusable lockout procedures per machine. Isolation during work is recorded on the permit."
+        description="Define reusable lockout procedures per asset. Isolation during work is recorded on the permit."
         actions={
           canWrite ? (
-            <Button type="button" size="lg" onClick={() => router.push(`/lototo/procedures/new${machineryId ? `?machineryId=${machineryId}` : ""}`)}>
+            <Button type="button" size="lg" onClick={() => router.push(`/lototo/procedures/new${assetId ? `?assetId=${assetId}` : ""}`)}>
               <Plus aria-hidden />
               New procedure
             </Button>
@@ -80,10 +85,10 @@ function ProcedureLibrary() {
       ) : rows.length === 0 ? (
         <EmptyState
           title="No LOTOTO procedures yet"
-          hint={canWrite ? "Create a procedure for a machine. Executors will attach the published version on a permit." : undefined}
+          hint={canWrite ? "Create a procedure for an asset. Executors will attach the published version on a permit." : undefined}
         />
       ) : (
-        <RecordList headers={["Procedure", "Machinery", "Status", ""]}>
+        <RecordList headers={["Procedure", "Asset", "Status", ""]}>
           {rows.map((row, i) => (
             <RecordRow
               key={row.id}
@@ -91,7 +96,7 @@ function ProcedureLibrary() {
               href={`/lototo/procedures/${row.id}`}
               title={row.title}
               reference={row.code}
-              context={nameOf(lookups?.machinery, row.machineryId) ?? "Machinery"}
+              context={assets.find((item) => item.id === (row.assetId || row.machineryId))?.name ?? "Asset"}
               status={<span className="text-sm capitalize">{row.status}</span>}
               action={
                 canWrite ? (

@@ -1,5 +1,7 @@
 # PRODUCT REQUIREMENTS DOCUMENT (PRD)
 
+> Refined 14 October 2026. Section 5.12 replaces Plant, Department-as-a-place, Location, Workstation and Machinery with Site, Work location and Asset. Where an older sentence still names those as places, section 5.12 wins. Other sections still apply.
+
 ## 1. Introduction
 
 ### 1.1 Purpose
@@ -68,7 +70,7 @@ The platform has been designed to achieve the following objectives:
 The platform provides the following integrated capabilities:
 
 **Organization Administration**
-Management of organizational hierarchy, departments, locations, workstations, machinery, users and operational configuration.
+Management of sites, work locations, the asset register, users and operational configuration. Department remains an optional grouping of people for reporting. Refined 14 October 2026.
 
 **Workforce Management**
 Administration of employees, contractors, agencies, user accounts and organizational responsibilities.
@@ -110,7 +112,7 @@ Organizations should configure the platform to reflect their existing operationa
 Every operational activity, approval, inspection and decision is associated with an authenticated user, creating clear ownership and responsibility throughout the permit lifecycle.
 
 **Traceability**
-Permits, personnel, machinery, locations, inspections, incidents and supporting evidence remain connected throughout execution, providing complete operational history for auditing and compliance.
+Permits, personnel, assets, work locations, inspections, incidents and supporting evidence remain connected throughout execution, providing complete operational history for auditing and compliance. Refined 14 October 2026.
 
 **Modularity**
 The platform is organized into functional modules that operate together as a unified solution while remaining independently configurable according to organizational requirements.
@@ -133,8 +135,8 @@ Unlike operational roles, the Administrator does not participate in the approval
 **Primary Responsibilities**
 The System Administrator is responsible for:
 - Configuring organizational information.
-- Managing plants, departments and operational locations.
-- Registering workstations and machinery.
+- Managing sites, the work-location tree and who may work at each site.
+- Registering assets and assigning approvers on work locations. Refined 14 October 2026.
 - Managing employee, contractor and agency records.
 - Creating and maintaining user accounts.
 - Assigning organizational roles and responsibilities.
@@ -173,8 +175,8 @@ The Job Issuer is responsible for:
 - Creating permit requests.
 - Defining the scope of work.
 - Selecting permit types.
-- Identifying work locations.
-- Selecting machinery involved.
+- Identifying the site, the work location and an optional exact spot.
+- Leaving assets for the operator, unless the job needs isolation. Refined 14 October 2026.
 - Assigning permit executors.
 - Recording hazards.
 - Identifying required PPE.
@@ -237,7 +239,7 @@ The Job Executor successfully fulfills the role when:
 
 **Authority Boundaries**
 - No sign-off authority. 
-- Enters worker/machinery details at creation; performs physical LOTOTO isolation/de-isolation with photo evidence; logs progress; raises near-miss/accident reports; requests pauses.
+- Enters the crew and the assets the job needs; performs physical LOTOTO isolation and restoration with photo evidence; logs progress; raises near-miss and accident reports; requests pauses. Refined 14 October 2026.
 - **Explicitly Cannot:** Edits and logs feed into Issuer/HOD approvals — executor cannot independently close or approve anything.
 
 ### 3.4 Supervisor
@@ -318,6 +320,8 @@ The Head of Department provides departmental authorization for hazardous work. T
 
 The HOD represents the final decision-making authority within the permit approval workflow.
 
+> Refined 14 October 2026. This authority is the area authority: permit approvers assigned to the work location (section 5.12). It is not the head of an HR department, and department no longer routes approval or limits visibility.
+
 **Primary Responsibilities**
 The Head of Department is responsible for:
 - Reviewing permit requests.
@@ -364,7 +368,7 @@ The modular architecture allows organizations to configure platform functionalit
 **Purpose**
 Organization Management establishes the operational structure of every organization using the platform.
 
-This module enables administrators to configure plants, departments, locations, workstations, machinery and organization-specific settings before operational activities begin.
+This module enables administrators to configure sites, work locations, assets and organization-specific settings before operational activities begin. Refined 14 October 2026. See section 5.12.
 
 **Objectives**
 - Support organization onboarding.
@@ -375,11 +379,9 @@ This module enables administrators to configure plants, departments, locations, 
 
 **Primary Features**
 - Organization registration
-- Plant management
-- Department management
-- Location management
-- Workstation management
-- Machinery management
+- Site management, including who can work at each site
+- Work location tree, location types and area-authority approvers
+- Asset register and asset types
 - Organizational configuration
 - Branding
 - Workflow configuration
@@ -426,8 +428,9 @@ The Master Data Management module provides centralized operational reference inf
 - Hazard categories
 - Safety checklists
 - Energy sources
-- Machinery catalogues
-- Workstation catalogue
+- Asset register (replaces the machinery catalogue)
+- Work locations (replace the workstation catalogue)
+- Gas testing limits on work locations and assets
 
 **Primary Users**
 - Administrator
@@ -473,7 +476,7 @@ The module is tightly integrated with the Permit-to-Work process, ensuring that 
 - Maintain complete execution history.
 
 **Primary Features**
-- Workstation and machine-specific LOTOTO records.
+- Asset-specific LOTOTO records. Procedures and energy sources attach to the asset.
 - Multiple energy source management.
 - Step-by-step isolation procedures.
 - Sequential lock and unlock workflows.
@@ -648,11 +651,11 @@ This section defines the functional capabilities that the platform shall provide
 - **FR-ORG-001** The platform shall allow new organizations to register and create independent tenant environments.
 - **FR-ORG-002** Each organization shall maintain complete isolation of operational data from every other organization.
 
-**Organizational Hierarchy**
-- **FR-ORG-003** The platform shall allow administrators to create and manage plants.
-- **FR-ORG-004** The platform shall allow departments to be associated with individual plants.
-- **FR-ORG-005** Departments shall contain one or more operational locations.
-- **FR-ORG-006** Locations shall contain one or more workstations or machines.
+**Organizational Hierarchy** (refined 14 October 2026; detail in section 5.12)
+- **FR-ORG-003** Superseded. Sites replace plants.
+- **FR-ORG-004** Superseded. Department is no longer a place and does not route approval.
+- **FR-ORG-005** Superseded. Work locations form a tree of any depth under a site.
+- **FR-ORG-006** Superseded. Assets replace machinery and are kept in a separate register, linked to a work location.
 
 **Organization Configuration**
 - **FR-ORG-007** Organizations shall configure approval workflows.
@@ -674,14 +677,15 @@ This section defines the functional capabilities that the platform shall provide
 - **FR-WFM-006** Employee records shall maintain department assignments.
 - **FR-WFM-007** Contractor records shall maintain competency and certification information.
 - **FR-WFM-008** The platform shall support activation and deactivation of workforce records.
+- **FR-WFM-009** Refined 14 October 2026. Site access is assigned on the Site, for employees and contractors alike. Owner and tenant admin have access to every site. The user list shows each person's sites. Department on a person remains optional and is for reporting only.
 
 ### 5.3 Master Data Management
 
 **Master Data**
 - **FR-MDM-001** The platform shall manage permit types.
 - **FR-MDM-002** The platform shall manage PPE catalogues.
-- **FR-MDM-003** The platform shall manage machinery.
-- **FR-MDM-004** The platform shall manage workstations.
+- **FR-MDM-003** The platform shall manage assets (tag, optional asset number, type, work location, optional parent asset). Supersedes machinery.
+- **FR-MDM-004** The platform shall manage work locations and admin-defined location types and asset types. Supersedes workstations.
 - **FR-MDM-005** The platform shall manage hazard classifications.
 - **FR-MDM-006** The platform shall manage safety checklists.
 - **FR-MDM-007** The platform shall support bulk import of master data.
@@ -698,7 +702,7 @@ This section defines the functional capabilities that the platform shall provide
 - **FR-PTW-005** Authorized approvers shall approve, reject or defer permits.
 - **FR-PTW-006** Approval decisions shall include comments where required.
 - **FR-PTW-013** The platform shall allow administrators to define approval workflow templates composed of one or more ordered stages.
-- **FR-PTW-014** Each stage shall specify its approver(s) by role and organizational scope (e.g., “Safety Officer — same department as work location”), not by named individual, so templates remain valid as staff change.
+- **FR-PTW-014** Each stage shall specify its approver(s) by role. For the area-authority stage, the approvers are the people assigned to the permit's work location (inherited up the tree). Stages stay valid as staff change. Refined 14 October 2026.
 - **FR-PTW-015** The platform shall support conditional stages that are automatically included or skipped based on permit attributes (e.g., a LOTOTO stage is auto-included only if the permit involves energy isolation; a senior-management stage is auto-included only if permit risk level = High).
 - **FR-PTW-016** The platform shall support parallel stages with configurable quorum (all-must-approve vs. first-response-wins).
 - **FR-PTW-017** Each permit type shall carry a configurable risk classification (e.g., Low / Medium / High) derived from hazard selection, PPE requirements, and work type.
@@ -711,7 +715,7 @@ This section defines the functional capabilities that the platform shall provide
 - **FR-PTW-024** A rejected permit shall return to the Job Issuer with a mandatory comment explaining the rejection reason (free text plus a structured reason-code dropdown, e.g., “Incomplete hazard information,” “PPE mismatch,” “Scheduling conflict”).
 - **FR-PTW-025** A deferred permit shall remain pending with the same approver but shall not count against that approver's SLA clock until the deferral condition (e.g., “pending additional documentation”) is resolved by the Job Issuer.
 - **FR-PTW-026** A resubmitted permit (after rejection) shall restart the approval workflow from Stage 1 by default, but administrators may configure specific permit types to resume from the stage that rejected it, if only minor edits are required.
-- **FR-PTW-027** Any edit to core scope-of-work fields (hazards, machinery, PPE, location) after Stage 1 approval shall automatically invalidate all subsequent approvals and restart the workflow. Edits to administrative fields only (e.g., contact phone number) shall not.
+- **FR-PTW-027** Any edit to core scope-of-work fields (hazards, assets, PPE, site, work location) after Stage 1 approval shall automatically invalidate all subsequent approvals and restart the workflow. Edits to administrative fields only (e.g., contact phone number) shall not.
 - **FR-PTW-028** Any single rejection within a parallel stage shall reject the stage as a whole and return the permit to the Job Issuer; a partial approval state shall not be treated as ambiguous — reject takes precedence over approve.
 - **FR-PTW-029** Where two stages are sequential rather than parallel (as in the default HOD → Safety Officer template), a later-stage rejection shall override an earlier-stage approval — e.g., the Safety Officer can reject a permit at the site-readiness gate even though HOD already approved it at the initial review gate. This is a general principle that downstream gates always retain veto power over upstream approvals.
 - **FR-PTW-030** The platform shall enforce that state transitions only occur through the paths defined below; no direct transition (e.g., Draft → Active) shall be permitted through any interface, including administrative tools, without passing through the required approval states.
@@ -743,11 +747,11 @@ The LOTOTO module manages the safe isolation of hazardous energy sources before 
 
 **LOTOTO Record Management**
 - **FR-LTO-001** The platform shall allow the creation of one or more LOTOTO records associated with a Permit-to-Work.
-- **FR-LTO-002** Each LOTOTO record shall be linked to a specific workstation or machine.
+- **FR-LTO-002** Each LOTOTO record shall be linked to a specific asset. Refined 14 October 2026.
 - **FR-LTO-003** The platform shall support multiple LOTOTO records within a single permit where multiple machines or energy sources are involved.
 
 **Energy Isolation**
-- **FR-LTO-004** The platform shall allow users to define all energy sources associated with a machine or workstation.
+- **FR-LTO-004** The platform shall allow users to define all energy sources associated with an asset.
 - **FR-LTO-005** The platform shall support configurable isolation procedures for different equipment types.
 - **FR-LTO-006** The platform shall record the lockout method applied to each energy source.
 - **FR-LTO-007** The platform shall support verification of successful energy isolation before work begins.
@@ -773,14 +777,14 @@ The SIMOPS module assists organizations in identifying and managing hazardous in
 - **FR-SIM-002** Conflict evaluation shall consider work location.
 - **FR-SIM-003** Conflict evaluation shall consider planned execution schedules.
 - **FR-SIM-004** The platform shall identify overlapping hazardous work activities.
-- **FR-SIM-011** Location overlap shall be evaluated at the workstation/machine level as the default granularity, not the department or plant level — two permits in the same department but on different machines are not automatically a conflict, unless a hazard-adjacency rule applies.
-- **FR-SIM-012** The platform shall support an optional adjacency radius/zone configuration per location, so that organizations can flag machines or workstations as “operationally adjacent” (e.g., shared ventilation, shared electrical bus) even when they are logically distinct records.
+- **FR-SIM-011** Refined 14 October 2026. The same asset, or the exact same work location, on overlapping permits is a conflict and needs a SIMOPS review. One work location inside the other (a permit on a parent area and a permit on a child area) is a warning that the approver acknowledges. It is not by itself a conflict. Two permits in different branches of the same site are not a conflict.
+- **FR-SIM-012** The platform shall support an optional adjacency note per work location, so that organizations can flag assets as operationally adjacent (shared ventilation, shared electrical bus) even when they are distinct records. Refined 14 October 2026.
 - **FR-SIM-013** Schedule overlap shall be evaluated as any intersection between two permits' planned start/end windows, including multi-day permits' full date range, not just their originally submitted dates.
 - **FR-SIM-014** The platform shall maintain a configurable hazard-interaction matrix (e.g., Hot Work × Confined Space = High severity conflict; Hot Work × Routine Inspection = Low severity) used to auto-classify detected conflicts by severity.
 - **FR-SIM-015** Conflict severity shall determine routing: Low-severity conflicts may be auto-acknowledged by the Job Issuer; Medium/High-severity conflicts shall require Safety Officer or HOD review before either permit may proceed.
 - **FR-SIM-016** Conflict evaluation shall run automatically at each of the following trigger points:
   - On permit submission (initial creation)
-  - On any edit to location, machinery, schedule, or hazard fields of an existing active/approved permit
+  - On any edit to work location, assets, schedule, or hazard fields of an existing active or approved permit. Refined 14 October 2026.
   - On permit extension or multi-day continuation
   - On a nightly batch re-evaluation of all upcoming approved-but-not-yet-active permits
 - **FR-SIM-017** Newly detected conflicts against an already-approved or already-active permit shall notify both permits' Job Issuers and freeze the newer permit at its current stage until the conflict is resolved; the older permit shall not be retroactively disrupted unless explicitly determined by resolving authority.
@@ -791,7 +795,7 @@ The SIMOPS module assists organizations in identifying and managing hazardous in
 - **FR-SIM-006** The platform shall allow authorized personnel to review identified conflicts.
 - **FR-SIM-007** Conflict reviews shall become part of the permit history.
 - **FR-SIM-008** Resolved conflicts shall remain available for reporting and auditing.
-- **FR-SIM-018** Conflict resolution authority defaults to the Safety Officer or HOD of the department where the conflicting activity is occurring; if the two permits belong to different departments, both departments' resolving authorities shall be notified and resolution requires joint acknowledgment.
+- **FR-SIM-018** Conflict resolution authority defaults to the Safety Officer or the area authority of the work location where the conflicting activity is occurring. If the two permits sit in different branches, both locations' area authorities are notified. Refined 14 October 2026.
 - **FR-SIM-019** Unresolved cross-department conflicts exceeding a configurable timeout (default 4 hours for High severity) shall auto-escalate to a designated site-level Safety Officer or an Administrator-configured “conflict arbiter” role.
 - **FR-SIM-020** Every conflict — detection, severity classification, reviewing parties, and final resolution decision — shall be permanently recorded and linked to both permits' audit histories, independent of which permit is later closed first.
 
@@ -830,6 +834,7 @@ The Incident Management module enables organizations to capture, investigate and
 - **FR-INC-002** The platform shall support near miss reporting.
 - **FR-INC-003** The platform shall support unsafe condition reporting.
 - **FR-INC-004** Incident records may optionally reference permits.
+- **FR-INC-012** Refined 14 October 2026. An incident requires a site and a work location. Assets are optional. The pickers are the same as on a permit.
 - **FR-INC-011** The platform shall distinguish near-miss events (which route to an HOD continue/stop decision) from accident events (which trigger automatic task termination and permit cancellation) as two structurally different severity paths, not two labels on the same workflow.
 
 **Investigation**
@@ -871,7 +876,7 @@ The Dashboards and Analytics module provides users with operational visibility a
 - **FR-DAS-005** The platform shall support SIMOPS reporting.
 - **FR-DAS-006** The platform shall support LOTOTO reporting.
 - **FR-DAS-007** The platform shall support organizational analytics.
-- **FR-DAS-008** Reports shall support filtering using operational criteria.
+- **FR-DAS-008** Reports shall support filtering using operational criteria, including site and work location. A work-location filter includes that location and its sub-locations.
 - **FR-DAS-009** Reports shall support export for business use.
 
 ### 5.11 Billing & Subscription Management
@@ -888,6 +893,90 @@ The Billing and Subscription module manages commercial access to the SaaS platfo
 - **FR-BIL-006** The platform shall allow administrators to view current subscription information.
 
 
+### 5.12 Sites, work locations, assets and gas testing
+
+Refined 14 October 2026. This section is the place model. It supersedes FR-ORG-003 to FR-ORG-006 and any older requirement that treats Plant, Department, Location, Workstation or Machinery as the physical hierarchy.
+
+**Site**
+- **FR-PLC-001** A tenant has one or more sites. A site has a code, name, description, address and status (active or archived).
+- **FR-PLC-002** Administrators assign users to a site from the Site page. A user, including a contractor, only sees and creates permits for sites they belong to. The tenant owner and tenant admin belong to every site without an assignment.
+- **FR-PLC-003** Removing a user from a site also removes them as an area-authority approver on that site's work locations. If that would leave a location with no approver of its own and none inherited, the administrator is warned before the removal.
+
+**Work location**
+- **FR-PLC-010** A work location belongs to one site and has a code, name, optional location type, optional parent location, description, optional address, approvers and status.
+- **FR-PLC-011** Work location code is unique within a site. Child locations are not stored; they are the locations whose parent is this one.
+- **FR-PLC-012** A location has at most one parent, and that parent is in the same site. A location cannot be its own parent and cannot be placed under one of its own descendants. The server rejects a cycle. Moving a location moves its whole branch.
+- **FR-PLC-013** Location types are an administrator-managed list, seeded with Plant, Unit, Building, Area, Zone, Room, Workshop, Warehouse, Tank Farm, Yard and Structure. "Site" is not a location type. A type is a label only and does not change behaviour. Administrators edit types from the Work locations page.
+- **FR-PLC-014** A permit may name a work location at any depth, not only a leaf.
+
+**Area authority**
+- **FR-PLC-020** Administrators assign one or more permit approvers to a work location. Each assignee holds the approver role and has access to the site.
+- **FR-PLC-021** A location with no approvers of its own inherits the nearest ancestor's approvers. A location may override that inheritance with its own list.
+- **FR-PLC-022** When a permit is submitted, every area authority of the chosen location is notified. Any one of them may approve. If no approver exists anywhere up the tree, any permit approver in the tenant may approve, and the administrator sees a setup warning for that location.
+- **FR-PLC-023** An operator cannot approve a permit they are executing, even if they are an area authority for that location.
+
+**Asset**
+- **FR-AST-001** An asset has a tag, an optional asset number, a name, an asset type, a description, a required work location, an optional parent asset and a status. LOTOTO procedures and energy sources attach to the asset.
+- **FR-AST-002** Tag is required and unique within the site of the work location. Asset number, when entered, is unique within the tenant. A parent asset is in the same site.
+- **FR-AST-003** Asset types are an administrator-managed list, seeded with Pump, Motor, Compressor, Valve, Vessel, Tank, Column, Heat exchanger, Electrical panel, Conveyor and Crane.
+- **FR-AST-004** Assets are optional on a permit and more than one may be selected. They are listed from the permit's work location and its sub-locations, with a search across the whole site. At least one asset is required when the permit needs LOTOTO isolation. There is no equipment setting on permit types.
+- **FR-AST-005** Archiving a site, work location or asset is blocked while an active permit uses it. Issued permits keep the names and paths they had. Records are archived, not cascade-deleted.
+
+**Permit place**
+- **FR-PTW-031** The permit receiver records the site, the work location and an optional exact-spot note, and sees who will approve. The permit operator sees that place as read-only. A wrong place is sent back to the receiver with a reason. The operator selects the assets.
+- **FR-PTW-032** Bulk import accepts sites, work locations and assets.
+
+**Gas testing**
+- **FR-GAS-001** Gas test limits are configured on a work location or on an asset. A child location inherits its ancestors' tests and may add tests or tighten a limit. An asset's tests apply on top of its location's tests.
+- **FR-GAS-002** When the work location or the assets on a permit change, the permit receives the matching default tests. If the same parameter comes from more than one place, the strictest limit is kept. Each row shows its source. Gas testing required turns on when any default exists.
+- **FR-GAS-003** For that permit only, the operator may remove a default test (a reason is required; the row stays visible and can be restored), add a test, or tighten a limit. A limit cannot be loosened on the permit. Tests the operator added by hand are kept when defaults are recalculated, and the operator is told what the recalculation changed.
+
+**Migration**
+- **FR-MIG-001** Existing plants become sites. Departments, locations and workstations become work locations, keeping parent order where it grouped places. Machinery becomes assets, carrying LOTOTO procedures and energy sources. Approvers who belonged to a department become area authorities on the locations that came from that department.
+- **FR-MIG-002** Every existing user is given access to every existing site. Permits, incidents, gas tests and LOTOTO records are re-pointed to the new records. The old tables stay readable until the migration is checked. Nothing is cascade-deleted.
+
+**Acceptance for this refinement** (refined 14 October 2026)
+
+Administrator:
+- Creates a site, a work-location tree of any depth, location types and asset types.
+- Assigns people on the Site page, including contractors. Owner and tenant admin already see every site.
+- Assigns approvers on a work location. They hold the approver role and belong to the site. A child with no list of its own uses the parent's approvers.
+- Sees a setup warning when a location and its parents have no approver.
+- Registers assets with a tag unique on the site. An asset number, when entered, is unique in the tenant.
+- Cannot archive a site, work location or asset while an open permit uses it.
+- Configures gas tests on a work location or an asset. A child location can add a test or tighten a limit, and cannot loosen one.
+
+Receiver (permit issuer):
+- Sets the site, a work location at any depth, and an optional exact spot.
+- Sees the approver names and cannot change them.
+- Can save a permit with no asset.
+- Returns a draft the operator sent back, with the reason still visible.
+
+Operator:
+- Sees the place read-only. A wrong place is returned to the receiver with a reason.
+- Picks assets from the work location and its sub-locations, or searches the whole site. Assets are optional unless LOTOTO is required, which needs at least one.
+- Sees gas-test defaults from the location and the assets, each with its source. Gas testing turns on when any default exists.
+- For this permit only, removes a default with a reason (the row stays and can be restored), adds a test, or tightens a limit. A looser limit is refused.
+- After the place or the assets change, hand-added tests remain and the screen says what the recalculation changed.
+- Cannot approve a permit they are executing.
+
+Safety officer:
+- Reviews the permit with the place, assets and gas tests visible.
+- Does not change the site or the work location.
+
+Approver:
+- Is notified when a permit is submitted for a location they cover. Any one of those approvers may approve.
+- If the location has no approver up the tree, any tenant approver may approve.
+- A parent-and-child SIMOPS warning must be acknowledged before approval. The same asset or the same work location is a conflict that needs a SIMOPS review.
+- Cannot approve their own permit.
+
+Migration:
+- Each plant is a site. Each department, location and workstation is a work location, in the same order. Each machine is an asset, and its LOTOTO procedures and energy sources moved with it.
+- Department approvers are location approvers. Every existing user can open every existing site.
+- Permits, incidents, gas tests and LOTOTO records point at the new ids. Issued permits still show the place name and path they had.
+- The old tables remain readable. Nothing was cascade-deleted.
+
+
 ## 6. Business Workflows
 
 The Permit-to-Work platform supports a structured operational workflow that coordinates multiple users and functional modules throughout the lifecycle of hazardous work. Each workflow is designed to ensure that work progresses through clearly defined stages while maintaining safety, accountability and operational visibility.
@@ -896,9 +985,9 @@ The Permit-to-Work platform supports a structured operational workflow that coor
 
 **Phase 1: Creation**
 1. **Issuer** initiates permit creation.
-2. **Creator** (may be the same person as Issuer, or a delegated creator role) enters core permit fields: permit type, work description, location/zone, date and time.
+2. **Creator** (may be the same person as Issuer, or a delegated creator role) enters core permit fields: permit type, work description, site, work location, optional exact spot, date and time. Refined 14 October 2026.
 3. **HOD is notified** that a permit is being created (early awareness, not yet an approval action).
-4. **Executor** completes/enters operational details: worker names, ages, roles, machinery/equipment IDs and details.
+4. **Executor** completes/enters operational details: worker names, ages, roles, and the assets the job needs. Assets are optional unless LOTOTO isolation is required.
 5. **SIMOPS check runs automatically:**
    - **Fail:** routed to HOD as an automatic rejection.
    - **Pass:** proceeds to HOD review.
@@ -939,13 +1028,13 @@ Creation → SIMOPS gate → HOD review ⇄ (Resend) → Safety Officer gate →
 ```
 
 ### 6.2 LOTOTO Workflow
-Where hazardous energy isolation is required, LOTOTO activities are initiated after permit approval and before work execution. Isolation procedures are performed against the affected workstations or machines, verified by authorized personnel and documented with supporting evidence where required. Once work has been completed, restoration procedures are carried out and recorded before the permit progresses towards closure.
+Where hazardous energy isolation is required, LOTOTO activities are initiated after permit approval and before work execution. Isolation procedures are performed against the affected assets, verified by authorized personnel and documented with supporting evidence where required. Once work has been completed, restoration procedures are carried out and recorded before the permit progresses towards closure.
 
 ### 6.3 SIMOPS Workflow
 Whenever a permit is created or modified, the platform evaluates planned work activities against other active or pending permits. Where overlapping work activities are identified, a SIMOPS conflict is generated for review. Authorized personnel assess the conflict and determine whether work may proceed, requires modification or must be rescheduled before execution begins.
 
 ### 6.4 Incident Management Workflow
-Incidents, near misses and unsafe conditions may be reported at any stage of the permit lifecycle. Reported incidents undergo investigation, corrective action and closure while remaining linked to associated permits, personnel, machinery and operational locations where applicable.
+Incidents, near misses and unsafe conditions may be reported at any stage of the permit lifecycle. Reported incidents undergo investigation, corrective action and closure while remaining linked to associated permits, personnel, assets and work locations where applicable. A site and a work location are required.
 
 ### 6.5 Reporting Workflow
 Operational information collected throughout the platform is consolidated into dashboards and reports that provide visibility into permit activity, LOTOTO compliance, incident trends, approval performance and overall safety metrics. Reports support operational monitoring, management decision-making and regulatory compliance.
@@ -955,9 +1044,9 @@ Operational information collected throughout the platform is consolidated into d
 
 The product shall be considered functionally complete when it enables organizations to:
 
-- Configure organizational structures, users and operational settings.
+- Configure sites, work locations, area authorities, assets, users and operational settings (section 5.12).
 - Digitally manage the complete Permit-to-Work lifecycle.
-- Perform machine-specific LOTOTO procedures.
+- Perform asset-specific LOTOTO procedures.
 - Detect and manage SIMOPS conflicts.
 - Support multi-day hazardous work with daily progress tracking.
 - Record and investigate incidents and unsafe conditions.

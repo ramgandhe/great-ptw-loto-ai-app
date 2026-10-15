@@ -112,6 +112,7 @@ describe('Approval workflow remediation (SP-09.01)', () => {
       delegationService,
       {
         findOpenCaseForPermit: jest.fn().mockResolvedValue(null),
+        locationWarnings: jest.fn().mockResolvedValue([]),
         assertNoOpenCase: jest.fn().mockResolvedValue(undefined),
       } as never,
     );

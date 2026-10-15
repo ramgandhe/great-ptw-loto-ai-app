@@ -1,5 +1,45 @@
 # **IMPLEMENTATION PLAN**
 
+> Refined 14 October 2026. The milestone history below is unchanged. The place-model work in PRD section 5.12 is delivered by the phases in this note, in this order. Each phase is closed only when its checks pass.
+
+## Refinement phases — Site, Work location, Asset (14 October 2026)
+
+**A. Documents.** Done in this change: `docs/specs/merged_prd.md` section 5.12, this note, `docs/architecture.md`, and `docs/api-reference.md`.
+
+**B. Database.**
+1. Tables: sites, site members, location types, work locations, location approvers, asset types, assets.
+2. Gas testing rows target a work location or an asset.
+3. Permits: site, work location, exact spot, permit-to-asset links, and per-permit gas test changes (removed with reason, tightened limits, added by hand).
+4. Data migration: plant → site; department, location and workstation → work locations (order kept); machinery → assets with LOTOTO procedures and energy sources; department approvers → location approvers; every existing user → every existing site; re-point permits, incidents, gas tests and LOTOTO. Old tables stay readable. No cascade deletes.
+5. Check: row counts and references match before and after.
+
+**C. API.**
+1. CRUD for sites, members, location types, work locations (cycle check), asset types and assets. Archive is blocked while an active permit uses the record.
+2. Resolve approvers up the tree, and the warning when none exist.
+3. Site membership scopes place, asset and permit queries. Owner and admin see every site.
+4. Gas test defaults: inheritance plus the strictest limit, with a source on each row.
+5. Permit validation: site and work location required; LOTOTO needs an asset; a removed gas test needs a reason; a limit cannot be loosened.
+6. Replace department checks in permit access and approver notifications with location approvers.
+7. SIMOPS: same asset or same work location is a conflict; a parent and child location is a warning.
+8. LOTOTO procedures, plans and energy sources hang off assets. Incidents, dashboards, bulk import and seeds use the new records.
+
+**D. Web UI.**
+1. Organisation hub: Sites, Work locations, Assets. Departments moves under People and workflow as an optional people grouping.
+2. Sites page with a People tab. Work location tree, details, approvers, and Manage types. Asset register with a LOTOTO tab.
+3. Gas testing: pick a work location or an asset, and show "inherited from".
+4. Users and roles: read-only Sites column.
+5. Setup wizard: Sites → Work locations → Approvers → Assets.
+6. Permit wizard: receiver sets site, work location and exact spot; operator sets assets and gas tests (source, remove, restore, add, tighten). SIMOPS conflict and warning.
+7. Summary, approval card, list filters (a location filter includes sub-locations), LOTOTO plans, incident forms, dashboards.
+
+**E. Mobile.** Types, offline cache limited to the user's sites, permit wizard, LOTOTO screens.
+
+**F. Tests.**
+1. Unit: cycle check, approver inheritance, gas test defaults and strictest limit, SIMOPS conflict and warning, site scoping, validation.
+2. HTTP integration tests that still send workstation or machinery ids.
+3. Migration check on a copy of the seeded data.
+4. Walkthrough: admin setup, receiver, operator, safety officer, approver.
+
 # **1\. Introduction**
 
 ## **1.1 Purpose**
@@ -224,7 +264,7 @@ Application logging, monitoring and operational metrics shall be integrated into
 
 ### **Web Application (Next.js)**
 
-The web application provides the primary interface for administrative users, permit issuers, supervisors, safety officers and department heads. It is responsible for rendering user interfaces, consuming backend APIs, validating client-side input where appropriate and presenting operational data through dashboards, reports and workflow screens.
+The web application provides the primary interface for administrative users, permit receivers, operators, safety officers and permit approvers. Refined 14 October 2026. It is responsible for rendering user interfaces, consuming backend APIs, validating client-side input where appropriate and presenting operational data through dashboards, reports and workflow screens.
 
 The web application shall remain stateless, with all business decisions delegated to backend services.
 

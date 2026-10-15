@@ -12,6 +12,7 @@ import {
 import { auditColumns } from './base';
 import { machineryCatalogue, workstationCatalogue } from './master-data';
 import { permits } from './permit';
+import { assets } from './place';
 
 export const LOTOTO_PLAN_STATUSES = [
   'draft',
@@ -42,6 +43,7 @@ export const lototoPlans = pgTable(
     machineryId: uuid('machinery_id').references(() => machineryCatalogue.id, {
       onDelete: 'restrict',
     }),
+    assetId: uuid('asset_id').references(() => assets.id, { onDelete: 'restrict' }),
     reference: varchar('reference', { length: 32 }),
     title: varchar('title', { length: 255 }).notNull(),
     description: text('description'),
@@ -53,6 +55,7 @@ export const lototoPlans = pgTable(
     index('lototo_plans_tenant_status_idx').on(table.tenantId, table.status),
     uniqueIndex('lototo_plans_tenant_reference_unique').on(table.tenantId, table.reference),
     index('lototo_plans_machinery_id_idx').on(table.machineryId),
+    index('lototo_plans_asset_id_idx').on(table.assetId),
   ],
 );
 
@@ -80,9 +83,8 @@ export const equipmentEnergySources = pgTable(
     planId: uuid('plan_id')
       .notNull()
       .references(() => lototoPlans.id, { onDelete: 'cascade' }),
-    machineryId: uuid('machinery_id')
-      .notNull()
-      .references(() => machineryCatalogue.id, { onDelete: 'restrict' }),
+    machineryId: uuid('machinery_id').references(() => machineryCatalogue.id, { onDelete: 'restrict' }),
+    assetId: uuid('asset_id').references(() => assets.id, { onDelete: 'restrict' }),
     energySourceType: varchar('energy_source_type', { length: 64 }).notNull(),
     description: text('description'),
     lockMethod: varchar('lock_method', { length: 64 }),
@@ -106,9 +108,8 @@ export const isolationPoints = pgTable(
     planId: uuid('plan_id')
       .notNull()
       .references(() => lototoPlans.id, { onDelete: 'cascade' }),
-    machineryId: uuid('machinery_id')
-      .notNull()
-      .references(() => machineryCatalogue.id, { onDelete: 'restrict' }),
+    machineryId: uuid('machinery_id').references(() => machineryCatalogue.id, { onDelete: 'restrict' }),
+    assetId: uuid('asset_id').references(() => assets.id, { onDelete: 'restrict' }),
     equipmentEnergySourceId: uuid('equipment_energy_source_id').references(
       () => equipmentEnergySources.id,
       { onDelete: 'set null' },

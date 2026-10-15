@@ -59,9 +59,10 @@ export function configureIsolationSequence(planId: string, payload: ConfigureSeq
   });
 }
 
-export function listLototoProcedures(filters?: { machineryId?: string; published?: boolean }) {
+export function listLototoProcedures(filters?: { machineryId?: string; assetId?: string; published?: boolean }) {
   const params = new URLSearchParams();
   if (filters?.machineryId) params.set("machineryId", filters.machineryId);
+  if (filters?.assetId) params.set("assetId", filters.assetId);
   if (filters?.published) params.set("published", "true");
   const query = params.toString() ? `?${params.toString()}` : "";
   return fetchApi<LototoProcedureListItem[]>(`/lototo/procedures${query}`);

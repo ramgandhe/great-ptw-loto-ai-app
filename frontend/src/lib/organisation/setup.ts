@@ -2,26 +2,21 @@ import { checklistsApi } from "@/lib/master-data/checklists";
 import { gasTestingApi, masterDataApi } from "@/lib/master-data/api";
 import {
   approvalWorkflowsApi,
-  departmentsApi,
   hazardsApi,
-  locationsApi,
-  machineryApi,
   notificationPreferencesApi,
   organisationsApi,
-  plantsApi,
   ppeConfigurationsApi,
-  workstationsApi,
+  sitesApi,
 } from "@/lib/organisation/api";
+import { placeApi } from "@/lib/place/api";
 import { permitTemplatesApi } from "@/lib/organisation/templates";
 import { agenciesApi, competenciesApi, contractorsApi, employeesApi, listTenantUsers } from "@/lib/workforce/api";
 
 export type SetupStepKey =
   | "profile"
-  | "plants"
-  | "departments"
-  | "locations"
-  | "workstations"
-  | "machinery"
+  | "sites"
+  | "work-locations"
+  | "assets"
   | "hazards"
   | "ppe"
   | "permit-types"
@@ -58,6 +53,16 @@ export type SetupStep = {
 type Listed = { status?: string | null; isActive?: boolean };
 const active = (rows: Listed[]) => rows.filter((row) => row.status !== "archived" && row.isActive !== false).length;
 
+async function countOnSites(kind: "locations" | "assets") {
+  const sites = (await sitesApi.list()).filter((row) => row.status !== "archived");
+  const groups = await Promise.all(
+    sites.map((site) =>
+      (kind === "locations" ? placeApi.listWorkLocations(site.id) : placeApi.listAssets(site.id)).catch(() => []),
+    ),
+  );
+  return groups.reduce((sum, rows) => sum + active(rows), 0);
+}
+
 export const SETUP_STEPS: SetupStep[] = [
   {
     key: "profile",
@@ -74,59 +79,37 @@ export const SETUP_STEPS: SetupStep[] = [
     },
   },
   {
-    key: "plants",
+    key: "sites",
     group: "Site structure",
-    title: "Plants",
-    summary: "Your operational sites.",
-    why: "Everything else sits under a plant: departments, locations and the permits raised there.",
-    tips: ["One plant per physical site, e.g. “Pune Unit 1”.", "Short codes such as PUN1 make references easy to read."],
-    href: "/organisation/plants",
-    measure: async () => active(await plantsApi.list()),
+    title: "Sites",
+    summary: "The physical sites people work at.",
+    why: "Permits, work locations and assets all belong to a site. People who are not an owner or admin only see sites they belong to.",
+    tips: ["One site per physical place, for example “Pune Unit 1”.", "Add people on the site page. Owners and admins already see every site."],
+    href: "/organisation/sites",
+    measure: async () => active(await sitesApi.list()),
   },
   {
-    key: "departments",
+    key: "work-locations",
     group: "Site structure",
-    title: "Departments",
-    summary: "Teams that own and approve work.",
-    why: "Each permit belongs to a department, and heads of department approve their own department’s permits.",
-    tips: ["Match your org chart: Maintenance, Production, Utilities…", "Link each department to its plant."],
-    needs: ["plants"],
-    href: "/organisation/departments",
-    measure: async () => active(await departmentsApi.list()),
+    title: "Work locations and approvers",
+    summary: "Where work happens, and who may approve it.",
+    why: "A permit names one work location. Approvers set on a location cover it and the locations under it, unless a child location sets its own.",
+    tips: ["Build the tree people recognise on the ground: area, bay, skid.", "Leave approvers empty to inherit them from the parent. If none exist up the tree, any permit approver may approve."],
+    needs: ["sites"],
+    href: "/organisation/work-locations",
+    measure: () => countOnSites("locations"),
   },
   {
-    key: "locations",
+    key: "assets",
     group: "Site structure",
-    title: "Locations",
-    summary: "Work areas within a plant.",
-    why: "Permits name where work happens, and SIMOPS checks for clashing work in the same location.",
-    tips: ["Areas people recognise on the ground: Boiler house, Tank farm, Roof.", "Keep them coarse; workstations add detail."],
-    needs: ["plants"],
-    href: "/organisation/locations",
-    measure: async () => active(await locationsApi.list()),
-  },
-  {
-    key: "workstations",
-    group: "Site structure",
-    title: "Workstations",
-    summary: "Specific points within a location where equipment sits.",
-    why: "Gas testing limits and machinery are set per workstation, so permits there pick up the right controls.",
-    tips: ["e.g. “Boiler 2 feed pump bay” under Boiler house.", "A code is required; use the tag on site if there is one."],
-    needs: ["locations"],
-    href: "/organisation/workstations",
-    measure: async () => active(await workstationsApi.list()),
-  },
-  {
-    key: "machinery",
-    group: "Site structure",
-    title: "Machinery",
+    title: "Assets",
     summary: "Equipment that may need isolating.",
-    why: "LOTOTO isolation plans are attached to machinery, so lock-out steps are ready when a permit needs them.",
-    tips: ["Start with equipment that is isolated most often.", "Add LOTOTO plans later from the machinery list."],
+    why: "LOTOTO procedures hang off an asset. A permit lists assets only when the job needs them.",
+    tips: ["The tag must be unique on the site.", "Put each asset on the work location where it sits."],
     optional: true,
-    needs: ["workstations"],
-    href: "/organisation/machinery",
-    measure: async () => active(await machineryApi.list()),
+    needs: ["work-locations"],
+    href: "/organisation/assets",
+    measure: () => countOnSites("assets"),
   },
   {
     key: "hazards",
@@ -178,11 +161,11 @@ export const SETUP_STEPS: SetupStep[] = [
     key: "gas-testing",
     group: "Permits",
     title: "Gas testing",
-    summary: "Safe limits for gas readings by workstation.",
-    why: "Where gas testing is required, readings outside these limits stop the permit going ahead.",
-    tips: ["Typical: Oxygen 19.5 to 23.5 %, LEL 0 to 10 %, H₂S 0 to 10 ppm, CO 0 to 25 ppm.", "Add and add another keeps the workstation selected."],
+    summary: "Safe limits for gas readings on a work location or an asset.",
+    why: "A permit loads these limits from its work location and assets. The strictest limit is kept, and it cannot be loosened for that permit.",
+    tips: ["Typical: Oxygen 19.5 to 23.5 %, LEL 0 to 10 %, H₂S 0 to 10 ppm, CO 0 to 25 ppm.", "A child location may add a test or tighten a limit. It cannot widen one."],
     optional: true,
-    needs: ["workstations"],
+    needs: ["work-locations"],
     href: "/organisation/gas-testing",
     measure: async () => (await gasTestingApi.list()).length,
   },
@@ -212,9 +195,8 @@ export const SETUP_STEPS: SetupStep[] = [
     group: "People",
     title: "Users and roles",
     summary: "Who can sign in, and what they can do.",
-    why: "Issuers raise permits, heads of department approve them, operators carry out the work. Each needs a login with the right role.",
-    tips: ["Add at least one issuer, one approver (HOD) and one safety officer.", "Setting a department limits which permits an HOD sees."],
-    needs: ["departments"],
+    why: "Receivers raise permits, approvers approve them, operators carry out the work. Each needs a login with the right role.",
+    tips: ["Add at least one receiver, one approver and one operator.", "Site access is set on the site, not here."],
     href: "/workforce/roles",
     measure: async () => (await listTenantUsers()).filter((user) => user.enabled).length,
   },
@@ -224,8 +206,7 @@ export const SETUP_STEPS: SetupStep[] = [
     title: "Employees",
     summary: "Your own staff who can be named on permits.",
     why: "Permits name the crew doing the work; employees appear in those pickers.",
-    tips: ["Staff who work on site but never sign in still belong here.", "Link each to a department."],
-    needs: ["departments"],
+    tips: ["Staff who work on site but never sign in still belong here."],
     href: "/workforce/employees",
     measure: async () => active(await employeesApi.list()),
   },
@@ -293,8 +274,8 @@ export const SETUP_AREAS: { key: SetupAreaKey; title: string; summary: string; s
   {
     key: "sites",
     title: "Sites and equipment",
-    summary: "Plants, their departments and work locations, workstations and machinery.",
-    steps: ["plants", "departments", "locations", "workstations", "machinery"],
+    summary: "Sites, the work locations under them, who approves each location, and the assets.",
+    steps: ["sites", "work-locations", "assets"],
   },
   {
     key: "permits",

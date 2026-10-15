@@ -109,3 +109,34 @@ PTW permit/approval/execution/closure/SIMOPS routes remain under their existing 
 | GET | `/billing/usage` | Required | Usage records for tenant |
 | POST | `/billing/usage` | Required | Upsert usage metric — tenant-owner |
 
+## Sites, work locations and assets (refined 14 October 2026)
+
+Auth: tenant admin (or owner) for configuration. Permit routes stay on `/permits`. Membership limits every list below to the caller's sites; owner and admin are unscoped.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET, POST | `/sites` | List, create. Body: `code`, `name`, `description?`, `address?` |
+| GET, PATCH | `/sites/{id}` | Read, update |
+| POST | `/sites/{id}/archive` | Refused while an active permit uses the site |
+| GET, POST | `/sites/{id}/members` | People tab. POST body: `userId` |
+| DELETE | `/sites/{id}/members/{userId}` | Also drops that user's approver rows on the site. `409` with a warning when a location would be left with no approver; repeat with `confirm=true` to proceed |
+| GET, POST | `/location-types` | Admin list. Seeded; "Site" is rejected as a name |
+| PATCH | `/location-types/{id}` | Rename or archive |
+| GET, POST | `/work-locations` | `siteId` query required on GET. POST body includes optional `parentId`, `locationTypeId` |
+| GET, PATCH | `/work-locations/{id}` | Parent change rejected on a cycle or a cross-site parent (`422`) |
+| POST | `/work-locations/{id}/archive` | Refused while an active permit uses it or a descendant |
+| GET, PUT | `/work-locations/{id}/approvers` | PUT replaces the location's own list. Empty list means "inherit" |
+| GET | `/work-locations/{id}/approvers/resolved` | Effective approvers after inheritance, plus `inheritedFrom` |
+| GET, POST | `/asset-types` | Admin list, seeded |
+| PATCH | `/asset-types/{id}` | Rename or archive |
+| GET, POST | `/assets` | Filter `siteId`, `workLocationId` (includes descendants unless `exact=true`) |
+| GET, PATCH | `/assets/{id}` | Tag unique per site; asset number unique per tenant when set |
+| POST | `/assets/{id}/archive` | Refused while an active permit uses it |
+| GET, POST | `/gas-testing` | Body target is `workLocationId` or `assetId`, not both. A child location cannot store a wider limit than it inherits (`422`) |
+| GET | `/gas-testing/defaults` | Query `workLocationId` and repeated `assetId`. Returns merged rows, strictest limit, and `source` |
+| POST | `/imports` | Accepts sites, work locations and assets in addition to existing catalogues |
+
+Permit create and update accept `siteId`, `workLocationId`, `exactSpot` and `assetIds`. Gas test rows on the permit accept `removedReason`, a tightened `minimum`/`maximum`, and hand-added rows. Loosening a configured limit returns `422`. LOTOTO required with an empty `assetIds` returns `422`.
+
+`/plants`, `/locations`, `/workstations` and `/machinery` stay readable. Their web screens are read-only. Departments stay editable because they group people for reporting only. New places and equipment are written on the routes above. Refined 14 October 2026. LOTOTO procedures and plans take `assetId` instead of a machinery id. Incidents require `siteId` and `workLocationId`; `assetIds` is optional. Dashboard and list filters accept `siteId` and `workLocationId` (descendants included).
+

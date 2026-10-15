@@ -1,12 +1,28 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { throwInUse } from '../../common/http/in-use';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray, or } from 'drizzle-orm';
+import { isTenantPrivileged } from '../../common/constants/tenant-roles';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { gasTestingCatalogue, permitGasTesting, workstationCatalogue } from '../../database/schema';
+import {
+  assets,
+  gasTestingCatalogue,
+  permitGasTesting,
+  siteMembers,
+  workLocations,
+  workstationCatalogue,
+} from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { CreateGasTestingDto } from './dto/create-gas-testing.dto';
 import { UpdateGasTestingDto } from './dto/update-gas-testing.dto';
+import { GasLimitInput, mergeGasLimits, widerThanAny } from './gas-test-defaults';
 import { MasterDataCacheService } from './master-data-cache.service';
 import { MasterDataLogService } from './master-data-log.service';
 import { ReferenceIntegrityService } from './reference-integrity.service';
@@ -24,15 +40,35 @@ export class GasTestingService {
   async create(dto: CreateGasTestingDto, user: AuthenticatedUser) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
     this.assertRange(dto.minimum, dto.maximum);
-    await this.assertWorkstationExists(tenantId, dto.workstationId);
+    const target = this.oneTarget(dto);
+    const parameter = dto.parameter.trim();
+    let workstationId: string | null = null;
+    let workLocationId: string | null = null;
+    let assetId: string | null = null;
+    if (target === 'workstation') {
+      await this.assertWorkstationExists(tenantId, dto.workstationId!);
+      workstationId = dto.workstationId!;
+      workLocationId = await this.locationIdFor(tenantId, workstationId);
+    } else if (target === 'location') {
+      await this.assertLocation(tenantId, dto.workLocationId!);
+      workLocationId = dto.workLocationId!;
+    } else {
+      await this.assertAsset(tenantId, dto.assetId!);
+      assetId = dto.assetId!;
+    }
+    if (workLocationId) {
+      await this.assertNotWiderThanAncestors(tenantId, workLocationId, parameter, dto.minimum, dto.maximum);
+    }
 
     try {
       const [row] = await this.db
         .insert(gasTestingCatalogue)
         .values({
           tenantId,
-          workstationId: dto.workstationId,
-          parameter: dto.parameter.trim(),
+          workstationId,
+          workLocationId,
+          assetId,
+          parameter,
           unit: dto.unit.trim(),
           minimum: dto.minimum,
           maximum: dto.maximum,
@@ -45,10 +81,94 @@ export class GasTestingService {
       return row;
     } catch (error) {
       if (error instanceof Error && error.message.includes('unique')) {
-        throw new ConflictException('This parameter already exists for the selected workstation');
+        throw new ConflictException('This parameter already exists for the selected place or asset');
       }
       throw error;
     }
+  }
+
+  async defaults(user: AuthenticatedUser, workLocationId: string, assetIds: string[]) {
+    const tenantId = this.referenceIntegrity.requireTenant(user);
+    const chain: Array<{ id: string; name: string; parentId: string | null; siteId: string }> = [];
+    const seen = new Set<string>();
+    let current: string | null = workLocationId;
+    while (current && !seen.has(current)) {
+      seen.add(current);
+      const [location] = await this.db
+        .select({
+          id: workLocations.id,
+          name: workLocations.name,
+          parentId: workLocations.parentId,
+          siteId: workLocations.siteId,
+        })
+        .from(workLocations)
+        .where(and(eq(workLocations.id, current), eq(workLocations.tenantId, tenantId)));
+      if (!location) throw new NotFoundException('Work location not found');
+      chain.push(location);
+      current = location.parentId;
+    }
+    if (chain.length === 0) throw new NotFoundException('Work location not found');
+    await this.assertSiteAccess(tenantId, chain[0].siteId, user);
+
+    const locationIds = chain.map((row) => row.id);
+    const locationRows = await this.db
+      .select()
+      .from(gasTestingCatalogue)
+      .where(
+        and(
+          eq(gasTestingCatalogue.tenantId, tenantId),
+          eq(gasTestingCatalogue.isActive, true),
+          or(
+            inArray(gasTestingCatalogue.workLocationId, locationIds),
+            inArray(gasTestingCatalogue.workstationId, locationIds),
+          ),
+        ),
+      );
+    const assetRows = assetIds.length
+      ? await this.db
+          .select()
+          .from(gasTestingCatalogue)
+          .where(
+            and(
+              eq(gasTestingCatalogue.tenantId, tenantId),
+              eq(gasTestingCatalogue.isActive, true),
+              inArray(gasTestingCatalogue.assetId, assetIds),
+            ),
+          )
+      : [];
+    const assetNames = assetIds.length
+      ? await this.db
+          .select({ id: assets.id, name: assets.name, tag: assets.tag })
+          .from(assets)
+          .where(and(eq(assets.tenantId, tenantId), inArray(assets.id, assetIds)))
+      : [];
+    const locationName = new Map(chain.map((row) => [row.id, row.name]));
+    const assetName = new Map(assetNames.map((row) => [row.id, row.tag || row.name]));
+    const limits: GasLimitInput[] = [];
+    for (const row of locationRows) {
+      const sourceId = row.workLocationId ?? row.workstationId;
+      if (!sourceId || !locationIds.includes(sourceId)) continue;
+      limits.push({
+        parameter: row.parameter,
+        unit: row.unit,
+        minimum: row.minimum,
+        maximum: row.maximum,
+        source: { kind: 'work_location', id: sourceId, name: locationName.get(sourceId) ?? row.parameter },
+        catalogueId: row.id,
+      });
+    }
+    for (const row of assetRows) {
+      if (!row.assetId) continue;
+      limits.push({
+        parameter: row.parameter,
+        unit: row.unit,
+        minimum: row.minimum,
+        maximum: row.maximum,
+        source: { kind: 'asset', id: row.assetId, name: assetName.get(row.assetId) ?? row.parameter },
+        catalogueId: row.id,
+      });
+    }
+    return mergeGasLimits(limits);
   }
 
   async findAll(user: AuthenticatedUser, workstationId?: string) {
@@ -78,8 +198,17 @@ export class GasTestingService {
 
   async update(id: string, dto: UpdateGasTestingDto, user: AuthenticatedUser) {
     const tenantId = this.referenceIntegrity.requireTenant(user);
+    if (dto.workLocationId && dto.assetId) {
+      throw new BadRequestException('A gas test is stored on a work location or an asset');
+    }
     if (dto.workstationId) {
       await this.assertWorkstationExists(tenantId, dto.workstationId);
+    }
+    if (dto.workLocationId) {
+      await this.assertLocation(tenantId, dto.workLocationId);
+    }
+    if (dto.assetId) {
+      await this.assertAsset(tenantId, dto.assetId);
     }
 
     const [existing] = await this.db
@@ -93,12 +222,28 @@ export class GasTestingService {
     const minimum = dto.minimum ?? existing.minimum;
     const maximum = dto.maximum ?? existing.maximum;
     this.assertRange(minimum, maximum);
+    const parameter = dto.parameter?.trim() ?? existing.parameter;
+    const workLocationId = dto.assetId ? null : (dto.workLocationId ?? existing.workLocationId);
+    if (
+      workLocationId &&
+      (dto.minimum !== undefined || dto.maximum !== undefined || dto.parameter !== undefined || dto.workLocationId)
+    ) {
+      await this.assertNotWiderThanAncestors(tenantId, workLocationId, parameter, minimum, maximum);
+    }
 
     try {
       const [row] = await this.db
         .update(gasTestingCatalogue)
         .set({
-          ...(dto.workstationId !== undefined ? { workstationId: dto.workstationId } : {}),
+          ...(dto.workstationId !== undefined
+            ? { workstationId: dto.workstationId, workLocationId: null, assetId: null }
+            : {}),
+          ...(dto.workLocationId !== undefined
+            ? { workLocationId: dto.workLocationId, assetId: null, workstationId: null }
+            : {}),
+          ...(dto.assetId !== undefined
+            ? { assetId: dto.assetId, workLocationId: null, workstationId: null }
+            : {}),
           ...(dto.parameter !== undefined ? { parameter: dto.parameter.trim() } : {}),
           ...(dto.unit !== undefined ? { unit: dto.unit.trim() } : {}),
           ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
@@ -114,7 +259,7 @@ export class GasTestingService {
       return row;
     } catch (error) {
       if (error instanceof Error && error.message.includes('unique')) {
-        throw new ConflictException('This parameter already exists for the selected workstation');
+        throw new ConflictException('This parameter already exists for the selected place or asset');
       }
       throw error;
     }
@@ -147,6 +292,105 @@ export class GasTestingService {
     if (minimum >= maximum) {
       throw new BadRequestException('Minimum must be less than maximum');
     }
+  }
+
+  private oneTarget(dto: { workstationId?: string; workLocationId?: string; assetId?: string }) {
+    const chosen = [dto.workstationId, dto.workLocationId, dto.assetId].filter(Boolean);
+    if (chosen.length !== 1) {
+      throw new BadRequestException('Set a work location, an asset, or a workstation');
+    }
+    if (dto.workLocationId) return 'location' as const;
+    if (dto.assetId) return 'asset' as const;
+    return 'workstation' as const;
+  }
+
+  private async locationIdFor(tenantId: string, id: string) {
+    const [row] = await this.db
+      .select({ id: workLocations.id })
+      .from(workLocations)
+      .where(and(eq(workLocations.id, id), eq(workLocations.tenantId, tenantId)));
+    return row?.id ?? null;
+  }
+
+  private async assertLocation(tenantId: string, workLocationId: string) {
+    const [row] = await this.db
+      .select({ id: workLocations.id, status: workLocations.status })
+      .from(workLocations)
+      .where(and(eq(workLocations.id, workLocationId), eq(workLocations.tenantId, tenantId)));
+    if (!row || row.status === 'archived') {
+      throw new NotFoundException('Work location not found');
+    }
+  }
+
+  private async assertAsset(tenantId: string, assetId: string) {
+    const [row] = await this.db
+      .select({ id: assets.id, status: assets.status })
+      .from(assets)
+      .where(and(eq(assets.id, assetId), eq(assets.tenantId, tenantId)));
+    if (!row || row.status === 'archived') {
+      throw new NotFoundException('Asset not found');
+    }
+  }
+
+  /** A child location may add a test or tighten a limit. A wider limit is refused. */
+  private async assertNotWiderThanAncestors(
+    tenantId: string,
+    workLocationId: string,
+    parameter: string,
+    minimum: number,
+    maximum: number,
+  ) {
+    const ancestorIds: string[] = [];
+    const seen = new Set<string>();
+    let current: string | null = workLocationId;
+    const [start] = await this.db
+      .select({ parentId: workLocations.parentId })
+      .from(workLocations)
+      .where(and(eq(workLocations.id, current), eq(workLocations.tenantId, tenantId)));
+    current = start?.parentId ?? null;
+    while (current && !seen.has(current)) {
+      seen.add(current);
+      ancestorIds.push(current);
+      const [parent] = await this.db
+        .select({ parentId: workLocations.parentId })
+        .from(workLocations)
+        .where(and(eq(workLocations.id, current), eq(workLocations.tenantId, tenantId)));
+      current = parent?.parentId ?? null;
+    }
+    if (ancestorIds.length === 0) return;
+    const rows = await this.db
+      .select({
+        parameter: gasTestingCatalogue.parameter,
+        minimum: gasTestingCatalogue.minimum,
+        maximum: gasTestingCatalogue.maximum,
+      })
+      .from(gasTestingCatalogue)
+      .where(
+        and(
+          eq(gasTestingCatalogue.tenantId, tenantId),
+          eq(gasTestingCatalogue.isActive, true),
+          or(
+            inArray(gasTestingCatalogue.workLocationId, ancestorIds),
+            inArray(gasTestingCatalogue.workstationId, ancestorIds),
+          ),
+        ),
+      );
+    const key = parameter.trim().toLowerCase();
+    const baselines = rows.filter((row) => row.parameter.trim().toLowerCase() === key);
+    if (widerThanAny({ minimum, maximum }, baselines)) {
+      throw new UnprocessableEntityException(
+        'A work location cannot store a wider gas test limit than a parent location',
+      );
+    }
+  }
+
+  private async assertSiteAccess(tenantId: string, siteId: string, user: AuthenticatedUser) {
+    if (isTenantPrivileged(user.roles) || user.roles.includes('platform-admin')) return;
+    const [member] = await this.db
+      .select({ id: siteMembers.id })
+      .from(siteMembers)
+      .where(and(eq(siteMembers.tenantId, tenantId), eq(siteMembers.siteId, siteId), eq(siteMembers.userId, user.id)));
+    if (!member) throw new NotFoundException('Work location not found');
   }
 
   private async assertWorkstationExists(tenantId: string, workstationId: string) {

@@ -17,6 +17,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { SystemModule } from './modules/system/system.module';
 import { MasterDataModule } from './modules/master-data/master-data.module';
 import { OrganisationModule } from './modules/organisation/organisation.module';
+import { PlaceModule } from './modules/place/place.module';
 import { WorkforceModule } from './modules/workforce/workforce.module';
 import { PermitModule } from './modules/permit/permit.module';
 import { ApprovalModule } from './modules/approval/approval.module';
@@ -75,6 +76,7 @@ import { PlatformModule } from './modules/platform/platform.module';
     SystemModule,
     MasterDataModule,
     OrganisationModule,
+    PlaceModule,
     WorkforceModule,
     ClosureModule,
     IncidentClosureModule,

@@ -14,6 +14,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { auditColumns } from './base';
+import { assets, sites, workLocations } from './place';
 
 export const PERMIT_STATUSES = [
   'draft',
@@ -51,6 +52,14 @@ export const permits = pgTable(
     locationId: uuid('location_id'),
     workstationId: uuid('workstation_id'),
     machineryId: uuid('machinery_id'),
+    /** Refined 14 October 2026. Old plant/location columns stay until callers move over. */
+    siteId: uuid('site_id').references(() => sites.id, { onDelete: 'restrict' }),
+    workLocationId: uuid('work_location_id').references(() => workLocations.id, {
+      onDelete: 'restrict',
+    }),
+    exactSpot: text('exact_spot'),
+    /** Place path at the time the permit was last saved. */
+    placePath: text('place_path'),
     lototoRequired: boolean('lototo_required').notNull().default(false),
     gasTestingRequired: boolean('gas_testing_required').notNull().default(false),
     plannedStartAt: timestamp('planned_start_at', { withTimezone: true }),
@@ -88,6 +97,8 @@ export const permits = pgTable(
     index('permits_status_idx').on(table.status),
     index('permits_tenant_status_idx').on(table.tenantId, table.status),
     index('permits_permit_type_id_idx').on(table.permitTypeId),
+    index('permits_site_id_idx').on(table.siteId),
+    index('permits_work_location_id_idx').on(table.workLocationId),
   ],
 );
 
@@ -173,12 +184,18 @@ export const permitGasTesting = pgTable(
     permitId: uuid('permit_id')
       .notNull()
       .references(() => permits.id, { onDelete: 'cascade' }),
-    gasTestingCatalogueId: uuid('gas_testing_catalogue_id').notNull(),
+    gasTestingCatalogueId: uuid('gas_testing_catalogue_id'),
     workstationId: uuid('workstation_id').notNull(),
     parameter: varchar('parameter', { length: 255 }).notNull(),
     unit: varchar('unit', { length: 32 }).notNull(),
     minimum: doublePrecision('minimum').notNull(),
     maximum: doublePrecision('maximum').notNull(),
+    /** work_location or asset. Null on rows copied from the old workstation link. */
+    sourceKind: varchar('source_kind', { length: 32 }),
+    sourceId: uuid('source_id'),
+    /** Set when this default was removed for this permit only. */
+    removedReason: text('removed_reason'),
+    handAdded: boolean('hand_added').notNull().default(false),
   },
   (table) => [
     uniqueIndex('permit_gas_testing_permit_item_unique').on(
@@ -186,6 +203,24 @@ export const permitGasTesting = pgTable(
       table.gasTestingCatalogueId,
     ),
     index('permit_gas_testing_permit_id_idx').on(table.permitId),
+  ],
+);
+
+export const permitAssets = pgTable(
+  'permit_assets',
+  {
+    ...auditColumns,
+    permitId: uuid('permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    assetId: uuid('asset_id')
+      .notNull()
+      .references(() => assets.id, { onDelete: 'restrict' }),
+  },
+  (table) => [
+    uniqueIndex('permit_assets_permit_asset_unique').on(table.permitId, table.assetId),
+    index('permit_assets_permit_id_idx').on(table.permitId),
+    index('permit_assets_asset_id_idx').on(table.assetId),
   ],
 );
 

@@ -14,6 +14,7 @@ export type LototoPlan = {
   permitId: string | null;
   workstationId: string | null;
   machineryId: string | null;
+  assetId?: string | null;
   reference: string | null;
   title: string;
   description: string | null;
@@ -41,7 +42,8 @@ export type LototoAssignment = {
 };
 
 export type CreateLototoPlanPayload = {
-  machineryId: string;
+  machineryId?: string;
+  assetId?: string;
   title: string;
   description?: string;
   workstationId?: string;
@@ -56,7 +58,8 @@ export type EnergySourcePayload = {
 };
 
 export type AddIsolationPointPayload = {
-  machineryId: string;
+  machineryId?: string;
+  assetId?: string;
   isolationNumber: string;
   description?: string;
   verificationRequired?: boolean;
@@ -140,7 +143,8 @@ export type LototoProcedureVersion = {
 
 export type LototoProcedure = {
   id: string;
-  machineryId: string;
+  machineryId: string | null;
+  assetId?: string | null;
   workstationId: string | null;
   code: string;
   title: string;
@@ -153,7 +157,8 @@ export type LototoProcedure = {
 
 export type LototoProcedureListItem = {
   id: string;
-  machineryId: string;
+  machineryId: string | null;
+  assetId?: string | null;
   workstationId: string | null;
   code: string;
   title: string;
@@ -162,7 +167,8 @@ export type LototoProcedureListItem = {
 };
 
 export type LototoProcedurePayload = {
-  machineryId: string;
+  machineryId?: string;
+  assetId?: string;
   workstationId?: string;
   code: string;
   title: string;

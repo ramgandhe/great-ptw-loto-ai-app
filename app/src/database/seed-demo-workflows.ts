@@ -13,6 +13,7 @@ import {
   notificationRecipients,
   notifications,
   permitApprovals,
+  permitAssets,
   permitClosures,
   permitDrafts,
   permitEvidence,
@@ -351,6 +352,8 @@ async function seedDemoWorkflowRecords(db: Database): Promise<void> {
         title: scenario.title,
         workScope: `Demo scenario: ${scenario.title}`,
         plantId: DEMO_IDS.plant,
+        siteId: DEMO_IDS.plant,
+        workLocationId: DEMO_IDS.location,
         departmentId: DEMO_IDS.department,
         locationId: scenario.locationId ?? DEMO_IDS.location,
         workstationId: DEMO_IDS.workstation,
@@ -361,6 +364,18 @@ async function seedDemoWorkflowRecords(db: Database): Promise<void> {
         submittedBy: scenario.submitted ? DEMO_USER_IDS.issuer : null,
         createdBy: DEMO_USER_IDS.issuer,
         updatedBy: SEED_ACTOR_ID,
+      })),
+    )
+    .onConflictDoNothing();
+
+  await db
+    .insert(permitAssets)
+    .values(
+      PERMIT_SCENARIOS.map((scenario) => ({
+        permitId: scenario.id,
+        assetId: DEMO_IDS.machineryCompressor,
+        createdBy: DEMO_USER_IDS.issuer,
+        updatedBy: DEMO_USER_IDS.issuer,
       })),
     )
     .onConflictDoNothing();
@@ -650,6 +665,7 @@ async function seedLototo(db: Database): Promise<void> {
         permitId: DEMO_IDS.permitApproved,
         workstationId: DEMO_IDS.workstation,
         machineryId: DEMO_IDS.machineryCompressor,
+        assetId: DEMO_IDS.machineryCompressor,
         reference: 'LOTOTO-DEMO-001',
         title: 'Compressor electrical isolation (draft plan)',
         status: 'draft',
@@ -662,6 +678,7 @@ async function seedLototo(db: Database): Promise<void> {
         permitId: DEMO_IDS.permitApproved,
         workstationId: DEMO_IDS.workstation,
         machineryId: DEMO_IDS.machineryPump,
+        assetId: DEMO_IDS.machineryPump,
         reference: 'LOTOTO-DEMO-002',
         title: 'Pump mechanical isolation (ready)',
         status: 'ready',
@@ -674,6 +691,7 @@ async function seedLototo(db: Database): Promise<void> {
         permitId: DEMO_IDS.permitActive,
         workstationId: DEMO_IDS.workstation,
         machineryId: DEMO_IDS.machineryPump,
+        assetId: DEMO_IDS.machineryPump,
         reference: 'LOTOTO-DEMO-003',
         title: 'Active pump isolation — operator applying locks',
         status: 'in_execution',
@@ -698,6 +716,7 @@ async function seedLototo(db: Database): Promise<void> {
         id: DEMO_IDS.isolationPoint1,
         planId: DEMO_IDS.lototoPlanInExecution,
         machineryId: DEMO_IDS.machineryPump,
+        assetId: DEMO_IDS.machineryPump,
         isolationNumber: 'ISO-001',
         description: 'Main breaker isolation',
         verificationRequired: true,
@@ -708,6 +727,7 @@ async function seedLototo(db: Database): Promise<void> {
         id: DEMO_IDS.isolationPoint2,
         planId: DEMO_IDS.lototoPlanInExecution,
         machineryId: DEMO_IDS.machineryPump,
+        assetId: DEMO_IDS.machineryPump,
         isolationNumber: 'ISO-002',
         description: 'Valve lockout',
         verificationRequired: true,
@@ -772,6 +792,8 @@ async function seedIncidents(db: Database): Promise<void> {
         submittedBy: DEMO_USER_IDS.operator,
         submittedAt: TS.now,
         plantId: DEMO_IDS.plant,
+        siteId: DEMO_IDS.plant,
+        workLocationId: DEMO_IDS.location,
         locationId: DEMO_IDS.location,
         createdBy: DEMO_USER_IDS.operator,
         updatedBy: DEMO_USER_IDS.operator,
@@ -792,6 +814,8 @@ async function seedIncidents(db: Database): Promise<void> {
         submittedBy: DEMO_USER_IDS.operator,
         submittedAt: TS.recent,
         plantId: DEMO_IDS.plant,
+        siteId: DEMO_IDS.plant,
+        workLocationId: DEMO_IDS.location,
         locationId: DEMO_IDS.location,
         createdBy: DEMO_USER_IDS.operator,
         updatedBy: DEMO_USER_IDS.operator,
@@ -812,6 +836,8 @@ async function seedIncidents(db: Database): Promise<void> {
         submittedBy: DEMO_USER_IDS.operator,
         submittedAt: TS.past,
         plantId: DEMO_IDS.plant,
+        siteId: DEMO_IDS.plant,
+        workLocationId: DEMO_IDS.location,
         locationId: DEMO_IDS.location,
         createdBy: DEMO_USER_IDS.operator,
         updatedBy: DEMO_USER_IDS.safety,

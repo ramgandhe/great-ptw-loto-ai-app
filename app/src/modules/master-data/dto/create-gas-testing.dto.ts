@@ -1,9 +1,18 @@
 import { Type } from 'class-transformer';
-import { IsNumber, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsNumber, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export class CreateGasTestingDto {
+  @IsOptional()
   @IsUUID()
-  workstationId!: string;
+  workstationId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  workLocationId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  assetId?: string;
 
   @IsString()
   @MinLength(1)

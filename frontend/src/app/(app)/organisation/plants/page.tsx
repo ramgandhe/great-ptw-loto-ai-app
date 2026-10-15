@@ -10,9 +10,10 @@ export default function PlantsPage() {
   return (
     <EntityCrudPage
       title="Plants"
-      description="Manage top-level operational plants for the organisation."
+      description="Kept from before sites. Read only. Add a site instead."
       resource="plants"
       fields={fields}
+      readOnly
     />
   );
 }

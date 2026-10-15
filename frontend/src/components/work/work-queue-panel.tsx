@@ -9,7 +9,7 @@ import { ActionLink } from "@/components/work/action-link";
 import { Button } from "@/components/ui/button";
 import { permitStatusColor } from "@/lib/permit/status";
 import { formatWindow } from "@/lib/format";
-import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
+import { loadLookups, placeOf, type Lookups } from "@/lib/lookups";
 import { cn } from "@/lib/utils";
 import { WORK_ACTIONS, type WorkAction, type WorkItem } from "@/lib/work-queue";
 import { useWorkQueue } from "@/lib/work-queue-context";
@@ -31,11 +31,7 @@ function collapseAlike(rows: WorkItem[]): { item: WorkItem; alike: number }[] {
 function WorkRow({ item, alike, lookups }: { item: WorkItem; alike: number; lookups: Lookups | null }) {
   const { permit } = item;
   const type = permit ? lookups?.permitTypes.get(permit.permitTypeId) : undefined;
-  const place = permit
-    ? (nameOf(lookups?.machinery, permit.machineryId) ??
-      nameOf(lookups?.workstations, permit.workstationId) ??
-      nameOf(lookups?.locations, permit.locationId))
-    : null;
+  const place = permit ? placeOf(permit, lookups) : null;
 
   return (
     <li className="row-hover relative flex flex-wrap items-center rounded-r-lg gap-x-4 gap-y-2 py-3 pl-4 pr-1 sm:flex-nowrap">

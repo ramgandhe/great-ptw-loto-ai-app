@@ -41,6 +41,7 @@ const ORGANISATION_ADMIN_PATHS = ["/organisation/profile", "/organisation/workfl
 const ROUTE_RULES: RouteRule[] = [
   { test: (p) => p === "/unauthorized" || p === "/settings", roles: AUTHENTICATED_ROLES },
   { test: (p) => p.startsWith("/platform/tenants"), roles: PLATFORM_ADMIN_ROLES },
+  { test: (p) => p.startsWith("/platform/configuration"), roles: PLATFORM_ADMIN_ROLES },
   { test: (p) => p === "/billing", roles: BILLING_READ_ROLES },
   { test: (p) => p === "/analytics", roles: DASHBOARD_ANALYTICS_ROLES },
   { test: (p) => p === "/reports", roles: DASHBOARD_REPORT_ROLES },

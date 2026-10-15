@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ForceQuery } from '../../common/decorators/force-query.decorator';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -16,6 +16,24 @@ export class GasTestingController {
   @Post()
   create(@Body() dto: CreateGasTestingDto, @CurrentUser() user: AuthenticatedUser) {
     return this.gasTestingService.create(dto, user);
+  }
+
+  @Roles(...MASTER_DATA_READ_ROLES)
+  @Get('defaults')
+  defaults(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('workLocationId') workLocationId?: string,
+    @Query('assetId') assetId?: string | string[],
+  ) {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!workLocationId || !uuid.test(workLocationId)) {
+      throw new BadRequestException('workLocationId must be a UUID');
+    }
+    const assetIds = (Array.isArray(assetId) ? assetId : assetId ? [assetId] : []).filter(Boolean);
+    if (assetIds.some((id) => !uuid.test(id))) {
+      throw new BadRequestException('assetId must be a UUID');
+    }
+    return this.gasTestingService.defaults(user, workLocationId, assetIds);
   }
 
   @Roles(...MASTER_DATA_READ_ROLES)

@@ -635,13 +635,15 @@ export class ExecutionService {
       lototoIsolated,
       requiredHazardKeys: requiredHazardControlKeys(detail.hazards, catalogues),
       requiredPpeIds: detail.ppe.map((row) => row.ppeCatalogueId),
-      gasItems: detail.gasTesting.map((row) => ({
-        gasTestingCatalogueId: row.gasTestingCatalogueId,
-        parameter: row.parameter,
-        minimum: row.minimum,
-        maximum: row.maximum,
-        unit: row.unit,
-      })),
+      gasItems: detail.gasTesting
+        .filter((row) => !row.removedReason?.trim())
+        .map((row) => ({
+          gasTestingCatalogueId: row.gasTestingCatalogueId ?? row.id,
+          parameter: row.parameter,
+          minimum: row.minimum,
+          maximum: row.maximum,
+          unit: row.unit,
+        })),
     });
     return start;
   }

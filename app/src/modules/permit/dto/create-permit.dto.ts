@@ -1,5 +1,7 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsDate,
   IsInt,
@@ -48,6 +50,25 @@ export class CreatePermitDto extends PermitRelationsDto {
   @IsOptional()
   @IsUUID()
   machineryId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  siteId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  workLocationId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  exactSpot?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsUUID('4', { each: true })
+  assetIds?: string[];
 
   @IsOptional()
   @Type(() => Date)

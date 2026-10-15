@@ -31,8 +31,8 @@ import type {
   LototoProcedurePayload,
   LototoSequenceStep,
 } from "@/lib/lototo/types";
-import { machineryApi } from "@/lib/organisation/api";
-import type { OrgRecord } from "@/lib/organisation/types";
+import { sitesApi } from "@/lib/organisation/api";
+import { placeApi, type AssetRecord } from "@/lib/place/api";
 
 const FIELD =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -58,12 +58,15 @@ function emptyPoint(order: number): LototoLockoutPoint {
   };
 }
 
-function emptyStep(phase: "apply" | "remove", order: number): LototoSequenceStep {
+type EditorStep = LototoSequenceStep & { pendingFile?: File; previewUrl?: string };
+
+function emptyStep(phase: "apply" | "remove", order: number): EditorStep {
   return { phase, sequenceOrder: order, title: "", action: "", infoText: "", verification: "", note: "", description: "" };
 }
 
 type FormState = {
   machineryId: string;
+  assetId: string;
   workstationId: string;
   code: string;
   title: string;
@@ -76,15 +79,16 @@ type FormState = {
   description: string;
   note: string;
   lockoutPoints: LototoLockoutPoint[];
-  applySteps: LototoSequenceStep[];
-  removeSteps: LototoSequenceStep[];
+  applySteps: EditorStep[];
+  removeSteps: EditorStep[];
   authorizedRoles: string[];
 };
 
 function fromProcedure(detail: LototoProcedure): FormState {
   const version = detail.draftVersion ?? detail.publishedVersion;
   return {
-    machineryId: detail.machineryId,
+    machineryId: detail.machineryId ?? "",
+    assetId: detail.assetId || detail.machineryId || "",
     workstationId: detail.workstationId ?? "",
     code: detail.code,
     title: detail.title,
@@ -109,7 +113,8 @@ function fromProcedure(detail: LototoProcedure): FormState {
 
 function payloadOf(form: FormState): LototoProcedurePayload {
   return {
-    machineryId: form.machineryId,
+    assetId: form.assetId || undefined,
+    machineryId: form.assetId ? undefined : form.machineryId || undefined,
     workstationId: form.workstationId || undefined,
     code: form.code.trim(),
     title: form.title.trim(),
@@ -164,6 +169,26 @@ function payloadOf(form: FormState): LototoProcedurePayload {
   };
 }
 
+async function uploadPendingStepImages(saved: LototoProcedure, snapshot: FormState): Promise<LototoProcedure> {
+  let latest = saved;
+  for (const phase of ["apply", "remove"] as const) {
+    const local = (phase === "apply" ? snapshot.applySteps : snapshot.removeSteps).filter((step) => step.title.trim());
+    for (let index = 0; index < local.length; index += 1) {
+      const file = local[index].pendingFile;
+      if (!file) continue;
+      const version = latest.draftVersion ?? latest.publishedVersion;
+      const remote = (version?.sequenceSteps ?? [])
+        .filter((step) => step.phase === phase)
+        .sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+      const stepId = remote[index]?.id;
+      if (!stepId) continue;
+      latest = await uploadLototoStepPhoto(latest.id, stepId, file);
+      if (local[index].previewUrl?.startsWith("blob:")) URL.revokeObjectURL(local[index].previewUrl!);
+    }
+  }
+  return latest;
+}
+
 export function LototoProcedureEditor({
   procedureId,
   initialMachineryId,
@@ -174,10 +199,11 @@ export function LototoProcedureEditor({
   const router = useRouter();
   const { roles } = useAuthProfile();
   const canWrite = hasAnyRole(roles, LOTOTO_LIBRARY_WRITE_ROLES);
-  const [machinery, setMachinery] = useState<OrgRecord[]>([]);
+  const [assets, setAssets] = useState<AssetRecord[]>([]);
   const [detail, setDetail] = useState<LototoProcedure | null>(null);
   const [form, setForm] = useState<FormState>({
-    machineryId: initialMachineryId ?? "",
+    machineryId: "",
+    assetId: initialMachineryId ?? "",
     workstationId: "",
     code: "",
     title: "",
@@ -202,7 +228,12 @@ export function LototoProcedureEditor({
   const readOnly = !canWrite || locked;
 
   useEffect(() => {
-    machineryApi.list().then(setMachinery).catch(() => setMachinery([]));
+    sitesApi.list().then(async (sites) => {
+      const groups = await Promise.all(
+        sites.filter((site) => site.status !== "archived").map((site) => placeApi.listAssets(site.id).catch(() => [])),
+      );
+      setAssets(groups.flat());
+    }).catch(() => setAssets([]));
   }, []);
 
   useEffect(() => {
@@ -218,9 +249,9 @@ export function LototoProcedureEditor({
       .finally(() => setLoading(false));
   }, [procedureId]);
 
-  const selectedMachine = useMemo(
-    () => machinery.find((item) => item.id === form.machineryId),
-    [machinery, form.machineryId],
+  const selectedAsset = useMemo(
+    () => assets.find((item) => item.id === form.assetId),
+    [assets, form.assetId],
   );
 
   function setPoint(index: number, patch: Partial<LototoLockoutPoint>) {
@@ -238,10 +269,11 @@ export function LototoProcedureEditor({
       const saved = procedureId
         ? await updateLototoProcedure(procedureId, body)
         : await createLototoProcedure(body);
-      setDetail(saved);
-      setForm(fromProcedure(saved));
+      const withPhotos = await uploadPendingStepImages(saved, form);
+      setDetail(withPhotos);
+      setForm(fromProcedure(withPhotos));
       if (!procedureId) {
-        router.replace(`/lototo/procedures/${saved.id}`);
+        router.replace(`/lototo/procedures/${withPhotos.id}`);
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not save the procedure.");
@@ -258,7 +290,8 @@ export function LototoProcedureEditor({
     setSaving(true);
     setError(null);
     try {
-      await updateLototoProcedure(procedureId, payloadOf(form));
+      const updated = await updateLototoProcedure(procedureId, payloadOf(form));
+      await uploadPendingStepImages(updated, form);
       const published = await publishLototoProcedure(procedureId);
       setDetail(published);
       setForm(fromProcedure(published));
@@ -403,21 +436,17 @@ export function LototoProcedureEditor({
           <input className={FIELD} value={form.title} disabled={readOnly} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Bucket Elevator lockout" />
         </label>
         <label className="grid gap-1 text-sm">
-          <span className="font-medium">Machinery</span>
+          <span className="font-medium">Asset</span>
           <select
             className={FIELD}
-            value={form.machineryId}
+            value={form.assetId}
             disabled={readOnly}
-            onChange={(e) => {
-              const next = machinery.find((item) => item.id === e.target.value);
-              setForm({ ...form, machineryId: e.target.value, workstationId: next?.workstationId ?? "" });
-            }}
+            onChange={(e) => setForm({ ...form, assetId: e.target.value })}
           >
-            <option value="">Select machinery</option>
-            {machinery.map((item) => (
+            <option value="">Select asset</option>
+            {assets.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.name}
-                {item.code ? ` (${item.code})` : ""}
+                {item.tag} — {item.name}
               </option>
             ))}
           </select>
@@ -428,7 +457,7 @@ export function LototoProcedureEditor({
         </label>
         <label className="grid gap-1 text-sm sm:col-span-2">
           <span className="font-medium">Location</span>
-          <input className={FIELD} value={form.locationText} disabled={readOnly} onChange={(e) => setForm({ ...form, locationText: e.target.value })} placeholder={selectedMachine?.name} />
+          <input className={FIELD} value={form.locationText} disabled={readOnly} onChange={(e) => setForm({ ...form, locationText: e.target.value })} placeholder={selectedAsset ? `${selectedAsset.tag} ${selectedAsset.name}` : undefined} />
         </label>
       </section>
 
@@ -594,7 +623,13 @@ export function LototoProcedureEditor({
                     type="button"
                     className="text-muted-foreground"
                     aria-label="Remove step"
-                    onClick={() => setForm((c) => ({ ...c, [key]: c[key].filter((_, i) => i !== index) }))}
+                    onClick={() =>
+                      setForm((c) => {
+                        const removed = c[key][index];
+                        if (removed?.previewUrl?.startsWith("blob:")) URL.revokeObjectURL(removed.previewUrl);
+                        return { ...c, [key]: c[key].filter((_, i) => i !== index) };
+                      })
+                    }
                   >
                     <Trash2 className="size-4" />
                   </button>
@@ -649,11 +684,11 @@ export function LototoProcedureEditor({
                 />
                 <div className="grid gap-2 sm:col-span-3">
                   <span className="text-xs text-muted-foreground">Info image (optional)</span>
-                  {step.photo?.url ? (
+                  {step.previewUrl || step.photo?.url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={step.photo.url} alt="" className="max-h-40 w-fit rounded-md border border-border object-contain" />
+                    <img src={step.previewUrl || step.photo?.url} alt="" className="max-h-40 w-fit rounded-md border border-border object-contain" />
                   ) : null}
-                  {readOnly ? null : step.id && procedureId ? (
+                  {readOnly ? null : step.id && procedureId && !step.pendingFile ? (
                     <div className="flex flex-wrap gap-2">
                       <input
                         type="file"
@@ -690,8 +725,46 @@ export function LototoProcedureEditor({
                         </Button>
                       ) : null}
                     </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">Save the procedure first to attach an image.</p>
+                  ) : readOnly ? null : (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = "";
+                          if (!file) return;
+                          const previewUrl = URL.createObjectURL(file);
+                          setForm((c) => ({
+                            ...c,
+                            [key]: c[key].map((row, i) => {
+                              if (i !== index) return row;
+                              if (row.previewUrl?.startsWith("blob:")) URL.revokeObjectURL(row.previewUrl);
+                              return { ...row, pendingFile: file, previewUrl };
+                            }),
+                          }));
+                        }}
+                      />
+                      {step.pendingFile ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setForm((c) => ({
+                              ...c,
+                              [key]: c[key].map((row, i) => {
+                                if (i !== index) return row;
+                                if (row.previewUrl?.startsWith("blob:")) URL.revokeObjectURL(row.previewUrl);
+                                return { ...row, pendingFile: undefined, previewUrl: undefined };
+                              }),
+                            }))
+                          }
+                        >
+                          Remove image
+                        </Button>
+                      ) : null}
+                    </div>
                   )}
                 </div>
               </div>

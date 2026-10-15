@@ -11,6 +11,7 @@ import {
 import { auditColumns } from './base';
 import { machineryCatalogue } from './master-data';
 import { permits } from './permit';
+import { assets, sites, workLocations } from './place';
 
 export const INCIDENT_TYPES = ['incident', 'near_miss', 'unsafe_condition'] as const;
 export type IncidentType = (typeof INCIDENT_TYPES)[number];
@@ -56,6 +57,10 @@ export const incidents = pgTable(
     plantId: uuid('plant_id'),
     locationId: uuid('location_id'),
     workstationId: uuid('workstation_id'),
+    siteId: uuid('site_id').references(() => sites.id, { onDelete: 'restrict' }),
+    workLocationId: uuid('work_location_id').references(() => workLocations.id, {
+      onDelete: 'restrict',
+    }),
   },
   (table) => [
     uniqueIndex('incidents_tenant_reference_unique').on(table.tenantId, table.reference),
@@ -98,9 +103,8 @@ export const incidentEquipment = pgTable(
     incidentId: uuid('incident_id')
       .notNull()
       .references(() => incidents.id, { onDelete: 'cascade' }),
-    machineryId: uuid('machinery_id')
-      .notNull()
-      .references(() => machineryCatalogue.id, { onDelete: 'restrict' }),
+    machineryId: uuid('machinery_id').references(() => machineryCatalogue.id, { onDelete: 'restrict' }),
+    assetId: uuid('asset_id').references(() => assets.id, { onDelete: 'restrict' }),
   },
   (table) => [
     uniqueIndex('incident_equipment_incident_machinery_unique').on(

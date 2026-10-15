@@ -11,6 +11,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { auditColumns } from './base';
 import { machineryCatalogue, workstationCatalogue } from './master-data';
+import { assets } from './place';
 import { lototoPlans } from './lototo';
 import { permits } from './permit';
 
@@ -25,9 +26,8 @@ export const lototoProcedures = pgTable(
   {
     ...auditColumns,
     tenantId: uuid('tenant_id').notNull(),
-    machineryId: uuid('machinery_id')
-      .notNull()
-      .references(() => machineryCatalogue.id, { onDelete: 'restrict' }),
+    machineryId: uuid('machinery_id').references(() => machineryCatalogue.id, { onDelete: 'restrict' }),
+    assetId: uuid('asset_id').references(() => assets.id, { onDelete: 'restrict' }),
     workstationId: uuid('workstation_id').references(() => workstationCatalogue.id, {
       onDelete: 'restrict',
     }),
@@ -42,6 +42,7 @@ export const lototoProcedures = pgTable(
   (table) => [
     index('lototo_procedures_tenant_id_idx').on(table.tenantId),
     index('lototo_procedures_machinery_id_idx').on(table.machineryId),
+    index('lototo_procedures_asset_id_idx').on(table.assetId),
     uniqueIndex('lototo_procedures_tenant_code_unique').on(table.tenantId, table.code),
     uniqueIndex('lototo_procedures_legacy_plan_id_unique').on(table.legacyPlanId),
   ],

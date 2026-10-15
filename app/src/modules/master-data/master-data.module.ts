@@ -18,7 +18,7 @@ import { PermitTypeController } from './permit-type.controller';
 import { PermitTypeService } from './permit-type.service';
 import { GasTestingController } from './gas-testing.controller';
 import { GasTestingService } from './gas-testing.service';
-import { PpeController } from './ppe.controller';
+import { PpeCategoryController, PpeController } from './ppe.controller';
 import { PpeService } from './ppe.service';
 import { ReferenceIntegrityService } from './reference-integrity.service';
 import { WorkstationController } from './workstation.controller';
@@ -29,6 +29,7 @@ import { WorkstationService } from './workstation.service';
     PermitTypeController,
     GasTestingController,
     PpeController,
+    PpeCategoryController,
     WorkstationController,
     MachineryController,
     HazardController,

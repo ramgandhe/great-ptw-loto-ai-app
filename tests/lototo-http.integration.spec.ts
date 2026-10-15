@@ -11,6 +11,7 @@ import { AuthenticatedUser } from '../app/src/common/interfaces/authenticated-us
 import { QueueService } from '../app/src/infrastructure/queue/queue.service';
 import * as schema from '../app/src/database/schema';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
+import { insertAssetTarget } from './helpers/place-fixture';
 
 function authGuardAs(user: AuthenticatedUser) {
   return {
@@ -147,6 +148,13 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
       })
       .returning();
 
+    await insertAssetTarget(db, {
+      tenantId,
+      createdBy: supervisorId,
+      name: 'Main compressor',
+      assetId: machinery.id,
+    });
+
     return { permit, machinery };
   }
 
@@ -156,7 +164,7 @@ describe('LOTOTO HTTP integration (PUS-151)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/lototo/plans')
       .send({
-        machineryId: machinery.id,
+        assetId: machinery.id,
         title: 'Compressor isolation',
         description: 'Lock out main drive',
       })

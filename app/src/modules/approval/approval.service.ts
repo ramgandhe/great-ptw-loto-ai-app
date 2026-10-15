@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  UnprocessableEntityException,
   ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
 } from '@nestjs/common';
 import { and, eq, inArray } from 'drizzle-orm';
+import { isTenantPrivileged } from '../../common/constants/tenant-roles';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
@@ -31,6 +33,7 @@ import { NotificationService } from './notification.service';
 import { WorkflowEngineService } from './workflow-engine.service';
 import { SimopsService } from '../simops/simops.service';
 import { isAssignedExecutor } from '../permit/permit-collaboration';
+import { areaAuthorityIds, isAreaAuthorityRole } from '../permit/permit-access';
 
 @Injectable()
 export class ApprovalService {
@@ -118,6 +121,7 @@ export class ApprovalService {
         tenantId,
         row.step,
         row.assignment.assignmentSlot ?? 'default',
+        row.permit.workLocationId,
       );
       if (canAct.allowed) {
         eligible.push(row);
@@ -167,6 +171,15 @@ export class ApprovalService {
 
     if (step.commentRequiredOnApprove && !dto.comment?.trim()) {
       throw new BadRequestException('Approval comment is required for this workflow step');
+    }
+
+    const locationWarnings = await this.simopsService.locationWarnings(permit.tenantId, permitId);
+    if (locationWarnings.length > 0 && dto.acknowledgeLocationWarning !== true) {
+      throw new UnprocessableEntityException({
+        message: 'Acknowledge the nearby work location warning before approving',
+        error: 'SIMOPS_LOCATION_WARNING',
+        details: locationWarnings,
+      });
     }
 
     await this.db.transaction(async (tx) => {
@@ -460,6 +473,7 @@ export class ApprovalService {
         permit.tenantId,
         row.step,
         slot,
+        permit.workLocationId,
       );
       if (canAct.allowed) {
         matched = row;
@@ -495,11 +509,18 @@ export class ApprovalService {
     tenantId: string,
     step: typeof workflowSteps.$inferSelect,
     slot: string,
+    workLocationId: string | null,
   ): Promise<{ allowed: boolean; onBehalfOf: string | null }> {
     const requiredRole = step.stageMode === 'parallel' ? slot : step.approverRole;
+    const authorities = isAreaAuthorityRole(requiredRole)
+      ? await areaAuthorityIds(this.db, tenantId, workLocationId)
+      : null;
+    const coversArea = (personId: string) => !authorities || authorities.includes(personId);
 
     if (this.workflowEngine.userHasApproverRole(user.roles, requiredRole)) {
-      return { allowed: true, onBehalfOf: null };
+      if (isTenantPrivileged(user.roles) || coversArea(user.id)) {
+        return { allowed: true, onBehalfOf: null };
+      }
     }
 
     const delegation = await this.delegationService.findActiveDelegation(
@@ -508,7 +529,7 @@ export class ApprovalService {
       requiredRole,
     );
 
-    if (delegation) {
+    if (delegation && coversArea(delegation.delegatorId)) {
       return { allowed: true, onBehalfOf: delegation.delegatorId };
     }
 
@@ -550,6 +571,7 @@ export class ApprovalService {
         permit.tenantId,
         step,
         assignment.assignmentSlot ?? 'default',
+        permit.workLocationId,
       )
     ).onBehalfOf;
 

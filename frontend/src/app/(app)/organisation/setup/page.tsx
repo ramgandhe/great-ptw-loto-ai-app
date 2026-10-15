@@ -6,7 +6,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowRight, Check, CircleDashed, RefreshCw } from "lucide-react";
 import { organisationsApi } from "@/lib/organisation/api";
-import type { Organisation, OrgRecord } from "@/lib/organisation/types";
+import type { Organisation } from "@/lib/organisation/types";
 import {
   SETUP_AREAS,
   SETUP_STEPS,
@@ -24,11 +24,9 @@ import { EntityParentContext, type OrganisationEntityResource } from "@/componen
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import OrganisationProfilePage from "../profile/page";
-import PlantsPage from "../plants/page";
-import DepartmentsPage from "../departments/page";
-import LocationsPage from "../locations/page";
-import WorkstationsPage from "../workstations/page";
-import MachineryPage from "../machinery/page";
+import SitesPage from "../sites/page";
+import WorkLocationsPage from "../work-locations/page";
+import AssetsPage from "../assets/page";
 import HazardsPage from "../hazards/page";
 import PpePage from "../ppe/page";
 import PermitTypesPage from "../permit-types/page";
@@ -46,11 +44,9 @@ import CertificationsPage from "../../workforce/certifications/page";
 /** Each list reuses the standalone page for the same records, so data and behaviour stay identical. */
 const STEP_PAGES: Record<SetupStepKey, React.ComponentType> = {
   profile: OrganisationProfilePage,
-  plants: PlantsPage,
-  departments: DepartmentsPage,
-  locations: LocationsPage,
-  workstations: WorkstationsPage,
-  machinery: MachineryPage,
+  sites: SitesPage,
+  "work-locations": WorkLocationsPage,
+  assets: AssetsPage,
   hazards: HazardsPage,
   ppe: PpePage,
   "permit-types": PermitTypesPage,
@@ -243,26 +239,15 @@ function Overview({ measures, loaded, onRetry }: { measures: Measures; loaded: b
   );
 }
 
-/** The resources whose new records fill in the next level's parent on this page. */
-const PARENT_OF: Partial<Record<OrganisationEntityResource, { child: OrganisationEntityResource; field: string }>> = {
-  plants: { child: "departments", field: "plantId" },
-  departments: { child: "locations", field: "departmentId" },
-  locations: { child: "workstations", field: "locationId" },
-  workstations: { child: "machinery", field: "workstationId" },
-};
-
 function AreaView({ areaKey, measures, onChanged }: { areaKey: SetupAreaKey; measures: Measures; onChanged: (keys: SetupStepKey[]) => void }) {
   const area = SETUP_AREAS.find((a) => a.key === areaKey)!;
   const steps = SETUP_STEPS.filter((step) => area.steps.includes(step.key));
-  // A plant just added here becomes the plant of the next department, and so on down to machinery.
-  const [defaults, setDefaults] = useState<Partial<Record<OrganisationEntityResource, Record<string, string>>>>({});
+  const [defaults] = useState<Partial<Record<OrganisationEntityResource, Record<string, string>>>>({});
   const [version, setVersion] = useState(0);
   const parentContext = {
     defaults,
     version,
-    onSaved: (resource: OrganisationEntityResource, record: OrgRecord) => {
-      const link = PARENT_OF[resource];
-      if (link) setDefaults((prev) => ({ ...prev, [link.child]: { [link.field]: record.id } }));
+    onSaved: () => {
       setVersion((v) => v + 1);
       onChanged(area.steps);
     },

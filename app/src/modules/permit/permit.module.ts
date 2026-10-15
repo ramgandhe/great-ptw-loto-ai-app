@@ -15,9 +15,15 @@ import { PermitLogService } from './permit-log.service';
 
 import { SimopsModule } from '../simops/simops.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MasterDataModule } from '../master-data/master-data.module';
 
 @Module({
-  imports: [forwardRef(() => ApprovalModule), forwardRef(() => SimopsModule), NotificationsModule],
+  imports: [
+    forwardRef(() => ApprovalModule),
+    forwardRef(() => SimopsModule),
+    NotificationsModule,
+    MasterDataModule,
+  ],
   controllers: [PermitController, DraftController, AttachmentController, PermitLototoExecutionController],
   providers: [
     PermitService,

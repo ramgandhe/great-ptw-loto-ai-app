@@ -1,5 +1,5 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { and, count, eq, inArray } from 'drizzle-orm';
+import { and, count, eq, inArray, SQL } from 'drizzle-orm';
 import { requireActorId } from '../../common/helpers/require-actor-id';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
@@ -9,7 +9,9 @@ import {
   dashboardPreferences,
   incidents,
   permits,
+  workLocations,
 } from '../../database/schema';
+import { descendantIds } from '../place/place-rules';
 import { AuditService } from '../logging/audit.service';
 import { DashboardCacheService } from './dashboard-cache.service';
 import { DashboardLogService } from './dashboard-log.service';
@@ -26,19 +28,27 @@ export class DashboardService {
     private readonly kpiService: KpiService,
   ) {}
 
-  async getDashboard(user: AuthenticatedUser, kind?: DashboardKind) {
+  async getDashboard(
+    user: AuthenticatedUser,
+    kind?: DashboardKind,
+    place?: { siteId?: string; workLocationId?: string },
+  ) {
     const tenantId = this.requireTenant(user);
     const actorId = requireActorId(user);
     const resolvedKind = kind ?? this.defaultKind(user.roles);
     this.assertKindAccess(user.roles, resolvedKind);
+    const filtered = Boolean(place?.siteId || place?.workLocationId);
 
-    const cached = await this.cache.getDashboard<unknown>(tenantId, actorId, resolvedKind);
-    if (cached) {
-      return cached;
+    if (!filtered) {
+      const cached = await this.cache.getDashboard<unknown>(tenantId, actorId, resolvedKind);
+      if (cached) {
+        return cached;
+      }
     }
 
     const preferences = await this.ensurePreferences(tenantId, actorId, resolvedKind);
-    const summary = await this.buildSummary(tenantId, actorId, resolvedKind);
+    const locationIds = await this.locationIds(tenantId, place?.workLocationId);
+    const summary = await this.buildSummary(tenantId, actorId, resolvedKind, place?.siteId, locationIds);
     const kpis = await this.kpiService.getKpis(user, {
       kind: resolvedKind,
       periodLabel: 'current',
@@ -52,7 +62,9 @@ export class DashboardService {
       refreshedAt: new Date().toISOString(),
     };
 
-    await this.cache.setDashboard(tenantId, actorId, resolvedKind, payload);
+    if (!filtered) {
+      await this.cache.setDashboard(tenantId, actorId, resolvedKind, payload);
+    }
     this.logService.logEvent({
       action: 'dashboard.view',
       tenantId,
@@ -152,14 +164,20 @@ export class DashboardService {
     return raceWinner!;
   }
 
-  private async buildSummary(tenantId: string, actorId: string, kind: DashboardKind) {
-    const activePermits = await this.countPermits(tenantId, ['active', 'approved']);
-    const pendingApprovals = await this.countPermits(tenantId, ['pending_approval']);
+  private async buildSummary(
+    tenantId: string,
+    actorId: string,
+    kind: DashboardKind,
+    siteId?: string,
+    locationIds?: string[],
+  ) {
+    const activePermits = await this.countPermits(tenantId, ['active', 'approved'], siteId, locationIds);
+    const pendingApprovals = await this.countPermits(tenantId, ['pending_approval'], siteId, locationIds);
     const openIncidents = await this.countIncidents(tenantId, [
       'open',
       'investigating',
       'pending_verification',
-    ]);
+    ], siteId, locationIds);
 
     if (kind === 'personal') {
       const mine = await this.db
@@ -170,6 +188,7 @@ export class DashboardService {
             eq(permits.tenantId, tenantId),
             eq(permits.createdBy, actorId),
             inArray(permits.status, ['draft', 'pending_approval', 'approved', 'active', 'suspended']),
+            ...this.permitPlace(siteId, locationIds),
           ),
         );
       return {
@@ -183,20 +202,56 @@ export class DashboardService {
     return { activePermits, pendingApprovals, openIncidents };
   }
 
-  private async countPermits(tenantId: string, statuses: string[]): Promise<number> {
+  private async countPermits(
+    tenantId: string,
+    statuses: string[],
+    siteId?: string,
+    locationIds?: string[],
+  ): Promise<number> {
     const [row] = await this.db
       .select({ value: count() })
       .from(permits)
-      .where(and(eq(permits.tenantId, tenantId), inArray(permits.status, statuses)));
+      .where(
+        and(
+          eq(permits.tenantId, tenantId),
+          inArray(permits.status, statuses),
+          ...this.permitPlace(siteId, locationIds),
+        ),
+      );
     return Number(row?.value ?? 0);
   }
 
-  private async countIncidents(tenantId: string, statuses: string[]): Promise<number> {
+  private async countIncidents(
+    tenantId: string,
+    statuses: string[],
+    siteId?: string,
+    locationIds?: string[],
+  ): Promise<number> {
+    const place: SQL[] = [];
+    if (siteId) place.push(eq(incidents.siteId, siteId));
+    if (locationIds) place.push(inArray(incidents.workLocationId, locationIds));
     const [row] = await this.db
       .select({ value: count() })
       .from(incidents)
-      .where(and(eq(incidents.tenantId, tenantId), inArray(incidents.status, statuses)));
+      .where(and(eq(incidents.tenantId, tenantId), inArray(incidents.status, statuses), ...place));
     return Number(row?.value ?? 0);
+  }
+
+  private permitPlace(siteId?: string, locationIds?: string[]): SQL[] {
+    const place: SQL[] = [];
+    if (siteId) place.push(eq(permits.siteId, siteId));
+    if (locationIds) place.push(inArray(permits.workLocationId, locationIds));
+    return place;
+  }
+
+  private async locationIds(tenantId: string, workLocationId?: string): Promise<string[] | undefined> {
+    if (!workLocationId) return undefined;
+    const rows = await this.db
+      .select({ id: workLocations.id, parentId: workLocations.parentId })
+      .from(workLocations)
+      .where(eq(workLocations.tenantId, tenantId));
+    const parentOf = new Map(rows.map((row) => [row.id, row.parentId]));
+    return [workLocationId, ...descendantIds(workLocationId, parentOf)];
   }
 
   requireTenant(user: AuthenticatedUser): string {

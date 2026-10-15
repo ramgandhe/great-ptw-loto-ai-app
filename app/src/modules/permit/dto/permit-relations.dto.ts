@@ -3,9 +3,12 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
+  MaxLength,
+  MinLength,
   IsUUID,
   ArrayMaxSize,
   Min,
@@ -131,8 +134,39 @@ export class PermitLototoDto {
 }
 
 export class PermitGasTestingDto {
+  /** Omitted when the operator adds a test that is not in the catalogue. */
+  @IsOptional()
   @IsUUID()
-  gasTestingCatalogueId!: string;
+  gasTestingCatalogueId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(255)
+  parameter?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(32)
+  unit?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  minimum?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  maximum?: number;
+
+  /** Set to drop this default for this permit only. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(1000)
+  removedReason?: string;
 }
 
 export class PermitExecutorDto {

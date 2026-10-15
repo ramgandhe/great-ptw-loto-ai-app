@@ -59,6 +59,20 @@ export class CreateIncidentDto {
   workstationId?: string;
 
   @IsOptional()
+  @IsUUID()
+  siteId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  workLocationId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsUUID('4', { each: true })
+  assetIds?: string[];
+
+  @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
   @IsUUID('4', { each: true })
@@ -108,6 +122,20 @@ export class UpdateIncidentDto {
   @IsOptional()
   @IsUUID()
   workstationId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  siteId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  workLocationId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsUUID('4', { each: true })
+  assetIds?: string[];
 }
 
 export class UploadIncidentEvidenceDto {

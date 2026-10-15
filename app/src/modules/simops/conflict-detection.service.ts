@@ -8,9 +8,19 @@ export type PermitForAnalysis = {
   workstationId: string | null;
   locationId: string | null;
   machineryId: string | null;
+  /** Chosen work location. Falls back to the old workstation or location id. */
+  workLocationId?: string | null;
+  assetIds?: string[];
+  /** This location and its ancestors. Used to tell a parent/child pair from a clash. */
+  locationChain?: string[];
   plannedStartAt: Date | null;
   plannedEndAt: Date | null;
   status: string;
+};
+
+export type LocationWarning = {
+  permitIds: [string, string];
+  summary: string;
 };
 
 export type DetectedConflict = {
@@ -39,16 +49,34 @@ export function schedulesOverlap(a: PermitForAnalysis, b: PermitForAnalysis): bo
   return intervalsOverlap(a.plannedStartAt, a.plannedEndAt, b.plannedStartAt, b.plannedEndAt);
 }
 
-function sharesLocation(a: PermitForAnalysis, b: PermitForAnalysis): boolean {
-  if (a.workstationId && b.workstationId && a.workstationId === b.workstationId) {
-    return true;
-  }
+function placeId(permit: PermitForAnalysis): string | null {
+  return permit.workLocationId ?? permit.workstationId ?? permit.locationId ?? null;
+}
 
-  return Boolean(a.locationId && b.locationId && a.locationId === b.locationId);
+function assetSet(permit: PermitForAnalysis): Set<string> {
+  return new Set([...(permit.assetIds ?? []), ...(permit.machineryId ? [permit.machineryId] : [])]);
+}
+
+function sharesLocation(a: PermitForAnalysis, b: PermitForAnalysis): boolean {
+  const left = placeId(a);
+  const right = placeId(b);
+  return Boolean(left && right && left === right);
 }
 
 function sharesEquipment(a: PermitForAnalysis, b: PermitForAnalysis): boolean {
-  return Boolean(a.machineryId && b.machineryId && a.machineryId === b.machineryId);
+  const right = assetSet(b);
+  for (const id of assetSet(a)) {
+    if (right.has(id)) return true;
+  }
+  return false;
+}
+
+/** One permit's location sits inside the other's. The exact same location is a conflict, not a warning. */
+export function isParentChildLocation(a: PermitForAnalysis, b: PermitForAnalysis): boolean {
+  const left = placeId(a);
+  const right = placeId(b);
+  if (!left || !right || left === right) return false;
+  return (a.locationChain ?? []).includes(right) || (b.locationChain ?? []).includes(left);
 }
 
 export function buildFingerprint(permitIdA: string, permitIdB: string, conflictType: ConflictType): string {
@@ -128,6 +156,25 @@ export function detectConflicts(permits: PermitForAnalysis[]): DetectedConflict[
   }
 
   return results;
+}
+
+/** Parent and child locations overlap in time. This is a warning, not a review case. */
+export function detectLocationWarnings(permits: PermitForAnalysis[], focusId?: string): LocationWarning[] {
+  const warnings: LocationWarning[] = [];
+  for (let i = 0; i < permits.length; i += 1) {
+    for (let j = i + 1; j < permits.length; j += 1) {
+      const a = permits[i];
+      const b = permits[j];
+      if (focusId && a.id !== focusId && b.id !== focusId) continue;
+      if (!schedulesOverlap(a, b) || sharesEquipment(a, b) || sharesLocation(a, b)) continue;
+      if (!isParentChildLocation(a, b)) continue;
+      warnings.push({
+        permitIds: [a.id, b.id],
+        summary: `Overlapping permits are on a work location and one of its sub-locations (${a.title} and ${b.title}).`,
+      });
+    }
+  }
+  return warnings;
 }
 
 export function clusterConflicts(conflicts: DetectedConflict[]): Array<{

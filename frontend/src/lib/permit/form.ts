@@ -145,6 +145,11 @@ export function createEmptyPermitForm(): PermitFormState {
     locationId: "",
     workstationId: "",
     machineryId: "",
+    siteId: "",
+    workLocationId: "",
+    exactSpot: "",
+    assetIds: [],
+    gasReady: false,
     plannedStartAt: "",
     plannedEndAt: "",
     hazards: [emptyPermitHazard()],
@@ -195,6 +200,11 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
     locationId: permit.locationId ?? "",
     workstationId: permit.workstationId ?? "",
     machineryId: permit.machineryId ?? "",
+    siteId: permit.siteId ?? "",
+    workLocationId: permit.workLocationId ?? "",
+    exactSpot: permit.exactSpot ?? "",
+    assetIds: (detail.assets ?? []).map((row) => row.assetId),
+    gasReady: true,
     plannedStartAt: toDateInputValue(permit.plannedStartAt),
     plannedEndAt: toDateInputValue(permit.plannedEndAt),
     hazards:
@@ -230,7 +240,17 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
     gasTestingRequired: permit.gasTestingRequired === true,
     gasTesting:
       gasTesting.length > 0
-        ? gasTesting.map((item) => ({ gasTestingCatalogueId: item.gasTestingCatalogueId }))
+        ? gasTesting
+            .filter((item) => item.gasTestingCatalogueId || (item.parameter?.trim() && item.unit?.trim()))
+            .map((item) => ({
+              gasTestingCatalogueId: item.gasTestingCatalogueId ?? undefined,
+              parameter: item.parameter,
+              unit: item.unit,
+              minimum: item.minimum,
+              maximum: item.maximum,
+              removedReason: item.removedReason ?? "",
+              sourceName: item.gasTestingCatalogueId ? undefined : "Added for this permit",
+            }))
         : [],
     executors:
       executors.length > 0
@@ -281,6 +301,10 @@ export function formToSavePayload(
     locationId: optionalUuid(form.locationId),
     workstationId: optionalUuid(form.workstationId),
     machineryId: optionalUuid(form.machineryId),
+    siteId: optionalUuid(form.siteId),
+    workLocationId: optionalUuid(form.workLocationId),
+    exactSpot: form.exactSpot.trim() || undefined,
+    assetIds: form.assetIds,
     plannedStartAt: form.plannedStartAt ? new Date(form.plannedStartAt).toISOString() : undefined,
     plannedEndAt: form.plannedEndAt ? new Date(form.plannedEndAt).toISOString() : undefined,
     currentStep: form.currentStep,
@@ -325,7 +349,25 @@ export function formToSavePayload(
           .map((row) => ({ workforceUserId: row.workforceUserId })),
       })),
     gasTestingRequired: form.gasTestingRequired,
-    gasTesting: form.gasTesting.filter((item) => item.gasTestingCatalogueId.trim()),
+    ...(form.gasReady
+      ? {
+          gasTesting: form.gasTesting
+            .filter((item) => item.gasTestingCatalogueId?.trim() || (item.parameter?.trim() && item.unit?.trim() && item.minimum != null && item.maximum != null))
+            .map((item) => item.gasTestingCatalogueId?.trim()
+              ? {
+                  gasTestingCatalogueId: item.gasTestingCatalogueId,
+                  ...(item.minimum != null ? { minimum: item.minimum } : {}),
+                  ...(item.maximum != null ? { maximum: item.maximum } : {}),
+                  ...(item.removedReason?.trim() ? { removedReason: item.removedReason.trim() } : {}),
+                }
+              : {
+                  parameter: item.parameter!.trim(),
+                  unit: item.unit!.trim(),
+                  minimum: item.minimum!,
+                  maximum: item.maximum!,
+                }),
+        }
+      : {}),
     executors: form.executors.filter((e) => (e.workforceUserId ?? "").trim()),
     viewers: form.viewers.filter((e) => (e.workforceUserId ?? "").trim()),
     safetyOfficers: form.safetyOfficers.filter((e) => (e.workforceUserId ?? "").trim()),
@@ -353,13 +395,14 @@ export function formToSavePayload(
   return {
     workstationId: payload.workstationId,
     machineryId: payload.machineryId,
+    assetIds: payload.assetIds,
+    ...(payload.gasTesting ? { gasTesting: payload.gasTesting } : {}),
     currentStep: payload.currentStep,
     hazards: payload.hazards,
     ppe: payload.ppe,
     lototoRequired: payload.lototoRequired,
     lototo: payload.lototo,
     gasTestingRequired: payload.gasTestingRequired,
-    gasTesting: payload.gasTesting,
     executors: payload.executors,
     safetyOfficers: payload.safetyOfficers,
     formResponses: payload.formResponses,
@@ -399,6 +442,8 @@ export function missingRequired(template: PermitTemplate, form: PermitFormState)
 export const ERROR_FIELDS: Record<string, string> = {
   "Title is required": "title",
   "Department is required": "departmentId",
+  "Site is required": "siteId",
+  "Work location is required": "workLocationId",
   "Location is required": "locationId",
   "Planned start date and time are required": "plannedStartAt",
   "Planned end date and time are required": "plannedEndAt",
@@ -406,6 +451,9 @@ export const ERROR_FIELDS: Record<string, string> = {
   "Assign a primary executor before handing off on-site details": "primary-executor",
   "Workstation is required": "workstationId",
   "Machinery is required": "machineryId",
+  "At least one asset is required when LOTOTO is required": "assetIds",
+  "An asset is required when attaching LOTOTO procedures": "assetIds",
+  "LOTOTO procedures must belong to a selected asset": "assetIds",
   "Machinery is required when LOTOTO is required": "machineryId",
   "Safety Approval comments are required": "safetyApprovalComment",
   "A typed name is required for Safety Approval": "safetyApprovalSignedName",
@@ -425,8 +473,8 @@ export function validateStep(
   }
 
   if (step === 1) {
-    if (!form.departmentId.trim()) errors.push("Department is required");
-    if (!form.locationId.trim()) errors.push("Location is required");
+    if (!form.siteId.trim()) errors.push("Site is required");
+    if (!form.workLocationId.trim()) errors.push("Work location is required");
     if (!form.plannedStartAt) errors.push("Planned start date and time are required");
     if (!form.plannedEndAt) errors.push("Planned end date and time are required");
     if (form.plannedStartAt && form.plannedEndAt && form.plannedEndAt <= form.plannedStartAt) {
@@ -438,11 +486,7 @@ export function validateStep(
   }
 
   if (step === 2) {
-    if (!form.workstationId.trim()) {
-      errors.push("Workstation is required");
-    } else if (!form.machineryId.trim() && machinery.some((m) => m.workstationId === form.workstationId)) {
-      errors.push("Machinery is required");
-    }
+    void machinery;
     if (!form.hazards.some((h) => h.hazardCategoryId.trim())) {
       errors.push("At least one hazard is required");
     }
@@ -450,15 +494,15 @@ export function validateStep(
       errors.push("At least one PPE item is required");
     }
     if (form.lototoRequired) {
-      if (!form.machineryId.trim()) {
-        errors.push("Machinery is required when LOTOTO is required");
+      if (form.assetIds.length === 0 && !form.machineryId.trim()) {
+        errors.push("At least one asset is required when LOTOTO is required");
       }
       if (!form.lototo.some((item) => item.procedureId.trim())) {
         errors.push("Select at least one LOTOTO procedure");
       }
     }
     if (form.gasTestingRequired) {
-      if (!form.gasTesting.some((item) => item.gasTestingCatalogueId.trim())) {
+      if (!form.gasTesting.some((item) => !item.removedReason?.trim() && (item.gasTestingCatalogueId?.trim() || item.parameter?.trim()))) {
         errors.push("Select at least one gas testing item");
       }
     }

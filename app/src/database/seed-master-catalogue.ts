@@ -6,14 +6,18 @@ import {
   departments,
   employees,
   hazardCategories,
+  assets,
   locations,
   machineryCatalogue,
   plants,
   ppeCatalogue,
+  siteMembers,
+  sites,
+  workLocations,
   workstationCatalogue,
 } from './schema';
 import { ensureDefaultHazards } from '../modules/master-data/default-hazards';
-import { DEMO_IDS, DEMO_TENANT_ID, SEED_ACTOR_ID } from './seed-ids';
+import { DEMO_IDS, DEMO_TENANT_ID, DEMO_USER_IDS, SEED_ACTOR_ID } from './seed-ids';
 
 const DEMO_PLANTS = [
   { id: DEMO_IDS.plant, code: 'PLANT-01', name: 'Demo Plant', description: 'Primary demonstration plant' },
@@ -485,6 +489,8 @@ export async function seedMasterCatalogue(db: Database): Promise<void> {
       },
     });
 
+  await seedPlaces(db);
+
   console.log('Seeding demo workforce directory...');
   await db
     .insert(agencies)
@@ -554,4 +560,126 @@ export async function seedMasterCatalogue(db: Database): Promise<void> {
         updatedAt: sql`now()`,
       },
     });
+}
+
+/** Same ids as the old plant, department, location, workstation and machinery rows. */
+async function seedPlaces(db: Database): Promise<void> {
+  const stamp = { createdBy: SEED_ACTOR_ID, updatedBy: SEED_ACTOR_ID };
+  const plantName = new Map(DEMO_PLANTS.map((plant) => [plant.id, plant.name]));
+  const departmentById = new Map(DEMO_DEPARTMENTS.map((department) => [department.id, department]));
+
+  await db
+    .insert(sites)
+    .values(
+      DEMO_PLANTS.map((plant) => ({
+        id: plant.id,
+        tenantId: DEMO_TENANT_ID,
+        code: plant.code,
+        name: plant.name,
+        description: plant.description,
+        ...stamp,
+      })),
+    )
+    .onConflictDoNothing();
+
+  const members = DEMO_PLANTS.flatMap((plant) =>
+    [DEMO_USER_IDS.issuer, DEMO_USER_IDS.hod, DEMO_USER_IDS.operator, DEMO_USER_IDS.safety, DEMO_USER_IDS.viewer].map(
+      (userId) => ({
+        tenantId: DEMO_TENANT_ID,
+        siteId: plant.id,
+        userId,
+        ...stamp,
+      }),
+    ),
+  );
+  await db.insert(siteMembers).values(members).onConflictDoNothing();
+
+  await db
+    .insert(workLocations)
+    .values(
+      DEMO_DEPARTMENTS.map((department) => ({
+        id: department.id,
+        tenantId: DEMO_TENANT_ID,
+        siteId: department.plantId,
+        code: department.code,
+        name: department.name,
+        pathText: `${plantName.get(department.plantId)} › ${department.name}`,
+        legacySource: 'department',
+        ...stamp,
+      })),
+    )
+    .onConflictDoNothing();
+
+  await db
+    .insert(workLocations)
+    .values(
+      DEMO_LOCATIONS.map((location) => {
+        const department = departmentById.get(location.departmentId)!;
+        return {
+          id: location.id,
+          tenantId: DEMO_TENANT_ID,
+          siteId: department.plantId,
+          parentId: department.id,
+          code: location.code,
+          name: location.name,
+          pathText: `${plantName.get(department.plantId)} › ${department.name} › ${location.name}`,
+          legacySource: 'location',
+          ...stamp,
+        };
+      }),
+    )
+    .onConflictDoNothing();
+
+  const workstationParent = (id: string) => {
+    if (id === DEMO_IDS.workstation) return { parentId: DEMO_IDS.location, siteId: DEMO_IDS.plant };
+    if (id === DEMO_IDS.workstationB) return { parentId: DEMO_IDS.locationB, siteId: DEMO_IDS.plant };
+    return { parentId: DEMO_IDS.department, siteId: DEMO_IDS.plant };
+  };
+  const locationPath = new Map<string, string>(
+    DEMO_LOCATIONS.map((location) => {
+      const department = departmentById.get(location.departmentId)!;
+      return [location.id, `${plantName.get(department.plantId)} › ${department.name} › ${location.name}`];
+    }),
+  );
+  locationPath.set(DEMO_IDS.department, `${plantName.get(DEMO_IDS.plant)} › Operations`);
+
+  await db
+    .insert(workLocations)
+    .values(
+      DEMO_WORKSTATIONS.map((workstation) => {
+        const parent = workstationParent(workstation.id);
+        return {
+          id: workstation.id,
+          tenantId: DEMO_TENANT_ID,
+          siteId: parent.siteId,
+          parentId: parent.parentId,
+          code: workstation.code,
+          name: workstation.name,
+          description: workstation.description,
+          pathText: `${locationPath.get(parent.parentId) ?? plantName.get(parent.siteId)} › ${workstation.name}`,
+          legacySource: 'workstation',
+          ...stamp,
+        };
+      }),
+    )
+    .onConflictDoNothing();
+
+  await db
+    .insert(assets)
+    .values(
+      DEMO_MACHINERY.map((machine) => {
+        const parent = workstationParent(machine.workstationId);
+        return {
+          id: machine.id,
+          tenantId: DEMO_TENANT_ID,
+          siteId: parent.siteId,
+          workLocationId: machine.workstationId,
+          tag: machine.code,
+          name: machine.name,
+          description: machine.description,
+          ...stamp,
+        };
+      }),
+    )
+    .onConflictDoNothing();
 }

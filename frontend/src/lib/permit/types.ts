@@ -23,6 +23,10 @@ export type PermitRecord = {
   locationId: string | null;
   workstationId: string | null;
   machineryId: string | null;
+  siteId?: string | null;
+  workLocationId?: string | null;
+  exactSpot?: string | null;
+  placePath?: string | null;
   lototoRequired?: boolean;
   gasTestingRequired?: boolean;
   plannedStartAt: string | null;
@@ -104,7 +108,13 @@ export type PermitLototoInput = {
 };
 
 export type PermitGasTestingInput = {
-  gasTestingCatalogueId: string;
+  gasTestingCatalogueId?: string;
+  parameter?: string;
+  unit?: string;
+  minimum?: number;
+  maximum?: number;
+  removedReason?: string;
+  sourceName?: string;
 };
 
 export type PermitAssigneeInput = {
@@ -126,6 +136,12 @@ export type PermitFormState = {
   locationId: string;
   workstationId: string;
   machineryId: string;
+  siteId: string;
+  workLocationId: string;
+  exactSpot: string;
+  assetIds: string[];
+  /** False until gas defaults have been loaded, so a save does not wipe them. */
+  gasReady: boolean;
   plannedStartAt: string;
   plannedEndAt: string;
   hazards: PermitHazardInput[];
@@ -165,6 +181,8 @@ export type PermitAttachment = {
 };
 
 export type PermitDetail = {
+  /** Set when a save recalculated gas defaults. */
+  gasChanges?: string[];
   permit: PermitRecord;
   draft: PermitDraft | null;
   hazards: Array<{
@@ -176,7 +194,18 @@ export type PermitDetail = {
   }>;
   ppe: Array<{ ppeCatalogueId: string; quantity: number | null }>;
   lototo: PermitLototoInput[];
-  gasTesting: Array<{ gasTestingCatalogueId: string }>;
+  gasTesting: Array<{
+    id: string;
+    gasTestingCatalogueId: string | null;
+    parameter?: string;
+    unit?: string;
+    minimum?: number;
+    maximum?: number;
+    removedReason?: string | null;
+    sourceKind?: string | null;
+    sourceId?: string | null;
+  }>;
+  assets?: Array<{ assetId: string }>;
   executors: Array<{ workforceUserId: string; isPrimary: boolean | null }>;
   viewers: Array<{ workforceUserId: string }>;
   safetyOfficers: Array<{ workforceUserId: string }>;
@@ -193,6 +222,10 @@ export type CreatePermitPayload = {
   locationId?: string;
   workstationId?: string;
   machineryId?: string;
+  siteId?: string;
+  workLocationId?: string;
+  exactSpot?: string;
+  assetIds?: string[];
   plannedStartAt?: string;
   plannedEndAt?: string;
   currentStep?: number;

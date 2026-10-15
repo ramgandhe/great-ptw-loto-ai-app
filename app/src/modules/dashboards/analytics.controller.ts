@@ -17,7 +17,10 @@ export class AnalyticsController {
   @Roles(...DASHBOARD_ANALYTICS_ROLES)
   @Get('insights')
   getInsights(@Query() query: InsightsQueryDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.insightsService.getInsights(user, query.days ?? 30);
+    return this.insightsService.getInsights(user, query.days ?? 30, {
+      siteId: query.siteId,
+      workLocationId: query.workLocationId,
+    });
   }
 
   @Roles(...DASHBOARD_ANALYTICS_ROLES)

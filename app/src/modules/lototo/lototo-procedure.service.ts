@@ -43,7 +43,7 @@ export class LototoProcedureService {
 
   async create(dto: CreateLototoProcedureDto, user: AuthenticatedUser) {
     const tenantId = this.validationService.requireTenant(user);
-    await this.validationService.assertMachineryExists(tenantId, dto.machineryId);
+    const target = await this.validationService.resolveAssetLink(tenantId, dto);
     if (dto.workstationId) {
       await this.validationService.assertWorkstationExists(tenantId, dto.workstationId);
     }
@@ -54,7 +54,8 @@ export class LototoProcedureService {
           .insert(lototoProcedures)
           .values({
             tenantId,
-            machineryId: dto.machineryId,
+            machineryId: target.machineryId,
+            assetId: target.assetId,
             workstationId: dto.workstationId,
             code: dto.code.trim(),
             title: dto.title.trim(),
@@ -103,11 +104,14 @@ export class LototoProcedureService {
     }
   }
 
-  async list(user: AuthenticatedUser, machineryId?: string, publishedOnly?: boolean) {
+  async list(user: AuthenticatedUser, machineryId?: string, publishedOnly?: boolean, assetId?: string) {
     const tenantId = this.validationService.requireTenant(user);
     const conditions = [eq(lototoProcedures.tenantId, tenantId)];
     if (machineryId) {
       conditions.push(eq(lototoProcedures.machineryId, machineryId));
+    }
+    if (assetId) {
+      conditions.push(eq(lototoProcedures.assetId, assetId));
     }
     if (publishedOnly) {
       conditions.push(eq(lototoProcedures.status, 'published'));
@@ -145,9 +149,10 @@ export class LototoProcedureService {
     const tenantId = this.validationService.requireTenant(user);
     const procedure = await this.requireProcedure(id, tenantId);
     this.assertMutable(procedure);
-    if (dto.machineryId) {
-      await this.validationService.assertMachineryExists(tenantId, dto.machineryId);
-    }
+    const target =
+      dto.assetId || dto.machineryId
+        ? await this.validationService.resolveAssetLink(tenantId, dto)
+        : null;
     if (dto.workstationId) {
       await this.validationService.assertWorkstationExists(tenantId, dto.workstationId);
     }
@@ -162,7 +167,8 @@ export class LototoProcedureService {
         await tx
           .update(lototoProcedures)
           .set({
-            machineryId: dto.machineryId ?? procedure.machineryId,
+            machineryId: target?.machineryId ?? procedure.machineryId,
+            assetId: target?.assetId ?? procedure.assetId,
             workstationId: dto.workstationId ?? procedure.workstationId,
             code: dto.code?.trim() ?? procedure.code,
             title: dto.title?.trim() ?? procedure.title,

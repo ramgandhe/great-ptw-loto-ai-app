@@ -15,6 +15,7 @@ import { MultiToggle, SegmentedToggle } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { INCIDENT_TYPES, PERIODS, PERMIT_STAGES, PRIORITIES } from "@/lib/analytics/labels";
+import { PlaceFilter } from "@/components/place/place-filter";
 import { getInsights, getReportView } from "@/lib/dashboards/api";
 import type { IncidentReportRow, InsightsPayload, PermitReportRow } from "@/lib/dashboards/types";
 import { formatDateTime, formatStatus, formatWindow } from "@/lib/format";
@@ -54,6 +55,8 @@ function ReportsView() {
   const params = useSearchParams();
   const tab = (params.get("tab") as TabKey | null) ?? "permits";
   const days = Number(params.get("days") ?? 90);
+  const siteId = params.get("site") ?? "";
+  const workLocationId = params.get("location") ?? "";
   const [query, setQuery] = useState(params.get("q") ?? "");
   // Several stages (or priorities) can be picked at once; none picked means all.
   const filter = (params.get("filter") ?? "").split(",").filter(Boolean);
@@ -82,16 +85,16 @@ function ReportsView() {
     const fail = (err: unknown) =>
       done(() => setError(err instanceof ApiError ? err.message : "This report could not be loaded. Try again."));
     if (tab === "permits") {
-      getReportView<PermitReportRow>("permit_summary", days).then((r) => done(() => { setPermitRows(r.rows); setError(null); }), fail);
+      getReportView<PermitReportRow>("permit_summary", days, { siteId, workLocationId }).then((r) => done(() => { setPermitRows(r.rows); setError(null); }), fail);
     } else if (tab === "incidents") {
-      getReportView<IncidentReportRow>("incident_summary", days).then((r) => done(() => { setIncidentRows(r.rows); setError(null); }), fail);
+      getReportView<IncidentReportRow>("incident_summary", days, { siteId, workLocationId }).then((r) => done(() => { setIncidentRows(r.rows); setError(null); }), fail);
     } else {
-      getInsights(days).then((r) => done(() => { setInsights(r); setError(null); }), fail);
+      getInsights(days, { siteId, workLocationId }).then((r) => done(() => { setInsights(r); setError(null); }), fail);
     }
     return () => {
       cancelled = true;
     };
-  }, [tab, days, reloadKey]);
+  }, [tab, days, reloadKey, siteId, workLocationId]);
 
   function onSort(column: string) {
     setParams({ sort: `${column}:${sort.column === column && sort.dir === "desc" ? "asc" : "desc"}` });
@@ -136,6 +139,11 @@ function ReportsView() {
           />
         }
       >
+        <PlaceFilter
+          siteId={siteId}
+          workLocationId={workLocationId}
+          onChange={(next) => setParams({ site: next.siteId, location: next.workLocationId })}
+        />
         <SegmentedToggle
           label="Report"
           value={tab}

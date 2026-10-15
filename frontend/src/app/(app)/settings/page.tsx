@@ -21,6 +21,7 @@ const ADMIN_LINKS = [
   },
   { href: "/billing", label: "Billing and subscription", description: "Plan, usage and invoices", icon: CreditCard, roles: BILLING_READ_ROLES },
   { href: "/platform/tenants", label: "Tenants", description: "Invite organisation owners and provision new tenants", icon: Building2, roles: PLATFORM_ADMIN_ROLES },
+  { href: "/platform/configuration", label: "App configuration", description: "Industries offered when a tenant is created", icon: Settings, roles: PLATFORM_ADMIN_ROLES },
 ];
 
 export default function SettingsPage() {

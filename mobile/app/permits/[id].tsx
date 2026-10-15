@@ -91,8 +91,13 @@ export default function PermitDetailScreen() {
       footer={
         canEdit || executable ? (
           <ActionBar>
-            {executable && permit.machineryId ? (
-              <Button label="LOTOTO" variant="outline" icon={Lock} onPress={() => router.push(`/lototo/new?machineryId=${permit.machineryId}`)} />
+            {executable && (detail!.assets?.[0]?.assetId || permit.machineryId) ? (
+              <Button
+                label="LOTOTO"
+                variant="outline"
+                icon={Lock}
+                onPress={() => router.push(`/lototo/new?assetId=${detail!.assets?.[0]?.assetId ?? permit.machineryId}`)}
+              />
             ) : null}
             {canEdit ? (
               <Button label={isResubmit ? "Revise and resubmit" : "Edit draft"} icon={Pencil} color={isResubmit ? tokens.action.fix : undefined} onPress={() => router.push(`/permits/${id}/edit`)} />
@@ -113,7 +118,7 @@ export default function PermitDetailScreen() {
       <Card accent={tokens.status[status]}>
         <InfoList
           rows={[
-            ["Place", form.locationId ? names.location(form.locationId) : "Not set"],
+            ["Place", [permit.placePath, permit.exactSpot].filter(Boolean).join(" · ") || (form.workLocationId ? names.location(form.workLocationId) : "Not set")],
             ["When", formatWindow(permit.plannedStartAt, permit.plannedEndAt)],
             ["Work", permit.workScope],
             ["Hazards", `${detail!.hazards.length} identified`],

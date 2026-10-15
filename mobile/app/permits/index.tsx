@@ -68,7 +68,7 @@ export default function PermitsScreen() {
 
   const term = query.trim().toLowerCase();
   const shown = term
-    ? permits.filter((p) => [p.title, p.reference ?? "", p.locationId ? names.location(p.locationId) : ""].some((v) => v.toLowerCase().includes(term)))
+    ? permits.filter((p) => [p.title, p.reference ?? "", p.placePath ?? "", p.exactSpot ?? "", p.workLocationId || p.locationId ? names.location((p.workLocationId || p.locationId) ?? "") : ""].some((v) => v.toLowerCase().includes(term)))
     : permits;
   const open = (item: PermitRecord) => router.push((isEditablePermitStatus(item.status) ? `/permits/${item.id}/edit` : `/permits/${item.id}`) as never);
 

@@ -7,7 +7,6 @@ import {
   ClipboardCheck,
   FileStack,
   GitBranch,
-  Network,
   Tags,
   UserCog,
 } from "lucide-react";
@@ -18,13 +17,11 @@ import { SetupProgressCard } from "@/components/organisation/setup-progress-card
 const GROUPS: HubGroup[] = [
   {
     title: "Site structure",
-    description: "Set up in this order: each level is picked from the one above it.",
+    description: "Sites, then the locations and assets under them.",
     links: [
-      { href: "/organisation/plants", label: "Plants", description: "Top-level operational sites", icon: DOMAIN_ICONS.plant },
-      { href: "/organisation/departments", label: "Departments", description: "Teams that own work", icon: Network },
-      { href: "/organisation/locations", label: "Locations", description: "Work areas within plants", icon: DOMAIN_ICONS.location },
-      { href: "/organisation/workstations", label: "Workstations", description: "Where equipment is installed", icon: DOMAIN_ICONS.workstation },
-      { href: "/organisation/machinery", label: "Machinery", description: "Equipment and LOTOTO procedures", icon: DOMAIN_ICONS.machinery },
+      { href: "/organisation/sites", label: "Sites", description: "Physical sites and who may work there", icon: DOMAIN_ICONS.plant },
+      { href: "/organisation/work-locations", label: "Work locations", description: "Areas under a site, with approvers", icon: DOMAIN_ICONS.location },
+      { href: "/organisation/assets", label: "Assets", description: "Equipment register and LOTOTO targets", icon: DOMAIN_ICONS.machinery },
     ],
   },
   {
@@ -35,7 +32,7 @@ const GROUPS: HubGroup[] = [
       { href: "/organisation/templates", label: "Permit templates", description: "Pre-filled starting points", icon: FileStack },
       { href: "/organisation/hazards", label: "Hazards", description: "Codes, consequences and default controls", icon: DOMAIN_ICONS.hazard },
       { href: "/organisation/ppe", label: "PPE", description: "Protective equipment requirements", icon: DOMAIN_ICONS.ppe },
-      { href: "/organisation/gas-testing", label: "Gas testing", description: "Parameters and limits by workstation", icon: DOMAIN_ICONS.gas },
+      { href: "/organisation/gas-testing", label: "Gas testing", description: "Parameters and limits by work location or asset", icon: DOMAIN_ICONS.gas },
       { href: "/organisation/checklists", label: "Safety checklists", description: "Reusable checklist items", icon: ClipboardCheck },
     ],
   },
@@ -43,7 +40,7 @@ const GROUPS: HubGroup[] = [
     title: "People and workflow",
     description: "Who can do what, and how approvals and messages flow.",
     links: [
-      { href: "/workforce/roles", label: "Users and roles", description: "Logins and organisation roles", icon: UserCog },
+      { href: "/workforce/roles", label: "Users and roles", description: "Logins, roles and site access", icon: UserCog },
       { href: "/organisation/workflows", label: "Approval workflows", description: "Approval stages and routing", icon: GitBranch },
       { href: "/organisation/notifications", label: "Notification preferences", description: "Channels and events", icon: Bell },
       { href: "/organisation/profile", label: "Organisation profile", description: "Registration and details", icon: Building2 },

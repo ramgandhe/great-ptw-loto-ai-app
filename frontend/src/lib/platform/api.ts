@@ -8,6 +8,31 @@ export type PlatformTenant = {
   status: string;
   createdAt: string;
   inviteStatus: string | null;
+  about: string | null;
+  industryId: string;
+  industryName: string;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  addressState: string | null;
+  addressCountry: string | null;
+  addressPin: string | null;
+};
+
+export type Industry = {
+  id: string;
+  name: string;
+  isFallback: boolean;
+};
+
+export type TenantProfile = {
+  organisationName: string;
+  about?: string;
+  industryId: string;
+  addressLine1: string;
+  addressLine2?: string;
+  state: string;
+  country: string;
+  pin: string;
 };
 
 export type CreatedTenant = {
@@ -63,14 +88,18 @@ export const accessRequestsApi = {
 
 export const platformTenantsApi = {
   list: () => fetchApi<PlatformTenant[]>("/platform/tenants"),
-  create: (payload: {
-    organisationName: string;
+  create: (payload: TenantProfile & {
     ownerEmail: string;
     ownerFirstName?: string;
     ownerLastName?: string;
   }) =>
     fetchApi<CreatedTenant>("/platform/tenants", {
       method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: TenantProfile) =>
+    fetchApi<PlatformTenant>(`/platform/tenants/${id}`, {
+      method: "PATCH",
       body: JSON.stringify(payload),
     }),
   getInvite: (token: string) =>
@@ -85,4 +114,16 @@ export const platformTenantsApi = {
     fetchApi<PlatformTenant>(`/platform/tenants/${id}/enable`, { method: "POST" }),
   remove: (id: string) =>
     fetchApi<{ id: string; deleted: boolean }>(`/platform/tenants/${id}`, { method: "DELETE" }),
+};
+
+export const industriesApi = {
+  list: () => fetchApi<Industry[]>("/platform/industries"),
+  create: (name: string) =>
+    fetchApi<Industry>("/platform/industries", { method: "POST", body: JSON.stringify({ name }) }),
+  update: (id: string, name: string) =>
+    fetchApi<Industry>(`/platform/industries/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+  remove: (id: string, force = false) =>
+    fetchApi<{ id: string; deleted: boolean }>(`/platform/industries/${id}${force ? "?force=true" : ""}`, {
+      method: "DELETE",
+    }),
 };

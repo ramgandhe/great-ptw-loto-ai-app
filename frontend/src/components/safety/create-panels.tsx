@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SegmentedToggle } from "@/components/ui/toggle-group";
 import { ApiError } from "@/lib/api";
@@ -9,8 +9,9 @@ import { INCIDENT_TYPES } from "@/lib/analytics/labels";
 import { createIncident } from "@/lib/incidents/api";
 import type { Incident, IncidentType } from "@/lib/incidents/types";
 import { createLototoPlan } from "@/lib/lototo/api";
-import { filterMachineryByWorkstation, loadLototoFormOptions } from "@/lib/lototo/form-options";
-import { formatOrgOptionLabel } from "@/components/lototo/select-field";
+import { sitesApi } from "@/lib/organisation/api";
+import type { OrgRecord } from "@/lib/organisation/types";
+import { placeApi, type AssetRecord, type WorkLocationRecord } from "@/lib/place/api";
 import { listPermits } from "@/lib/permit/api";
 import type { PermitRecord } from "@/lib/permit/types";
 
@@ -49,19 +50,38 @@ function Panel({ title, error, onSubmit, children }: { title: string; error: str
 /** "New LOTOTO plan" opened in place on the LOTOTO page. After creating, the plan opens so its steps can be added. */
 export function LototoPlanCreatePanel({ initialMachineryId, onClose }: { initialMachineryId?: string; onClose: () => void }) {
   const router = useRouter();
-  const [options, setOptions] = useState<Awaited<ReturnType<typeof loadLototoFormOptions>> | null>(null);
+  const [sites, setSites] = useState<OrgRecord[]>([]);
+  const [locations, setLocations] = useState<WorkLocationRecord[]>([]);
+  const [assets, setAssets] = useState<AssetRecord[]>([]);
+  const [siteId, setSiteId] = useState("");
+  const [workLocationId, setWorkLocationId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [workstationId, setWorkstationId] = useState("");
-  const [machineryId, setMachineryId] = useState(initialMachineryId ?? "");
+  const [assetId, setAssetId] = useState(initialMachineryId ?? "");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    loadLototoFormOptions().then(setOptions, (err) => setError(err instanceof ApiError ? err.message : "Machinery could not be loaded."));
+    sitesApi.list().then((rows) => setSites(rows.filter((row) => row.status !== "archived"))).catch((err) => setError(err instanceof ApiError ? err.message : "Sites could not be loaded."));
   }, []);
 
-  const machinery = useMemo(() => filterMachineryByWorkstation(options?.machinery ?? [], workstationId), [options, workstationId]);
+  useEffect(() => {
+    if (!siteId) {
+      setLocations([]);
+      setAssets([]);
+      return;
+    }
+    Promise.all([
+      placeApi.listWorkLocations(siteId),
+      placeApi.listAssets(siteId, workLocationId || undefined),
+    ]).then(([locationRows, assetRows]) => {
+      setLocations(locationRows);
+      setAssets(assetRows);
+    }).catch(() => {
+      setLocations([]);
+      setAssets([]);
+    });
+  }, [siteId, workLocationId]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -69,10 +89,9 @@ export function LototoPlanCreatePanel({ initialMachineryId, onClose }: { initial
     setError(null);
     try {
       const plan = await createLototoPlan({
-        machineryId,
+        assetId,
         title: title.trim(),
         description: description.trim() || undefined,
-        workstationId: workstationId || undefined,
       });
       router.push(`/lototo/plans/${plan.id}`);
     } catch (err) {
@@ -86,31 +105,22 @@ export function LototoPlanCreatePanel({ initialMachineryId, onClose }: { initial
       <Field label="Title" wide>
         <input required autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Compressor isolation plan" className={`h-10 ${FIELD}`} />
       </Field>
-      <Field label="Workstation" optional>
-        <select
-          value={workstationId}
-          onChange={(e) => {
-            setWorkstationId(e.target.value);
-            setMachineryId("");
-          }}
-          className={`h-10 ${FIELD}`}
-        >
-          <option value="">Any workstation</option>
-          {(options?.workstations ?? []).map((ws) => (
-            <option key={ws.id} value={ws.id}>
-              {formatOrgOptionLabel(ws)}
-            </option>
-          ))}
+      <Field label="Site">
+        <select required value={siteId} onChange={(e) => { setSiteId(e.target.value); setWorkLocationId(""); setAssetId(""); }} className={`h-10 ${FIELD}`}>
+          <option value="">Select site</option>
+          {sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
         </select>
       </Field>
-      <Field label="Machinery">
-        <select required value={machineryId} onChange={(e) => setMachineryId(e.target.value)} className={`h-10 ${FIELD}`}>
-          <option value="">{options === null ? "Loading machinery…" : machinery.length === 0 ? "No machinery here yet" : "Select machinery"}</option>
-          {machinery.map((item) => (
-            <option key={item.id} value={item.id}>
-              {formatOrgOptionLabel(item)}
-            </option>
-          ))}
+      <Field label="Work location" optional>
+        <select value={workLocationId} onChange={(e) => { setWorkLocationId(e.target.value); setAssetId(""); }} className={`h-10 ${FIELD}`}>
+          <option value="">Whole site</option>
+          {locations.map((row) => <option key={row.id} value={row.id}>{row.pathText || row.name}</option>)}
+        </select>
+      </Field>
+      <Field label="Asset" wide>
+        <select required value={assetId} onChange={(e) => setAssetId(e.target.value)} className={`h-10 ${FIELD}`}>
+          <option value="">{assets.length === 0 ? "No assets here yet" : "Select asset"}</option>
+          {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.tag} — {asset.name}</option>)}
         </select>
       </Field>
       <Field label="Description" optional wide>
@@ -135,6 +145,12 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [locationDescription, setLocationDescription] = useState("");
+  const [sites, setSites] = useState<OrgRecord[]>([]);
+  const [locations, setLocations] = useState<WorkLocationRecord[]>([]);
+  const [assets, setAssets] = useState<AssetRecord[]>([]);
+  const [siteId, setSiteId] = useState("");
+  const [workLocationId, setWorkLocationId] = useState("");
+  const [assetIds, setAssetIds] = useState<string[]>([]);
   // Local wall-clock time for the datetime-local input.
   const [occurredAt, setOccurredAt] = useState(() => {
     const now = new Date();
@@ -147,7 +163,26 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
 
   useEffect(() => {
     listPermits().then(setPermits, () => setPermits([]));
+    sitesApi.list().then((rows) => setSites(rows.filter((row) => row.status !== "archived"))).catch(() => setSites([]));
   }, []);
+
+  useEffect(() => {
+    if (!siteId) {
+      setLocations([]);
+      setAssets([]);
+      return;
+    }
+    Promise.all([
+      placeApi.listWorkLocations(siteId),
+      placeApi.listAssets(siteId, workLocationId || undefined),
+    ]).then(([locationRows, assetRows]) => {
+      setLocations(locationRows);
+      setAssets(assetRows);
+    }).catch(() => {
+      setLocations([]);
+      setAssets([]);
+    });
+  }, [siteId, workLocationId]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -160,6 +195,9 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
         title: title.trim(),
         description: description.trim(),
         locationDescription: locationDescription.trim() || undefined,
+        siteId,
+        workLocationId,
+        assetIds: assetIds.length ? assetIds : undefined,
         occurredAt: new Date(occurredAt).toISOString(),
         permitIds: permitId ? [permitId] : undefined,
         submit,
@@ -189,9 +227,36 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
       <Field label="Description" wide>
         <textarea required rows={4} value={description} onChange={(e) => setDescription(e.target.value)} className={`py-2 ${FIELD}`} />
       </Field>
-      <Field label="Where" optional>
-        <input value={locationDescription} onChange={(e) => setLocationDescription(e.target.value)} placeholder="Tank farm, north walkway" className={`h-10 ${FIELD}`} />
+      <Field label="Site">
+        <select required value={siteId} onChange={(e) => { setSiteId(e.target.value); setWorkLocationId(""); setAssetIds([]); }} className={`h-10 ${FIELD}`}>
+          <option value="">Select site</option>
+          {sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
+        </select>
       </Field>
+      <Field label="Work location">
+        <select required value={workLocationId} onChange={(e) => { setWorkLocationId(e.target.value); setAssetIds([]); }} className={`h-10 ${FIELD}`}>
+          <option value="">Select work location</option>
+          {locations.map((row) => <option key={row.id} value={row.id}>{row.pathText || row.name}</option>)}
+        </select>
+      </Field>
+      <Field label="Exact spot" optional wide>
+        <input value={locationDescription} onChange={(e) => setLocationDescription(e.target.value)} placeholder="North walkway" className={`h-10 ${FIELD}`} />
+      </Field>
+      {assets.length ? (
+        <div className="grid gap-1 text-sm sm:col-span-2">
+          <span className="font-medium">Assets <span className="font-normal text-muted-foreground">(optional)</span></span>
+          {assets.map((asset) => (
+            <label key={asset.id} className="flex min-h-10 items-center gap-2">
+              <input
+                type="checkbox"
+                checked={assetIds.includes(asset.id)}
+                onChange={() => setAssetIds((current) => current.includes(asset.id) ? current.filter((id) => id !== asset.id) : [...current, asset.id])}
+              />
+              {asset.tag} — {asset.name}
+            </label>
+          ))}
+        </div>
+      ) : null}
       <Field label="When">
         <input required type="datetime-local" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} className={`h-10 ${FIELD}`} />
       </Field>

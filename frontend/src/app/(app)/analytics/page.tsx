@@ -12,6 +12,7 @@ import { SegmentedToggle } from "@/components/ui/toggle-group";
 import { ApiError } from "@/lib/api";
 import { permitStatusColor } from "@/lib/permit/status";
 import { INCIDENT_TYPES, PERIODS, PERMIT_STAGES, PRIORITIES, SEVERITIES } from "@/lib/analytics/labels";
+import { PlaceFilter } from "@/components/place/place-filter";
 import { getInsights } from "@/lib/dashboards/api";
 import type { InsightsPayload } from "@/lib/dashboards/types";
 import { formatRelative } from "@/lib/format";
@@ -31,13 +32,15 @@ function sum(values: Record<string, number>): number {
 
 export default function AnalyticsPage() {
   const [days, setDays] = useState(90);
+  const [siteId, setSiteId] = useState("");
+  const [workLocationId, setWorkLocationId] = useState("");
   const [data, setData] = useState<InsightsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    getInsights(days)
+    getInsights(days, { siteId, workLocationId })
       .then((payload) => {
         if (!cancelled) {
           setData(payload);
@@ -50,7 +53,7 @@ export default function AnalyticsPage() {
     return () => {
       cancelled = true;
     };
-  }, [days, reloadKey]);
+  }, [days, reloadKey, siteId, workLocationId]);
 
   const periodLabel = PERIODS.find((p) => p.days === days)?.label ?? `${days} days`;
 
@@ -73,6 +76,14 @@ export default function AnalyticsPage() {
             </Button>
           </>
         }
+      />
+      <PlaceFilter
+        siteId={siteId}
+        workLocationId={workLocationId}
+        onChange={(next) => {
+          setSiteId(next.siteId);
+          setWorkLocationId(next.workLocationId);
+        }}
       />
 
       {error ? (

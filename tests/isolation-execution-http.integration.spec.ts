@@ -11,6 +11,7 @@ import { AuthenticatedUser } from '../app/src/common/interfaces/authenticated-us
 import { QueueService } from '../app/src/infrastructure/queue/queue.service';
 import * as schema from '../app/src/database/schema';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
+import { insertAssetTarget } from './helpers/place-fixture';
 
 // Mutable auth context so a single booted app can exercise different users,
 // roles, tenants and the unauthenticated case.
@@ -163,12 +164,15 @@ describe('Isolation Execution HTTP integration (PUS-156)', () => {
       })
       .returning();
 
+    await insertAssetTarget(db, { tenantId: planTenantId, createdBy: officerId, name: 'Compressor', assetId: machinery.id });
+
     const [plan] = await db
       .insert(schema.lototoPlans)
       .values({
         tenantId: planTenantId,
         permitId: permit.id,
         machineryId: machinery.id,
+        assetId: machinery.id,
         title: 'Primary isolation plan',
         status: 'ready',
         createdBy: officerId,

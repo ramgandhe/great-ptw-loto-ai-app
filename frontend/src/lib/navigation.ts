@@ -2,11 +2,12 @@ import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
   BarChart3,
-  CreditCard,
   Building2,
+  CreditCard,
   FileText,
   LayoutDashboard,
   Route,
+  Settings2,
   TriangleAlert,
   Users,
 } from "lucide-react";
@@ -50,6 +51,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { href: "/organisation", label: "Organisation", icon: Building2, roles: NAV_ORGANISATION_ROLES, group: "Administration" },
   { href: "/workforce", label: "Workforce", icon: Users, roles: NAV_WORKFORCE_ROLES, group: "Administration" },
   { href: "/platform/tenants", label: "Tenants", icon: Building2, roles: PLATFORM_ADMIN_ROLES, group: "Administration" },
+  { href: "/platform/configuration", label: "App configuration", icon: Settings2, roles: PLATFORM_ADMIN_ROLES, group: "Administration" },
   { href: "/billing", label: "Billing", icon: CreditCard, roles: BILLING_READ_ROLES, group: "Administration" },
 ];
 

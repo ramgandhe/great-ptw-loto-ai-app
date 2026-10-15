@@ -15,13 +15,17 @@ import {
   locationsApi,
   machineryApi,
   plantsApi,
+  sitesApi,
   workstationsApi,
 } from "@/lib/organisation/api";
+import { placeApi, type AssetRecord, type WorkLocationRecord } from "@/lib/place/api";
+import { listTenantUsers } from "@/lib/workforce/api";
+import type { TenantUser } from "@/lib/workforce/types";
 import type { MachineryRecord, OrgRecord } from "@/lib/organisation/types";
 import { permitTemplatesApi, type PermitTemplate, type TemplatePrefillSource } from "@/lib/organisation/templates";
 import { getLototoProcedure, listLototoProcedures } from "@/lib/lototo/api";
 import type { LototoProcedure, LototoProcedureListItem } from "@/lib/lototo/types";
-import { gasTestingApi, type GasTestingRecord } from "@/lib/master-data/api";
+import { gasTestingApi } from "@/lib/master-data/api";
 import {
   createPermit,
   getPermit,
@@ -232,6 +236,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [draftHolder, setDraftHolder] = useState<DraftHolder>(parseDraftHolder(initialDetail?.permit.draftHolder));
   const [draftHeldBy, setDraftHeldBy] = useState<string | null>(initialDetail?.permit.draftHeldBy ?? initialDetail?.permit.createdBy ?? null);
   const [handoffNotice, setHandoffNotice] = useState<string | null>(null);
+  const [gasNotice, setGasNotice] = useState<string[] | null>(null);
+  const [gasLimitError, setGasLimitError] = useState<string | null>(null);
+  const [gasBaselines, setGasBaselines] = useState<Map<string, { minimum: number; maximum: number }>>(new Map());
   const [returnReason, setReturnReason] = useState(initialDetail?.permit.draftReturnReason ?? "");
   const [returnReasonDraft, setReturnReasonDraft] = useState("");
   const [showReturnForm, setShowReturnForm] = useState(false);
@@ -259,13 +266,17 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [locations, setLocations] = useState<OrgRecord[]>([]);
   const [workstations, setWorkstations] = useState<MasterDataRecord[]>([]);
   const [machinery, setMachinery] = useState<MachineryRecord[]>([]);
+  const [sites, setSites] = useState<OrgRecord[]>([]);
+  const [workLocations, setWorkLocations] = useState<WorkLocationRecord[]>([]);
+  const [siteAssets, setSiteAssets] = useState<AssetRecord[]>([]);
+  const [approverText, setApproverText] = useState("");
+  const [people, setPeople] = useState<TenantUser[]>([]);
+  const [locationQuery, setLocationQuery] = useState("");
   const [hazards, setHazards] = useState<HazardRecord[]>([]);
   const [lototoDetails, setLototoDetails] = useState<Record<string, LototoProcedure>>({});
   const [ppeItems, setPpeItems] = useState<MasterDataRecord[]>([]);
   const [machineryLototo, setMachineryLototo] = useState<LototoProcedureListItem[]>([]);
-  const [workstationGasTesting, setWorkstationGasTesting] = useState<
-    GasTestingRecord[]
-  >([]);
+  const [extraGas, setExtraGas] = useState({ parameter: "", unit: "", minimum: "", maximum: "" });
   const { roles: authRoles, profile: authProfile } = useAuthProfile();
   const [templates, setTemplates] = useState<PermitTemplate[]>([]);
   // Until templates load, saves leave stored answers alone rather than pruning them.
@@ -438,14 +449,144 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   }, []);
 
   useEffect(() => {
-    if (!form.machineryId) {
+    sitesApi.list().then((rows) => {
+      const active = rows.filter(inUse);
+      setSites(active);
+      setForm((current) => current.siteId || active.length !== 1 ? current : { ...current, siteId: active[0]!.id });
+    }).catch(() => setSites([]));
+    listTenantUsers().then(setPeople).catch(() => setPeople([]));
+  }, []);
+
+  useEffect(() => {
+    if (!form.siteId) {
+      setWorkLocations([]);
+      return;
+    }
+    placeApi.listWorkLocations(form.siteId).then(setWorkLocations).catch(() => setWorkLocations([]));
+  }, [form.siteId]);
+
+  useEffect(() => {
+    if (!form.workLocationId) {
+      setApproverText("");
+      return;
+    }
+    placeApi.getWorkLocation(form.workLocationId).then((detail) => {
+      if (detail.approvers.userIds.length === 0) {
+        setApproverText("No approver is set on this location or above it. Any permit approver may approve.");
+        return;
+      }
+      const names = detail.approvers.userIds.map((id) => {
+        const user = people.find((person) => person.id === id);
+        return user ? (user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email || "Approver") : "Approver";
+      });
+      setApproverText(detail.approvers.inheritedFrom ? `${names.join(", ")} (from a parent location)` : names.join(", "));
+    }).catch(() => setApproverText(""));
+  }, [form.workLocationId, people]);
+
+  useEffect(() => {
+    if (!form.siteId) {
+      setSiteAssets([]);
+      return;
+    }
+    placeApi.listAssets(form.siteId, form.workLocationId || undefined).then(setSiteAssets).catch(() => setSiteAssets([]));
+  }, [form.siteId, form.workLocationId]);
+
+  useEffect(() => {
+    const targets = form.assetIds.length > 0 ? form.assetIds : form.machineryId ? [form.machineryId] : [];
+    if (targets.length === 0) {
       setMachineryLototo([]);
       return;
     }
-    listLototoProcedures({ machineryId: form.machineryId, published: true })
-      .then(setMachineryLototo)
-      .catch(() => setMachineryLototo([]));
-  }, [form.machineryId]);
+    Promise.all(targets.map((id) =>
+      listLototoProcedures(form.assetIds.length > 0 ? { assetId: id, published: true } : { machineryId: id, published: true }).catch(() => []),
+    )).then((groups) => {
+      const byId = new Map<string, LototoProcedureListItem>();
+      for (const row of groups.flat()) byId.set(row.id, row);
+      setMachineryLototo([...byId.values()]);
+    });
+  }, [form.assetIds, form.machineryId]);
+
+  useEffect(() => {
+    if (!form.workLocationId) return;
+    let cancelled = false;
+    const applyDefaults = !form.gasReady;
+    const previous = form.gasTesting;
+    gasTestingApi.defaults(form.workLocationId, form.assetIds).then((rows) => {
+      if (cancelled) return;
+      const usable = rows.filter((row) => row.catalogueId);
+      setGasBaselines(new Map(usable.map((row) => [row.catalogueId!, { minimum: row.minimum, maximum: row.maximum }])));
+      const sourceName = (row: (typeof usable)[number]) =>
+        row.minimumSource.name === row.maximumSource.name
+          ? row.minimumSource.name
+          : `${row.minimumSource.name} / ${row.maximumSource.name}`;
+      if (!applyDefaults) {
+        setForm((current) => {
+          let changed = false;
+          const gasTesting = current.gasTesting.map((item) => {
+            if (item.sourceName || !item.gasTestingCatalogueId) return item;
+            const row = usable.find((candidate) => candidate.catalogueId === item.gasTestingCatalogueId);
+            if (!row) return item;
+            changed = true;
+            return { ...item, sourceName: sourceName(row) };
+          });
+          return changed ? { ...current, gasTesting } : current;
+        });
+        return;
+      }
+      const handAdded = previous.filter((item) => !item.gasTestingCatalogueId && item.parameter?.trim());
+      const previousDefaults = previous.filter((item) => item.gasTestingCatalogueId);
+      const removedByParameter = new Map(
+        previousDefaults
+          .filter((item) => item.removedReason?.trim())
+          .map((item) => [item.parameter?.trim().toLowerCase() ?? "", item.removedReason]),
+      );
+      const nextDefaults = usable.map((row) => ({
+        gasTestingCatalogueId: row.catalogueId!,
+        parameter: row.parameter,
+        unit: row.unit,
+        minimum: row.minimum,
+        maximum: row.maximum,
+        removedReason: removedByParameter.get(row.parameter.trim().toLowerCase()) || undefined,
+        sourceName: sourceName(row),
+      }));
+      if (previousDefaults.length > 0 || handAdded.length > 0) {
+        const changes: string[] = [];
+        const previousByParameter = new Map(previousDefaults.map((item) => [item.parameter?.trim().toLowerCase() ?? "", item]));
+        for (const row of nextDefaults) {
+          const old = previousByParameter.get(row.parameter.trim().toLowerCase());
+          if (!old) {
+            changes.push(`Added ${row.parameter} from ${row.sourceName}`);
+          } else if (old.minimum !== row.minimum || old.maximum !== row.maximum) {
+            const tightened = (old.minimum ?? row.minimum) <= row.minimum && (old.maximum ?? row.maximum) >= row.maximum;
+            changes.push(
+              tightened
+                ? `Tightened ${row.parameter} to ${row.minimum}–${row.maximum} ${row.unit}`
+                : `Updated ${row.parameter} to ${row.minimum}–${row.maximum} ${row.unit}`,
+            );
+          }
+        }
+        for (const old of previousDefaults) {
+          const key = old.parameter?.trim().toLowerCase();
+          if (key && !nextDefaults.some((row) => row.parameter.trim().toLowerCase() === key)) {
+            changes.push(`Removed ${old.parameter}; it is no longer a default for this place`);
+          }
+        }
+        if (changes.length > 0) setGasNotice(changes);
+      }
+      setForm((current) => {
+        if (current.gasReady || current.workLocationId !== form.workLocationId) return current;
+        return {
+          ...current,
+          gasReady: true,
+          gasTestingRequired: nextDefaults.some((row) => !row.removedReason) || handAdded.length > 0 || current.gasTestingRequired,
+          gasTesting: [...nextDefaults, ...handAdded],
+        };
+      });
+    }).catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [form.workLocationId, form.assetIds]);
 
   useEffect(() => {
     const ids = [...new Set(form.lototo.map((item) => item.procedureId).filter(Boolean))];
@@ -458,17 +599,6 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         .catch(() => undefined);
     });
   }, [form.lototo, lototoDetails]);
-
-  useEffect(() => {
-    if (!form.workstationId) {
-      setWorkstationGasTesting([]);
-      return;
-    }
-    gasTestingApi
-      .list(form.workstationId)
-      .then((rows) => setWorkstationGasTesting(rows.filter(inUse)))
-      .catch(() => setWorkstationGasTesting([]));
-  }, [form.workstationId]);
 
   useEffect(() => {
     if (initialDetail) {
@@ -496,11 +626,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       .map((e) => executorOptions.find((o) => o.id === e.workforceUserId)?.name.replace(/ \(you\)$/, ""))
       .filter((name): name is string => Boolean(name));
     // A workstation often carries its location's name; say it once.
-    const place = [...new Set([nameOf(locations, current.locationId), nameOf(workstations, current.workstationId)].filter(Boolean))];
+    const place = workLocations.find((row) => row.id === current.workLocationId);
     return {
       department: nameOf(departments, current.departmentId) || undefined,
-      location: place.join(", ") || undefined,
-      equipment: nameOf(machinery, current.machineryId) || undefined,
+      location: [place?.pathText || place?.name, current.exactSpot].filter(Boolean).join(" — ") || undefined,
+      equipment: siteAssets.filter((row) => current.assetIds.includes(row.id)).map((row) => row.name).join(", ") || nameOf(machinery, current.machineryId) || undefined,
       "job-description": [current.title, current.workScope].filter((v) => v.trim()).join("\n\n") || undefined,
       "valid-from": current.plannedStartAt.slice(0, 10) || undefined,
       "valid-to": current.plannedEndAt.slice(0, 10) || undefined,
@@ -580,6 +710,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     // Create stores only type, title and scope; this save stores the rest of the form.
     try {
       const saved = await savePermitDraft(id, { ...payload, expectedRevision: baseRevision });
+      setGasNotice(saved.gasChanges && saved.gasChanges.length > 0 ? saved.gasChanges : null);
       setRevision(saved.permit.draftRevision);
       setDraftHolder(parseDraftHolder(saved.permit.draftHolder));
       setDraftHeldBy(saved.permit.draftHeldBy ?? saved.permit.createdBy ?? null);
@@ -938,15 +1069,6 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     setAttachments((current) => current.filter((item) => item.id !== attachmentId));
   };
 
-  const plantOfLocation = (locationId: string) =>
-    departments.find((d) => d.id === locations.find((l) => l.id === locationId)?.departmentId)?.plantId ?? "";
-  const derivedPlant = plantOfLocation(form.locationId);
-  const plantName = (id: string) => plants.find((p) => p.id === id)?.name ?? "";
-  const locationOptions = locations.map((l) => {
-    const plant = plantName(plantOfLocation(l.id));
-    return plant ? { ...l, name: `${l.name}, ${plant}` } : l;
-  });
-  const departmentOptions = form.plantId ? departments.filter((d) => d.plantId === form.plantId) : departments;
   const personName = (id: string) =>
     executorOptions.find((o) => o.id === id)?.name ?? (id ? "Person no longer available" : "");
   const hazardRows = form.hazards.filter((h) => h.hazardCategoryId);
@@ -1026,6 +1148,16 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             </p>
           ) : null}
           {handoffNotice ? <p className="mt-1 font-medium text-(--status-success)">{handoffNotice}</p> : null}
+          {gasNotice && gasNotice.length > 0 ? (
+            <div className="mt-2">
+              <p className="font-medium">Gas tests were recalculated.</p>
+              <ul className="mt-1 list-disc pl-5">
+                {gasNotice.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -1196,50 +1328,70 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       {active === "place" ? (
       <EditorSection id="place" title="Place and schedule" owner="Permit receiver" editable={placeEditable} left={missing.place.length} note={!placeEditable ? "Read-only until the current holder returns the draft." : undefined}>
         <div className="grid gap-4 md:grid-cols-2">
-          <FormField label="Location" htmlFor="locationId" error={fieldError("locationId")}>
+          <FormField label="Site" htmlFor="siteId" error={fieldError("siteId")}>
             <MasterDataSelect
-              id="locationId"
-              value={form.locationId}
-              options={locationOptions}
-              disabled={!placeEditable || masterDataLoading}
-              placeholder="Select location"
-              onChange={(locationId) =>
-                edit((current) => {
-                  const plantId = plantOfLocation(locationId) || current.plantId;
-                  // A department from another plant no longer fits; clear it so it is chosen again.
-                  const departmentFits = departments.find((d) => d.id === current.departmentId)?.plantId === plantId;
-                  return { ...current, locationId, plantId, departmentId: departmentFits ? current.departmentId : "" };
-                })
-              }
+              id="siteId"
+              value={form.siteId}
+              options={sites}
+              disabled={!placeEditable}
+              placeholder="Select site"
+              onChange={(siteId) => edit((current) => ({
+                ...current,
+                siteId,
+                workLocationId: "",
+                assetIds: [],
+                gasReady: false,
+                gasTesting: [],
+              }))}
             />
           </FormField>
-          {derivedPlant ? (
-            <div className="grid gap-1.5 text-sm">
-              <span className="font-medium">Plant</span>
-              <p className="flex min-h-11 items-center text-muted-foreground">{plantName(derivedPlant)}, from the location</p>
+          <FormField label="Exact spot" htmlFor="exactSpot" hint="Optional. A spot inside the work location.">
+            <input
+              id="exactSpot"
+              className={fieldClassName}
+              value={form.exactSpot}
+              disabled={!placeEditable}
+              onChange={(e) => edit((current) => ({ ...current, exactSpot: e.target.value }))}
+            />
+          </FormField>
+          <div className="md:col-span-2 grid gap-1.5">
+            <label className="text-sm font-medium" htmlFor="work-location-search">Work location</label>
+            <input
+              id="work-location-search"
+              className={fieldClassName}
+              value={locationQuery}
+              disabled={!placeEditable || !form.siteId}
+              placeholder={form.siteId ? "Search the location path" : "Select a site first"}
+              onChange={(e) => setLocationQuery(e.target.value)}
+            />
+            <div className={cn("max-h-48 overflow-y-auto rounded-md border border-border", fieldError("workLocationId") && "border-destructive")}>
+              {workLocations
+                .filter((row) => !locationQuery.trim() || `${row.pathText} ${row.name}`.toLowerCase().includes(locationQuery.trim().toLowerCase()))
+                .map((row) => (
+                  <button
+                    key={row.id}
+                    type="button"
+                    disabled={!placeEditable}
+                    className={cn("block w-full px-3 py-2 text-left text-sm hover:bg-muted", form.workLocationId === row.id && "bg-muted font-medium")}
+                    onClick={() => edit((current) => ({
+                      ...current,
+                      workLocationId: row.id,
+                      assetIds: [],
+                      gasReady: false,
+                      gasTesting: [],
+                      gasTestingRequired: false,
+                    }))}
+                  >
+                    {row.pathText || row.name}
+                  </button>
+                ))}
             </div>
-          ) : (
-            <FormField label="Plant" htmlFor="plantId">
-              <MasterDataSelect
-                id="plantId"
-                value={form.plantId}
-                options={plants}
-                disabled={!placeEditable || masterDataLoading}
-                placeholder="Select plant"
-                onChange={(plantId) => edit({ ...form, plantId })}
-              />
-            </FormField>
-          )}
-          <FormField label="Department" htmlFor="departmentId" error={fieldError("departmentId")} hint={form.plantId ? `Departments of ${plantName(form.plantId)}` : undefined}>
-            <MasterDataSelect
-              id="departmentId"
-              value={form.departmentId}
-              options={departmentOptions}
-              disabled={!placeEditable || masterDataLoading}
-              placeholder="Select department"
-              onChange={(departmentId) => edit({ ...form, departmentId })}
-            />
-          </FormField>
+            {fieldError("workLocationId") ? <p className="text-sm text-destructive">{fieldError("workLocationId")}</p> : null}
+          </div>
+          <div className="md:col-span-2 grid gap-1.5 text-sm">
+            <span className="font-medium">Approvers</span>
+            <p className="text-muted-foreground">{form.workLocationId ? approverText || "Loading approvers…" : "Choose a work location to see who can approve."}</p>
+          </div>
           <FormField
             label="Primary executor"
             htmlFor="primary-executor" error={fieldError("primary-executor")}
@@ -1360,40 +1512,58 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         owner="Permit operator"
         editable={siteEditable}
         left={missing.site.length}
-        note={!siteEditable ? "Read-only until the operator holds the draft (or returns it)." : "Workstation, machinery, isolation, gas tests, hazards and PPE."}
+        note={!siteEditable ? "Read-only until the operator holds the draft (or returns it)." : "Assets, isolation, gas tests, hazards and PPE. The place is set by the receiver."}
       >
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormField label="Workstation" htmlFor="workstationId" error={fieldError("workstationId")}>
-            <MasterDataSelect
-              id="workstationId"
-              value={form.workstationId}
-              options={workstations}
-              disabled={!siteEditable || masterDataLoading}
-              placeholder="Select workstation"
-              onChange={(workstationId) =>
-                edit((current) => ({
-                  ...current,
-                  workstationId,
-                  machineryId:
-                    current.machineryId && machinery.some((item) => item.id === current.machineryId && item.workstationId !== workstationId)
-                      ? ""
-                      : current.machineryId,
-                  gasTesting: workstationId === current.workstationId ? current.gasTesting : [],
-                  gasTestingRequired: workstationId ? current.gasTestingRequired : false,
-                }))
-              }
-            />
-          </FormField>
-          <FormField label="Machinery" htmlFor="machineryId" error={fieldError("machineryId")}>
-            <MasterDataSelect
-              id="machineryId"
-              value={form.machineryId}
-              options={form.workstationId ? machinery.filter((item) => item.workstationId === form.workstationId) : machinery}
-              disabled={!siteEditable || masterDataLoading}
-              placeholder="Select machinery"
-              onChange={(machineryId) => edit({ ...form, machineryId, lototo: machineryId === form.machineryId ? form.lototo : [] })}
-            />
-          </FormField>
+        <div className="grid gap-1.5 text-sm">
+          <span className="font-medium">Place</span>
+          <p className="text-muted-foreground">
+            {(() => {
+              const place = workLocations.find((row) => row.id === form.workLocationId);
+              const site = sites.find((row) => row.id === form.siteId);
+              return [site?.name, place?.pathText || place?.name, form.exactSpot].filter(Boolean).join(" — ") || "The receiver has not set a place yet.";
+            })()}
+          </p>
+          {siteEditable ? <p className="text-xs text-muted-foreground">Wrong place? Return the draft with a reason so the receiver can change it.</p> : null}
+        </div>
+        <div className="grid gap-2">
+          <h3 className="text-sm font-semibold">Assets</h3>
+          {fieldError("assetIds") ? <p className="text-sm text-destructive">{fieldError("assetIds")}</p> : null}
+          {siteAssets.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No assets at this location. Search the whole site if the asset sits elsewhere.</p>
+          ) : (
+            <div className="grid gap-1">
+              {siteAssets.map((asset) => (
+                <label key={asset.id} className="flex min-h-11 items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.assetIds.includes(asset.id)}
+                    disabled={!siteEditable}
+                    onChange={() => edit((current) => {
+                      const selected = current.assetIds.includes(asset.id);
+                      return {
+                        ...current,
+                        assetIds: selected ? current.assetIds.filter((id) => id !== asset.id) : [...current.assetIds, asset.id],
+                        gasReady: false,
+                        lototo: selected ? current.lototo : current.lototo,
+                      };
+                    })}
+                  />
+                  {asset.tag} — {asset.name}
+                </label>
+              ))}
+            </div>
+          )}
+          {siteEditable && form.workLocationId ? (
+            <button
+              type="button"
+              className="justify-self-start text-sm font-medium underline underline-offset-2"
+              onClick={() => {
+                placeApi.listAssets(form.siteId).then(setSiteAssets).catch(() => undefined);
+              }}
+            >
+              Search the whole site
+            </button>
+          ) : null}
         </div>
 
         <div className="grid gap-2">
@@ -1550,7 +1720,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           <input
             type="checkbox"
             checked={form.lototoRequired}
-            disabled={!siteEditable || !form.machineryId}
+            disabled={!siteEditable || form.assetIds.length === 0}
             onChange={(e) =>
               edit({
                 ...form,
@@ -1565,21 +1735,21 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             }
           />
           LOTOTO required
-          {!form.machineryId && siteEditable ? <span className="text-muted-foreground">(choose machinery first)</span> : null}
+          {form.assetIds.length === 0 && siteEditable ? <span className="text-muted-foreground">(choose at least one asset first)</span> : null}
         </label>
         {form.lototoRequired ? (
           <div className="grid gap-3">
             {machineryLototo.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                This machine has no LOTOTO plan yet.{" "}
-                <a href={`/lototo?new=1&machineryId=${form.machineryId}`} target="_blank" rel="noreferrer" className="font-medium text-(--act-do) underline underline-offset-2">
+                The selected assets have no LOTOTO plan yet.{" "}
+                <a href="/lototo" target="_blank" rel="noreferrer" className="font-medium text-(--act-do) underline underline-offset-2">
                   Create one in a new tab
                 </a>
                 , then{" "}
                 <button
                   type="button"
                   className="font-medium underline underline-offset-2"
-                  onClick={() => void listLototoProcedures({ machineryId: form.machineryId, published: true }).then(setMachineryLototo).catch(() => setMachineryLototo([]))}
+                  onClick={() => void Promise.all(form.assetIds.map((assetId) => listLototoProcedures({ assetId, published: true }))).then((groups) => setMachineryLototo(groups.flat())).catch(() => setMachineryLototo([]))}
                 >
                   refresh the list
                 </button>
@@ -1643,92 +1813,109 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           <input
             type="checkbox"
             checked={form.gasTestingRequired}
-            disabled={!siteEditable || !form.workstationId}
+            disabled={!siteEditable || !form.workLocationId}
             onChange={(e) =>
               edit({
                 ...form,
                 gasTestingRequired: e.target.checked,
-                // Start with every gas test set up for this workstation; remove any not needed.
-                gasTesting: !e.target.checked
-                  ? []
-                  : form.gasTesting.length
-                    ? form.gasTesting
-                    : workstationGasTesting.map((row) => ({ gasTestingCatalogueId: row.id })),
+                gasReady: true,
+                gasTesting: e.target.checked ? form.gasTesting : form.gasTesting.map((item) => item.gasTestingCatalogueId ? { ...item, removedReason: item.removedReason || "Not required for this permit" } : item),
               })
             }
           />
           Gas testing required
-          {!form.workstationId && siteEditable ? <span className="text-muted-foreground">(choose a workstation first)</span> : null}
+          {!form.workLocationId && siteEditable ? <span className="text-muted-foreground">(the receiver sets the work location first)</span> : null}
         </label>
+        {gasLimitError ? <p className="text-sm text-(--status-warning)">{gasLimitError}</p> : null}
         {form.gasTestingRequired ? (
-          workstationGasTesting.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No gas tests are set up for this workstation yet.{" "}
-              <a href="/organisation/gas-testing" target="_blank" rel="noreferrer" className="font-medium text-(--act-do) underline underline-offset-2">
-                Add them in a new tab
-              </a>
-              , then{" "}
-              <button
-                type="button"
-                className="font-medium underline underline-offset-2"
-                onClick={() =>
-                  void gasTestingApi
-                    .list(form.workstationId)
-                    .then((rows) => setWorkstationGasTesting(rows.filter(inUse)))
-                    .catch(() => setWorkstationGasTesting([]))
-                }
-              >
-                refresh the list
-              </button>
-              .
-            </p>
-          ) : (
-            <div className="grid gap-3">
-              <ChipPicker
-                label="Gas tests"
-                options={workstationGasTesting.map((row) => ({
-                  id: row.id,
-                  name: `${row.parameter} (${row.minimum}–${row.maximum} ${row.unit})`,
-                }))}
-                selected={form.gasTesting.map((item) => item.gasTestingCatalogueId)}
-                disabled={!siteEditable}
-                onToggle={(gasTestingCatalogueId) =>
-                  edit((current) => ({
-                    ...current,
-                    gasTesting: current.gasTesting.some((item) => item.gasTestingCatalogueId === gasTestingCatalogueId)
-                      ? current.gasTesting.filter((item) => item.gasTestingCatalogueId !== gasTestingCatalogueId)
-                      : [...current.gasTesting.filter((item) => item.gasTestingCatalogueId), { gasTestingCatalogueId }],
-                  }))
-                }
-              />
-              {form.gasTesting
-                .filter((item) => item.gasTestingCatalogueId)
-                .map((item) => {
-                  const row = workstationGasTesting.find((test) => test.id === item.gasTestingCatalogueId);
-                  return (
-                    <div key={item.gasTestingCatalogueId} className="grid gap-2 rounded-xl border border-border p-4 text-sm">
-                      <p className="font-medium">{row?.parameter ?? "Gas test no longer offered"}</p>
-                      <dl className="grid gap-2 sm:grid-cols-3">
-                        <div>
-                          <dt className="text-xs text-muted-foreground">Parameter</dt>
-                          <dd>{row?.parameter ?? "—"}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-muted-foreground">Acceptable range</dt>
-                          <dd>
-                            {row ? `${row.minimum}–${row.maximum}` : "—"}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-muted-foreground">Unit</dt>
-                          <dd>{row?.unit ?? "—"}</dd>
-                        </div>
-                      </dl>
-                    </div>
-                  );
-                })}
-            </div>
-          )
+          <div className="grid gap-3">
+            {form.gasTesting.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No gas tests come from this location or the selected assets. Add one for this permit if the job needs it.</p>
+            ) : form.gasTesting.map((item, index) => (
+              <div key={`${item.gasTestingCatalogueId}-${index}`} className={cn("grid gap-2 rounded-xl border border-border p-4 text-sm", item.removedReason && "opacity-60")}>
+                <p className="font-medium">{item.parameter || "Gas test"}{item.sourceName ? ` — ${item.sourceName}` : ""}</p>
+                {item.removedReason ? (
+                  <p>Removed for this permit: {item.removedReason}</p>
+                ) : (
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <label className="grid gap-1">Minimum
+                      <input className={fieldClassName} type="number" value={item.minimum ?? ""} disabled={!siteEditable} onChange={(e) => {
+                        const next = Number(e.target.value);
+                        const baseline = item.gasTestingCatalogueId ? gasBaselines.get(item.gasTestingCatalogueId) : undefined;
+                        if (baseline && e.target.value !== "" && Number.isFinite(next) && next < baseline.minimum) {
+                          setGasLimitError("A limit cannot be loosened.");
+                          return;
+                        }
+                        setGasLimitError(null);
+                        edit((current) => ({ ...current, gasReady: true, gasTesting: current.gasTesting.map((row, i) => i === index ? { ...row, minimum: Number(e.target.value) } : row) }));
+                      }} />
+                    </label>
+                    <label className="grid gap-1">Maximum
+                      <input className={fieldClassName} type="number" value={item.maximum ?? ""} disabled={!siteEditable} onChange={(e) => {
+                        const next = Number(e.target.value);
+                        const baseline = item.gasTestingCatalogueId ? gasBaselines.get(item.gasTestingCatalogueId) : undefined;
+                        if (baseline && e.target.value !== "" && Number.isFinite(next) && next > baseline.maximum) {
+                          setGasLimitError("A limit cannot be loosened.");
+                          return;
+                        }
+                        setGasLimitError(null);
+                        edit((current) => ({ ...current, gasReady: true, gasTesting: current.gasTesting.map((row, i) => i === index ? { ...row, maximum: Number(e.target.value) } : row) }));
+                      }} />
+                    </label>
+                    <p className="self-end text-muted-foreground">{item.unit}</p>
+                  </div>
+                )}
+                {siteEditable && !item.gasTestingCatalogueId ? (
+                  <button type="button" className="justify-self-start text-sm underline" onClick={() => edit((current) => ({ ...current, gasReady: true, gasTesting: current.gasTesting.filter((_, i) => i !== index) }))}>Remove</button>
+                ) : null}
+                {siteEditable && item.gasTestingCatalogueId ? (
+                  item.removedReason ? (
+                    <button type="button" className="justify-self-start text-sm underline" onClick={() => edit((current) => ({ ...current, gasReady: true, gasTesting: current.gasTesting.map((row, i) => i === index ? { ...row, removedReason: "" } : row) }))}>Restore</button>
+                  ) : (
+                    <button type="button" className="justify-self-start text-sm underline" onClick={() => {
+                      const reason = window.prompt("Why is this test not needed for this permit?");
+                      if (!reason?.trim()) return;
+                      edit((current) => ({ ...current, gasReady: true, gasTesting: current.gasTesting.map((row, i) => i === index ? { ...row, removedReason: reason.trim() } : row) }));
+                    }}>Remove for this permit</button>
+                  )
+                ) : null}
+              </div>
+            ))}
+            {siteEditable ? (
+              <div className="grid gap-2 rounded-xl border border-dashed border-border p-4 sm:grid-cols-4">
+                <input className={fieldClassName} placeholder="Parameter" value={extraGas.parameter} onChange={(e) => setExtraGas((current) => ({ ...current, parameter: e.target.value }))} />
+                <input className={fieldClassName} placeholder="Unit" value={extraGas.unit} onChange={(e) => setExtraGas((current) => ({ ...current, unit: e.target.value }))} />
+                <input className={fieldClassName} type="number" placeholder="Minimum" value={extraGas.minimum} onChange={(e) => setExtraGas((current) => ({ ...current, minimum: e.target.value }))} />
+                <input className={fieldClassName} type="number" placeholder="Maximum" value={extraGas.maximum} onChange={(e) => setExtraGas((current) => ({ ...current, maximum: e.target.value }))} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 sm:col-span-4 justify-self-start"
+                  onClick={() => {
+                    const minimum = Number(extraGas.minimum);
+                    const maximum = Number(extraGas.maximum);
+                    if (!extraGas.parameter.trim() || !extraGas.unit.trim() || !(minimum < maximum)) return;
+                    edit((current) => ({
+                      ...current,
+                      gasReady: true,
+                      gasTestingRequired: true,
+                      gasTesting: [...current.gasTesting, {
+                        gasTestingCatalogueId: undefined,
+                        parameter: extraGas.parameter.trim(),
+                        unit: extraGas.unit.trim(),
+                        minimum,
+                        maximum,
+                        sourceName: "Added for this permit",
+                      }],
+                    }));
+                    setExtraGas({ parameter: "", unit: "", minimum: "", maximum: "" });
+                  }}
+                >
+                  Add a test for this permit
+                </Button>
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
         <label className="flex items-center gap-2 text-sm">
@@ -2002,6 +2189,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           status={status}
           attachments={attachments}
           showHeader={false}
+          placeText={[
+            sites.find((row) => row.id === form.siteId)?.name,
+            workLocations.find((row) => row.id === form.workLocationId)?.pathText,
+            form.exactSpot,
+            siteAssets.filter((row) => form.assetIds.includes(row.id)).map((row) => `${row.tag} ${row.name}`).join(", "),
+          ].filter(Boolean).join(" — ")}
           identity={initialDetail ? identityFromPermit(initialDetail.permit) : { version: 1 }}
         />
         {visibleSections.some((section) => missing[section.id].length) ? (

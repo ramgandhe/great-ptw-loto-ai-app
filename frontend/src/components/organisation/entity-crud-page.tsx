@@ -11,6 +11,7 @@ import {
   machineryApi,
   notificationPreferencesApi,
   plantsApi,
+  sitesApi,
   hazardsApi,
   ppeConfigurationsApi,
   safetyChecklistsApi,
@@ -29,10 +30,11 @@ import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
 import { useLeaveGuard } from "@/lib/leave-guard";
 
 /** Lists whose archived records the API can return (see listArchived). */
-const ARCHIVE_VIEW: readonly string[] = ["plants", "departments", "locations", "workflows"];
+const ARCHIVE_VIEW: readonly string[] = ["plants", "sites", "departments", "locations", "workflows"];
 
 const entityApis = {
   plants: plantsApi,
+  sites: sitesApi,
   departments: departmentsApi,
   locations: locationsApi,
   workstations: workstationsApi,
@@ -66,6 +68,9 @@ type EntityCrudPageProps = {
   resource: OrganisationEntityResource;
   fields: EntityField[];
   nameField?: keyof OrgRecord;
+  children?: React.ReactNode;
+  /** Legacy catalogues stay visible and cannot be changed here. */
+  readOnly?: boolean;
 };
 
 function emptyForm(fields: EntityField[]): Record<string, string> {
@@ -94,6 +99,8 @@ export function EntityCrudPage({
   resource,
   fields,
   nameField = "name",
+  children,
+  readOnly = false,
 }: EntityCrudPageProps) {
   const api = entityApis[resource] as EntityApi;
   const parentContext = useContext(EntityParentContext);
@@ -280,12 +287,12 @@ export function EntityCrudPage({
         title={title}
         description={description}
         action={
-          !formOpen ? (
+          readOnly || formOpen ? null : (
             <Button type="button" size="lg" onClick={openCreate}>
               <Plus aria-hidden />
               Add {singular}
             </Button>
-          ) : null
+          )
         }
       >
         {ARCHIVE_VIEW.includes(resource) || items.length > 5 ? (
@@ -347,7 +354,7 @@ export function EntityCrudPage({
         )
       ) : null}
 
-      {formOpen ? (
+      {formOpen && !readOnly ? (
         <form
           ref={formRef}
           onSubmit={handleSubmit}
@@ -431,7 +438,7 @@ export function EntityCrudPage({
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-5 py-10 text-center">
           <p className="font-medium">No {title.toLowerCase()} yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">Add the first {singular} so it can be picked on permits.</p>
+          <p className="mt-1 text-sm text-muted-foreground">{readOnly ? "These records were kept from before sites and assets." : `Add the first ${singular} so it can be picked on permits.`}</p>
         </div>
       ) : visibleItems.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nothing matches &ldquo;{query}&rdquo;.</p>
@@ -462,8 +469,10 @@ export function EntityCrudPage({
               {visibleItems.map((item) => (
                 <tr
                   key={item.id}
-                  className={`row-hover cursor-pointer border-t border-border first:border-t-0 ${editingId === item.id ? "bg-muted/60" : ""}`}
-                  onClick={() => startEdit(item)}
+                  className={`border-t border-border first:border-t-0 ${readOnly ? "" : "row-hover cursor-pointer"} ${editingId === item.id ? "bg-muted/60" : ""}`}
+                  onClick={() => {
+                    if (!readOnly) startEdit(item);
+                  }}
                 >
                   <td className="px-4 py-3 font-medium">{String(item[nameField] ?? "Unnamed")}</td>
                   {parentField ? (
@@ -485,6 +494,7 @@ export function EntityCrudPage({
                     <OrgStatusBadge status={resource === "workflows" ? (item.isCurrent ? "active" : "inactive") : stateOf(item)} />
                   </td>
                   <td className="px-4 py-3">
+                    {readOnly ? null : (
                     <RowActions
                       actions={[
                         { label: "Edit", onClick: () => startEdit(item) },
@@ -497,6 +507,7 @@ export function EntityCrudPage({
                         !item.isCurrent && { label: "Delete", danger: true, onClick: () => void handleArchive(item.id) },
                       ]}
                     />
+                    )}
                   </td>
                 </tr>
               ))}
@@ -504,6 +515,7 @@ export function EntityCrudPage({
           </table>
         </div>
       )}
+      {children}
     </AdminPage>
   );
 }

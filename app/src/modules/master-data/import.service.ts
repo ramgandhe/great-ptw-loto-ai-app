@@ -43,6 +43,28 @@ export interface MasterDataImportFile {
     workstationCode: string;
     description?: string;
   }>;
+  sites?: Array<{
+    code: string;
+    name: string;
+    description?: string;
+    address?: string;
+  }>;
+  workLocations?: Array<{
+    code: string;
+    name: string;
+    siteCode: string;
+    parentCode?: string;
+    description?: string;
+  }>;
+  assets?: Array<{
+    tag: string;
+    name: string;
+    siteCode: string;
+    workLocationCode: string;
+    assetNumber?: string;
+    description?: string;
+    parentTag?: string;
+  }>;
   hazards?: Array<{
     code: string;
     name: string;
@@ -175,6 +197,9 @@ export class ImportService {
       (data.ppe?.length ?? 0) +
       (data.workstations?.length ?? 0) +
       (data.machinery?.length ?? 0) +
+      (data.sites?.length ?? 0) +
+      (data.workLocations?.length ?? 0) +
+      (data.assets?.length ?? 0) +
       (data.hazards?.length ?? 0) +
       (data.checklists?.length ?? 0)
     );

@@ -1,8 +1,9 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, eq, ne } from 'drizzle-orm';
+import { throwInUse } from '../../common/http/in-use';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { ppeCatalogue } from '../../database/schema';
+import { ppeCatalogue, ppeCategories } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import { CreatePpeDto } from './dto/create-ppe.dto';
 import { MasterDataCacheService } from './master-data-cache.service';
@@ -18,6 +19,89 @@ export class PpeService {
     private readonly logService: MasterDataLogService,
     private readonly referenceIntegrity: ReferenceIntegrityService,
   ) {}
+
+  async listCategories(user: AuthenticatedUser) {
+    const tenantId = this.referenceIntegrity.requireTenant(user);
+    return this.db
+      .select()
+      .from(ppeCategories)
+      .where(and(eq(ppeCategories.tenantId, tenantId), ne(ppeCategories.status, 'archived')));
+  }
+
+  async createCategory(name: string, user: AuthenticatedUser) {
+    const tenantId = this.referenceIntegrity.requireTenant(user);
+    const trimmed = name.trim();
+    if (!trimmed) throw new ConflictException('Category name is required');
+    try {
+      const [row] = await this.db
+        .insert(ppeCategories)
+        .values({ tenantId, name: trimmed, createdBy: user.id, updatedBy: user.id })
+        .returning();
+      return row;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('unique')) {
+        throw new ConflictException('This category already exists');
+      }
+      throw error;
+    }
+  }
+
+  async updateCategory(id: string, name: string, user: AuthenticatedUser) {
+    const tenantId = this.referenceIntegrity.requireTenant(user);
+    const trimmed = name.trim();
+    if (!trimmed) throw new ConflictException('Category name is required');
+    const [current] = await this.db
+      .select()
+      .from(ppeCategories)
+      .where(and(eq(ppeCategories.id, id), eq(ppeCategories.tenantId, tenantId)));
+    if (!current) throw new NotFoundException('Category not found');
+    try {
+      const [row] = await this.db
+        .update(ppeCategories)
+        .set({ name: trimmed, updatedBy: user.id, updatedAt: new Date() })
+        .where(and(eq(ppeCategories.id, id), eq(ppeCategories.tenantId, tenantId)))
+        .returning();
+      if (current.name !== trimmed) {
+        await this.db
+          .update(ppeCatalogue)
+          .set({ category: trimmed, updatedAt: new Date() })
+          .where(and(eq(ppeCatalogue.tenantId, tenantId), eq(ppeCatalogue.category, current.name)));
+      }
+      await this.cacheService.invalidate(tenantId, 'ppe');
+      return row;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('unique')) {
+        throw new ConflictException('This category already exists');
+      }
+      throw error;
+    }
+  }
+
+  async deleteCategory(id: string, user: AuthenticatedUser, force = false) {
+    const tenantId = this.referenceIntegrity.requireTenant(user);
+    const [current] = await this.db
+      .select()
+      .from(ppeCategories)
+      .where(and(eq(ppeCategories.id, id), eq(ppeCategories.tenantId, tenantId)));
+    if (!current) throw new NotFoundException('Category not found');
+    const used = await this.db
+      .select({ name: ppeCatalogue.name })
+      .from(ppeCatalogue)
+      .where(and(eq(ppeCatalogue.tenantId, tenantId), eq(ppeCatalogue.category, current.name)))
+      .limit(8);
+    if (used.length > 0 && !force) {
+      throwInUse(used.map((row) => `${row.name} uses this category`));
+    }
+    if (force) {
+      await this.db
+        .update(ppeCatalogue)
+        .set({ category: 'Uncategorised', updatedAt: new Date() })
+        .where(and(eq(ppeCatalogue.tenantId, tenantId), eq(ppeCatalogue.category, current.name)));
+    }
+    await this.db.delete(ppeCategories).where(and(eq(ppeCategories.id, id), eq(ppeCategories.tenantId, tenantId)));
+    await this.cacheService.invalidate(tenantId, 'ppe');
+    return { deleted: true };
+  }
 
   async create(dto: CreatePpeDto, user: AuthenticatedUser) {
     const tenantId = this.referenceIntegrity.requireTenant(user);

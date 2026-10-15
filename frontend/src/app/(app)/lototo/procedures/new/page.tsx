@@ -6,7 +6,7 @@ import { LototoProcedureEditor } from "@/components/lototo/procedure-editor";
 
 function NewProcedure() {
   const params = useSearchParams();
-  return <LototoProcedureEditor initialMachineryId={params.get("machineryId") ?? undefined} />;
+  return <LototoProcedureEditor initialMachineryId={params.get("assetId") ?? params.get("machineryId") ?? undefined} />;
 }
 
 export default function NewLototoProcedurePage() {

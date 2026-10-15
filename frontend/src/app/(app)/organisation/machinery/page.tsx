@@ -21,9 +21,10 @@ export default function MachineryPage() {
     <>
       <EntityCrudPage
         title="Machinery"
-        description="Manage machinery linked to workstations. LOTOTO procedures for each machine are listed below."
+        description="Kept from before the asset register. Read only. LOTOTO now hangs off an asset."
         resource="machinery"
         fields={fields}
+        readOnly
       />
       <MachineryLototoList />
     </>
@@ -41,9 +42,9 @@ function MachineryLototoList() {
 
   return (
     <section className={useContext(AdminEmbedContext) ? "" : "px-4 pb-8 sm:px-8"}>
-      <h2 className="mb-3 text-sm font-semibold">LOTOTO by machinery</h2>
+      <h2 className="mb-3 text-sm font-semibold">LOTOTO kept on these machines</h2>
       {machinery.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Add machinery above, then attach LOTOTO procedures.</p>
+        <p className="text-sm text-muted-foreground">No machinery records.</p>
       ) : (
         <div className="grid gap-3">
           {machinery.map((item) => {
@@ -52,9 +53,6 @@ function MachineryLototoList() {
               <div key={item.id} className="rounded-lg border border-border bg-card p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-medium">{item.name}</h3>
-                  <Link href={`/lototo/procedures/new?machineryId=${item.id}`}>
-                    <span className="text-sm text-primary underline">Add LOTOTO</span>
-                  </Link>
                 </div>
                 {itemProcedures.length === 0 ? (
                   <p className="mt-2 text-sm text-muted-foreground">No LOTOTO procedures yet.</p>

@@ -22,6 +22,10 @@ function toggle(list: string[], id: string, on: boolean) {
   return on ? [...new Set([...list, id])] : list.filter((item) => item !== id);
 }
 
+function gasReadingKey(row: { id: string; gasTestingCatalogueId: string | null }) {
+  return row.gasTestingCatalogueId ?? row.id;
+}
+
 export function StartExecutionSteps({
   permitId,
   detail,
@@ -71,11 +75,16 @@ export function StartExecutionSteps({
   const locationDone = locationItems.every((item) => start.hazardControls.includes(item.key));
   const ppeDone = ppeItems.every((item) => start.ppeIds.includes(item.ppeCatalogueId));
   const lototoDone = !lototoRequired || lototoIsolated || start.lototoVerified;
+  const gasItems = detail.gasTesting.filter((row) => !row.removedReason?.trim());
   const gasDone =
     !gasRequired ||
-    form.gasTesting
-      .filter((row) => row.gasTestingCatalogueId)
-      .every((row) => start.gasReadings.some((reading) => reading.gasTestingCatalogueId === row.gasTestingCatalogueId && !Number.isNaN(reading.value)));
+    gasItems.every((row) => {
+      const reading = start.gasReadings.find((item) => item.gasTestingCatalogueId === gasReadingKey(row));
+      if (!reading || Number.isNaN(reading.value)) return false;
+      if (row.minimum != null && reading.value < row.minimum) return false;
+      if (row.maximum != null && reading.value > row.maximum) return false;
+      return true;
+    });
 
   const canAdvance = [
     start.toolboxTalk,
@@ -174,14 +183,28 @@ export function StartExecutionSteps({
 
       {step === 4 ? (
         gasRequired ? (
-          <div className="grid gap-3">
-            {form.gasTesting
-              .filter((row) => row.gasTestingCatalogueId)
-              .map((row) => {
-                const reading = start.gasReadings.find((item) => item.gasTestingCatalogueId === row.gasTestingCatalogueId);
+          gasItems.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No gas tests on this permit. Continue.</p>
+          ) : (
+            <div className="grid gap-3">
+              {gasItems.map((row) => {
+                const key = gasReadingKey(row);
+                const reading = start.gasReadings.find((item) => item.gasTestingCatalogueId === key);
+                const outOfRange =
+                  reading != null &&
+                  ((row.minimum != null && reading.value < row.minimum) ||
+                    (row.maximum != null && reading.value > row.maximum));
+                const range =
+                  row.minimum != null && row.maximum != null
+                    ? `${row.minimum}–${row.maximum}${row.unit ? ` ${row.unit}` : ""}`
+                    : "";
                 return (
-                  <label key={row.gasTestingCatalogueId} className="grid gap-1 text-sm">
-                    Reading
+                  <label key={key} className="grid gap-1 text-sm">
+                    <span>
+                      {row.parameter || "Gas test"}
+                      {row.unit ? ` (${row.unit})` : ""}
+                      {range ? `, ${range}` : ""}
+                    </span>
                     <input
                       type="number"
                       step="any"
@@ -191,17 +214,21 @@ export function StartExecutionSteps({
                         onChange({
                           ...start,
                           gasReadings: [
-                            ...start.gasReadings.filter((item) => item.gasTestingCatalogueId !== row.gasTestingCatalogueId),
-                            { gasTestingCatalogueId: row.gasTestingCatalogueId, value },
+                            ...start.gasReadings.filter((item) => item.gasTestingCatalogueId !== key),
+                            { gasTestingCatalogueId: key, value },
                           ].filter((item) => !Number.isNaN(item.value)),
                         });
                       }}
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     />
+                    {outOfRange ? (
+                      <span className="text-destructive">Enter a value inside {range}.</span>
+                    ) : null}
                   </label>
                 );
               })}
-          </div>
+            </div>
+          )
         ) : (
           <p className="text-sm text-muted-foreground">Gas testing is not required for this permit (N/A).</p>
         )

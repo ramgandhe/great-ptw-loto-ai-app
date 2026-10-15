@@ -5,7 +5,7 @@ describe('organisation setup areas (S3)', () => {
     const inAreas = SETUP_AREAS.flatMap((area) => area.steps);
     expect([...inAreas].sort()).toEqual(SETUP_STEPS.map((step) => step.key).sort());
     expect(new Set(inAreas).size).toBe(inAreas.length);
-    expect(areaOf('locations')).toBe('sites');
+    expect(areaOf('work-locations')).toBe('sites');
     expect(areaOf('workflows')).toBe('people');
   });
 
@@ -13,9 +13,9 @@ describe('organisation setup areas (S3)', () => {
     const measures = Object.fromEntries(SETUP_STEPS.map((step) => [step.key, step.key === 'profile' ? 1 : 1]));
     expect(configurationGaps(measures)).toEqual({ missing: [], unknown: [] });
 
-    const { missing, unknown } = configurationGaps({ ...measures, plants: 0, machinery: 0, workflows: undefined });
-    // Machinery is optional, so an empty list is not a gap; a failed read is unknown, never "missing".
-    expect(missing.map((step) => step.key)).toEqual(['plants']);
+    const { missing, unknown } = configurationGaps({ ...measures, sites: 0, assets: 0, workflows: undefined });
+    // Assets are optional, so an empty list is not a gap; a failed read is unknown, never "missing".
+    expect(missing.map((step) => step.key)).toEqual(['sites']);
     expect(unknown.map((step) => step.key)).toEqual(['workflows']);
   });
 

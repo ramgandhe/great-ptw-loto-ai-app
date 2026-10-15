@@ -10,6 +10,7 @@ import { and, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
+  assets,
   isolationPoints,
   lototoPlans,
   machineryCatalogue,
@@ -49,6 +50,33 @@ export class LototoValidationService {
     }
 
     return plan;
+  }
+
+  /** An asset is the target. A machinery id is accepted and linked when that id is also an asset. */
+  async resolveAssetLink(tenantId: string, input: { assetId?: string | null; machineryId?: string | null }) {
+    const requestedAsset = input.assetId ?? null;
+    const requestedMachinery = input.machineryId ?? null;
+    if (!requestedAsset && !requestedMachinery) {
+      throw new BadRequestException('An asset is required');
+    }
+    if (requestedAsset) {
+      const [asset] = await this.db
+        .select({ id: assets.id })
+        .from(assets)
+        .where(and(eq(assets.id, requestedAsset), eq(assets.tenantId, tenantId)));
+      if (!asset) throw new NotFoundException('Asset not found');
+      const [machinery] = await this.db
+        .select({ id: machineryCatalogue.id })
+        .from(machineryCatalogue)
+        .where(and(eq(machineryCatalogue.id, requestedAsset), eq(machineryCatalogue.tenantId, tenantId)));
+      return { assetId: asset.id, machineryId: machinery?.id ?? requestedMachinery };
+    }
+    await this.assertMachineryExists(tenantId, requestedMachinery!);
+    const [asset] = await this.db
+      .select({ id: assets.id })
+      .from(assets)
+      .where(and(eq(assets.id, requestedMachinery!), eq(assets.tenantId, tenantId)));
+    return { assetId: asset?.id ?? null, machineryId: requestedMachinery };
   }
 
   async assertMachineryExists(tenantId: string, machineryId: string): Promise<void> {

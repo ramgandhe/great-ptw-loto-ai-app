@@ -1,9 +1,10 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import * as schema from './schema';
 import {
   organisations,
+  industries,
   permitTypes,
   platformMetadata,
 } from './schema';
@@ -91,6 +92,13 @@ async function seed(): Promise<void> {
     .onConflictDoNothing();
 
   console.log('Seeding demo organisation...');
+  const [fallbackIndustry] = await db
+    .select({ id: industries.id })
+    .from(industries)
+    .where(eq(industries.isFallback, true));
+  if (!fallbackIndustry) {
+    throw new Error('Default industry is missing. Run migrations first.');
+  }
   await db
     .insert(organisations)
     .values({
@@ -98,6 +106,7 @@ async function seed(): Promise<void> {
       name: 'Demo Organisation',
       legalName: 'Demo Organisation Ltd',
       registrationNumber: 'DEMO-001',
+      industryId: fallbackIndustry.id,
       createdBy: SEED_ACTOR_ID,
       updatedBy: SEED_ACTOR_ID,
     })

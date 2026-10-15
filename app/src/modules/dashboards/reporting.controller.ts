@@ -18,7 +18,10 @@ export class ReportingController {
   @Roles(...DASHBOARD_REPORT_ROLES)
   @Get('view')
   view(@Query() query: ReportViewQueryDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.insightsService.viewReport(user, query.type, query.days ?? 30);
+    return this.insightsService.viewReport(user, query.type, query.days ?? 30, {
+      siteId: query.siteId,
+      workLocationId: query.workLocationId,
+    });
   }
 
   @Roles(...DASHBOARD_REPORT_ROLES)

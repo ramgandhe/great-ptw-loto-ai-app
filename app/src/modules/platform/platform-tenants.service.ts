@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from 'crypto';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -9,16 +10,19 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { desc, eq, sql } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
+import { throwInUse } from '../../common/http/in-use';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { organisations, tenantInvites, tenantUsers } from '../../database/schema';
+import { industries, organisations, sites, tenantInvites, tenantUsers } from '../../database/schema';
 import { KeycloakAdminService } from '../../infrastructure/keycloak/keycloak-admin.service';
 import { optionalUuid } from '../../common/helpers/optional-uuid';
 import { AuditService } from '../logging/audit.service';
-import { CreateTenantDto } from './dto/create-tenant.dto';
+import { CreateTenantDto, IndustryNameDto, UpdateTenantDto } from './dto/create-tenant.dto';
+import { defaultSiteLabel, formatOrganisationAddress } from './tenant-site';
 import { ensureDefaultApprovalWorkflow } from '../approval/ensure-default-workflow';
 import { ensureDefaultHazards } from '../master-data/default-hazards';
 import { ensureDefaultPermitTypes } from '../master-data/default-permit-types';
 import { ensureReferenceTemplates } from '../organisation/ensure-reference-templates';
+import { ensureDefaultPlaceCatalogues } from '../place/default-catalogues';
 
 @Injectable()
 export class PlatformTenantsService {
@@ -31,8 +35,24 @@ export class PlatformTenantsService {
 
   async listTenants() {
     const orgs = await this.db
-      .select()
+      .select({
+        id: organisations.id,
+        tenantId: organisations.tenantId,
+        name: organisations.name,
+        ownerEmail: organisations.ownerEmail,
+        status: organisations.status,
+        createdAt: organisations.createdAt,
+        about: organisations.about,
+        industryId: organisations.industryId,
+        industryName: industries.name,
+        addressLine1: organisations.addressLine1,
+        addressLine2: organisations.addressLine2,
+        addressState: organisations.addressState,
+        addressCountry: organisations.addressCountry,
+        addressPin: organisations.addressPin,
+      })
       .from(organisations)
+      .innerJoin(industries, eq(organisations.industryId, industries.id))
       .orderBy(desc(organisations.createdAt));
     const invites = await this.db.select().from(tenantInvites);
     const inviteByOrg = new Map<(typeof invites)[number]['organisationId'], (typeof invites)[number]>();
@@ -43,18 +63,10 @@ export class PlatformTenantsService {
       }
     }
 
-    return orgs.map((org) => {
-      const invite = inviteByOrg.get(org.id);
-      return {
-        id: org.id,
-        tenantId: org.tenantId,
-        name: org.name,
-        ownerEmail: org.ownerEmail,
-        status: org.status,
-        createdAt: org.createdAt,
-        inviteStatus: invite?.status ?? null,
-      };
-    });
+    return orgs.map((org) => ({
+      ...org,
+      inviteStatus: inviteByOrg.get(org.id)?.status ?? null,
+    }));
   }
 
   async getInviteByToken(token: string) {
@@ -147,6 +159,8 @@ export class PlatformTenantsService {
       throw new ConflictException('This email already belongs to an organisation');
     }
 
+    await this.requireIndustry(dto.industryId);
+
     const leftoverLogin = await this.keycloakAdmin.inspectLoginByEmail(ownerEmail);
     if (leftoverLogin) {
       if (!leftoverLogin.tenantId) {
@@ -184,10 +198,34 @@ export class PlatformTenantsService {
             tenantId,
             name: organisationName,
             ownerEmail,
+            about: dto.about?.trim() || null,
+            industryId: dto.industryId,
+            addressLine1: dto.addressLine1.trim(),
+            addressLine2: dto.addressLine2?.trim() || null,
+            addressState: dto.state.trim(),
+            addressCountry: dto.country.trim(),
+            addressPin: dto.pin.trim(),
             createdBy: actorId,
             updatedBy: actorId,
           })
           .returning();
+
+        const site = defaultSiteLabel(organisationName, dto.addressLine1);
+        await tx.insert(sites).values({
+          tenantId,
+          code: site.code,
+          name: site.name,
+          description: site.name,
+          address: formatOrganisationAddress({
+            addressLine1: dto.addressLine1,
+            addressLine2: dto.addressLine2,
+            state: dto.state,
+            country: dto.country,
+            pin: dto.pin,
+          }),
+          createdBy: actorId,
+          updatedBy: actorId,
+        });
 
         const [invite] = await tx
           .insert(tenantInvites)
@@ -220,6 +258,7 @@ export class PlatformTenantsService {
         const catalogueActor = actorId ?? keycloakUser.id;
         await ensureDefaultPermitTypes(tx, tenantId, catalogueActor);
         await ensureDefaultHazards(tx, tenantId, catalogueActor);
+        await ensureDefaultPlaceCatalogues(tx, tenantId, catalogueActor);
         await ensureReferenceTemplates(tx, tenantId, catalogueActor);
 
         return { organisation, invite };
@@ -251,6 +290,92 @@ export class PlatformTenantsService {
       await this.keycloakAdmin.deleteUserById(keycloakUser.id).catch(() => undefined);
       throw error;
     }
+  }
+
+  async updateTenant(id: string, dto: UpdateTenantDto, actor: AuthenticatedUser) {
+    const org = await this.getManagedOrganisation(id);
+    await this.requireIndustry(dto.industryId);
+    const actorId = optionalUuid(actor.id);
+    const [updated] = await this.db
+      .update(organisations)
+      .set({
+        name: dto.organisationName.trim(),
+        about: dto.about?.trim() || null,
+        industryId: dto.industryId,
+        addressLine1: dto.addressLine1.trim(),
+        addressLine2: dto.addressLine2?.trim() || null,
+        addressState: dto.state.trim(),
+        addressCountry: dto.country.trim(),
+        addressPin: dto.pin.trim(),
+        updatedBy: actorId,
+        updatedAt: new Date(),
+      })
+      .where(eq(organisations.id, org.id))
+      .returning({ id: organisations.id });
+
+    await this.auditService.log({
+      action: 'tenant.updated',
+      entityType: 'organisation',
+      entityId: org.id,
+      userId: actorId,
+      tenantId: org.tenantId,
+    });
+
+    const [row] = (await this.listTenants()).filter((tenant) => tenant.id === updated.id);
+    return row;
+  }
+
+  async listIndustries() {
+    return this.db.select().from(industries).orderBy(industries.isFallback, industries.name);
+  }
+
+  async createIndustry(dto: IndustryNameDto, actor: AuthenticatedUser) {
+    const name = dto.name.trim();
+    await this.assertIndustryNameFree(name);
+    const actorId = optionalUuid(actor.id);
+    const [row] = await this.db
+      .insert(industries)
+      .values({ name, isFallback: false, createdBy: actorId, updatedBy: actorId })
+      .returning();
+    return row;
+  }
+
+  async updateIndustry(id: string, dto: IndustryNameDto, actor: AuthenticatedUser) {
+    const industry = await this.getIndustry(id);
+    const name = dto.name.trim();
+    await this.assertIndustryNameFree(name, industry.id);
+    const [row] = await this.db
+      .update(industries)
+      .set({ name, updatedBy: optionalUuid(actor.id), updatedAt: new Date() })
+      .where(eq(industries.id, industry.id))
+      .returning();
+    return row;
+  }
+
+  async deleteIndustry(id: string, actor: AuthenticatedUser, force: boolean) {
+    const industry = await this.getIndustry(id);
+    if (industry.isFallback) {
+      throw new BadRequestException('Others is the default industry and cannot be removed');
+    }
+    const assigned = await this.db
+      .select({ name: organisations.name })
+      .from(organisations)
+      .where(eq(organisations.industryId, industry.id));
+    if (assigned.length > 0 && !force) {
+      throwInUse(assigned.slice(0, 8).map((row) => `${row.name} uses this industry`));
+    }
+    const fallback = await this.requireFallback();
+    const actorId = optionalUuid(actor.id);
+    await this.db.transaction(async (tx) => {
+      if (assigned.length > 0) {
+        await tx
+          .update(organisations)
+          .set({ industryId: fallback.id, updatedBy: actorId, updatedAt: new Date() })
+          .where(eq(organisations.industryId, industry.id));
+      }
+      await tx.delete(industries).where(eq(industries.id, industry.id));
+    });
+    return { id: industry.id, deleted: true };
   }
 
   async disableTenant(id: string, actor: AuthenticatedUser) {
@@ -367,5 +492,39 @@ export class PlatformTenantsService {
       throw new NotFoundException('Organisation not found');
     }
     return org;
+  }
+
+  private async getIndustry(id: string) {
+    const [row] = await this.db.select().from(industries).where(eq(industries.id, id));
+    if (!row) {
+      throw new NotFoundException('Industry not found');
+    }
+    return row;
+  }
+
+  private async requireIndustry(id: string) {
+    const [row] = await this.db.select({ id: industries.id }).from(industries).where(eq(industries.id, id));
+    if (!row) {
+      throw new BadRequestException('Choose an industry from the list');
+    }
+    return row;
+  }
+
+  private async requireFallback() {
+    const [row] = await this.db.select().from(industries).where(eq(industries.isFallback, true));
+    if (!row) {
+      throw new BadRequestException('Default industry is not configured');
+    }
+    return row;
+  }
+
+  private async assertIndustryNameFree(name: string, exceptId?: string) {
+    const [existing] = await this.db
+      .select({ id: industries.id })
+      .from(industries)
+      .where(sql`lower(${industries.name}) = ${name.toLowerCase()}`);
+    if (existing && existing.id !== exceptId) {
+      throw new ConflictException('An industry with this name already exists');
+    }
   }
 }

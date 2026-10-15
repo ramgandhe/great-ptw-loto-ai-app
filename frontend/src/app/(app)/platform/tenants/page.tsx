@@ -12,26 +12,62 @@ import { ApiError } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import {
   accessRequestsApi,
+  industriesApi,
   platformTenantsApi,
   type AccessRequest,
   type CreatedTenant,
+  type Industry,
   type PlatformTenant,
 } from "@/lib/platform/api";
 import { Button } from "@/components/ui/button";
 
-const EMPTY_FORM = { organisationName: "", ownerEmail: "", ownerFirstName: "", ownerLastName: "" };
+type TenantForm = {
+  organisationName: string;
+  ownerEmail: string;
+  ownerFirstName: string;
+  ownerLastName: string;
+  about: string;
+  industryId: string;
+  addressLine1: string;
+  addressLine2: string;
+  state: string;
+  country: string;
+  pin: string;
+};
 
-const FORM_FIELDS = [
-  ["organisationName", "Organisation name", true],
-  ["ownerEmail", "Owner email", true],
-  ["ownerFirstName", "Owner first name", false],
-  ["ownerLastName", "Owner last name", false],
-] as const;
+const EMPTY_FORM: TenantForm = {
+  organisationName: "",
+  ownerEmail: "",
+  ownerFirstName: "",
+  ownerLastName: "",
+  about: "",
+  industryId: "",
+  addressLine1: "",
+  addressLine2: "",
+  state: "",
+  country: "",
+  pin: "",
+};
+
+function profileOf(form: TenantForm) {
+  return {
+    organisationName: form.organisationName.trim(),
+    about: form.about.trim() || undefined,
+    industryId: form.industryId,
+    addressLine1: form.addressLine1.trim(),
+    addressLine2: form.addressLine2.trim() || undefined,
+    state: form.state.trim(),
+    country: form.country.trim(),
+    pin: form.pin.trim(),
+  };
+}
 
 export default function PlatformTenantsPage() {
   const [tenants, setTenants] = useState<PlatformTenant[]>([]);
+  const [industries, setIndustries] = useState<Industry[]>([]);
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [created, setCreated] = useState<CreatedTenant | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,16 +90,41 @@ export default function PlatformTenantsPage() {
       .list()
       .then(setRequests)
       .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load access requests"));
-    Promise.all([loadTenants(), loadRequests]).finally(() => setLoading(false));
+    const loadIndustries = industriesApi
+      .list()
+      .then(setIndustries)
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load industries"));
+    Promise.all([loadTenants(), loadRequests, loadIndustries]).finally(() => setLoading(false));
   }, []);
 
   const visibleTenants = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? tenants.filter((t) => [t.name, t.ownerEmail].some((v) => v?.toLowerCase().includes(q))) : tenants;
+    return q ? tenants.filter((t) => [t.name, t.ownerEmail, t.industryName].some((v) => v?.toLowerCase().includes(q))) : tenants;
   }, [tenants, query]);
 
   function openForm(prefill = EMPTY_FORM) {
+    setEditingId(null);
     setForm(prefill);
+    setCreated(null);
+    setFormOpen(true);
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+  }
+
+  function openEdit(tenant: PlatformTenant) {
+    setEditingId(tenant.id);
+    setForm({
+      organisationName: tenant.name,
+      ownerEmail: tenant.ownerEmail ?? "",
+      ownerFirstName: "",
+      ownerLastName: "",
+      about: tenant.about ?? "",
+      industryId: tenant.industryId,
+      addressLine1: tenant.addressLine1 ?? "",
+      addressLine2: tenant.addressLine2 ?? "",
+      state: tenant.addressState ?? "",
+      country: tenant.addressCountry ?? "",
+      pin: tenant.addressPin ?? "",
+    });
     setCreated(null);
     setFormOpen(true);
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
@@ -71,12 +132,14 @@ export default function PlatformTenantsPage() {
 
   function closeForm() {
     setForm(EMPTY_FORM);
+    setEditingId(null);
     setFormOpen(false);
   }
 
   function inviteFromRequest(request: AccessRequest) {
     const [firstName, ...rest] = request.fullName.split(" ");
     openForm({
+      ...EMPTY_FORM,
       organisationName: request.companyName,
       ownerEmail: request.workEmail,
       ownerFirstName: firstName ?? "",
@@ -84,24 +147,31 @@ export default function PlatformTenantsPage() {
     });
   }
 
-  async function handleCreate(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setSaving(true);
     setError(null);
+    const profile = profileOf(form);
     try {
-      const result = await platformTenantsApi.create({
-        organisationName: form.organisationName.trim(),
-        ownerEmail: form.ownerEmail.trim(),
-        ownerFirstName: form.ownerFirstName.trim() || undefined,
-        ownerLastName: form.ownerLastName.trim() || undefined,
-      });
-      toast(`${form.organisationName.trim()} invited`);
-      closeForm();
-      setCreated(result);
+      if (editingId) {
+        await platformTenantsApi.update(editingId, profile);
+        toast(`${profile.organisationName} updated`);
+        closeForm();
+      } else {
+        const result = await platformTenantsApi.create({
+          ...profile,
+          ownerEmail: form.ownerEmail.trim(),
+          ownerFirstName: form.ownerFirstName.trim() || undefined,
+          ownerLastName: form.ownerLastName.trim() || undefined,
+        });
+        toast(`${profile.organisationName} invited`);
+        closeForm();
+        setCreated(result);
+      }
       setView("organisations");
       await loadTenants();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to create tenant");
+      setError(err instanceof ApiError ? err.message : editingId ? "Failed to update tenant" : "Failed to create tenant");
     } finally {
       setSaving(false);
     }
@@ -198,30 +268,156 @@ export default function PlatformTenantsPage() {
       {formOpen ? (
         <form
           ref={formRef}
-          onSubmit={handleCreate}
+          onSubmit={handleSubmit}
           className="reveal-in grid scroll-mt-[calc(4.5rem+var(--page-head-h,0px))] gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2"
         >
-          <h2 className="font-semibold sm:col-span-2">Invite organisation owner</h2>
-          {FORM_FIELDS.map(([key, label, required]) => (
-            <label key={key} className="grid gap-1.5 text-sm">
-              <span className="font-medium">
-                {label}
-                {required ? "" : <span className="font-normal text-muted-foreground"> (optional)</span>}
-              </span>
+          <h2 className="font-semibold sm:col-span-2">{editingId ? "Edit tenant" : "Invite organisation owner"}</h2>
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-medium">Organisation name</span>
+            <input
+              required
+              autoFocus
+              pattern={NAME_PATTERN}
+              title={NAME_HINT}
+              maxLength={255}
+              value={form.organisationName}
+              className={FIELD_CLASS}
+              onChange={(e) => setForm((prev) => ({ ...prev, organisationName: e.target.value }))}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-medium">Owner email</span>
+            <input
+              required
+              type="email"
+              disabled={Boolean(editingId)}
+              value={form.ownerEmail}
+              className={FIELD_CLASS}
+              onChange={(e) => setForm((prev) => ({ ...prev, ownerEmail: e.target.value }))}
+            />
+          </label>
+          {editingId ? null : (
+            <>
+              <label className="grid gap-1.5 text-sm">
+                <span className="font-medium">
+                  Owner first name<span className="font-normal text-muted-foreground"> (optional)</span>
+                </span>
+                <input
+                  pattern={NAME_PATTERN}
+                  title={NAME_HINT}
+                  maxLength={255}
+                  value={form.ownerFirstName}
+                  className={FIELD_CLASS}
+                  onChange={(e) => setForm((prev) => ({ ...prev, ownerFirstName: e.target.value }))}
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm">
+                <span className="font-medium">
+                  Owner last name<span className="font-normal text-muted-foreground"> (optional)</span>
+                </span>
+                <input
+                  pattern={NAME_PATTERN}
+                  title={NAME_HINT}
+                  maxLength={255}
+                  value={form.ownerLastName}
+                  className={FIELD_CLASS}
+                  onChange={(e) => setForm((prev) => ({ ...prev, ownerLastName: e.target.value }))}
+                />
+              </label>
+            </>
+          )}
+          <label className="grid gap-1.5 text-sm sm:col-span-2">
+            <span className="font-medium">
+              About<span className="font-normal text-muted-foreground"> (optional)</span>
+            </span>
+            <textarea
+              maxLength={2000}
+              value={form.about}
+              className="min-h-24 rounded-lg border border-border bg-background px-3 py-2 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              onChange={(e) => setForm((prev) => ({ ...prev, about: e.target.value }))}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm sm:col-span-2">
+            <span className="font-medium">Industry</span>
+            <select
+              required
+              value={form.industryId}
+              className={FIELD_CLASS}
+              onChange={(e) => setForm((prev) => ({ ...prev, industryId: e.target.value }))}
+            >
+              <option value="">Please select an industry..</option>
+              {industries.map((industry) => (
+                <option key={industry.id} value={industry.id}>
+                  {industry.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
+            <h3 className="font-medium sm:col-span-2">Address</h3>
+            <label className="grid gap-1.5 text-sm sm:col-span-2">
+              <span className="font-medium">Address line 1</span>
               <input
-                required={required}
-                autoFocus={key === "organisationName"}
-                type={key === "ownerEmail" ? "email" : "text"}
-                {...(key === "ownerEmail" ? {} : { pattern: NAME_PATTERN, title: NAME_HINT, maxLength: 255 })}
-                value={form[key]}
+                required
+                pattern={NAME_PATTERN}
+                title={NAME_HINT}
+                maxLength={255}
+                value={form.addressLine1}
                 className={FIELD_CLASS}
-                onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                onChange={(e) => setForm((prev) => ({ ...prev, addressLine1: e.target.value }))}
               />
             </label>
-          ))}
+            <label className="grid gap-1.5 text-sm sm:col-span-2">
+              <span className="font-medium">
+                Address line 2<span className="font-normal text-muted-foreground"> (optional)</span>
+              </span>
+              <input
+                pattern={NAME_PATTERN}
+                title={NAME_HINT}
+                maxLength={255}
+                value={form.addressLine2}
+                className={FIELD_CLASS}
+                onChange={(e) => setForm((prev) => ({ ...prev, addressLine2: e.target.value }))}
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="font-medium">State</span>
+              <input
+                required
+                pattern={NAME_PATTERN}
+                title={NAME_HINT}
+                maxLength={128}
+                value={form.state}
+                className={FIELD_CLASS}
+                onChange={(e) => setForm((prev) => ({ ...prev, state: e.target.value }))}
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="font-medium">Country</span>
+              <input
+                required
+                pattern={NAME_PATTERN}
+                title={NAME_HINT}
+                maxLength={128}
+                value={form.country}
+                className={FIELD_CLASS}
+                onChange={(e) => setForm((prev) => ({ ...prev, country: e.target.value }))}
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="font-medium">PIN</span>
+              <input
+                required
+                maxLength={32}
+                value={form.pin}
+                className={FIELD_CLASS}
+                onChange={(e) => setForm((prev) => ({ ...prev, pin: e.target.value }))}
+              />
+            </label>
+          </div>
           <div className="flex flex-wrap gap-2 sm:col-span-2">
             <Button type="submit" disabled={saving}>
-              {saving ? "Inviting…" : "Invite organisation"}
+              {saving ? "Saving…" : editingId ? "Save tenant" : "Invite organisation"}
             </Button>
             <Button type="button" variant="ghost" onClick={closeForm}>
               Cancel
@@ -296,6 +492,7 @@ export default function PlatformTenantsPage() {
             <thead className="table-tone text-left text-xs">
               <tr className="border-b border-border">
                 <th className="px-4 py-2.5 font-medium">Name</th>
+                <th className="px-4 py-2.5 font-medium">Industry</th>
                 <th className="px-4 py-2.5 font-medium">Owner email</th>
                 <th className="px-4 py-2.5 font-medium">Invite</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
@@ -308,6 +505,7 @@ export default function PlatformTenantsPage() {
               {visibleTenants.map((tenant) => (
                 <tr key={tenant.id} className="row-hover border-t border-border first:border-t-0">
                   <td className="px-4 py-3 font-medium">{tenant.name}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{tenant.industryName}</td>
                   <td className="px-4 py-3 text-muted-foreground">{tenant.ownerEmail ?? ""}</td>
                   <td className="px-4 py-3 text-muted-foreground">{tenant.inviteStatus ?? ""}</td>
                   <td className="px-4 py-3">
@@ -316,6 +514,7 @@ export default function PlatformTenantsPage() {
                   <td className="px-4 py-3">
                     <RowActions
                       actions={[
+                        { label: "Edit", disabled: actingId === tenant.id, onClick: () => openEdit(tenant) },
                         tenant.status === "disabled"
                           ? {
                               label: "Activate",

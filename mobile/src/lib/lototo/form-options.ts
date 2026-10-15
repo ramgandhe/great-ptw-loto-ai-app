@@ -1,6 +1,4 @@
 import { getProfile } from "@/lib/auth/api";
-import { listMachinery, listWorkstations } from "@/lib/organisation/api";
-import type { MachineryRecord } from "@/lib/organisation/types";
 import { listWorkforceDirectory } from "@/lib/workforce/api";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { listLototoEligiblePermits } from "./permit-eligibility";
@@ -29,8 +27,6 @@ export const ASSIGNMENT_ROLE_OPTIONS: { value: LototoAssignmentRole; label: stri
 
 export type LototoFormOptions = {
   permits: Awaited<ReturnType<typeof listLototoEligiblePermits>>;
-  workstations: Awaited<ReturnType<typeof listWorkstations>>;
-  machinery: MachineryRecord[];
   personnel: WorkforceRecord[];
 };
 
@@ -57,28 +53,14 @@ function mergePersonnel(
 }
 
 export async function loadLototoFormOptions(): Promise<LototoFormOptions> {
-  const [permits, workstations, machinery, workforce, profile] = await Promise.all([
+  const [permits, workforce, profile] = await Promise.all([
     listLototoEligiblePermits(),
-    listWorkstations(),
-    listMachinery(),
     listWorkforceDirectory().catch(() => [] as WorkforceRecord[]),
     getProfile(),
   ]);
 
   return {
     permits,
-    workstations,
-    machinery,
     personnel: mergePersonnel(workforce, profile),
   };
-}
-
-export function filterMachineryByWorkstation(
-  machinery: MachineryRecord[],
-  workstationId?: string | null,
-): MachineryRecord[] {
-  if (!workstationId) {
-    return machinery;
-  }
-  return machinery.filter((item) => item.workstationId === workstationId);
 }

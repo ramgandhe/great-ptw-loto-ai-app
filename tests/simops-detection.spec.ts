@@ -3,8 +3,10 @@ import {
   buildFingerprint,
   clusterConflicts,
   detectConflicts,
+  detectLocationWarnings,
   detectPairConflict,
   excludeResolvedOverlaps,
+  isParentChildLocation,
   schedulesOverlap,
   type PermitForAnalysis,
 } from '../app/src/modules/simops/conflict-detection.service';
@@ -68,6 +70,66 @@ describe('SIMOPS conflict detection (PUS-166)', () => {
     const conflict = detectPairConflict(a, b);
     expect(conflict?.conflictType).toBe('location');
     expect(conflict?.severity).toBe('medium');
+  });
+
+  it('treats the same work location or the same asset as a conflict', () => {
+    const locationId = randomUUID();
+    const assetId = randomUUID();
+    const area = permit({
+      workLocationId: locationId,
+      workstationId: null,
+      machineryId: null,
+      assetIds: [],
+      locationChain: [locationId],
+    });
+    const samePlace = permit({
+      id: randomUUID(),
+      workLocationId: locationId,
+      workstationId: null,
+      machineryId: null,
+      assetIds: [randomUUID()],
+      locationChain: [locationId],
+    });
+    const sameAsset = permit({
+      id: randomUUID(),
+      workLocationId: randomUUID(),
+      workstationId: null,
+      machineryId: null,
+      assetIds: [assetId],
+      locationChain: [randomUUID()],
+    });
+    const withAsset = permit({
+      ...area,
+      id: randomUUID(),
+      assetIds: [assetId],
+    });
+
+    expect(detectPairConflict(area, samePlace)?.conflictType).toBe('location');
+    expect(detectPairConflict(withAsset, sameAsset)?.conflictType).toBe('equipment');
+  });
+
+  it('warns when one work location contains the other and does not open a conflict', () => {
+    const siteArea = randomUUID();
+    const bay = randomUUID();
+    const parent = permit({
+      workLocationId: siteArea,
+      workstationId: null,
+      machineryId: null,
+      assetIds: [],
+      locationChain: [siteArea],
+    });
+    const child = permit({
+      id: randomUUID(),
+      workLocationId: bay,
+      workstationId: null,
+      machineryId: null,
+      assetIds: [],
+      locationChain: [siteArea, bay],
+    });
+
+    expect(isParentChildLocation(parent, child)).toBe(true);
+    expect(detectPairConflict(parent, child)).toBeNull();
+    expect(detectLocationWarnings([parent, child])).toHaveLength(1);
   });
 
   it('ignores non-overlapping permits', () => {

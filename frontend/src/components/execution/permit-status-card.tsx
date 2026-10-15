@@ -7,7 +7,7 @@ import type { PermitRecord } from "@/lib/permit/types";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatWindow } from "@/lib/format";
-import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
+import { loadLookups, placeOf, type Lookups } from "@/lib/lookups";
 import { cn } from "@/lib/utils";
 
 export function PermitStatusCard({ permit, overdue = false }: { permit: PermitRecord; overdue?: boolean }) {
@@ -16,10 +16,7 @@ export function PermitStatusCard({ permit, overdue = false }: { permit: PermitRe
     loadLookups().then(setLookups, () => undefined);
   }, []);
   const type = lookups?.permitTypes.get(permit.permitTypeId);
-  const place =
-    nameOf(lookups?.machinery, permit.machineryId) ??
-    nameOf(lookups?.workstations, permit.workstationId) ??
-    nameOf(lookups?.locations, permit.locationId);
+  const place = placeOf(permit, lookups);
 
   return (
     <article className="relative flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-border bg-card py-4 pl-6 pr-4">

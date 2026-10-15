@@ -25,6 +25,7 @@ function detail(assignedUserId = 'executor-user', holder = 'operator'): PermitDe
     ppe: [],
     lototo: [],
     gasTesting: [],
+    assets: [],
     executors: [
       {
         id: 'row-id',

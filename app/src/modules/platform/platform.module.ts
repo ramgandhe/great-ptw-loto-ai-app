@@ -3,6 +3,7 @@ import { KeycloakAdminModule } from '../../infrastructure/keycloak/keycloak-admi
 import {
   AccessRequestsController,
   PlatformAccessRequestsController,
+  PlatformIndustriesController,
   PlatformTenantInvitesController,
   PlatformTenantsController,
 } from './platform-tenants.controller';
@@ -13,6 +14,7 @@ import { PlatformTenantsService } from './platform-tenants.service';
   imports: [KeycloakAdminModule],
   controllers: [
     PlatformTenantsController,
+    PlatformIndustriesController,
     PlatformTenantInvitesController,
     AccessRequestsController,
     PlatformAccessRequestsController,

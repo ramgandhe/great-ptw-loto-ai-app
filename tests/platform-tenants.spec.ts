@@ -19,7 +19,15 @@ describe('PlatformTenantsService', () => {
 
     await expect(
       service.createTenant(
-        { organisationName: 'Acme', ownerEmail: 'owner@acme.test' },
+        {
+          organisationName: 'Acme',
+          ownerEmail: 'owner@acme.test',
+          industryId: '00000000-0000-4000-8000-000000000099',
+          addressLine1: 'Plot 12',
+          state: 'Maharashtra',
+          country: 'India',
+          pin: '400001',
+        },
         { id: 'admin', username: 'admin', roles: ['platform-admin'] },
       ),
     ).rejects.toBeInstanceOf(ConflictException);

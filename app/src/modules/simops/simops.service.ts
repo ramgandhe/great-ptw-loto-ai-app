@@ -11,10 +11,12 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   approvalHistory,
+  permitAssets,
   permitHazards,
   permitLototo,
   permitPpe,
   permits,
+  workLocations,
   simopsCaseControls,
   simopsCaseHistory,
   simopsCaseInteractions,
@@ -30,8 +32,10 @@ import {
   clusterConflicts,
   clusterFingerprint,
   detectConflicts,
+  detectLocationWarnings,
   excludeResolvedOverlaps,
   type DetectedConflict,
+  type LocationWarning,
   type PermitForAnalysis,
 } from './conflict-detection.service';
 
@@ -605,8 +609,13 @@ export class SimopsService {
     return [...byCase.values()];
   }
 
+  async locationWarnings(tenantId: string, permitId: string): Promise<LocationWarning[]> {
+    const permitsForAnalysis = await this.loadAnalysablePermits(tenantId);
+    return detectLocationWarnings(permitsForAnalysis, permitId);
+  }
+
   private async loadAnalysablePermits(tenantId: string): Promise<PermitForAnalysis[]> {
-    return this.db
+    const rows = await this.db
       .select({
         id: permits.id,
         reference: permits.reference,
@@ -615,6 +624,7 @@ export class SimopsService {
         workstationId: permits.workstationId,
         locationId: permits.locationId,
         machineryId: permits.machineryId,
+        workLocationId: permits.workLocationId,
         plannedStartAt: permits.plannedStartAt,
         plannedEndAt: permits.plannedEndAt,
         status: permits.status,
@@ -623,6 +633,39 @@ export class SimopsService {
       .where(
         and(eq(permits.tenantId, tenantId), inArray(permits.status, [...ANALYSABLE_PERMIT_STATUSES])),
       );
+    if (rows.length === 0) return [];
+    const ids = rows.map((row) => row.id);
+    const assetRows = await this.db
+      .select({ permitId: permitAssets.permitId, assetId: permitAssets.assetId })
+      .from(permitAssets)
+      .where(inArray(permitAssets.permitId, ids));
+    const assetsOf = new Map<string, string[]>();
+    for (const row of assetRows) {
+      const list = assetsOf.get(row.permitId) ?? [];
+      list.push(row.assetId);
+      assetsOf.set(row.permitId, list);
+    }
+    const locations = await this.db
+      .select({ id: workLocations.id, parentId: workLocations.parentId })
+      .from(workLocations)
+      .where(eq(workLocations.tenantId, tenantId));
+    const parentOf = new Map(locations.map((row) => [row.id, row.parentId]));
+    const chainOf = (start: string | null) => {
+      const chain: string[] = [];
+      const seen = new Set<string>();
+      let current = start;
+      while (current && !seen.has(current)) {
+        seen.add(current);
+        chain.push(current);
+        current = parentOf.get(current) ?? null;
+      }
+      return chain;
+    };
+    return rows.map((row) => ({
+      ...row,
+      assetIds: assetsOf.get(row.id) ?? [],
+      locationChain: chainOf(row.workLocationId ?? row.workstationId ?? row.locationId),
+    }));
   }
 
   private highestSeverity(items: DetectedConflict[]): 'low' | 'medium' | 'high' {

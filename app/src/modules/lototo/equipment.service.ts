@@ -10,7 +10,8 @@ export class EquipmentService {
 
   async resolveEnergySourceId(
     planId: string,
-    machineryId: string,
+    machineryId: string | null,
+    assetId: string | null,
     userId: string,
     equipmentEnergySourceId?: string,
     energySource?: EnergySourceDto,
@@ -43,7 +44,9 @@ export class EquipmentService {
       .where(
         and(
           eq(equipmentEnergySources.planId, planId),
-          eq(equipmentEnergySources.machineryId, machineryId),
+          assetId
+            ? eq(equipmentEnergySources.assetId, assetId)
+            : eq(equipmentEnergySources.machineryId, machineryId!),
           eq(equipmentEnergySources.energySourceType, energySource.energySourceType),
         ),
       );
@@ -69,6 +72,7 @@ export class EquipmentService {
       .values({
         planId,
         machineryId,
+        assetId,
         energySourceType: energySource.energySourceType,
         description: energySource.description,
         lockMethod: energySource.lockMethod,

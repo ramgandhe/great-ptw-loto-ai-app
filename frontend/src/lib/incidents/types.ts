@@ -127,6 +127,9 @@ export type CreateIncidentPayload = {
   plantId?: string;
   locationId?: string;
   workstationId?: string;
+  siteId?: string;
+  workLocationId?: string;
+  assetIds?: string[];
   permitIds?: string[];
   machineryIds?: string[];
   submit?: boolean;

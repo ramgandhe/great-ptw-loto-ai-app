@@ -17,7 +17,10 @@ export class DashboardController {
   @Roles(...DASHBOARD_READ_ROLES)
   @Get()
   getDashboard(@Query() query: DashboardFilterDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.dashboardService.getDashboard(user, query.kind);
+    return this.dashboardService.getDashboard(user, query.kind, {
+      siteId: query.siteId,
+      workLocationId: query.workLocationId,
+    });
   }
 
   @Roles(...DASHBOARD_READ_ROLES)

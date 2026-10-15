@@ -31,7 +31,7 @@ export class LototoService {
   async create(dto: CreateLototoPlanDto, user: AuthenticatedUser) {
     const tenantId = this.validationService.requireTenant(user);
 
-    await this.validationService.assertMachineryExists(tenantId, dto.machineryId);
+    const target = await this.validationService.resolveAssetLink(tenantId, dto);
 
     if (dto.workstationId) {
       await this.validationService.assertWorkstationExists(tenantId, dto.workstationId);
@@ -43,7 +43,8 @@ export class LototoService {
         .values({
           tenantId,
           workstationId: dto.workstationId,
-          machineryId: dto.machineryId,
+          machineryId: target.machineryId,
+          assetId: target.assetId,
           reference: dto.reference,
           title: dto.title,
           description: dto.description,

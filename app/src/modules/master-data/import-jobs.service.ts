@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { Job } from 'bullmq';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
+  assets,
   hazardCategories,
   importJobResults,
   importJobs,
@@ -11,6 +12,8 @@ import {
   ppeCatalogue,
   safetyChecklistItems,
   safetyChecklists,
+  sites,
+  workLocations,
   workstationCatalogue,
 } from '../../database/schema';
 import { QueueService } from '../../infrastructure/queue/queue.service';
@@ -70,6 +73,8 @@ export class ImportJobsService implements OnModuleInit {
     let rowNumber = 0;
 
     const workstationCodeMap = new Map<string, string>();
+    const siteCodeMap = new Map<string, { id: string; name: string }>();
+    const locationCodeMap = new Map<string, { id: string; siteId: string; path: string }>();
 
     const recordResult = async (
       entityType: string,
@@ -92,6 +97,133 @@ export class ImportJobsService implements OnModuleInit {
         entityId: entityId ?? null,
       });
     };
+
+    for (const row of parsed.sites ?? []) {
+      try {
+        const [created] = await this.db
+          .insert(sites)
+          .values({
+            tenantId,
+            code: row.code.trim(),
+            name: row.name.trim(),
+            description: row.description,
+            address: row.address,
+            createdBy: actorId,
+            updatedBy: actorId,
+          })
+          .returning();
+        siteCodeMap.set(row.code.trim(), { id: created.id, name: created.name });
+        await recordResult('site', 'success', undefined, created.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Import failed';
+        if (!partialImport) throw error;
+        await recordResult('site', 'failure', message);
+      }
+    }
+
+    let pendingLocations = [...(parsed.workLocations ?? [])];
+    while (pendingLocations.length > 0) {
+      const deferred: typeof pendingLocations = [];
+      let progressed = false;
+      for (const row of pendingLocations) {
+        const site = siteCodeMap.get(row.siteCode.trim());
+        const parentKey = row.parentCode ? `${row.siteCode.trim()}:${row.parentCode.trim()}` : '';
+        const parent = parentKey ? locationCodeMap.get(parentKey) : undefined;
+        if (!site || (row.parentCode && !parent)) {
+          deferred.push(row);
+          continue;
+        }
+        try {
+          const path = parent ? `${parent.path} › ${row.name.trim()}` : `${site.name} › ${row.name.trim()}`;
+          const [created] = await this.db
+            .insert(workLocations)
+            .values({
+              tenantId,
+              siteId: site.id,
+              code: row.code.trim(),
+              name: row.name.trim(),
+              parentId: parent?.id ?? null,
+              description: row.description,
+              pathText: path,
+              createdBy: actorId,
+              updatedBy: actorId,
+            })
+            .returning();
+          locationCodeMap.set(`${row.siteCode.trim()}:${row.code.trim()}`, {
+            id: created.id,
+            siteId: site.id,
+            path,
+          });
+          progressed = true;
+          await recordResult('work_location', 'success', undefined, created.id);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Import failed';
+          if (!partialImport) throw error;
+          progressed = true;
+          await recordResult('work_location', 'failure', message);
+        }
+      }
+      if (!progressed) {
+        for (const row of deferred) {
+          const message = `Work location '${row.code}' could not be placed under site '${row.siteCode}'`;
+          if (!partialImport) throw new Error(message);
+          await recordResult('work_location', 'failure', message);
+        }
+        break;
+      }
+      pendingLocations = deferred;
+    }
+
+    let pendingAssets = [...(parsed.assets ?? [])];
+    const assetTagMap = new Map<string, string>();
+    while (pendingAssets.length > 0) {
+      const deferred: typeof pendingAssets = [];
+      let progressed = false;
+      for (const row of pendingAssets) {
+        const location = locationCodeMap.get(`${row.siteCode.trim()}:${row.workLocationCode.trim()}`);
+        const parentId = row.parentTag
+          ? assetTagMap.get(`${row.siteCode.trim()}:${row.parentTag.trim()}`)
+          : undefined;
+        if (!location || (row.parentTag && !parentId)) {
+          deferred.push(row);
+          continue;
+        }
+        try {
+          const [created] = await this.db
+            .insert(assets)
+            .values({
+              tenantId,
+              siteId: location.siteId,
+              workLocationId: location.id,
+              tag: row.tag.trim(),
+              assetNumber: row.assetNumber?.trim() || null,
+              name: row.name.trim(),
+              description: row.description,
+              parentAssetId: parentId ?? null,
+              createdBy: actorId,
+              updatedBy: actorId,
+            })
+            .returning();
+          assetTagMap.set(`${row.siteCode.trim()}:${row.tag.trim()}`, created.id);
+          progressed = true;
+          await recordResult('asset', 'success', undefined, created.id);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Import failed';
+          if (!partialImport) throw error;
+          progressed = true;
+          await recordResult('asset', 'failure', message);
+        }
+      }
+      if (!progressed) {
+        for (const row of deferred) {
+          const message = `Asset '${row.tag}' could not be placed at '${row.workLocationCode}'`;
+          if (!partialImport) throw new Error(message);
+          await recordResult('asset', 'failure', message);
+        }
+        break;
+      }
+      pendingAssets = deferred;
+    }
 
     for (const row of parsed.workstations ?? []) {
       try {

@@ -19,6 +19,7 @@ export function approvePermit(
   comment?: string,
   stageAnswers?: StageAnswersPayload,
   siteVisited?: boolean,
+  acknowledgeLocationWarning?: boolean,
 ) {
   return fetchApi<ApprovalReview>(`/approvals/${permitId}/approve`, {
     method: "POST",
@@ -26,6 +27,7 @@ export function approvePermit(
       comment: comment?.trim() || undefined,
       stageAnswers,
       siteVisited: siteVisited || undefined,
+      acknowledgeLocationWarning: acknowledgeLocationWarning || undefined,
     }),
   });
 }

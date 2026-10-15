@@ -27,12 +27,16 @@ export class IsolationService {
     const tenantId = this.validationService.requireTenant(user);
     const plan = await this.validationService.getEditablePlan(planId, tenantId);
 
-    await this.validationService.assertMachineryExists(tenantId, dto.machineryId);
+    const target = await this.validationService.resolveAssetLink(tenantId, {
+      assetId: dto.assetId ?? plan.assetId,
+      machineryId: dto.machineryId ?? plan.machineryId,
+    });
     await this.validationService.assertIsolationNumberAvailable(planId, dto.isolationNumber);
 
     const equipmentEnergySourceId = await this.equipmentService.resolveEnergySourceId(
       planId,
-      dto.machineryId,
+      target.machineryId,
+      target.assetId,
       user.id,
       dto.equipmentEnergySourceId,
       dto.energySource,
@@ -43,7 +47,8 @@ export class IsolationService {
         .insert(isolationPoints)
         .values({
           planId,
-          machineryId: dto.machineryId,
+          machineryId: target.machineryId,
+          assetId: target.assetId,
           equipmentEnergySourceId,
           isolationNumber: dto.isolationNumber,
           description: dto.description,

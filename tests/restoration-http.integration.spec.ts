@@ -12,6 +12,7 @@ import { AuthenticatedUser } from '../app/src/common/interfaces/authenticated-us
 import { QueueService } from '../app/src/infrastructure/queue/queue.service';
 import * as schema from '../app/src/database/schema';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
+import { insertAssetTarget } from './helpers/place-fixture';
 
 let currentUser: AuthenticatedUser | null = null;
 
@@ -96,10 +97,11 @@ describe('Restoration & History HTTP integration (PUS-161)', () => {
     const [permit] = await db.insert(schema.permits).values({ tenantId, status: 'approved', permitTypeId: randomUUID(), title: 'R', reference: `PTW-${randomUUID().slice(0, 8)}`, createdBy: officerId }).returning();
     const [ws] = await db.insert(schema.workstationCatalogue).values({ tenantId, code: `WS-${randomUUID().slice(0, 6)}`, name: 'Bay', createdBy: officerId }).returning();
     const [mc] = await db.insert(schema.machineryCatalogue).values({ tenantId, code: `MC-${randomUUID().slice(0, 6)}`, name: 'C', workstationId: ws.id, createdBy: officerId }).returning();
+    await insertAssetTarget(db, { tenantId, createdBy: officerId, name: 'C', assetId: mc.id });
     // Plan starts 'ready' so isolation points/sequences can be configured; the
     // SP-03.01 trigger locks configuration once the plan is in execution, so we
     // only advance the plan status after the configuration is seeded.
-    const [plan] = await db.insert(schema.lototoPlans).values({ tenantId, permitId: permit.id, machineryId: mc.id, title: 'P', status: 'ready', createdBy: officerId }).returning();
+    const [plan] = await db.insert(schema.lototoPlans).values({ tenantId, permitId: permit.id, machineryId: mc.id, assetId: mc.id, title: 'P', status: 'ready', createdBy: officerId }).returning();
     const [p1] = await db.insert(schema.isolationPoints).values({ planId: plan.id, machineryId: mc.id, isolationNumber: 'ISO-1', createdBy: officerId }).returning();
     const [p2] = await db.insert(schema.isolationPoints).values({ planId: plan.id, machineryId: mc.id, isolationNumber: 'ISO-2', createdBy: officerId }).returning();
     await db.insert(schema.isolationSequences).values([

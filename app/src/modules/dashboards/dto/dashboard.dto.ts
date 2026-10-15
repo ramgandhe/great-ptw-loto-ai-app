@@ -6,6 +6,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -29,6 +30,14 @@ export class DashboardFilterDto {
   @IsOptional()
   @IsIn([...DASHBOARD_KINDS])
   kind?: (typeof DASHBOARD_KINDS)[number];
+
+  @IsOptional()
+  @IsUUID()
+  siteId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  workLocationId?: string;
 }
 
 export class KPIFilterDto {
@@ -88,6 +97,14 @@ export class InsightsQueryDto {
   @Min(7)
   @Max(365)
   days?: number;
+
+  @IsOptional()
+  @IsUUID()
+  siteId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  workLocationId?: string;
 }
 
 export const REPORT_VIEW_TYPES = ['permit_summary', 'incident_summary'] as const;
@@ -102,6 +119,14 @@ export class ReportViewQueryDto {
   @Min(7)
   @Max(365)
   days?: number;
+
+  @IsOptional()
+  @IsUUID()
+  siteId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  workLocationId?: string;
 }
 
 export class ListReportsQueryDto {

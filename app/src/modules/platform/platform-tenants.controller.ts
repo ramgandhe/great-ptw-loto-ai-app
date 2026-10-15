@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { Authenticated, Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ForceQuery } from '../../common/decorators/force-query.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { Throttle } from '@nestjs/throttler';
 import { CreateAccessRequestDto } from './dto/create-access-request.dto';
-import { CreateTenantDto } from './dto/create-tenant.dto';
+import { CreateTenantDto, IndustryNameDto, UpdateTenantDto } from './dto/create-tenant.dto';
 import { PLATFORM_ADMIN_ROLES } from './platform.constants';
 import { PlatformAccessRequestsService } from './platform-access-requests.service';
 import { PlatformTenantsService } from './platform-tenants.service';
@@ -26,6 +27,16 @@ export class PlatformTenantsController {
   }
 
   @Roles(...PLATFORM_ADMIN_ROLES)
+  @Patch(':id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateTenantDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.platformTenantsService.updateTenant(id, dto, user);
+  }
+
+  @Roles(...PLATFORM_ADMIN_ROLES)
   @Post(':id/disable')
   disable(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.platformTenantsService.disableTenant(id, user);
@@ -41,6 +52,43 @@ export class PlatformTenantsController {
   @Delete(':id')
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.platformTenantsService.deleteTenant(id, user);
+  }
+}
+
+@Controller('platform/industries')
+export class PlatformIndustriesController {
+  constructor(private readonly platformTenantsService: PlatformTenantsService) {}
+
+  @Roles(...PLATFORM_ADMIN_ROLES)
+  @Get()
+  list() {
+    return this.platformTenantsService.listIndustries();
+  }
+
+  @Roles(...PLATFORM_ADMIN_ROLES)
+  @Post()
+  create(@Body() dto: IndustryNameDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.platformTenantsService.createIndustry(dto, user);
+  }
+
+  @Roles(...PLATFORM_ADMIN_ROLES)
+  @Patch(':id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: IndustryNameDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.platformTenantsService.updateIndustry(id, dto, user);
+  }
+
+  @Roles(...PLATFORM_ADMIN_ROLES)
+  @Delete(':id')
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.platformTenantsService.deleteIndustry(id, user, force);
   }
 }
 
