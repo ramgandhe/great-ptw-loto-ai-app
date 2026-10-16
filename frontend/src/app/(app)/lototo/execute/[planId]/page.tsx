@@ -21,6 +21,7 @@ import { LockRegisterTable } from "@/components/isolation-execution/lock-registe
 import { TagRegisterTable } from "@/components/isolation-execution/tag-register-table";
 import { EvidenceUpload } from "@/components/execution/evidence-upload";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { formatDateTime } from "@/lib/format";
 import { isolationProgress } from "@/lib/isolation-execution/progress";
 import { workspaceHref } from "@/lib/permit/workspace-tabs";
@@ -143,7 +144,7 @@ export default function IsolationExecutionPage() {
       return;
     }
 
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       "Record a passing verification for this isolation point? This cannot be undone without supervisor review.",
     );
     if (!confirmed) {
@@ -166,7 +167,7 @@ export default function IsolationExecutionPage() {
       return;
     }
 
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       "Confirm all isolation points are locked and isolation is complete?",
     );
     if (!confirmed) {
@@ -183,7 +184,7 @@ export default function IsolationExecutionPage() {
       return;
     }
 
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       "Confirm all required verifications passed and work may commence?",
     );
     if (!confirmed) {

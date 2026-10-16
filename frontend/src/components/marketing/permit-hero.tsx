@@ -42,7 +42,7 @@ const LOG = [
   { time: "15:20", text: "Area clear, isolations restored, permit closed", from: 5 },
 ];
 
-const STEP_MS = 2600;
+const STEP_MS = 4600;
 
 const subscribeNoop = () => () => {};
 

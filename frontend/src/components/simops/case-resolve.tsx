@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -150,7 +151,7 @@ export function CaseResolve({
                     placeholder="Control"
                     className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                   />
-                  <select
+                  <AppSelect
                     value={controlPerson[member.permitId] ?? ""}
                     onChange={(e) => setControlPerson((prev) => ({ ...prev, [member.permitId]: e.target.value }))}
                     className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
@@ -161,7 +162,7 @@ export function CaseResolve({
                         {[person.firstName, person.lastName].filter(Boolean).join(" ") || person.email}
                       </option>
                     ))}
-                  </select>
+                  </AppSelect>
                   <input
                     value={controlComments[member.permitId] ?? ""}
                     onChange={(e) =>

@@ -1,7 +1,5 @@
 "use client";
 
-import { useId } from "react";
-import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -21,10 +19,8 @@ export function SegmentedToggle<T extends string | number>({
   label: string;
   className?: string;
 }) {
-  const id = useId();
-  const reduce = useReducedMotion();
   return (
-    <div role="tablist" aria-label={label} className={cn("inline-flex rounded-full border border-border bg-card p-1 shadow-xs", className)}>
+    <div role="tablist" aria-label={label} className={cn("flex min-w-0 items-center gap-4 overflow-x-auto border-b border-border", className)}>
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -35,19 +31,16 @@ export function SegmentedToggle<T extends string | number>({
             aria-selected={on}
             onClick={() => onChange(o.value)}
             className={cn(
-              "press relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-              on ? "text-background" : "text-muted-foreground hover:text-foreground",
+              "press relative -mb-px inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
+              on ? "border-primary font-semibold text-foreground" : "border-transparent font-medium text-muted-foreground hover:border-border-strong hover:text-foreground",
             )}
           >
-            {on ? (
-              <motion.span
-                layoutId={`seg-${id}`}
-                transition={reduce ? { duration: 0 } : { type: "spring", duration: 0.35, bounce: 0.15 }}
-                className="absolute inset-0 rounded-full bg-foreground shadow-[0_4px_14px_-4px_color-mix(in_oklab,var(--foreground)_60%,transparent)]"
-              />
+            <span>{o.label}</span>
+            {o.count !== undefined ? (
+              <span className={cn("min-w-5 rounded-full px-1.5 py-0.5 text-[11px] tabular-nums", on ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                {o.count}
+              </span>
             ) : null}
-            <span className="relative">{o.label}</span>
-            {o.count !== undefined ? <span className="relative tabular-nums opacity-70">{o.count}</span> : null}
           </button>
         );
       })}
@@ -88,8 +81,8 @@ export function MultiToggle({
             onClick={() => toggle(o.value)}
             style={o.color ? ({ "--glow": o.color } as React.CSSProperties) : undefined}
             className={cn(
-              "press flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-              on ? "is-selected border-transparent font-semibold" : "border-border bg-card text-muted-foreground hover:border-(--border-strong) hover:text-foreground",
+              "press flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
+              on ? "border-primary/25 bg-primary/10 font-semibold text-primary" : "border-transparent bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
             {o.color ? <span aria-hidden className="size-2 rounded-full" style={{ backgroundColor: o.color }} /> : null}

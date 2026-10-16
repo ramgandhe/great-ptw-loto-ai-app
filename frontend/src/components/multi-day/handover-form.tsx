@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
@@ -63,7 +64,7 @@ export function HandoverForm({ permitId, progressRecords, onSaved }: HandoverFor
       ) : null}
       <label className="block text-sm">
         Incoming personnel
-        <select
+        <AppSelect
           className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
           value={incomingUserId}
           onChange={(event) => setIncomingUserId(event.target.value)}
@@ -75,12 +76,12 @@ export function HandoverForm({ permitId, progressRecords, onSaved }: HandoverFor
               {person.name}
             </option>
           ))}
-        </select>
+        </AppSelect>
       </label>
       {progressRecords.length > 0 ? (
         <label className="block text-sm">
           Link to daily progress (optional)
-          <select
+          <AppSelect
             className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             value={dailyProgressId}
             onChange={(event) => setDailyProgressId(event.target.value)}
@@ -91,7 +92,7 @@ export function HandoverForm({ permitId, progressRecords, onSaved }: HandoverFor
                 {record.operationalDate} — {record.summary}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </label>
       ) : null}
       <label className="block text-sm">

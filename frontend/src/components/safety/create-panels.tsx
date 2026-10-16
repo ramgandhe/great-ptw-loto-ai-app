@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -106,22 +107,22 @@ export function LototoPlanCreatePanel({ initialMachineryId, onClose }: { initial
         <input required autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Compressor isolation plan" className={`h-10 ${FIELD}`} />
       </Field>
       <Field label="Site">
-        <select required value={siteId} onChange={(e) => { setSiteId(e.target.value); setWorkLocationId(""); setAssetId(""); }} className={`h-10 ${FIELD}`}>
+        <AppSelect required value={siteId} onChange={(e) => { setSiteId(e.target.value); setWorkLocationId(""); setAssetId(""); }} className={`h-10 ${FIELD}`}>
           <option value="">Select site</option>
           {sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
-        </select>
+        </AppSelect>
       </Field>
       <Field label="Work location" optional>
-        <select value={workLocationId} onChange={(e) => { setWorkLocationId(e.target.value); setAssetId(""); }} className={`h-10 ${FIELD}`}>
+        <AppSelect value={workLocationId} onChange={(e) => { setWorkLocationId(e.target.value); setAssetId(""); }} className={`h-10 ${FIELD}`}>
           <option value="">Whole site</option>
           {locations.map((row) => <option key={row.id} value={row.id}>{row.pathText || row.name}</option>)}
-        </select>
+        </AppSelect>
       </Field>
       <Field label="Asset" wide>
-        <select required value={assetId} onChange={(e) => setAssetId(e.target.value)} className={`h-10 ${FIELD}`}>
+        <AppSelect required value={assetId} onChange={(e) => setAssetId(e.target.value)} className={`h-10 ${FIELD}`}>
           <option value="">{assets.length === 0 ? "No assets here yet" : "Select asset"}</option>
           {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.tag} — {asset.name}</option>)}
-        </select>
+        </AppSelect>
       </Field>
       <Field label="Description" optional wide>
         <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className={`py-2 ${FIELD}`} />
@@ -228,16 +229,16 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
         <textarea required rows={4} value={description} onChange={(e) => setDescription(e.target.value)} className={`py-2 ${FIELD}`} />
       </Field>
       <Field label="Site">
-        <select required value={siteId} onChange={(e) => { setSiteId(e.target.value); setWorkLocationId(""); setAssetIds([]); }} className={`h-10 ${FIELD}`}>
+        <AppSelect required value={siteId} onChange={(e) => { setSiteId(e.target.value); setWorkLocationId(""); setAssetIds([]); }} className={`h-10 ${FIELD}`}>
           <option value="">Select site</option>
           {sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
-        </select>
+        </AppSelect>
       </Field>
       <Field label="Work location">
-        <select required value={workLocationId} onChange={(e) => { setWorkLocationId(e.target.value); setAssetIds([]); }} className={`h-10 ${FIELD}`}>
+        <AppSelect required value={workLocationId} onChange={(e) => { setWorkLocationId(e.target.value); setAssetIds([]); }} className={`h-10 ${FIELD}`}>
           <option value="">Select work location</option>
           {locations.map((row) => <option key={row.id} value={row.id}>{row.pathText || row.name}</option>)}
-        </select>
+        </AppSelect>
       </Field>
       <Field label="Exact spot" optional wide>
         <input value={locationDescription} onChange={(e) => setLocationDescription(e.target.value)} placeholder="North walkway" className={`h-10 ${FIELD}`} />
@@ -261,7 +262,7 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
         <input required type="datetime-local" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} className={`h-10 ${FIELD}`} />
       </Field>
       <Field label="Linked permit" optional wide>
-        <select value={permitId} onChange={(e) => setPermitId(e.target.value)} className={`h-10 ${FIELD}`}>
+        <AppSelect value={permitId} onChange={(e) => setPermitId(e.target.value)} className={`h-10 ${FIELD}`}>
           <option value="">None</option>
           {permits.map((permit) => (
             <option key={permit.id} value={permit.id}>
@@ -269,7 +270,7 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
               {permit.title}
             </option>
           ))}
-        </select>
+        </AppSelect>
       </Field>
       <div className="flex flex-wrap gap-2 sm:col-span-2">
         <Button type="submit" disabled={submitting} onClick={() => (asDraft.current = false)}>

@@ -1,9 +1,11 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useEffect, useRef, useState } from "react";
 import { FileDown, Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { RowActions } from "@/components/ui/row-actions";
 import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
@@ -142,7 +144,7 @@ export default function HazardsPage() {
   }
 
   async function handleSetActive(item: HazardRecord, on: boolean) {
-    if (!on && !window.confirm(`Deactivate ${item.name}? It stays listed but is no longer offered on new permits.`)) {
+    if (!on && !(await confirmAction(`Deactivate ${item.name}? It stays listed but is no longer offered on new permits.`))) {
       return;
     }
     try {
@@ -210,13 +212,13 @@ export default function HazardsPage() {
           </label>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Risk / severity</span>
-            <select required value={form.severity} className={FIELD_CLASS} onChange={(e) => setForm((prev) => ({ ...prev, severity: e.target.value }))}>
+            <AppSelect required value={form.severity} className={FIELD_CLASS} onChange={(e) => setForm((prev) => ({ ...prev, severity: e.target.value }))}>
               {SEVERITY_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
-            </select>
+            </AppSelect>
           </label>
           <label className="grid gap-1.5 text-sm sm:col-span-2">
             <span className="font-medium">

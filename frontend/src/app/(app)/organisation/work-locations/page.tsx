@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -15,6 +16,7 @@ import {
 import { listTenantUsers } from "@/lib/workforce/api";
 import type { TenantUser } from "@/lib/workforce/types";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { toast } from "@/components/ui/toast";
 import {
   AdminPage,
@@ -271,7 +273,7 @@ export default function WorkLocationsPage() {
     if (!selectedId) return;
     const name =
       rows.find((row) => row.id === selectedId)?.name ?? "this work location";
-    if (!window.confirm(`Archive ${name}? It stays on closed permits.`)) return;
+    if (!(await confirmAction(`Archive ${name}? It stays on closed permits.`))) return;
     setSaving(true);
     setError(null);
     try {
@@ -367,7 +369,7 @@ export default function WorkLocationsPage() {
       {sites.length > 0 ? (
         <label className="grid max-w-sm gap-1.5 text-sm">
           <span className="font-medium">Site</span>
-          <select
+          <AppSelect
             className={FIELD_CLASS}
             value={siteId}
             onChange={(event) => void changeSite(event.target.value)}
@@ -377,7 +379,7 @@ export default function WorkLocationsPage() {
                 {site.name}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </label>
       ) : null}
       {error ? (
@@ -435,7 +437,7 @@ export default function WorkLocationsPage() {
           </label>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Nest Under</span>
-            <select
+            <AppSelect
               className={FIELD_CLASS}
               value={form.parentId}
               onChange={(event) =>
@@ -448,11 +450,11 @@ export default function WorkLocationsPage() {
                   {row.pathText || row.name}
                 </option>
               ))}
-            </select>
+            </AppSelect>
           </label>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Type</span>
-            <select
+            <AppSelect
               className={FIELD_CLASS}
               value={form.locationTypeId}
               onChange={(event) =>
@@ -468,7 +470,7 @@ export default function WorkLocationsPage() {
                   {type.name}
                 </option>
               ))}
-            </select>
+            </AppSelect>
           </label>
           <label className="grid gap-1.5 text-sm sm:col-span-2">
             <span className="font-medium">Description</span>

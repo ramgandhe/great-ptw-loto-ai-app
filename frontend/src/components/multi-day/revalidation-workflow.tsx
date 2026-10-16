@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useState } from "react";
 import { ApiError } from "@/lib/api";
@@ -78,14 +79,14 @@ export function RevalidationWorkflow({
         </label>
         <label className="block text-sm">
           Outcome
-          <select
+          <AppSelect
             className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             value={outcome}
             onChange={(event) => setOutcome(event.target.value as RevalidationOutcome)}
           >
             <option value="passed">Passed</option>
             <option value="failed">Failed</option>
-          </select>
+          </AppSelect>
         </label>
         <label className="block text-sm">
           Findings

@@ -5,6 +5,7 @@ import {
   Building2,
   CreditCard,
   FileText,
+  HardHat,
   LayoutDashboard,
   Route,
   Settings2,
@@ -42,6 +43,7 @@ export const NAV_GROUPS: NavGroup[] = ["Work", "Safety", "Insights", "Administra
 export const APP_NAV_ITEMS: AppNavItem[] = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard, roles: DASHBOARD_READ_ROLES, group: "Work" },
   { href: "/permits", label: "Permits", icon: DOMAIN_ICONS.permit, roles: NAV_PERMITS_ROLES, group: "Work" },
+  { href: "/execution", label: "Live work", icon: HardHat, roles: NAV_PERMITS_ROLES, group: "Work" },
   { href: "/lototo", label: "LOTOTO", icon: DOMAIN_ICONS.lototo, roles: NAV_LOTOTO_ROLES, group: "Safety" },
   { href: "/simops", label: "SIMOPS", icon: TriangleAlert, roles: NAV_SIMOPS_ROLES, group: "Safety" },
   { href: "/incidents", label: "Incidents", icon: AlertTriangle, roles: NAV_INCIDENTS_ROLES, group: "Safety" },

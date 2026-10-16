@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { FIELD_CLASS } from "@/components/layout/admin-page-header";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { RowActions } from "@/components/ui/row-actions";
 import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api";
@@ -61,7 +62,7 @@ export function LocationsPanel() {
   }
 
   async function remove(row: DefaultLocationType) {
-    if (!window.confirm(`Remove ${row.name} from the default location types?`)) return;
+    if (!(await confirmAction(`Remove ${row.name} from the default location types?`))) return;
     setError(null);
     try {
       await platformDefaultsApi.removeLocationType(row.id);

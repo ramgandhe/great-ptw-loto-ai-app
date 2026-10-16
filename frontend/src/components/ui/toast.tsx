@@ -31,7 +31,7 @@ export function Toaster() {
   }, []);
 
   return (
-    <div aria-live="polite" className="pointer-events-none fixed right-4 bottom-4 z-50 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2 print:hidden">
+    <div aria-live="polite" className="pointer-events-none fixed right-4 bottom-20 z-50 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2 print:hidden">
       <AnimatePresence initial={false}>
         {toasts.map((t) => {
           const color = t.tone === "success" ? "var(--act-do)" : "var(--act-fix)";
@@ -46,7 +46,7 @@ export function Toaster() {
               transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
               role={t.tone === "error" ? "alert" : "status"}
               style={{ "--glow": color } as React.CSSProperties}
-              className="is-selected pointer-events-auto flex items-start gap-2.5 rounded-xl bg-card px-4 py-3 text-sm font-medium shadow-lg"
+              className="ptw-toast pointer-events-auto flex items-start gap-3 rounded-xl border bg-card px-4 py-3.5 text-sm shadow-lg"
             >
               <Icon className="mt-0.5 size-4 shrink-0" style={{ color }} aria-hidden />
               <span>{t.message}</span>

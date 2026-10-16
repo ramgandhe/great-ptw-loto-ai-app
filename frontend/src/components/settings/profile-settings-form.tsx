@@ -6,6 +6,7 @@ import { removeProfileAvatar, updateProfile, uploadProfileAvatar } from "@/lib/a
 import { toast } from "@/components/ui/toast";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export function ProfileSettingsForm() {
   const { profile, refreshProfile } = useAuthProfile();
@@ -61,7 +62,7 @@ export function ProfileSettingsForm() {
   }
 
   async function handleRemoveAvatar() {
-    if (!window.confirm("Remove your profile picture? Your initial is shown instead.")) return;
+    if (!(await confirmAction("Remove your profile picture? Your initial is shown instead."))) return;
     setUploading(true);
     setError(null);
     try {

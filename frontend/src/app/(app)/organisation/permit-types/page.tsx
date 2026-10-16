@@ -8,6 +8,7 @@ import { masterDataApi, type MasterDataRecord } from "@/lib/master-data/api";
 import { permitTemplatesApi, type PermitTemplate } from "@/lib/organisation/templates";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { RowActions } from "@/components/ui/row-actions";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { toast } from "@/components/ui/toast";
@@ -120,7 +121,7 @@ export default function PermitTypesPage() {
   }
 
   async function handleSetActive(item: MasterDataRecord, on: boolean) {
-    if (!on && !window.confirm(`Deactivate ${item.name}? It stays on this list but new permits cannot use it.`)) return;
+    if (!on && !(await confirmAction(`Deactivate ${item.name}? It stays on this list but new permits cannot use it.`))) return;
     setError(null);
     try {
       await masterDataApi.updatePermitType(item.id, { isActive: on });

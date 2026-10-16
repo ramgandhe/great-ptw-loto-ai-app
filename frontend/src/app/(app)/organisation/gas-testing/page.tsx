@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -11,6 +12,7 @@ import type { OrgRecord } from "@/lib/organisation/types";
 import { placeApi, type AssetRecord, type WorkLocationRecord } from "@/lib/place/api";
 import { formatOrgOptionLabel } from "@/lib/form-options";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { RowActions } from "@/components/ui/row-actions";
 import { OrgStatusBadge, stateOf } from "@/components/organisation/org-status-badge";
 import { toast } from "@/components/ui/toast";
@@ -165,7 +167,7 @@ export default function GasTestingConfigPage() {
   }
 
   async function handleSetActive(item: GasTestingRecord, on: boolean) {
-    if (!on && !window.confirm(`Deactivate ${item.parameter}? It stays on this list but is not offered on permits.`)) return;
+    if (!on && !(await confirmAction(`Deactivate ${item.parameter}? It stays on this list but is not offered on permits.`))) return;
     setError(null);
     try {
       await gasTestingApi.update(item.id, { isActive: on });
@@ -259,7 +261,7 @@ export default function GasTestingConfigPage() {
           <h2 className="font-semibold sm:col-span-2">{editingId ? `Edit ${form.parameter || "parameter"}` : "New parameter"}</h2>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Applies to</span>
-            <select
+            <AppSelect
               className={FIELD_CLASS}
               value={form.targetKind}
               onChange={(event) => setForm((prev) => ({ ...prev, targetKind: event.target.value as TargetKind, targetId: "" }))}
@@ -267,21 +269,21 @@ export default function GasTestingConfigPage() {
               <option value="work_location">Work location</option>
               <option value="asset">Asset</option>
               <option value="workstation">Workstation</option>
-            </select>
+            </AppSelect>
           </label>
           {form.targetKind === "workstation" ? null : (
             <label className="grid gap-1.5 text-sm">
               <span className="font-medium">Site</span>
-              <select className={FIELD_CLASS} value={form.siteId} onChange={(event) => setForm((prev) => ({ ...prev, siteId: event.target.value, targetId: "" }))}>
+              <AppSelect className={FIELD_CLASS} value={form.siteId} onChange={(event) => setForm((prev) => ({ ...prev, siteId: event.target.value, targetId: "" }))}>
                 {sites.map((site) => (
                   <option key={site.id} value={site.id}>{site.name}</option>
                 ))}
-              </select>
+              </AppSelect>
             </label>
           )}
           <label className="grid gap-1.5 text-sm sm:col-span-2">
             <span className="font-medium">{form.targetKind === "asset" ? "Asset" : form.targetKind === "work_location" ? "Work location" : "Workstation"}</span>
-            <select required className={FIELD_CLASS} value={form.targetId} onChange={(event) => setForm((prev) => ({ ...prev, targetId: event.target.value }))}>
+            <AppSelect required className={FIELD_CLASS} value={form.targetId} onChange={(event) => setForm((prev) => ({ ...prev, targetId: event.target.value }))}>
               <option value="">Select</option>
               {form.targetKind === "workstation"
                 ? workstations.map((item) => (
@@ -294,7 +296,7 @@ export default function GasTestingConfigPage() {
                   : locations.map((item) => (
                       <option key={item.id} value={item.id}>{item.pathText || item.name}</option>
                     ))}
-            </select>
+            </AppSelect>
           </label>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Parameter</span>
@@ -331,12 +333,12 @@ export default function GasTestingConfigPage() {
       {catalogLocations.length > 0 ? (
         <label className="grid max-w-xl gap-1.5 text-sm">
           <span className="font-medium">Show inheritance for</span>
-          <select className={FIELD_CLASS} value={inheritFor} onChange={(event) => setInheritFor(event.target.value)}>
+          <AppSelect className={FIELD_CLASS} value={inheritFor} onChange={(event) => setInheritFor(event.target.value)}>
             <option value="">All configured tests</option>
             {catalogLocations.map((row) => (
               <option key={row.id} value={row.id}>{row.pathText || row.name}</option>
             ))}
-          </select>
+          </AppSelect>
         </label>
       ) : null}
       {inheritFor ? (

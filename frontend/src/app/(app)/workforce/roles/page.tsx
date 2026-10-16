@@ -21,6 +21,7 @@ import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { ASSIGNABLE_ROLES, rolesAssignableBy } from "@/lib/form-options";
 import { formatRoleLabel } from "@/lib/auth/rbac";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { toast } from "@/components/ui/toast";
 import { RowActions } from "@/components/ui/row-actions";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
@@ -144,7 +145,7 @@ export default function UserRolesPage() {
       setError("Select at least one role");
       return;
     }
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       `Change this user's roles to ${roles.map(formatRoleLabel).join(", ")}?`,
     );
     if (!confirmed) {
@@ -165,7 +166,7 @@ export default function UserRolesPage() {
   }
 
   async function handleDeactivate(user: TenantUser) {
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       `Deactivate ${user.email ?? user.username}? They will not be able to sign in until reactivated.`,
     );
     if (!confirmed) {
@@ -187,7 +188,7 @@ export default function UserRolesPage() {
   }
 
   async function handleReactivate(user: TenantUser) {
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       `Activate ${user.email ?? user.username}?`,
     );
     if (!confirmed) {
@@ -551,11 +552,11 @@ export default function UserRolesPage() {
                             {
                               label: "Reset password",
                               disabled: busy,
-                              onClick: () => {
+                              onClick: async () => {
                                 if (
-                                  !window.confirm(
+                                  !(await confirmAction(
                                     `Reset password for ${user.email ?? user.username}? A new temporary password will be generated.`,
-                                  )
+                                  ))
                                 ) {
                                   return;
                                 }

@@ -18,6 +18,7 @@ import { formatDate } from "@/lib/format";
 import { listTenantUserNames } from "@/lib/workforce/api";
 import { fieldClassName } from "@/components/permit/form-field";
 import { SelectField } from "@/components/lototo/select-field";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/ui/status-chip";
 import { toast } from "@/components/ui/toast";
@@ -191,8 +192,8 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Props) 
                           size="sm"
                           variant="ghost"
                           disabled={busy}
-                          onClick={() => {
-                            if (window.confirm(`Cancel “${action.title}”? It stays in the record as cancelled.`)) {
+                          onClick={async () => {
+                            if (await confirmAction(`Cancel “${action.title}”? It stays in the record as cancelled.`)) {
                               void run(() => updateCorrectiveAction(action.id, { status: "cancelled" }), "Corrective action cancelled");
                             }
                           }}

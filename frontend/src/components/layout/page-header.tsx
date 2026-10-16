@@ -46,22 +46,22 @@ export function PageHeader({
     <div
       ref={ref}
       className={cn(
-        "sticky top-14 z-20 -mx-4 border-b border-transparent bg-background px-4 pb-3 pt-4 backdrop-blur-md sm:-mx-8 sm:px-8",
-        "[box-shadow:0_10px_20px_-18px_color-mix(in_oklab,var(--foreground)_40%,transparent)]",
+        "sticky top-14 z-20 -mx-4 border-b border-border/70 bg-background/95 px-4 pb-4 pt-4 backdrop-blur-md sm:-mx-8 sm:px-8",
+        "shadow-[0_10px_24px_-24px_color-mix(in_oklab,var(--foreground)_45%,transparent)]",
         className,
       )}
     >
       {back ? <BackLink {...back} /> : null}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <h1 className="flex items-center gap-3 font-heading text-2xl font-bold tracking-tight sm:text-3xl">
+          <h1 className="flex items-center gap-3 font-heading text-2xl font-semibold tracking-tight sm:text-[1.8rem]">
             <span
               aria-hidden
-              className="h-7 w-1.5 shrink-0 rounded-full bg-linear-to-b from-(--accent-primary) to-[color-mix(in_oklab,var(--accent-primary)_30%,transparent)]"
+              className="h-7 w-1 shrink-0 rounded-full bg-primary"
             />
             {title}
           </h1>
-          {description ? <p className="mt-1 max-w-[70ch] pl-[1.125rem] text-sm text-muted-foreground sm:text-base">{description}</p> : null}
+          {description ? <p className="mt-1 max-w-[70ch] pl-4 text-sm leading-6 text-muted-foreground">{description}</p> : null}
         </div>
         {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>

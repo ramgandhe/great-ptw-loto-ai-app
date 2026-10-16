@@ -36,6 +36,7 @@ import { identityFromPermit, PermitSummary } from "@/components/permit/permit-su
 import { PermitFormResponses } from "@/components/permit/permit-form-responses";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 
@@ -159,7 +160,7 @@ export default function PermitExecutionPage() {
   }
 
   async function handleRevalidate() {
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       "Revalidate this suspended permit? It will go through full approval again.",
     );
     if (!confirmed) {

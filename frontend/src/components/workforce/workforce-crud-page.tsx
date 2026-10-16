@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
@@ -16,6 +17,7 @@ import { NAME_HINT, NAME_PATTERN, PHONE_COUNTRIES, splitPhone } from "@/lib/vali
 import { copyText } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
 import { useLeaveGuard } from "@/lib/leave-guard";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 const workforceApis = {
   employees: employeesApi,
@@ -48,13 +50,13 @@ function PhoneInput({ value, onChange }: { value: string; onChange: (value: stri
   const digits = PHONE_COUNTRIES.find((c) => c.code === code)?.digits ?? 10;
   return (
     <span className="flex gap-2">
-      <select aria-label="Country code" value={code} className={`${INPUT_CLASS} w-36 px-2`} onChange={(e) => onChange(`${e.target.value} ${number}`)}>
+      <AppSelect aria-label="Country code" value={code} className={`${INPUT_CLASS} w-36 px-2`} onChange={(e) => onChange(`${e.target.value} ${number}`)}>
         {PHONE_COUNTRIES.map((c) => (
           <option key={c.code} value={c.code}>
             {c.label}
           </option>
         ))}
-      </select>
+      </AppSelect>
       <input
         type="tel"
         inputMode="numeric"
@@ -241,7 +243,7 @@ export function WorkforceCrudPage({
   }
 
   /** Row actions: confirm, call the API, confirm with a toast, reload. */
-  function act(item: WorkforceItem, action: "deactivate" | "activate" | "delete") {
+  async function act(item: WorkforceItem, action: "deactivate" | "activate" | "delete") {
     const people = api as typeof employeesApi;
     if (action === "delete") {
       void deleteWithAssignmentConfirm(item.name, (force) => api.archive(item.id, force))
@@ -259,7 +261,7 @@ export function WorkforceCrudPage({
         : `Deactivate ${item.name}? It stays on this list but is not counted as valid.`,
       activate: `Activate ${item.name}?`,
     }[action];
-    if (!window.confirm(question)) return;
+    if (!(await confirmAction(question))) return;
     const call = hasLogin
       ? action === "deactivate"
         ? people.deactivate(item.id)
@@ -323,7 +325,7 @@ export function WorkforceCrudPage({
             <span className="font-medium">
               Existing sign-in account <span className="font-normal text-muted-foreground">(optional)</span>
             </span>
-            <select
+            <AppSelect
               value={existingAccount?.id ?? ""}
               onChange={(e) => {
                 const account = reusable.find((a) => a.id === e.target.value);
@@ -337,7 +339,7 @@ export function WorkforceCrudPage({
                   {accountName(account)} ({account.email})
                 </option>
               ))}
-            </select>
+            </AppSelect>
           </label>
         ) : null}
         {!editingId && existingAccount && !duplicate ? (
@@ -352,7 +354,7 @@ export function WorkforceCrudPage({
               {field.required ? "" : <span className="font-normal text-muted-foreground"> (optional)</span>}
             </span>
             {field.select ? (
-              <select
+              <AppSelect
                 required={field.required}
                 value={form[field.key] ?? ""}
                 className={INPUT_CLASS}
@@ -364,7 +366,7 @@ export function WorkforceCrudPage({
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </AppSelect>
             ) : field.key === "phone" ? (
               <PhoneInput value={form.phone ?? ""} onChange={(phone) => setForm((p) => ({ ...p, phone }))} />
             ) : (

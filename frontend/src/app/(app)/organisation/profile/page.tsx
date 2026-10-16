@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
@@ -115,7 +116,7 @@ export default function OrganisationProfilePage() {
           {org ? (
             <label className="grid content-start gap-1.5 text-sm">
               <span className="font-medium">Time zone</span>
-              <select
+              <AppSelect
                 value={form.timezone}
                 className={FIELD_CLASS}
                 onChange={(e) => setForm((prev) => ({ ...prev, timezone: e.target.value }))}
@@ -125,7 +126,7 @@ export default function OrganisationProfilePage() {
                     {zone}
                   </option>
                 ))}
-              </select>
+              </AppSelect>
               <span className="text-xs text-muted-foreground">Used for permit validity windows and reports.</span>
             </label>
           ) : null}

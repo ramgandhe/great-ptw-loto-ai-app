@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export const LEAVE_MESSAGE = "You have unsaved changes. Leave without saving them?";
 
@@ -13,27 +14,34 @@ export function useLeaveGuard(dirty: boolean) {
     if (!dirty) return;
     const unload = (event: BeforeUnloadEvent) => event.preventDefault();
     const click = (event: MouseEvent) => {
+      if (!guarded) return;
       const link = (event.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
       if (!link || link.target === "_blank" || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
       const url = new URL(link.href, window.location.href);
       if (url.origin !== window.location.origin || (url.pathname === window.location.pathname && url.hash)) return;
-      if (!window.confirm(LEAVE_MESSAGE)) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+      event.preventDefault();
+      event.stopPropagation();
+      void confirmAction(LEAVE_MESSAGE).then((confirmed) => {
+        if (!confirmed || !guarded) return;
+        guarded = false;
+        link.click();
+      });
     };
     // Browser Back: an extra entry for this same page absorbs the first Back press, so the question
     // can be asked before anything is left. (Next.js copies its own state into the entry.)
     const url = window.location.href;
     window.history.pushState({ ptwLeaveGuard: true }, "", url);
     const back = () => {
+      if (!guarded) return;
       if (window.location.href !== url) return;
-      if (window.confirm(LEAVE_MESSAGE)) {
-        guarded = false;
-        window.history.back();
-      } else {
-        window.history.pushState({ ptwLeaveGuard: true }, "", url);
-      }
+      void confirmAction(LEAVE_MESSAGE).then((confirmed) => {
+        if (confirmed) {
+          guarded = false;
+          window.history.back();
+        } else {
+          window.history.pushState({ ptwLeaveGuard: true }, "", url);
+        }
+      });
     };
     let guarded = true;
     window.addEventListener("beforeunload", unload);

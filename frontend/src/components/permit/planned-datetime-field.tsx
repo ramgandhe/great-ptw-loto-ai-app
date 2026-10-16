@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Calendar } from "lucide-react";
@@ -196,7 +197,7 @@ export function PlannedDateTimeField({
         ) : null}
       </div>
 
-      <select
+      <AppSelect
         aria-label="Time"
         className={fieldClassName}
         value={time}
@@ -209,7 +210,7 @@ export function PlannedDateTimeField({
             {option}
           </option>
         ))}
-      </select>
+      </AppSelect>
     </div>
   );
 }

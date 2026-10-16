@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, TriangleAlert } from "lucide-react";
 import { AnimatedNumber } from "@/components/analytics/animated-number";
 import { SegmentedBar, StatTile } from "@/components/analytics/charts";
 import { SectionTitle } from "@/components/layout/page-header";
@@ -74,10 +74,19 @@ function SiteAttention() {
 
 /** The signed-in person's own permits: where they stand and what starts this week. */
 function MyPermits() {
-  const { permits, loaded } = useWorkQueue();
+  const { permits, loaded, failed, retry } = useWorkQueue();
   // Captured once per mount; "this week" doesn't need to tick while the page is open.
   const [now] = useState(() => Date.now());
   if (!loaded) return <p className="text-sm text-muted-foreground">Loading your permits…</p>;
+  if (failed.includes("permits")) {
+    return (
+      <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-(--status-warning) bg-(--status-warning-bg) px-5 py-4 text-sm">
+        <TriangleAlert className="size-4 shrink-0 text-(--status-warning)" aria-hidden />
+        <p className="flex-1">Permit data could not be loaded. Lifecycle totals and upcoming work are unavailable.</p>
+        <Button type="button" variant="outline" size="sm" onClick={retry}>Retry</Button>
+      </div>
+    );
+  }
 
   const upcoming = permits
     .filter((p) => p.plannedStartAt && ["approved", "pending_approval"].includes(p.status))

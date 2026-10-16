@@ -4,13 +4,19 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const alertVariants = cva(
-  "group/alert relative grid w-full gap-0.5 rounded-lg border px-2.5 py-2 text-left text-sm has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pr-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-2 *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-4",
+  "ui-alert group/alert relative grid w-full gap-1 rounded-xl border px-4 py-3.5 text-left text-sm has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pr-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-3 *:[svg]:row-span-2 *:[svg]:mt-0.5 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default: "bg-card text-card-foreground",
         destructive:
-          "bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current",
+          "border-(--status-danger)/30 bg-(--status-danger-bg) text-(--status-danger) *:data-[slot=alert-description]:text-current/85 *:[svg]:text-current",
+        warning:
+          "border-(--status-warning)/30 bg-(--status-warning-bg) text-(--status-warning) *:data-[slot=alert-description]:text-current/85 *:[svg]:text-current",
+        success:
+          "border-(--status-success)/30 bg-(--status-success-bg) text-(--status-success) *:data-[slot=alert-description]:text-current/85 *:[svg]:text-current",
+        info:
+          "border-(--status-info)/30 bg-(--status-info-bg) text-(--status-info) *:data-[slot=alert-description]:text-current/85 *:[svg]:text-current",
       },
     },
     defaultVariants: {
@@ -27,6 +33,7 @@ function Alert({
   return (
     <div
       data-slot="alert"
+      data-ui-alert=""
       role="alert"
       className={cn(alertVariants({ variant }), className)}
       {...props}

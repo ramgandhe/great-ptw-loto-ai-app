@@ -20,6 +20,7 @@ import type { RestorationDetail } from "@/lib/restoration/types";
 import { ExecutionStatusBadge } from "@/components/isolation-execution/execution-status-badge";
 import { RestorationTimeline } from "@/components/restoration/restoration-timeline";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { restorationProgress } from "@/lib/restoration/progress";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -96,8 +97,8 @@ export default function RestorationWorkspacePage() {
   const canRestore = restoration.execution.status === "verified";
   const { points, current, outstanding } = restorationProgress(executionDetail.sequence, executionDetail.locks, executionDetail.tags, restoration);
   const selected = points.find((p) => p.step.isolationPointId === selectedPointId) ?? current;
-  const confirmed = (question: string, run: () => Promise<unknown>, done: string, advance = false) => {
-    if (window.confirm(question)) void runAction(async () => void (await run()), done, advance);
+  const confirmed = async (question: string, run: () => Promise<unknown>, done: string, advance = false) => {
+    if (await confirmAction(question)) void runAction(async () => void (await run()), done, advance);
   };
 
   return (

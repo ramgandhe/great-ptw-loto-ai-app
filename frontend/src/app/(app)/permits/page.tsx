@@ -4,8 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
-import { ListFilter, Plus, Search, X } from "lucide-react";
-import { PageHeader } from "@/components/layout/page-header";
+import { ClipboardList, ListFilter, Plus, Search, X } from "lucide-react";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { PermitTypeChip } from "@/components/permit/permit-type-chip";
 import { buttonVariants } from "@/components/ui/button";
@@ -37,6 +36,7 @@ function PermitsBoard() {
   const [lookups, setLookups] = useState<Lookups | null>(null);
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectedPermitId, setSelectedPermitId] = useState<string | null>(null);
 
   const statuses = listParam(params.get("status"));
   const types = listParam(params.get("type"));
@@ -93,6 +93,7 @@ function PermitsBoard() {
     .filter((p) => inView(p) && inStatus(p) && inType(p))
     // Anything waiting on this person first, then most recently changed.
     .sort((a, b) => Number(actionByPermit.has(b.id)) - Number(actionByPermit.has(a.id)) || b.updatedAt.localeCompare(a.updatedAt));
+  const selectedPermit = visible.find((permit) => permit.id === selectedPermitId) ?? visible[0] ?? null;
 
   const statusOptions = PERMIT_STATUSES.map((s) => ({
     value: s.key,
@@ -119,24 +120,34 @@ function PermitsBoard() {
   ];
 
   return (
-    <main className="flex flex-1 flex-col gap-4 px-4 pb-8 sm:px-8">
-      <PageHeader
-        title="Permits"
-        description="Every permit you can see. The ones waiting on you come first."
-        actions={
-          hasAnyRole(roles, PERMIT_CREATE_ROLES) ? (
-            <Link href="/permits/new" className={buttonVariants({ size: "lg" })}>
-              <Plus aria-hidden />
-              Create permit
-            </Link>
-          ) : null
-        }
-      >
-        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-          <SegmentedToggle label="Permit views" className="w-max" value={view} onChange={(v) => setParams({ view: v })} options={viewOptions} />
+    <main className="mx-auto flex w-full max-w-370 flex-1 flex-col gap-5 px-4 pb-10 pt-6 sm:gap-6 sm:px-8 sm:pt-8">
+      <header className="flex flex-col gap-5 border-b border-border pb-5 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            <ClipboardList className="size-4" aria-hidden />
+            Work management / Permit control
+          </p>
+          <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-[2.1rem]">Permit register</h1>
+          <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Review authorization status, work location, and planned activity.
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="relative flex h-11 w-full items-center sm:w-80">
+        {hasAnyRole(roles, PERMIT_CREATE_ROLES) ? (
+          <Link href="/permits/new" className={buttonVariants({ size: "lg", className: "h-11" })}>
+            <Plus aria-hidden />
+            Create permit
+          </Link>
+        ) : null}
+      </header>
+
+      <section aria-label="Permit views and filters" className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="border-b border-border bg-muted/40 px-3 pt-3 sm:px-4">
+          <div className="-mx-1 overflow-x-auto px-1">
+            <SegmentedToggle label="Permit views" className="w-max" value={view} onChange={(v) => setParams({ view: v })} options={viewOptions} />
+          </div>
+        </div>
+        <div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:px-4">
+          <label className="relative flex h-11 w-full items-center sm:max-w-xl sm:flex-1">
             <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
             <span className="sr-only">Search permits</span>
             <input
@@ -147,7 +158,7 @@ function PermitsBoard() {
                 setParams({ q: e.target.value });
               }}
               placeholder="Reference, title, type or place"
-              className="h-11 w-full rounded-full border border-border bg-card pl-9 pr-9 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-11 w-full rounded-[8px] border border-border bg-background pl-9 pr-9 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
             {query ? (
               <button
@@ -169,26 +180,26 @@ function PermitsBoard() {
             aria-controls="permit-filters"
             onClick={() => setFiltersOpen((v) => !v)}
             className={cn(
-              "press flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm",
+              "press flex min-h-11 items-center gap-1.5 rounded-md border px-4 text-sm",
               filterCount ? "is-selected border-transparent font-semibold" : "border-border bg-card text-muted-foreground hover:text-foreground",
             )}
           >
             <ListFilter className="size-4" aria-hidden />
-            Filters{filterCount ? ` (${filterCount})` : ""}
+            {filtersOpen ? "Hide filters" : "Filters"}{filterCount ? ` · ${filterCount}` : ""}
           </button>
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            {loaded ? `${visible.length} permit${visible.length === 1 ? "" : "s"}` : null}
+          <p className="text-sm font-medium text-muted-foreground sm:ml-auto" aria-live="polite">
+            {loaded ? `${visible.length} result${visible.length === 1 ? "" : "s"}` : "Loading results"}
           </p>
         </div>
         {chips.length ? (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 px-3 pb-3 sm:px-4">
             {chips.map((chip) => (
               <button
                 key={chip.key}
                 type="button"
                 onClick={chip.remove}
                 aria-label={`Remove filter ${chip.label}`}
-                className="press flex min-h-9 items-center gap-1 rounded-full border border-border bg-card px-3 text-sm hover:bg-muted"
+                className="press flex min-h-9 items-center gap-1 rounded-[6px] border border-border bg-background px-3 text-sm hover:bg-muted"
               >
                 {chip.label}
                 <X className="size-3.5" aria-hidden />
@@ -200,7 +211,7 @@ function PermitsBoard() {
           </div>
         ) : null}
         {filtersOpen ? (
-          <div id="permit-filters" className="grid gap-3">
+          <div id="permit-filters" className="mx-3 mb-3 grid gap-4 rounded-md border border-border bg-muted/30 p-4 sm:mx-4">
             <MultiToggle label="Status" options={statusOptions} selected={statuses} onChange={(next) => setParams({ status: next })} />
             {typeOptions.length > 1 ? (
               <MultiToggle label="Permit type" options={typeOptions} selected={types} onChange={(next) => setParams({ type: next })} />
@@ -213,13 +224,16 @@ function PermitsBoard() {
             />
           </div>
         ) : null}
-      </PageHeader>
+      </section>
 
       <WorkQueueUnavailable />
       {!loaded ? (
-        <p className="text-sm text-muted-foreground">Loading permits…</p>
+        <div className="rounded-[10px] border border-border bg-card px-5 py-8 text-sm text-muted-foreground">Loading permits…</div>
       ) : visible.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border px-5 py-10 text-center">
+        <div className="rounded-[12px] border border-dashed border-border bg-card px-5 py-12 text-center">
+          <span className="mx-auto mb-3 grid size-11 place-items-center rounded-full border border-border bg-muted text-muted-foreground">
+            <Search className="size-5" aria-hidden />
+          </span>
           <p className="font-medium">{query ? `No permits match “${query}”` : view === "needs-me" ? "You are all caught up" : "No permits in this view"}</p>
           <p className="mt-1 text-sm text-muted-foreground">
             {filterCount || query
@@ -230,54 +244,109 @@ function PermitsBoard() {
           </p>
         </div>
       ) : (
-        <div className="overflow-clip rounded-xl border border-border bg-card">
-          <div
-            aria-hidden
-            className="table-head hidden grid-cols-[minmax(0,2.2fr)_minmax(0,1.3fr)_minmax(0,1.5fr)_9.5rem_7rem] gap-4 border-b border-border px-5 py-2.5 text-xs lg:grid"
-          >
-            <span>Permit</span>
-            <span>Type and place</span>
-            <span>Planned</span>
-            <span>Status</span>
-            <span className="text-right">Next step</span>
-          </div>
-          <ul className="divide-y divide-border">
-            {visible.map((permit, i) => {
-              const type = lookups?.permitTypes.get(permit.permitTypeId);
-              const action = actionByPermit.get(permit.id);
-              return (
-                <motion.li
-                  key={permit.id}
-                  initial={reduce ? false : { opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, delay: Math.min(i, 10) * 0.025, ease: [0.23, 1, 0.32, 1] }}
-                  className="row-hover relative grid gap-x-4 gap-y-1.5 px-5 py-3.5 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1.3fr)_minmax(0,1.5fr)_9.5rem_7rem] lg:items-center"
-                >
-                  <div className="min-w-0">
-                    {/* The whole row opens the permit; the action button stays independently clickable. */}
-                    <Link href={`/permits/${permit.id}`} className="font-semibold after:absolute after:inset-0 hover:underline">
-                      {permit.title}
-                    </Link>
-                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono font-semibold text-foreground">
-                        {permit.reference ?? "No reference yet"}
+        <div className="grid min-h-[34rem] overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-[minmax(20rem,0.78fr)_minmax(0,1.5fr)]">
+          <section aria-label="Permit records" className="min-w-0 border-b border-border lg:border-b-0 lg:border-r">
+            <div className="flex items-center justify-between border-b border-border bg-muted/35 px-4 py-3">
+              <div>
+                <h2 className="text-sm font-semibold">Work permits</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">Select a record to inspect</p>
+              </div>
+              <span className="rounded-md bg-background px-2 py-1 font-mono text-xs tabular-nums text-muted-foreground">{visible.length}</span>
+            </div>
+            <ul className="max-h-[34rem] divide-y divide-border overflow-y-auto" aria-label="Permit records">
+              {visible.map((permit, i) => {
+                const type = lookups?.permitTypes.get(permit.permitTypeId);
+                const action = actionByPermit.get(permit.id);
+                const selected = selectedPermit?.id === permit.id;
+                return (
+                  <motion.li
+                    key={permit.id}
+                    initial={reduce ? false : { opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.16, delay: Math.min(i, 8) * 0.018 }}
+                    className={cn("relative flex items-stretch", selected && "bg-primary/5")}
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => setSelectedPermitId(permit.id)}
+                      className={cn(
+                        "min-w-0 flex-1 border-l-[3px] px-4 py-3.5 text-left transition-[background-color,border-color] duration-150",
+                        selected ? "border-l-primary bg-primary/5" : "border-l-transparent hover:bg-muted/50",
+                      )}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate font-semibold leading-5">{permit.title}</span>
+                        <PermitStatusBadge status={permit.status} />
                       </span>
-                      <span>Updated {formatRelative(permit.updatedAt)}</span>
-                    </p>
-                  </div>
-                  <div className="flex min-w-0 flex-col items-start gap-1 text-sm">
-                    <PermitTypeChip name={type?.name} color={type?.color} />
-                    <p className="max-w-full truncate text-xs text-muted-foreground">{placeOf(permit, lookups) ?? "Place not set"}</p>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{formatWindow(permit.plannedStartAt, permit.plannedEndAt)}</p>
-                  <div>
-                    <PermitStatusBadge status={permit.status} />
-                  </div>
-                  <div className="relative z-10 lg:text-right">{action ? <ActionLink item={action} /> : null}</div>
-                </motion.li>
-              );
-            })}
-          </ul>
+                      <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                        <span className="font-mono">{permit.reference ?? "Draft"}</span>
+                        <span aria-hidden>·</span>
+                        <span>{type?.name ?? "Permit"}</span>
+                      </span>
+                      <span className="mt-2 block truncate text-xs text-muted-foreground">{placeOf(permit, lookups) ?? "Place not set"}</span>
+                    </button>
+                    {action ? (
+                      <div className="flex items-center pr-3">
+                        <ActionLink item={action} />
+                      </div>
+                    ) : null}
+                  </motion.li>
+                );
+              })}
+            </ul>
+          </section>
+
+          {selectedPermit ? (
+            <section
+              key={selectedPermit.id}
+              aria-labelledby="selected-permit-title"
+              className="page-in flex min-w-0 flex-col p-5 sm:p-7 lg:p-9"
+            >
+              {(() => {
+                const type = lookups?.permitTypes.get(selectedPermit.permitTypeId);
+                const action = actionByPermit.get(selectedPermit.id);
+                return (
+                  <>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Selected permit</p>
+                        <h2 id="selected-permit-title" className="max-w-2xl font-heading text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
+                          {selectedPermit.title}
+                        </h2>
+                        <p className="mt-2 font-mono text-sm text-muted-foreground">{selectedPermit.reference ?? "Draft — reference assigned on submission"}</p>
+                      </div>
+                      <PermitStatusBadge status={selectedPermit.status} />
+                    </div>
+                    <div className="mt-8 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2">
+                      <div className="bg-background p-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Work type</p>
+                        <div className="mt-2"><PermitTypeChip name={type?.name} color={type?.color} /></div>
+                      </div>
+                      <div className="bg-background p-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Work location</p>
+                        <p className="mt-2 text-sm font-medium">{placeOf(selectedPermit, lookups) ?? "Place not set"}</p>
+                      </div>
+                      <div className="bg-background p-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Planned work window</p>
+                        <p className="mt-2 text-sm font-medium">{formatWindow(selectedPermit.plannedStartAt, selectedPermit.plannedEndAt)}</p>
+                      </div>
+                      <div className="bg-background p-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Last updated</p>
+                        <p className="mt-2 text-sm font-medium">{formatRelative(selectedPermit.updatedAt)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-border pt-6">
+                      {action ? <ActionLink item={action} /> : <span className="text-sm text-muted-foreground">No action needed</span>}
+                      <Link href={`/permits/${selectedPermit.id}`} className={buttonVariants({ variant: "outline", size: "lg", className: "ml-auto" })}>
+                        Open permit workspace
+                      </Link>
+                    </div>
+                  </>
+                );
+              })()}
+            </section>
+          ) : null}
         </div>
       )}
     </main>

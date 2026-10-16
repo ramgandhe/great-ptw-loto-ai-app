@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { RowActions } from "@/components/ui/row-actions";
 import { SegmentedToggle } from "@/components/ui/toggle-group";
 import { toast } from "@/components/ui/toast";
@@ -139,7 +140,7 @@ export default function ChecklistsPage() {
 
   async function handleSetActive(bundle: SafetyChecklistBundle, on: boolean) {
     const name = bundle.checklist.name;
-    if (!on && !window.confirm(`Deactivate ${name}? It stays on this list but cannot be attached to permits.`)) return;
+    if (!on && !(await confirmAction(`Deactivate ${name}? It stays on this list but cannot be attached to permits.`))) return;
     setError(null);
     try {
       await checklistsApi.update(bundle.checklist.id, { isActive: on });

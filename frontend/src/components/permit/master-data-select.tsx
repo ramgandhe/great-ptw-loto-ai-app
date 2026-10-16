@@ -1,4 +1,5 @@
 import { fieldClassName } from "./form-field";
+import { AppSelect } from "@/components/ui/select";
 import type { MasterDataRecord } from "@/lib/master-data/api";
 
 type MasterDataSelectProps = {
@@ -23,7 +24,7 @@ export function MasterDataSelect({
   ...aria
 }: MasterDataSelectProps) {
   return (
-    <select
+    <AppSelect
       id={id}
       {...aria}
       className={fieldClassName}
@@ -38,6 +39,6 @@ export function MasterDataSelect({
           {option.code ? ` (${option.code})` : ""}
         </option>
       ))}
-    </select>
+    </AppSelect>
   );
 }

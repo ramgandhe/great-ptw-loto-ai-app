@@ -12,6 +12,7 @@ import { formatRoleLabel, hasAnyRole } from "@/lib/auth/rbac";
 import { NOTIFICATION_READ_ROLES } from "@/lib/auth/roles";
 import { signOut } from "@/lib/auth/session";
 import { listNotifications } from "@/lib/notifications/api";
+import { APP_NAV_ITEMS } from "@/lib/navigation";
 
 function Avatar({ url, name }: { url?: string | null; name: string }) {
   return url ? (
@@ -108,6 +109,7 @@ function NotificationBell() {
 }
 
 export function AppHeader({ onOpenNav, onOpenSearch }: { onOpenNav: () => void; onOpenSearch: () => void }) {
+  const pathname = usePathname();
   const { profile, roles } = useAuthProfile();
   const { mode, setMode } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -119,11 +121,15 @@ export function AppHeader({ onOpenNav, onOpenSearch }: { onOpenNav: () => void; 
       ? `${profile.firstName} ${profile.lastName}`
       : (profile?.username ?? "Signed in"));
   const roleLabel = roles.length > 0 ? roles.map(formatRoleLabel).join(", ") : "No roles assigned";
-
+  const pageLabel =
+    /^\/permits\/[^/]+$/.test(pathname) && pathname !== "/permits/new"
+      ? "Permit workspace"
+      : APP_NAV_ITEMS.filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+          .sort((a, b) => b.href.length - a.href.length)[0]?.label ?? "Operations";
   useDismiss(menuRef, menuOpen, () => setMenuOpen(false));
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 print:hidden shrink-0 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur sm:px-6">
+    <header className="ptw-toolbar sticky top-0 z-30 flex h-14 print:hidden shrink-0 items-center gap-3 border-b border-border px-4 backdrop-blur sm:px-6">
       <button
         type="button"
         className="-ml-1 rounded-md p-1.5 text-muted-foreground hover:text-foreground lg:hidden"
@@ -134,10 +140,15 @@ export function AppHeader({ onOpenNav, onOpenSearch }: { onOpenNav: () => void; 
         <Menu className="size-5" />
       </button>
 
+      <div className="hidden min-w-36 xl:block">
+        <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Work management</p>
+        <p className="mt-0.5 truncate text-sm font-semibold">{pageLabel}</p>
+      </div>
+
       <button
         type="button"
         onClick={onOpenSearch}
-        className="flex h-9 min-w-0 flex-1 items-center gap-2.5 rounded-lg border border-border bg-card px-3 text-sm text-muted-foreground transition-colors hover:border-(--border-strong) sm:max-w-md"
+        className="flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-lg border border-border bg-card px-3 text-sm text-muted-foreground transition-colors hover:border-(--border-strong) sm:max-w-xl"
       >
         <Search className="size-4 shrink-0" aria-hidden />
         <span className="truncate">Search permits, pages and actions</span>

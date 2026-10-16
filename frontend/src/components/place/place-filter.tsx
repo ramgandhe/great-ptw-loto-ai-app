@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useEffect, useRef, useState } from "react";
 import { sitesApi } from "@/lib/organisation/api";
@@ -62,7 +63,7 @@ export function PlaceFilter({
     <div className="flex flex-wrap gap-2">
       <label className="grid gap-1 text-sm">
         <span className="font-medium">Site</span>
-        <select
+        <AppSelect
           className={SELECT}
           value={siteId}
           onChange={(event) => onChange({ siteId: event.target.value, workLocationId: "" })}
@@ -71,11 +72,11 @@ export function PlaceFilter({
           {sites.map((site) => (
             <option key={site.id} value={site.id}>{site.name}</option>
           ))}
-        </select>
+        </AppSelect>
       </label>
       <label className="grid gap-1 text-sm">
         <span className="font-medium">Work location</span>
-        <select
+        <AppSelect
           className={SELECT}
           value={workLocationId}
           disabled={!siteId}
@@ -85,7 +86,7 @@ export function PlaceFilter({
           {locations.map((row) => (
             <option key={row.id} value={row.id}>{row.pathText || row.name}</option>
           ))}
-        </select>
+        </AppSelect>
       </label>
     </div>
   );

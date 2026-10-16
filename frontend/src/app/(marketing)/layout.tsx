@@ -3,7 +3,7 @@ import { SiteHeader } from "@/components/marketing/site-header";
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+    <div className="ptw-marketing-shell flex min-h-dvh flex-col bg-background text-foreground">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"

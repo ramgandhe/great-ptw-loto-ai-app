@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
@@ -28,6 +29,7 @@ import { AdminPage, AdminPageHeader } from "@/components/layout/admin-page-heade
 import { formatDateTime } from "@/lib/format";
 import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
 import { useLeaveGuard } from "@/lib/leave-guard";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 /** Lists whose archived records the API can return (see listArchived). */
 const ARCHIVE_VIEW: readonly string[] = ["plants", "sites", "departments", "locations", "workflows"];
@@ -247,7 +249,7 @@ export function EntityCrudPage({
   /** Deactivate keeps the record listed but stops it being offered on permits and forms. */
   async function handleSetActive(item: OrgRecord, on: boolean) {
     const name = String(item[nameField] ?? singular);
-    if (!on && !window.confirm(`Deactivate ${name}? It stays on this list but is no longer offered on permits.`)) return;
+    if (!on && !(await confirmAction(`Deactivate ${name}? It stays on this list but is no longer offered on permits.`))) return;
     setError(null);
     // Each list stores "in use" its own way; the button is the same everywhere.
     const patch =
@@ -378,7 +380,7 @@ export function EntityCrudPage({
                   onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
                 />
               ) : field.select || field.options ? (
-                <select
+                <AppSelect
                   required={field.required}
                   value={form[field.key] ?? ""}
                   className="h-10 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -390,7 +392,7 @@ export function EntityCrudPage({
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </AppSelect>
               ) : (
                 <input
                   required={field.required}

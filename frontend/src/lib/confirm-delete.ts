@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 function assignmentLines(details: unknown): string[] {
   return Array.isArray(details) ? details.map(String).filter(Boolean) : [];
@@ -9,7 +10,7 @@ export async function deleteWithAssignmentConfirm(
   name: string,
   run: (force: boolean) => Promise<void>,
 ): Promise<boolean> {
-  if (!window.confirm(`Permanently delete ${name}? This cannot be undone.`)) {
+  if (!(await confirmAction(`Permanently delete ${name}? This cannot be undone.`))) {
     return false;
   }
   try {
@@ -22,9 +23,9 @@ export async function deleteWithAssignmentConfirm(
     const lines = assignmentLines(error.details);
     const extra = lines.length ? `\n\n${lines.map((line) => `• ${line}`).join("\n")}` : "";
     if (
-      !window.confirm(
+      !(await confirmAction(
         `${name} is assigned to other records.${extra}\n\nDelete anyway? Historical records stay.`,
-      )
+      ))
     ) {
       return false;
     }

@@ -12,6 +12,7 @@ import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { RowActions } from "@/components/ui/row-actions";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export default function TemplatesPage() {
   const router = useRouter();
@@ -190,8 +191,8 @@ export default function TemplatesPage() {
                         ? {
                             label: "Deactivate",
                             disabled: busy,
-                            onClick: () => {
-                              if (window.confirm(`Deactivate “${template.name}”? It goes back to draft and is not offered on permits.`)) {
+                            onClick: async () => {
+                              if (await confirmAction(`Deactivate “${template.name}”? It goes back to draft and is not offered on permits.`)) {
                                 void run(async () => {
                                   await permitTemplatesApi.update(template.id, { status: "draft" });
                                   return `${template.name} deactivated`;

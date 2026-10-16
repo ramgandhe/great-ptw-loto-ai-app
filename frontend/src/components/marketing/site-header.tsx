@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/#flow", label: "How it works" },
+  { href: "/#industries", label: "Industries" },
   { href: "/#features", label: "Features" },
   { href: "/#why", label: "Why switch" },
   { href: "/#security", label: "Security" },

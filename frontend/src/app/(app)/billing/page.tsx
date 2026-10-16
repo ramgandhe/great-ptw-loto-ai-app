@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -309,7 +310,7 @@ export default function BillingPage() {
               <h2 className="text-sm font-semibold">Invoices</h2>
               <label className="flex items-center gap-2 text-sm">
                 Status
-                <select
+                <AppSelect
                   className="rounded-md border border-border bg-background px-3 py-1.5"
                   value={invoiceFilter}
                   onChange={(event) =>
@@ -321,7 +322,7 @@ export default function BillingPage() {
                   <option value="issued">Issued</option>
                   <option value="paid">Paid</option>
                   <option value="void">Void</option>
-                </select>
+                </AppSelect>
               </label>
             </div>
             <InvoiceTable invoices={invoices} />

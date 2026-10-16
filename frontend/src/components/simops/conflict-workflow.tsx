@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useState } from "react";
 import { ApiError } from "@/lib/api";
@@ -80,7 +81,7 @@ export function ConflictWorkflow({ detail, onUpdated }: ConflictWorkflowProps) {
           <>
             <label className="block text-sm">
               Severity
-              <select
+              <AppSelect
                 className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 value={assessedSeverity}
                 onChange={(event) => setAssessedSeverity(event.target.value as ConflictSeverity)}
@@ -90,7 +91,7 @@ export function ConflictWorkflow({ detail, onUpdated }: ConflictWorkflowProps) {
                     {value}
                   </option>
                 ))}
-              </select>
+              </AppSelect>
             </label>
             <label className="block text-sm">
               Risk summary

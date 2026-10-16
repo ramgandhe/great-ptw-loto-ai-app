@@ -112,6 +112,89 @@
   --act-admin: #94a3b8;
 }
 
+.ptw-app {
+  --font-display: var(--font-family-space-grotesk), sans-serif;
+  --font-body: var(--font-family-ibm-plex-sans), sans-serif;
+  --radius-xs: 5px;
+  --radius-sm: 7px;
+  --radius-md: 9px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --sidebar: #172638;
+  --sidebar-foreground: #e9eff7;
+  --sidebar-primary: #9bbcff;
+  --sidebar-primary-foreground: #172638;
+  --sidebar-accent: #263951;
+  --sidebar-accent-foreground: #f5f8fc;
+  --sidebar-border: #2c4058;
+  --sidebar-ring: #9bbcff;
+  --shadow-card: 0 8px 24px -20px rgb(20 38 58 / 28%);
+  --ease-out-soft: cubic-bezier(0.2, 0.75, 0.25, 1);
+  font-family: var(--font-family-ibm-plex-sans), sans-serif;
+}
+
+.dark .ptw-app {
+  --sidebar: #101a27;
+  --sidebar-foreground: #e7edf5;
+  --sidebar-primary: #a8c4ff;
+  --sidebar-primary-foreground: #101a27;
+  --sidebar-accent: #1d2a3b;
+  --sidebar-accent-foreground: #f4f7fb;
+  --sidebar-border: #263549;
+  --sidebar-ring: #a8c4ff;
+}
+
+.ptw-app .ops-hero {
+  background:
+    radial-gradient(ellipse at 82% 12%, color-mix(in srgb, var(--accent-secondary) 20%, transparent), transparent 28%),
+    linear-gradient(115deg, color-mix(in srgb, var(--primary) 86%, #101a27), var(--primary));
+  box-shadow: 0 20px 44px -30px color-mix(in srgb, var(--primary) 55%, transparent);
+}
+
+.ptw-app .ptw-navigation {
+  background: var(--sidebar);
+  border-right-color: var(--sidebar-border);
+}
+
+.ptw-app .ptw-toolbar {
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+}
+
+.ptw-app main {
+  min-width: 0;
+}
+
+.ptw-app .table-box {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.ptw-marketing-shell {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.ptw-marketing-shell .home-hero {
+  background:
+    radial-gradient(ellipse at 78% 20%, color-mix(in srgb, var(--accent-secondary) 24%, transparent), transparent 30%),
+    linear-gradient(
+      125deg,
+      color-mix(in srgb, var(--primary) 36%, #101a27) 0%,
+      color-mix(in srgb, var(--primary) 27%, #152238) 58%,
+      color-mix(in srgb, var(--primary) 42%, #0f1b2d) 100%
+    );
+}
+
+.ptw-marketing-shell .home-hero-grid {
+  background-image: linear-gradient(rgb(255 255 255 / 5%) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 5%) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: linear-gradient(90deg, transparent, black);
+}
+
+.ptw-marketing-shell .home-section-band {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--background) 76%, var(--primary) 4%), var(--background));
+}
+
 /* A soft chip in any colour: set --chip on the element. Used by status, type and filter chips. */
 .chip {
   background: color-mix(in oklab, var(--chip) 13%, transparent);
@@ -303,6 +386,35 @@
   }
 }
 
+.ptw-app h1,
+.ptw-app h2,
+.ptw-app h3,
+.ptw-app h4 {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.ptw-app h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: 1.2;
+}
+
+.ptw-app h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+
+.ptw-app h3 {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+}
+
+.ptw-app h4 {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+}
+
 [data-density="compact"] body {
   font-size: var(--text-base);
 }
@@ -334,4 +446,112 @@ input::placeholder,
 textarea::placeholder {
   color: var(--text-secondary);
   opacity: 0.8;
+}
+
+.ptw-app select:not([multiple]) {
+  appearance: none;
+  border-radius: var(--radius-md);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7787' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+  transition: border-color 160ms var(--ease-out-soft), box-shadow 160ms var(--ease-out-soft);
+}
+
+.ptw-app select:not([multiple]):focus-visible,
+.ptw-app input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"]):focus-visible,
+.ptw-app textarea:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent);
+}
+
+.ptw-app select option {
+  background: var(--bg-surface-raised);
+  color: var(--text-primary);
+}
+
+.ptw-app input[type="checkbox"],
+.ptw-app input[type="radio"] {
+  accent-color: var(--primary);
+}
+
+.ptw-app input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 4px;
+}
+
+.ptw-app .ui-alert {
+  box-shadow: var(--shadow-card);
+}
+
+.ptw-app [role="alert"]:not(.ui-alert):not(.ptw-toast),
+.ptw-marketing-shell [role="alert"]:not(.ui-alert):not(.ptw-toast) {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--status-danger) 24%, var(--border));
+  border-inline-start: 3px solid var(--status-danger);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--status-danger-bg) 74%, var(--card));
+  color: var(--status-danger);
+  padding: 0.75rem 0.9rem;
+  line-height: 1.5;
+}
+
+.ptw-app [role="note"],
+.ptw-marketing-shell [role="note"] {
+  border: 1px solid color-mix(in srgb, var(--status-warning) 24%, var(--border));
+  border-inline-start: 3px solid var(--status-warning);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--status-warning-bg) 74%, var(--card));
+  color: var(--status-warning);
+  padding: 0.75rem 0.9rem;
+}
+
+.ptw-toast {
+  border-color: color-mix(in srgb, var(--glow) 25%, var(--border));
+  border-inline-start: 3px solid var(--glow);
+  box-shadow: 0 14px 36px -22px color-mix(in srgb, var(--foreground) 38%, transparent);
+}
+
+.ptw-app dialog {
+  border-color: var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  color: var(--card-foreground);
+  box-shadow: 0 24px 80px -28px rgb(10 20 35 / 55%);
+}
+
+.ptw-app dialog::backdrop {
+  background: color-mix(in srgb, var(--foreground) 48%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.ptw-app dialog h2 {
+  color: var(--foreground);
+}
+
+.ptw-app details > summary {
+  transition: background-color 160ms var(--ease-out-soft), color 160ms var(--ease-out-soft);
+}
+
+.ptw-app details > summary:hover {
+  background: color-mix(in srgb, var(--primary) 4%, transparent);
+}
+
+.ptw-app :focus-visible {
+  scroll-margin-block: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptw-app *,
+  .ptw-app *::before,
+  .ptw-app *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

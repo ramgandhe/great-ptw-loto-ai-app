@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { FIELD_CLASS } from "@/components/layout/admin-page-header";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { RowActions } from "@/components/ui/row-actions";
 import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api";
@@ -66,7 +67,7 @@ export function IndustriesPanel() {
   }
 
   async function remove(industry: Industry) {
-    if (!window.confirm(`Remove ${industry.name}?`)) return;
+    if (!(await confirmAction(`Remove ${industry.name}?`))) return;
     setError(null);
     try {
       await industriesApi.remove(industry.id, false);
@@ -77,7 +78,7 @@ export function IndustriesPanel() {
       }
       const lines = Array.isArray(err.details) ? err.details.map(String) : [];
       const extra = lines.length ? `\n\n${lines.map((line) => `• ${line}`).join("\n")}` : "";
-      if (!window.confirm(`${industry.name} is used by tenants.${extra}\n\nRemove it anyway? Those tenants will be set to Others.`)) {
+      if (!(await confirmAction(`${industry.name} is used by tenants.${extra}\n\nRemove it anyway? Those tenants will be set to Others.`))) {
         return;
       }
       try {

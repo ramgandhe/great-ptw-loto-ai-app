@@ -8,6 +8,7 @@ import { CommandPalette } from "@/components/layout/command-palette";
 import { AppNavigation } from "@/components/app-navigation";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { Toaster } from "@/components/ui/toast";
+import { ConfirmDialogHost } from "@/components/ui/confirm-dialog";
 import { WorkQueueProvider } from "@/lib/work-queue-context";
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -36,7 +37,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
 
   return (
     <WorkQueueProvider>
-      <div className="flex min-h-dvh bg-background text-foreground">
+      <div className="ptw-app flex min-h-dvh bg-background text-foreground">
         <AppNavigation open={navOpen} onClose={() => setNavOpen(false)} />
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader onOpenNav={() => setNavOpen(true)} onOpenSearch={() => setSearchOpen(true)} />
@@ -44,6 +45,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
             <ErrorBoundary>{children}</ErrorBoundary>
           </div>
         </div>
+        <ConfirmDialogHost />
       </div>
       <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
       <Toaster />

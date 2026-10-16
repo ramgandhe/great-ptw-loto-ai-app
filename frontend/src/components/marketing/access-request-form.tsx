@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -28,7 +29,7 @@ export function AccessRequestForm() {
   const [sentTo, setSentTo] = useState<string | null>(null);
 
   function update(key: keyof typeof EMPTY) {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    return (e: { target: { value: string } }) =>
       setForm((prev) => ({ ...prev, [key]: e.target.value }));
   }
 
@@ -111,14 +112,14 @@ export function AccessRequestForm() {
           <span className="font-medium">
             Number of sites <span className="font-normal text-muted-foreground">(optional)</span>
           </span>
-          <select value={form.siteCount} onChange={update("siteCount")} className={inputClass}>
+          <AppSelect value={form.siteCount} onChange={update("siteCount")} className={inputClass}>
             <option value="">Select</option>
             {SITE_COUNT_OPTIONS.map((opt) => (
               <option key={opt} value={opt}>
                 {opt === "1" ? "1 site" : `${opt} sites`}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </label>
       </div>
 

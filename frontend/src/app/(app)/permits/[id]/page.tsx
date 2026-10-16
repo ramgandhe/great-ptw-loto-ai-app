@@ -18,11 +18,12 @@ import { identityFromPermit, PermitSummary } from "@/components/permit/permit-su
 import { PermitFormResponses } from "@/components/permit/permit-form-responses";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { revalidatePermitAfterSuspension, suspendPermit } from "@/lib/execution/api";
 import { SuspensionDialog } from "@/components/execution/suspension-dialog";
-import { LockKeyhole, Pencil, Printer } from "lucide-react";
+import { CalendarClock, LockKeyhole, Pencil, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRelative, formatWindow } from "@/lib/format";
 import { safetyVetoPermit } from "@/lib/approval/api";
@@ -123,7 +124,7 @@ function PermitWorkspace() {
   }
 
   async function handleDelete() {
-    if (!window.confirm("Permanently delete this draft permit? This cannot be undone.")) return;
+    if (!(await confirmAction("Permanently delete this draft permit? This cannot be undone."))) return;
     setIsSubmitting(true);
     setActionError(null);
     try {
@@ -157,7 +158,7 @@ function PermitWorkspace() {
   }
 
   async function handleRevalidate() {
-    if (!window.confirm("Revalidate this suspended permit? It will go through full approval again.")) return;
+    if (!(await confirmAction("Revalidate this suspended permit? It will go through full approval again."))) return;
     setIsSubmitting(true);
     setActionError(null);
     try {
@@ -171,37 +172,62 @@ function PermitWorkspace() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-5 p-4 sm:p-8">
+    <main className="mx-auto flex w-full max-w-370 flex-1 flex-col gap-5 px-4 pb-10 pt-5 sm:gap-6 sm:px-8 sm:pb-10 sm:pt-7">
       <header className="print:hidden">
-        <BackLink href="/permits" label="Permits" />
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">{permit.title}</h1>
-          <PermitStatusBadge status={permit.status} />
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <BackLink href="/permits" label="Permit register" />
+          <span className="hidden text-xs text-muted-foreground sm:inline">Updated {formatRelative(permit.updatedAt)}</span>
         </div>
-        <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-muted-foreground">
-          <span className="font-mono">{permit.reference ?? "No number until submitted"}</span>
-          <span>v{permit.permitVersion ?? 1}</span>
-          <span>{formatWindow(permit.plannedStartAt, permit.plannedEndAt)}</span>
-          <span>Updated {formatRelative(permit.updatedAt)}</span>
-        </p>
-        <nav aria-label="Permit sections" className="-mx-1 mt-4 flex gap-1 overflow-x-auto border-b border-border">
-          {WORKSPACE_TABS.filter((t) => tabs.includes(t.key)).map((t) => (
+        <div className="grid gap-4 border-b border-border pb-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.65fr)] lg:items-end">
+          <div className="min-w-0">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Permit record · Version {permit.permitVersion ?? 1}
+            </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <h1 className="min-w-0 font-heading text-2xl font-semibold tracking-tight sm:text-3xl">{permit.title}</h1>
+              <PermitStatusBadge status={permit.status} />
+            </div>
+            <p className="mt-2 font-mono text-xs font-medium tracking-wide text-muted-foreground">
+              {permit.reference ?? "No number until submitted"}
+            </p>
+          </div>
+          <div className="flex items-start gap-3 border-l-2 border-primary pl-4">
+            <CalendarClock className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Planned work window</p>
+              <p className="mt-1 text-sm font-medium leading-5">{formatWindow(permit.plannedStartAt, permit.plannedEndAt)}</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-7">
+        <nav aria-label="Permit sections" className="flex gap-2 overflow-x-auto border-b border-border pb-3 lg:flex-col lg:overflow-visible lg:border-b-0 lg:border-r lg:pr-5">
+          {WORKSPACE_TABS.filter((t) => tabs.includes(t.key)).map((t, index) => (
             <Link
               key={t.key}
               href={workspaceHref(permit.id, t.key)}
               scroll={false}
               aria-current={tab === t.key ? "page" : undefined}
               className={cn(
-                "-mb-px inline-flex min-h-11 shrink-0 items-center border-b-2 px-3 text-sm font-medium",
-                tab === t.key ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+                "group inline-flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-sm transition-colors duration-150 lg:w-full",
+                tab === t.key
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-card hover:text-foreground",
               )}
             >
-              {t.label}
+              <span className={cn(
+                "grid size-6 shrink-0 place-items-center rounded-md font-mono text-[10px]",
+                tab === t.key ? "bg-primary-foreground/15 text-primary-foreground" : "bg-muted text-muted-foreground group-hover:bg-background",
+              )}>
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <span className="font-medium">{t.label}</span>
             </Link>
           ))}
         </nav>
-      </header>
 
+        <div className="page-in min-w-0">
       {actionError ? (
         <p role="alert" className="text-sm text-destructive">
           {actionError}
@@ -266,7 +292,7 @@ function PermitWorkspace() {
                       key={reason}
                       type="button"
                       onClick={() => setVetoReason((c) => (c.trim() ? `${c.trim()}\n${reason}` : reason))}
-                      className="rounded-full border border-border bg-card px-2.5 py-1 text-xs hover:bg-muted"
+                      className="rounded-[6px] border border-border bg-card px-2.5 py-1 text-xs hover:bg-muted"
                     >
                       {reason}
                     </button>
@@ -280,7 +306,7 @@ function PermitWorkspace() {
                   rows={3}
                   value={vetoReason}
                   onChange={(e) => setVetoReason(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="w-full rounded-[8px] border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 />
                 <div className="flex flex-wrap gap-2">
                   <Button variant="destructive" disabled={isSubmitting} onClick={() => void handleVeto()}>
@@ -293,7 +319,7 @@ function PermitWorkspace() {
               </section>
             ) : null}
           </div>
-          <aside className="rounded-xl border border-border bg-card p-4">
+          <aside className="rounded-[10px] border border-border bg-card p-5 xl:sticky xl:top-20">
             <PermitApprovalStatus permitId={permit.id} status={permit.status} />
           </aside>
         </div>
@@ -331,6 +357,8 @@ function PermitWorkspace() {
       </PermitWorkspaceContext.Provider>
 
       {tab === "history" ? <PermitJourney id={permit.id} part="history" /> : null}
+        </div>
+      </div>
 
       <SuspensionDialog
         open={suspendOpen}

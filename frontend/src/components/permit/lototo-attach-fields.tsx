@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { Button } from "@/components/ui/button";
 import { FormField, fieldClassName } from "./form-field";
@@ -27,7 +28,7 @@ function PersonSelect({
   placeholder: string;
 }) {
   return (
-    <select
+    <AppSelect
       id={id}
       className={fieldClassName}
       value={value}
@@ -40,7 +41,7 @@ function PersonSelect({
           {formatWorkforceOptionLabel(person)}
         </option>
       ))}
-    </select>
+    </AppSelect>
   );
 }
 
@@ -213,7 +214,7 @@ export function LototoAttachFields({
                 />
               </FormField>
               <FormField label="Energy type" htmlFor={`extra-energy-${index}-${extraIndex}`}>
-                <select
+                <AppSelect
                   id={`extra-energy-${index}-${extraIndex}`}
                   className={fieldClassName}
                   disabled={disabled}
@@ -229,7 +230,7 @@ export function LototoAttachFields({
                       {opt.label}
                     </option>
                   ))}
-                </select>
+                </AppSelect>
               </FormField>
               {point.energyType === "other" ? (
                 <FormField label="Other energy" htmlFor={`extra-energy-other-${index}-${extraIndex}`} className="md:col-span-2">

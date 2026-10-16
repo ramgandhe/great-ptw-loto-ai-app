@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
@@ -20,6 +21,7 @@ import {
   type PlatformTenant,
 } from "@/lib/platform/api";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 type TenantForm = {
   organisationName: string;
@@ -191,13 +193,13 @@ export default function PlatformTenantsPage() {
     }
   }
 
-  function handleDeactivate(tenant: PlatformTenant) {
-    if (!window.confirm(`Deactivate ${tenant.name}? Its people cannot sign in until it is activated.`)) return;
+  async function handleDeactivate(tenant: PlatformTenant) {
+    if (!(await confirmAction(`Deactivate ${tenant.name}? Its people cannot sign in until it is activated.`))) return;
     void act(tenant, () => platformTenantsApi.disable(tenant.id), "deactivated", "Deactivate failed");
   }
 
-  function handleDelete(tenant: PlatformTenant) {
-    if (!window.confirm(`Permanently delete ${tenant.name}? Organisation users will lose access and this cannot be undone.`)) return;
+  async function handleDelete(tenant: PlatformTenant) {
+    if (!(await confirmAction(`Permanently delete ${tenant.name}? Organisation users will lose access and this cannot be undone.`))) return;
     void act(tenant, () => platformTenantsApi.remove(tenant.id), "deleted", "Delete failed");
   }
 
@@ -339,7 +341,7 @@ export default function PlatformTenantsPage() {
           </label>
           <label className="grid gap-1.5 text-sm sm:col-span-2">
             <span className="font-medium">Industry</span>
-            <select
+            <AppSelect
               required
               value={form.industryId}
               className={FIELD_CLASS}
@@ -351,7 +353,7 @@ export default function PlatformTenantsPage() {
                   {industry.name}
                 </option>
               ))}
-            </select>
+            </AppSelect>
           </label>
           <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
             <h3 className="font-medium sm:col-span-2">Address</h3>

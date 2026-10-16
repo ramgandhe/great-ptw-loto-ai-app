@@ -29,6 +29,7 @@ import {
 import { PlanStatusBadge } from "@/components/lototo/plan-status-badge";
 import { fieldClassName, FormField } from "@/components/permit/form-field";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { toast } from "@/components/ui/toast";
 
 export default function LototoPlanDetailPage() {
@@ -116,7 +117,7 @@ export default function LototoPlanDetailPage() {
   }
 
   async function handleRemoveIsolationPoint(pointId: string, number: string) {
-    if (!window.confirm(`Delete isolation point ${number}? Save the sequence again afterwards.`)) return;
+    if (!(await confirmAction(`Delete isolation point ${number}? Save the sequence again afterwards.`))) return;
     setIsSubmitting(true);
     setActionError(null);
     try {
@@ -160,7 +161,7 @@ export default function LototoPlanDetailPage() {
       return;
     }
 
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       "Save this isolation sequence? The plan will move to Ready and should be verified before field execution.",
     );
     if (!confirmed) {

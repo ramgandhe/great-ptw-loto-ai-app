@@ -2,15 +2,15 @@
 
 /* ---------- HAZARD ---------- */
 [data-theme="hazard"] {
-  --font-display: var(--font-family-sora), sans-serif;
-  --font-body: var(--font-family-inter), sans-serif;
+  --font-display: var(--font-family-space-grotesk), sans-serif;
+  --font-body: var(--font-family-ibm-plex-sans), sans-serif;
   --font-mono: var(--font-family-ibm-plex-mono), monospace;
   --tracking-display: -0.01em;
-  --radius-xs: 14px;
-  --radius-sm: 18px;
-  --radius-md: 22px;
-  --radius-lg: 26px;
-  --radius-xl: 32px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 999px;
   --duration-fast: 140ms;
   --duration-base: 220ms;
@@ -34,16 +34,16 @@
   --text-tertiary: #5c5e68;
   --text-disabled: #858792;
   --text-inverse: #ffffff;
-  --accent-primary: #ff4530;
-  --accent-primary-hover: #e63a26;
-  --accent-primary-active: #c22f1d;
+  --accent-primary: #315fa8;
+  --accent-primary-hover: #284f90;
+  --accent-primary-active: #203f73;
   --accent-on-primary: #ffffff;
-  --accent-secondary: #00b8a9;
+  --accent-secondary: #c58a2a;
   --accent-secondary-on: #ffffff;
-  --focus-ring: #2e7bff;
-  --vivid-1: #00b8a9;
-  --vivid-2: #e8286b;
-  --vivid-3: #6c3ce0;
+  --focus-ring: #477bca;
+  --vivid-1: #287d83;
+  --vivid-2: #cf4b5f;
+  --vivid-3: #6c63a9;
   --vivid-4: #ff8a00;
   --vivid-5: #2f9e44;
   --vivid-6: #1e6fe0;
@@ -74,33 +74,33 @@
   --shadow-sm: 0 2px 8px rgba(20, 20, 20, 0.1);
   --shadow-md: 0 6px 18px rgba(20, 20, 20, 0.14);
   --shadow-lg: 0 16px 34px rgba(20, 20, 20, 0.18);
-  --shadow-focus: 0 0 0 3px rgba(255, 69, 48, 0.35);
+  --shadow-focus: 0 0 0 3px rgba(49, 95, 168, 0.28);
 }
 
 .dark[data-theme="hazard"] {
-  --bg-canvas: #050506;
-  --bg-surface: #131316;
-  --bg-surface-raised: #1b1b1f;
-  --bg-sunken: #0b0b0d;
-  --bg-overlay: rgba(0, 0, 0, 0.75);
-  --border-subtle: #232327;
-  --border-default: #2c2c31;
-  --border-strong: #3d3d44;
-  --text-primary: #ffffff;
-  --text-secondary: #c9c9cf;
-  --text-tertiary: #9898a0;
-  --text-disabled: #62626a;
-  --text-inverse: #050506;
-  --accent-primary: #ff5a3c;
-  --accent-primary-hover: #ff7452;
-  --accent-primary-active: #e6451f;
+  --bg-canvas: #111a26;
+  --bg-surface: #172332;
+  --bg-surface-raised: #202f41;
+  --bg-sunken: #0d1520;
+  --bg-overlay: rgba(5, 11, 18, 0.72);
+  --border-subtle: #27374a;
+  --border-default: #34465c;
+  --border-strong: #52657b;
+  --text-primary: #f3f6fa;
+  --text-secondary: #d2dce8;
+  --text-tertiary: #a4b2c2;
+  --text-disabled: #7a8999;
+  --text-inverse: #111a26;
+  --accent-primary: #81a9ec;
+  --accent-primary-hover: #9bb9ef;
+  --accent-primary-active: #6793df;
   --accent-on-primary: #ffffff;
-  --accent-secondary: #00e5d0;
-  --accent-secondary-on: #042420;
-  --focus-ring: #5fd0ff;
-  --vivid-1: #00e5d0;
-  --vivid-2: #ff2e7e;
-  --vivid-3: #8b5cf6;
+  --accent-secondary: #e3b55e;
+  --accent-secondary-on: #281c08;
+  --focus-ring: #91b9ff;
+  --vivid-1: #54c4ba;
+  --vivid-2: #f1778b;
+  --vivid-3: #ac9af4;
   --vivid-4: #ff9a2e;
   --vivid-5: #a6ff00;
   --vivid-6: #3e8eff;
@@ -131,7 +131,7 @@
   --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 8px 22px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 20px 42px rgba(0, 0, 0, 0.6);
-  --shadow-focus: 0 0 0 3px rgba(95, 208, 255, 0.4);
+  --shadow-focus: 0 0 0 3px rgba(129, 169, 236, 0.35);
 }
 
 /* ---------- CONTROL ROOM ---------- */
@@ -140,11 +140,11 @@
   --font-body: var(--font-family-ibm-plex-sans), sans-serif;
   --font-mono: var(--font-family-ibm-plex-mono), monospace;
   --tracking-display: -0.01em;
-  --radius-xs: 3px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 10px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 999px;
   --duration-fast: 120ms;
   --duration-base: 200ms;
@@ -270,15 +270,15 @@
 
 /* ---------- SETU ---------- */
 [data-theme="setu"] {
-  --font-display: var(--font-family-baloo-2), sans-serif;
-  --font-body: var(--font-family-noto-sans), sans-serif;
+  --font-display: var(--font-family-space-grotesk), sans-serif;
+  --font-body: var(--font-family-ibm-plex-sans), sans-serif;
   --font-mono: var(--font-family-ibm-plex-mono), monospace;
   --tracking-display: 0em;
-  --radius-xs: 10px;
-  --radius-sm: 14px;
-  --radius-md: 18px;
-  --radius-lg: 22px;
-  --radius-xl: 28px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 999px;
   --duration-fast: 180ms;
   --duration-base: 260ms;
@@ -404,15 +404,15 @@
 
 /* ---------- LEDGER SLATE ---------- */
 [data-theme="ledger-slate"] {
-  --font-display: var(--font-family-source-serif-4), serif;
-  --font-body: var(--font-family-inter), sans-serif;
+  --font-display: var(--font-family-space-grotesk), sans-serif;
+  --font-body: var(--font-family-ibm-plex-sans), sans-serif;
   --font-mono: var(--font-family-ibm-plex-mono), monospace;
   --tracking-display: 0em;
-  --radius-xs: 3px;
-  --radius-sm: 4px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
   --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 999px;
   --duration-fast: 100ms;
   --duration-base: 160ms;
@@ -591,8 +591,8 @@ html {
   --space-16: 64px;
   --space-20: 80px;
   --text-xs: 12px;
-  --text-sm: 13px;
-  --text-base: 15px;
+  --text-sm: 14px;
+  --text-base: 16px;
   --text-md: 17px;
   --text-lg: 20px;
   --text-xl: 26px;
@@ -618,8 +618,8 @@ html {
   --space-16: 48px;
   --space-20: 56px;
   --text-xs: 11px;
-  --text-sm: 12px;
-  --text-base: 14px;
+  --text-sm: 13px;
+  --text-base: 15px;
   --text-md: 15px;
   --text-lg: 18px;
   --text-xl: 22px;
@@ -635,7 +635,7 @@ html {
   --radius-lg: 4px !important;
   --radius-xl: 6px !important;
   --radius-full: 4px !important;
-  --font-display: var(--font-family-ibm-plex-sans), sans-serif !important;
+  --font-display: var(--font-family-space-grotesk), sans-serif !important;
   --tracking-display: 0em !important;
   --ease-standard: cubic-bezier(0.2, 0, 0.2, 1) !important;
 }

@@ -1,4 +1,5 @@
 import { FormField, fieldClassName } from "@/components/permit/form-field";
+import { AppSelect } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 export type SelectOption = {
@@ -34,7 +35,7 @@ export function SelectField({
 }: SelectFieldProps) {
   return (
     <FormField label={label} htmlFor={id} hint={hint} className={className}>
-      <select
+      <AppSelect
         id={id}
         required={required}
         disabled={disabled}
@@ -48,7 +49,7 @@ export function SelectField({
             {option.label}
           </option>
         ))}
-      </select>
+      </AppSelect>
     </FormField>
   );
 }

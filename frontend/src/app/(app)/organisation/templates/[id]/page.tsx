@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { PageHeader } from "@/components/layout/page-header";
 import Link from "next/link";
@@ -26,6 +27,7 @@ import {
 import { FIELD_CLASS } from "@/components/layout/admin-page-header";
 import { TemplateFormPreview } from "@/components/permit-template/template-form-preview";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 
 type Draft = Pick<PermitTemplate, "name" | "code" | "description" | "status" | "permitTypeIds" | "appliesToAllTypes"> & { config: TemplateConfig };
@@ -178,7 +180,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
   }
 
   async function duplicate() {
-    if (dirty && !window.confirm("Duplicate the last saved version? Unsaved changes stay here.")) return;
+    if (dirty && !(await confirmAction("Duplicate the last saved version? Unsaved changes stay here."))) return;
     try {
       const copy = await permitTemplatesApi.duplicate(id);
       router.push(`/organisation/templates/${copy.id}`);
@@ -228,14 +230,14 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
             </label>
             <label className="grid gap-1.5 text-sm">
               <span className="font-medium">Kind</span>
-              <select
+              <AppSelect
                 value={draft.config.kind}
                 onChange={(e) => setConfig({ kind: e.target.value as TemplateConfig["kind"] })}
                 className={FIELD_CLASS}
               >
                 <option value="permit">Permit form: the main permit people fill in</option>
                 <option value="check-sheet">Check sheet: extra checks for a type of work</option>
-              </select>
+              </AppSelect>
             </label>
             <label className="grid gap-1.5 text-sm">
               <span className="font-medium">
@@ -379,8 +381,8 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
                     variant="ghost"
                     size="icon"
                     aria-label="Delete section"
-                    onClick={() => {
-                      if (section.fields.length === 0 || window.confirm(`Delete “${section.title || "this section"}” and its ${section.fields.length} fields?`)) {
+                    onClick={async () => {
+                      if (section.fields.length === 0 || await confirmAction(`Delete “${section.title || "this section"}” and its ${section.fields.length} fields?`)) {
                         setSections((s) => s.filter((_, i) => i !== si));
                       }
                     }}
@@ -406,7 +408,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
                           onChange={(e) => setField(si, fi, { label: e.target.value })}
                           className={`${FIELD_CLASS} h-9 min-w-[10rem] flex-1 text-sm`}
                         />
-                        <select
+                        <AppSelect
                           aria-label={`Field ${fi + 1} type`}
                           value={field.type}
                           onChange={(e) => {
@@ -423,13 +425,13 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
                               {type.label}
                             </option>
                           ))}
-                        </select>
+                        </AppSelect>
                         <label className="flex items-center gap-1.5 text-sm">
                           <input type="checkbox" checked={Boolean(field.required)} onChange={(e) => setField(si, fi, { required: e.target.checked })} />
                           Required
                         </label>
                         {field.required ? (
-                          <select
+                          <AppSelect
                             aria-label={`When "${field.label || "this field"}" is required`}
                             value={field.requiredAt ?? "submit"}
                             onChange={(e) => setField(si, fi, { requiredAt: e.target.value as TemplateRequiredStage })}
@@ -440,7 +442,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
                                 {stage.label}
                               </option>
                             ))}
-                          </select>
+                          </AppSelect>
                         ) : null}
                         <div className="ml-auto flex">
                           <Button
@@ -483,7 +485,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
                           {field.type !== "check" && field.type !== "signature" ? (
                             <label className="grid gap-1.5 text-sm">
                               <span className="font-medium">Fill from permit</span>
-                              <select
+                              <AppSelect
                                 value={field.prefill ?? ""}
                                 onChange={(e) =>
                                   setField(si, fi, { prefill: (e.target.value || undefined) as TemplatePrefillSource | undefined })
@@ -496,7 +498,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
                                     {source.label}
                                   </option>
                                 ))}
-                              </select>
+                              </AppSelect>
                             </label>
                           ) : null}
                           {field.type === "number" ? (

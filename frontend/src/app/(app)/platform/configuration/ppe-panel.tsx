@@ -1,8 +1,10 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useEffect, useState } from "react";
 import { FIELD_CLASS } from "@/components/layout/admin-page-header";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { RowActions } from "@/components/ui/row-actions";
 import { SegmentedToggle } from "@/components/ui/toggle-group";
 import { toast } from "@/components/ui/toast";
@@ -88,7 +90,7 @@ function Categories() {
   }
 
   async function remove(row: DefaultPpeCategory) {
-    if (!window.confirm(`Remove ${row.name}?`)) return;
+    if (!(await confirmAction(`Remove ${row.name}?`))) return;
     setError(null);
     try {
       await platformDefaultsApi.removePpeCategory(row.id, false);
@@ -99,7 +101,7 @@ function Categories() {
       }
       const lines = Array.isArray(err.details) ? err.details.map(String) : [];
       const extra = lines.length ? `\n\n${lines.map((line) => `• ${line}`).join("\n")}` : "";
-      if (!window.confirm(`${row.name} is used by default PPE items.${extra}\n\nRemove it anyway? Those items will be set to Others.`)) {
+      if (!(await confirmAction(`${row.name} is used by default PPE items.${extra}\n\nRemove it anyway? Those items will be set to Others.`))) {
         return;
       }
       try {
@@ -259,7 +261,7 @@ function Items() {
   }
 
   async function remove(row: DefaultPpeItem) {
-    if (!window.confirm(`Remove ${row.name} from the default PPE items?`)) return;
+    if (!(await confirmAction(`Remove ${row.name} from the default PPE items?`))) return;
     setError(null);
     try {
       await platformDefaultsApi.removePpeItem(row.id);
@@ -354,7 +356,7 @@ function Items() {
         </label>
         <label className="grid gap-1.5 text-sm">
           <span className="font-medium">Category</span>
-          <select
+          <AppSelect
             required
             value={form.categoryId}
             className={FIELD_CLASS}
@@ -366,7 +368,7 @@ function Items() {
                 {category.name}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </label>
         <label className="grid gap-1.5 text-sm sm:col-span-2">
           <span className="font-medium">

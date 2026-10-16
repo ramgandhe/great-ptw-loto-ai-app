@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import type { NotificationCategory, NotificationPriority } from "@/lib/notifications/types";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ export function NotificationFilters({ value, onChange }: NotificationFiltersProp
       <div className="flex flex-wrap gap-3">
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           Priority
-          <select
+          <AppSelect
             className={cn(
               "rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground",
             )}
@@ -76,12 +77,12 @@ export function NotificationFilters({ value, onChange }: NotificationFiltersProp
                 {option.label}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </label>
 
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           Category
-          <select
+          <AppSelect
             className={cn(
               "rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground",
             )}
@@ -98,7 +99,7 @@ export function NotificationFilters({ value, onChange }: NotificationFiltersProp
                 {option.label}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </label>
       </div>
     </div>

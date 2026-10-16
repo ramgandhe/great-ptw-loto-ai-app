@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { inUse } from "@/components/organisation/org-status-badge";
 import { useEffect, useState } from "react";
@@ -84,11 +85,12 @@ import {
 } from "@/lib/workforce/api";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { ensureEndAfterStart } from "@/lib/datetime";
-import { Check, ChevronLeft, ChevronRight, Copy, Pencil, PenLine, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Copy, Pencil, PenLine, Search, X } from "lucide-react";
 import { formatRelative } from "@/lib/format";
 import { useWorkQueue } from "@/lib/work-queue-context";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { FileUploadField } from "@/components/ui/file-upload-field";
 import { DraftBanner } from "./draft-banner";
 import { fieldClassName, FormField } from "./form-field";
@@ -111,6 +113,8 @@ function executorRoleLabel(kind?: "internal" | "contractor" | "agency") {
   }
   return "Permit operator";
 }
+
+const safetyParameterClassName = "flex min-h-11 items-center gap-3 font-sans text-base font-semibold";
 
 /** Removes one row of a repeating list (viewer, hazard, PPE, executor…). */
 function RemoveRowButton({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
@@ -153,7 +157,7 @@ function PersonSelect({
       person.executorKind === "contractor" || person.executorKind === "agency",
   );
   return (
-    <select
+    <AppSelect
       id={id}
       {...aria}
       className={fieldClassName}
@@ -180,7 +184,7 @@ function PersonSelect({
           ))}
         </optgroup>
       ) : null}
-    </select>
+    </AppSelect>
   );
 }
 
@@ -277,6 +281,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [ppeItems, setPpeItems] = useState<MasterDataRecord[]>([]);
   const [machineryLototo, setMachineryLototo] = useState<LototoProcedureListItem[]>([]);
   const [extraGas, setExtraGas] = useState({ parameter: "", unit: "", minimum: "", maximum: "" });
+  const [gasRemovalRequest, setGasRemovalRequest] = useState<{ index: number; reason: string } | null>(null);
   const { roles: authRoles, profile: authProfile } = useAuthProfile();
   const [templates, setTemplates] = useState<PermitTemplate[]>([]);
   // Until templates load, saves leave stored answers alone rather than pruning them.
@@ -951,7 +956,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     }
     const label = handoffButtonLabel(nextHold, selfOperator);
     const nextName = nextHold === "operator" ? personName(primaryExecutorId) : nextHold === "safety_officer" ? "the assigned safety officer" : "the permit receiver";
-    if (!window.confirm(`${label}? ${selfOperator && nextHold === "operator" ? "You will continue as operator on this permit." : `${nextName} will be notified. Your sections will lock.`}`)) {
+    if (!(await confirmAction(`${label}? ${selfOperator && nextHold === "operator" ? "You will continue as operator on this permit." : `${nextName} will be notified. Your sections will lock.`}`))) {
       return;
     }
     setIsSaving(true);
@@ -969,7 +974,14 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       else if (nextHold === "safety_officer") setActive("safety");
       else setActive("review");
     } catch (error) {
-      setApiError(error instanceof ApiError ? error.message : "Could not hand over the draft");
+      if (error instanceof ApiError) {
+        const details = Array.isArray(error.details)
+          ? error.details.filter((detail): detail is string => typeof detail === "string")
+          : [];
+        setApiError([error.message, ...details.map((detail) => `- ${detail}`)].join("\n"));
+      } else {
+        setApiError("Could not hand over the draft");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -1103,39 +1115,52 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             ? "Add the site details, crew and form answers. The job issuer submits."
             : "Describe the work and set the place, time and executor. Submit once the executor has added the site details."
         }
-      >
-        <nav aria-label="Permit steps">
-          {/* One row on every width; it scrolls sideways on a phone instead of wrapping over the form. */}
-          <ol className="flex gap-2 overflow-x-auto">
+      />
+
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-8">
+        <nav aria-label="Permit steps" className="min-w-0 lg:sticky lg:top-24 lg:self-start">
+          <div className="mb-2 flex items-center justify-between lg:block">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Permit setup</p>
+            <p className="text-xs text-muted-foreground lg:mt-1">Step {activeIndex + 1} of {visibleSections.length}</p>
+          </div>
+          <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-1 lg:overflow-visible lg:rounded-xl lg:border lg:border-border lg:bg-card lg:p-2">
             {visibleSections.map((section, index) => {
               const left = missing[section.id].length;
               const current = section.id === active;
+              const complete = !left && section.id !== "review";
               return (
-                <li key={section.id}>
+                <li key={section.id} className="shrink-0 lg:shrink">
                   <button
                     type="button"
                     aria-current={current ? "step" : undefined}
                     onClick={() => goTo(section.id)}
                     className={cn(
-                      "inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3 text-xs font-medium",
-                      current ? "border-2 border-primary bg-primary/10 font-semibold" : "border-input bg-input-fill hover:bg-muted",
+                      "group flex h-12 min-h-12 w-full items-center gap-2.5 rounded-lg border px-3 text-left text-xs transition-colors lg:border-transparent lg:text-sm",
+                      current
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm lg:border-primary"
+                        : "border-border bg-card hover:bg-muted lg:bg-transparent",
                     )}
                   >
-                    <span aria-hidden className={cn("grid size-5 place-items-center rounded-full text-[0.7rem]", !left && section.id !== "review" ? "bg-(--status-success) text-white" : "bg-foreground/10")}>
-                      {!left && section.id !== "review" ? <Check className="size-3" /> : index + 1}
+                    <span className={cn(
+                      "grid size-6 shrink-0 place-items-center rounded-full font-mono text-[10px]",
+                      current ? "bg-primary-foreground/15 text-primary-foreground" : complete ? "bg-emerald-100 text-emerald-800" : "bg-muted text-muted-foreground",
+                    )}>
+                      {complete ? <Check className="size-3.5" aria-hidden /> : String(index + 1).padStart(2, "0")}
                     </span>
-                    {section.label}
-                    {left ? <span className="text-(--status-warning)">· {left} to do</span> : null}
+                    <span className="min-w-0 truncate whitespace-nowrap font-semibold lg:flex-1">{section.label}</span>
+                    {left ? <span className={cn("hidden text-[11px] lg:inline", current ? "text-primary-foreground/80" : "text-amber-700")}>{left} to do</span> : null}
+                    {complete ? <span className="hidden text-[10px] font-medium text-emerald-800 lg:inline">Ready</span> : null}
                   </button>
                 </li>
               );
             })}
           </ol>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Step {activeIndex + 1} of {visibleSections.length}: {visibleSections[activeIndex]?.label}
-          </p>
+          <div className="mt-3 hidden rounded-lg border border-border bg-muted/50 p-3 text-xs leading-5 text-muted-foreground lg:block">
+            <p className="font-semibold text-foreground">Drafts are not authorization</p>
+            <p>Work must not start until the permit is approved and site controls are verified.</p>
+          </div>
         </nav>
-      </PageHeader>
+        <div className="grid min-w-0 content-start gap-5">
 
       {status === "draft" || status === "deferred" || status === "rejected" ? (
         <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm">
@@ -1195,7 +1220,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
       <ValidationSummary errors={errors} onGo={(error) => error.section && setActive(error.section)} />
       {apiError ? (
-        <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div role="alert" className="whitespace-pre-line rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {apiError}
           {conflict ? (
             <div className="mt-2 grid gap-3 text-foreground">
@@ -1247,37 +1272,41 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           ) : permitTypes.length === 0 ? (
             <p className="text-sm text-muted-foreground">No permit types yet. An administrator adds them under Organisation, Permit types.</p>
           ) : (
-            <div role="radiogroup" aria-labelledby="permit-type-label" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            <div role="radiogroup" aria-labelledby="permit-type-label" className="grid gap-x-8 sm:grid-cols-2">
               {permitTypes.map((type) => {
                 const selected = form.permitTypeId === type.id;
                 return (
-                  <button
+                  <label
                     key={type.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    disabled={!editable(0)}
-                    onClick={() => {
-                      const kept = form.hazards.filter((row) => {
-                        if (!row.hazardCategoryId) return true;
-                        const catalogue = hazards.find((hazard) => hazard.id === row.hazardCategoryId);
-                        return hazardFitsPermitType(catalogue?.permitTypeCodes, type.code);
-                      });
-                      edit({
-                        ...form,
-                        permitTypeId: type.id,
-                        hazards: kept.length ? kept : [emptyPermitHazard()],
-                      });
-                    }}
                     className={cn(
-                      "flex min-h-11 items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors disabled:opacity-60",
-                      selected ? "border-2 border-primary bg-primary/10 font-semibold" : "border-input bg-input-fill hover:bg-muted",
+                      "flex min-h-12 cursor-pointer items-center gap-3 border-b border-border px-2 py-2.5 text-sm transition-colors hover:bg-muted/60 focus-within:bg-muted/60 has-disabled:cursor-not-allowed has-disabled:opacity-60",
+                      selected && "bg-primary/5 font-semibold",
                     )}
                   >
-                    {selected ? <Check aria-hidden className="size-4 shrink-0" /> : null}
-                    <span aria-hidden className="size-3 shrink-0 rounded-full bg-border" style={type.color ? { backgroundColor: type.color } : undefined} />
-                    {type.name}
-                  </button>
+                    <input
+                      type="radio"
+                      name="permitTypeId"
+                      value={type.id}
+                      checked={selected}
+                      disabled={!editable(0)}
+                      onChange={() => {
+                        const kept = form.hazards.filter((row) => {
+                          if (!row.hazardCategoryId) return true;
+                          const catalogue = hazards.find((hazard) => hazard.id === row.hazardCategoryId);
+                          return hazardFitsPermitType(catalogue?.permitTypeCodes, type.code);
+                        });
+                        edit({
+                          ...form,
+                          permitTypeId: type.id,
+                          hazards: kept.length ? kept : [emptyPermitHazard()],
+                        });
+                      }}
+                      className="size-4 shrink-0 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    />
+                    <span aria-hidden className="size-2.5 shrink-0 rounded-full bg-border" style={type.color ? { backgroundColor: type.color } : undefined} />
+                    <span className="min-w-0 flex-1">{type.name}</span>
+                    {type.code ? <span className="shrink-0 font-mono text-xs font-normal text-muted-foreground">{type.code}</span> : null}
+                  </label>
                 );
               })}
             </div>
@@ -1354,16 +1383,21 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               onChange={(e) => edit((current) => ({ ...current, exactSpot: e.target.value }))}
             />
           </FormField>
-          <div className="md:col-span-2 grid gap-1.5">
-            <label className="text-sm font-medium" htmlFor="work-location-search">Work location</label>
-            <input
-              id="work-location-search"
-              className={fieldClassName}
-              value={locationQuery}
-              disabled={!placeEditable || !form.siteId}
-              placeholder={form.siteId ? "Search the location path" : "Select a site first"}
-              onChange={(e) => setLocationQuery(e.target.value)}
-            />
+          <div className="md:col-span-2 grid gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <label className="text-sm font-semibold" htmlFor="work-location-search">Work location</label>
+              <div className="relative w-full sm:w-72">
+                <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  id="work-location-search"
+                  className={cn(fieldClassName, "h-10 pl-9")}
+                  value={locationQuery}
+                  disabled={!placeEditable || !form.siteId}
+                  placeholder={form.siteId ? "Search the location path" : "Select a site first"}
+                  onChange={(e) => setLocationQuery(e.target.value)}
+                />
+              </div>
+            </div>
             <div className={cn("max-h-48 overflow-y-auto rounded-md border border-border", fieldError("workLocationId") && "border-destructive")}>
               {workLocations
                 .filter((row) => !locationQuery.trim() || `${row.pathText} ${row.name}`.toLowerCase().includes(locationQuery.trim().toLowerCase()))
@@ -1372,7 +1406,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     key={row.id}
                     type="button"
                     disabled={!placeEditable}
-                    className={cn("block w-full px-3 py-2 text-left text-sm hover:bg-muted", form.workLocationId === row.id && "bg-muted font-medium")}
+                    aria-pressed={form.workLocationId === row.id}
+                    className={cn(
+                      "flex min-h-11 w-full items-center justify-between gap-3 border-b border-border px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted",
+                      form.workLocationId === row.id && "bg-primary/10 font-semibold text-foreground ring-1 ring-inset ring-primary/50",
+                    )}
                     onClick={() => edit((current) => ({
                       ...current,
                       workLocationId: row.id,
@@ -1382,7 +1420,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                       gasTestingRequired: false,
                     }))}
                   >
-                    {row.pathText || row.name}
+                    <span>{row.pathText || row.name}</span>
+                    {form.workLocationId === row.id ? <Check className="size-4 shrink-0 text-primary" aria-label="Selected" /> : null}
                   </button>
                 ))}
             </div>
@@ -1567,12 +1606,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         </div>
 
         <div className="grid gap-2">
-          <h3 className="text-sm font-semibold">Hazards</h3>
           <ChipPicker
             label="Hazards"
             options={offeredHazards}
             selected={hazardRows.map((h) => h.hazardCategoryId)}
             disabled={!siteEditable || masterDataLoading}
+            selectionStyle="row"
             empty={
               form.permitTypeId
                 ? "No hazards are linked to this permit type yet. An administrator links them under Organisation, Hazards."
@@ -1668,12 +1707,21 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         </div>
 
         <div className="grid gap-2">
-          <h3 className="text-sm font-semibold">PPE</h3>
           <ChipPicker
             label="PPE"
             options={ppeItems}
             selected={ppeRows.map((p) => p.ppeCatalogueId)}
             disabled={!siteEditable || masterDataLoading}
+            selectionStyle="row"
+            quantityFor={(ppeCatalogueId) => ppeRows.find((p) => p.ppeCatalogueId === ppeCatalogueId)?.quantity}
+            onQuantityChange={(ppeCatalogueId, quantity) =>
+              edit((current) => ({
+                ...current,
+                ppe: current.ppe.map((p) =>
+                  p.ppeCatalogueId === ppeCatalogueId ? { ...p, quantity } : p,
+                ),
+              }))
+            }
             onToggle={(ppeCatalogueId) =>
               edit((current) => {
                 const rows = current.ppe.filter((p) => p.ppeCatalogueId);
@@ -1686,39 +1734,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               })
             }
           />
-          {ppeRows.length ? (
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {ppeRows.map((item) => (
-                <FormField
-                  key={item.ppeCatalogueId}
-                  label={`${ppeItems.find((p) => p.id === item.ppeCatalogueId)?.name ?? "Item no longer offered"}: quantity`}
-                  htmlFor={`ppe-qty-${item.ppeCatalogueId}`}
-                >
-                  <input
-                    id={`ppe-qty-${item.ppeCatalogueId}`}
-                    type="number"
-                    min={1}
-                    className={fieldClassName}
-                    value={item.quantity}
-                    disabled={!siteEditable}
-                    onChange={(e) =>
-                      edit((current) => ({
-                        ...current,
-                        ppe: current.ppe.map((p) =>
-                          p.ppeCatalogueId === item.ppeCatalogueId ? { ...p, quantity: Number(e.target.value) || 1 } : p,
-                        ),
-                      }))
-                    }
-                  />
-                </FormField>
-              ))}
-            </div>
-          ) : null}
         </div>
 
-        <label className="flex min-h-11 items-center gap-2 text-sm">
+        <label className={safetyParameterClassName}>
           <input
             type="checkbox"
+            className="size-4 shrink-0 accent-primary"
             checked={form.lototoRequired}
             disabled={!siteEditable || form.assetIds.length === 0}
             onChange={(e) =>
@@ -1735,7 +1756,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             }
           />
           LOTOTO required
-          {form.assetIds.length === 0 && siteEditable ? <span className="text-muted-foreground">(choose at least one asset first)</span> : null}
+          {form.assetIds.length === 0 && siteEditable ? <span className="text-sm font-normal text-muted-foreground">(choose at least one asset first)</span> : null}
         </label>
         {form.lototoRequired ? (
           <div className="grid gap-3">
@@ -1809,9 +1830,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           </div>
         ) : null}
 
-        <label className="flex min-h-11 items-center gap-2 text-sm">
+        <label className={safetyParameterClassName}>
           <input
             type="checkbox"
+            className="size-4 shrink-0 accent-primary"
             checked={form.gasTestingRequired}
             disabled={!siteEditable || !form.workLocationId}
             onChange={(e) =>
@@ -1824,7 +1846,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             }
           />
           Gas testing required
-          {!form.workLocationId && siteEditable ? <span className="text-muted-foreground">(the receiver sets the work location first)</span> : null}
+          {!form.workLocationId && siteEditable ? <span className="text-sm font-normal text-muted-foreground">(the receiver sets the work location first)</span> : null}
         </label>
         {gasLimitError ? <p className="text-sm text-(--status-warning)">{gasLimitError}</p> : null}
         {form.gasTestingRequired ? (
@@ -1871,12 +1893,37 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 {siteEditable && item.gasTestingCatalogueId ? (
                   item.removedReason ? (
                     <button type="button" className="justify-self-start text-sm underline" onClick={() => edit((current) => ({ ...current, gasReady: true, gasTesting: current.gasTesting.map((row, i) => i === index ? { ...row, removedReason: "" } : row) }))}>Restore</button>
+                  ) : gasRemovalRequest?.index === index ? (
+                    <div className="grid gap-2 rounded-lg border border-(--status-warning)/30 bg-(--status-warning-bg) p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
+                      <label className="grid gap-1 text-sm font-medium">
+                        Reason required
+                        <input
+                          autoFocus
+                          className={fieldClassName}
+                          value={gasRemovalRequest.reason}
+                          aria-label={`Reason for removing ${item.parameter} test`}
+                          onChange={(event) => setGasRemovalRequest({ index, reason: event.target.value })}
+                        />
+                      </label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={!gasRemovalRequest.reason.trim()}
+                        onClick={() => {
+                          const reason = gasRemovalRequest.reason.trim();
+                          if (!reason) return;
+                          edit((current) => ({ ...current, gasReady: true, gasTesting: current.gasTesting.map((row, i) => i === index ? { ...row, removedReason: reason } : row) }));
+                          setGasRemovalRequest(null);
+                        }}
+                      >
+                        Save reason
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setGasRemovalRequest(null)}>
+                        Keep test
+                      </Button>
+                    </div>
                   ) : (
-                    <button type="button" className="justify-self-start text-sm underline" onClick={() => {
-                      const reason = window.prompt("Why is this test not needed for this permit?");
-                      if (!reason?.trim()) return;
-                      edit((current) => ({ ...current, gasReady: true, gasTesting: current.gasTesting.map((row, i) => i === index ? { ...row, removedReason: reason.trim() } : row) }));
-                    }}>Remove for this permit</button>
+                    <button type="button" className="justify-self-start text-sm underline" onClick={() => setGasRemovalRequest({ index, reason: "" })}>Remove for this permit</button>
                   )
                 ) : null}
               </div>
@@ -1918,9 +1965,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           </div>
         ) : null}
 
-        <label className="flex items-center gap-2 text-sm">
+        <label className={safetyParameterClassName}>
           <input
             type="checkbox"
+            className="size-4 shrink-0 accent-primary"
             disabled={!siteEditable}
             checked={form.executorSiteVisited}
             onChange={(e) => edit({ ...form, executorSiteVisited: e.target.checked })}
@@ -2125,9 +2173,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             <p className="text-sm text-muted-foreground">No safety controls listed on this permit.</p>
           )}
         </div>
-        <label className="flex items-center gap-2 text-sm">
+        <label className={safetyParameterClassName}>
           <input
             type="checkbox"
+            className="size-4 shrink-0 accent-primary"
             disabled={!safetyEditable}
             checked={form.safetyOfficerSiteVisited}
             onChange={(e) => edit({ ...form, safetyOfficerSiteVisited: e.target.checked })}
@@ -2211,9 +2260,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         ) : (
           <p className="text-sm text-(--status-success)">Everything needed for submission is filled in.</p>
         )}
-        <label className="flex items-center gap-2 text-sm">
+        <label className={safetyParameterClassName}>
           <input
             type="checkbox"
+            className="size-4 shrink-0 accent-primary"
             disabled={isExecutor}
             checked={form.receiverSiteVisited}
             onChange={(e) => edit({ ...form, receiverSiteVisited: e.target.checked })}
@@ -2227,6 +2277,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         </p>
       </EditorSection>
       ) : null}
+
+        </div>
+      </div>
 
       <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-8 sm:px-8">
         <p role="status" className="mr-auto text-sm text-muted-foreground">
@@ -2341,13 +2394,16 @@ function EditorSection({
   );
 }
 
-/** Tap to select or deselect catalogue items; selected items are pressed buttons. */
+/** Searchable multi-select list for catalogue items. */
 function ChipPicker({
   label,
   options,
   selected,
   disabled,
   empty,
+  selectionStyle = "checkbox",
+  quantityFor,
+  onQuantityChange,
   onToggle,
 }: {
   label: string;
@@ -2355,36 +2411,111 @@ function ChipPicker({
   selected: string[];
   disabled: boolean;
   empty?: string;
+  selectionStyle?: "checkbox" | "row";
+  quantityFor?: (id: string) => number | undefined;
+  onQuantityChange?: (id: string, quantity: number) => void;
   onToggle: (id: string) => void;
 }) {
-  if (options.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        {empty ?? "Nothing to choose from yet. An administrator adds these under Organisation."}
-      </p>
-    );
-  }
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredOptions = options.filter((option) =>
+    option.name.toLowerCase().includes(normalizedQuery),
+  );
+  const normalizedLabel = label.toLowerCase();
+  const searchId = `${normalizedLabel.replace(/\s+/g, "-")}-search`;
+
   return (
-    <div role="group" aria-label={label} className="flex flex-wrap gap-2">
-      {options.map((option) => {
-        const on = selected.includes(option.id);
-        return (
-          <button
-            key={option.id}
-            type="button"
-            aria-pressed={on}
-            disabled={disabled}
-            onClick={() => onToggle(option.id)}
-            className={cn(
-              "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-colors disabled:opacity-60",
-              on ? "border-2 border-primary bg-primary/10 font-semibold" : "border-input bg-input-fill hover:bg-muted",
-            )}
-          >
-            {on ? <Check aria-hidden className="size-4" /> : null}
-            {option.name}
-          </button>
-        );
-      })}
+    <div className="grid gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex items-baseline gap-2">
+          <h3 className="font-sans text-base font-semibold">{label}</h3>
+          <p className="text-xs text-muted-foreground" aria-live="polite">
+            {selected.length} selected
+          </p>
+        </div>
+        {options.length ? (
+          <div className="relative w-full sm:mt-0.5 sm:w-72">
+            <label htmlFor={searchId} className="sr-only">Search {normalizedLabel}</label>
+            <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              id={searchId}
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={`Search ${normalizedLabel}`}
+              disabled={disabled}
+              className={cn(fieldClassName, "h-10 pl-9")}
+            />
+          </div>
+        ) : null}
+      </div>
+      {options.length === 0 ? (
+        <p className="py-2 text-sm text-muted-foreground">
+          {empty ?? "Nothing to choose from yet. An administrator adds these under Organisation."}
+        </p>
+      ) : filteredOptions.length ? (
+        <div role="group" aria-label={label} className="grid gap-x-6 sm:grid-cols-2">
+          {filteredOptions.map((option) => {
+            const on = selected.includes(option.id);
+            const checkboxId = `${searchId}-${option.id}`;
+            const rowStyle = selectionStyle === "row";
+            const quantity = quantityFor?.(option.id);
+            return (
+              <div
+                key={option.id}
+                className={cn(
+                  "relative flex min-h-11 items-center gap-3 border-b border-border px-2 py-2 text-sm transition-colors has-disabled:cursor-not-allowed has-disabled:opacity-60",
+                  rowStyle && "rounded-md border border-transparent px-3",
+                  rowStyle && on && "border-primary/30 bg-primary/5 font-medium",
+                  !rowStyle && on && "bg-primary/5 font-medium",
+                )}
+              >
+                <label htmlFor={checkboxId} className="flex min-h-9 min-w-0 flex-1 cursor-pointer items-center gap-3">
+                  <input
+                    id={checkboxId}
+                    type="checkbox"
+                    checked={on}
+                    disabled={disabled}
+                    onChange={() => onToggle(option.id)}
+                    className={cn(
+                      "size-4 shrink-0 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                      rowStyle && "peer sr-only",
+                    )}
+                  />
+                  {rowStyle ? (
+                    <span
+                      aria-hidden
+                      className="grid size-5 shrink-0 place-items-center rounded-full border border-input bg-background text-transparent transition-colors peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring"
+                    >
+                      <Check className="size-3.5" />
+                    </span>
+                  ) : null}
+                  <span className="min-w-0">{option.name}</span>
+                </label>
+                {on && quantityFor && onQuantityChange ? (
+                  <label className="flex shrink-0 items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <span>Qty</span>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={quantity ?? 1}
+                      disabled={disabled}
+                      aria-label={`${option.name} quantity`}
+                      onChange={(event) => onQuantityChange(option.id, Math.max(1, Number(event.target.value) || 1))}
+                      className="h-9 w-20 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
+                    />
+                  </label>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="py-3 text-sm text-muted-foreground">
+          No {normalizedLabel} match “{query.trim()}”.
+        </p>
+      )}
     </div>
   );
 }

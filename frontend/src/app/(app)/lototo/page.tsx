@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState, ErrorNote, RecordList, RecordRow } from "@/components/safety/record-list";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { ApiError } from "@/lib/api";
 import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -46,7 +47,7 @@ function ProcedureLibrary() {
     setError(null);
     try {
       if (action === "deactivate") {
-        if (!window.confirm("Deactivate this procedure? It will no longer be offered on new permits.")) {
+        if (!(await confirmAction("Deactivate this procedure? It will no longer be offered on new permits."))) {
           return;
         }
         await deactivateLototoProcedure(id);

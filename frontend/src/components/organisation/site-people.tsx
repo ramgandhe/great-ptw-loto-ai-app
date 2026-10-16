@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
@@ -10,6 +11,7 @@ import type { TenantUser } from "@/lib/workforce/types";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { FIELD_CLASS } from "@/components/layout/admin-page-header";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 const PRIVILEGED = new Set(["tenant-owner", "tenant-admin", "org-admin", "platform-admin"]);
 
@@ -74,7 +76,7 @@ export function SitePeople() {
 
   async function removeMember(memberUserId: string) {
     const name = byId.get(memberUserId) ? personName(byId.get(memberUserId)!) : memberUserId;
-    if (!window.confirm(`Remove ${name} from this site?`)) return;
+    if (!(await confirmAction(`Remove ${name} from this site?`))) return;
     setBusy(true);
     setError(null);
     try {
@@ -85,7 +87,7 @@ export function SitePeople() {
       const message = err instanceof ApiError ? err.message : "Failed to remove this person";
       if (err instanceof ApiError && message.includes("no approver")) {
         const names = Array.isArray(err.details) ? err.details.map(String).join(", ") : "";
-        const proceed = window.confirm(
+        const proceed = await confirmAction(
           `${message}${names ? `\n\n${names}` : ""}\n\nRemove them anyway?`,
         );
         if (proceed) {
@@ -120,13 +122,13 @@ export function SitePeople() {
         <>
           <label className="grid max-w-sm gap-1.5 text-sm">
             <span className="font-medium">Site</span>
-            <select className={FIELD_CLASS} value={siteId} onChange={(event) => setSiteId(event.target.value)}>
+            <AppSelect className={FIELD_CLASS} value={siteId} onChange={(event) => setSiteId(event.target.value)}>
               {sites.map((site) => (
                 <option key={site.id} value={site.id}>
                   {site.name}
                 </option>
               ))}
-            </select>
+            </AppSelect>
           </label>
           {members.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nobody is assigned to this site yet.</p>
@@ -148,14 +150,14 @@ export function SitePeople() {
           <div className="flex flex-wrap items-end gap-2">
             <label className="grid min-w-56 flex-1 gap-1.5 text-sm">
               <span className="font-medium">Add a person</span>
-              <select className={FIELD_CLASS} value={userId} onChange={(event) => setUserId(event.target.value)}>
+              <AppSelect className={FIELD_CLASS} value={userId} onChange={(event) => setUserId(event.target.value)}>
                 <option value="">Select a person</option>
                 {candidates.map((user) => (
                   <option key={user.id} value={user.id}>
                     {personName(user)}
                   </option>
                 ))}
-              </select>
+              </AppSelect>
             </label>
             <Button type="button" disabled={busy || !userId} onClick={() => void addMember()}>
               Add

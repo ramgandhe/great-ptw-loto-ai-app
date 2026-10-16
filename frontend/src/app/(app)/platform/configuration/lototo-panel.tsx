@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { FIELD_CLASS } from "@/components/layout/admin-page-header";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { RowActions } from "@/components/ui/row-actions";
 import { SegmentedToggle } from "@/components/ui/toggle-group";
 import { toast } from "@/components/ui/toast";
@@ -82,7 +83,7 @@ function EnergySources() {
   }
 
   async function remove(row: DefaultPpeCategory) {
-    if (!window.confirm(`Remove ${row.name} from the default energy sources?`)) return;
+    if (!(await confirmAction(`Remove ${row.name} from the default energy sources?`))) return;
     setError(null);
     try {
       await platformDefaultsApi.removeEnergySource(row.id);

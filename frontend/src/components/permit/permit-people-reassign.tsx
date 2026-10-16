@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/lib/api";
@@ -126,7 +127,7 @@ export function PermitPeopleReassign({
         <div className="grid gap-2">
           <p className="text-sm font-medium">Permit operators</p>
           {executors.map((id, index) => (
-            <select
+            <AppSelect
               key={`ex-${index}`}
               className={fieldClassName}
               value={id}
@@ -145,7 +146,7 @@ export function PermitPeopleReassign({
                   {names.get(person.id) ?? userLabel(person)}
                 </option>
               ))}
-            </select>
+            </AppSelect>
           ))}
           <Button type="button" variant="outline" size="sm" onClick={() => setExecutors((current) => [...current, ""])}>
             Add executor
@@ -158,7 +159,7 @@ export function PermitPeopleReassign({
               <p className="text-sm font-medium">{item.title}</p>
               <p className="text-xs text-muted-foreground">LOTOTO crew</p>
               {item.crew.map((id, crewIndex) => (
-                <select
+                <AppSelect
                   key={`crew-${index}-${crewIndex}`}
                   className={fieldClassName}
                   value={id}
@@ -181,7 +182,7 @@ export function PermitPeopleReassign({
                       {formatWorkforceOptionLabel(person)}
                     </option>
                   ))}
-                </select>
+                </AppSelect>
               ))}
               <Button
                 type="button"
@@ -197,7 +198,7 @@ export function PermitPeopleReassign({
               </Button>
               <p className="text-xs text-muted-foreground">Verifiers</p>
               {item.verifiers.map((id, verifierIndex) => (
-                <select
+                <AppSelect
                   key={`ver-${index}-${verifierIndex}`}
                   className={fieldClassName}
                   value={id}
@@ -224,7 +225,7 @@ export function PermitPeopleReassign({
                       </option>
                     ),
                   )}
-                </select>
+                </AppSelect>
               ))}
               <Button
                 type="button"

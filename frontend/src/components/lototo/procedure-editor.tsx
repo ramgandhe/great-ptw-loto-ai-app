@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -7,6 +8,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { LOTOTO_LIBRARY_WRITE_ROLES } from "@/lib/auth/roles";
@@ -321,7 +323,7 @@ export function LototoProcedureEditor({
   }
 
   async function deactivate() {
-    if (!procedureId || !window.confirm("Deactivate this procedure? It will no longer be offered on new permits.")) {
+    if (!procedureId || !(await confirmAction("Deactivate this procedure? It will no longer be offered on new permits."))) {
       return;
     }
     setSaving(true);
@@ -438,7 +440,7 @@ export function LototoProcedureEditor({
         </label>
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Asset</span>
-          <select
+          <AppSelect
             className={FIELD}
             value={form.assetId}
             disabled={readOnly}
@@ -450,7 +452,7 @@ export function LototoProcedureEditor({
                 {item.tag} — {item.name}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </label>
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Facility</span>
@@ -506,13 +508,13 @@ export function LototoProcedureEditor({
               )}
             </div>
             <input className={FIELD} placeholder="Point ID (E-1)" disabled={readOnly} value={point.pointCode} onChange={(e) => setPoint(index, { pointCode: e.target.value })} />
-            <select className={FIELD} disabled={readOnly} value={point.energyType} onChange={(e) => setPoint(index, { energyType: e.target.value })}>
+            <AppSelect className={FIELD} disabled={readOnly} value={point.energyType} onChange={(e) => setPoint(index, { energyType: e.target.value })}>
               {energySourceChoices(energyOptions, point.energyType).map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
               ))}
-            </select>
+            </AppSelect>
             {point.energyType === "other" ? (
               <input
                 className={`${FIELD} sm:col-span-2`}

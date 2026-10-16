@@ -1,4 +1,5 @@
 "use client";
+import { AppSelect } from "@/components/ui/select";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -10,6 +11,7 @@ import { placeApi, type AssetRecord, type NamedType, type WorkLocationRecord } f
 import { getLototoProcedure, listLototoProcedures } from "@/lib/lototo/api";
 import type { LototoProcedureListItem } from "@/lib/lototo/types";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { RowActions } from "@/components/ui/row-actions";
 import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
@@ -174,7 +176,7 @@ export default function AssetsPage() {
   }
 
   async function archiveAsset(asset: AssetRecord) {
-    if (!window.confirm(`Archive ${asset.tag}? It stays on closed permits.`)) return;
+    if (!(await confirmAction(`Archive ${asset.tag}? It stays on closed permits.`))) return;
     setError(null);
     try {
       await placeApi.archiveAsset(asset.id);
@@ -187,7 +189,7 @@ export default function AssetsPage() {
   }
 
   async function deleteAsset(asset: AssetRecord) {
-    if (!window.confirm(`Permanently delete ${asset.tag}? This cannot be undone.`)) return;
+    if (!(await confirmAction(`Permanently delete ${asset.tag}? This cannot be undone.`))) return;
     setError(null);
     const finish = async () => {
       toast(`${asset.tag} deleted`);
@@ -204,10 +206,10 @@ export default function AssetsPage() {
       }
       const lines = Array.isArray(err.details) ? err.details.map(String) : [];
       const extra = lines.length ? `\n\n${lines.map((line) => `• ${line}`).join("\n")}` : "";
-      if (!window.confirm(`${asset.tag} is still used.${extra}\n\nDelete anyway?`)) return;
+      if (!(await confirmAction(`${asset.tag} is still used.${extra}\n\nDelete anyway?`))) return;
       const hasLototo = lines.some((line) => line.toLowerCase().includes("lototo"));
       const deleteLototo = hasLototo
-        ? window.confirm("Delete the LOTOTO for this asset as well?\n\nOK deletes it. Cancel keeps the LOTOTO and still deletes the asset.")
+        ? await confirmAction("Delete the LOTOTO for this asset as well?\n\nDelete removes the procedure. Cancel keeps the LOTOTO and still deletes the asset.")
         : false;
       try {
         await placeApi.deleteAsset(asset.id, { confirm: true, deleteLototo });
@@ -260,20 +262,20 @@ export default function AssetsPage() {
         <div className="flex flex-wrap gap-3">
           <label className="grid min-w-52 gap-1.5 text-sm">
             <span className="font-medium">Site</span>
-            <select className={FIELD_CLASS} value={siteId} onChange={(event) => void changeSite(event.target.value)}>
+            <AppSelect className={FIELD_CLASS} value={siteId} onChange={(event) => void changeSite(event.target.value)}>
               {sites.map((site) => (
                 <option key={site.id} value={site.id}>{site.name}</option>
               ))}
-            </select>
+            </AppSelect>
           </label>
           <label className="grid min-w-64 flex-1 gap-1.5 text-sm">
             <span className="font-medium">Work location</span>
-            <select className={FIELD_CLASS} value={locationFilter} onChange={(event) => void changeLocationFilter(event.target.value)}>
+            <AppSelect className={FIELD_CLASS} value={locationFilter} onChange={(event) => void changeLocationFilter(event.target.value)}>
               <option value="">Whole site</option>
               {locations.map((row) => (
                 <option key={row.id} value={row.id}>{row.pathText || row.name}</option>
               ))}
-            </select>
+            </AppSelect>
           </label>
         </div>
       ) : null}
@@ -300,12 +302,12 @@ export default function AssetsPage() {
           </label>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Work location</span>
-            <select required className={FIELD_CLASS} value={form.workLocationId} onChange={(event) => setForm((prev) => ({ ...prev, workLocationId: event.target.value }))}>
+            <AppSelect required className={FIELD_CLASS} value={form.workLocationId} onChange={(event) => setForm((prev) => ({ ...prev, workLocationId: event.target.value }))}>
               <option value="">Select a location</option>
               {locations.map((row) => (
                 <option key={row.id} value={row.id}>{row.pathText || row.name}</option>
               ))}
-            </select>
+            </AppSelect>
           </label>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Asset number</span>
@@ -313,21 +315,21 @@ export default function AssetsPage() {
           </label>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Type</span>
-            <select className={FIELD_CLASS} value={form.assetTypeId} onChange={(event) => setForm((prev) => ({ ...prev, assetTypeId: event.target.value }))}>
+            <AppSelect className={FIELD_CLASS} value={form.assetTypeId} onChange={(event) => setForm((prev) => ({ ...prev, assetTypeId: event.target.value }))}>
               <option value="">No type</option>
               {types.map((type) => (
                 <option key={type.id} value={type.id}>{type.name}</option>
               ))}
-            </select>
+            </AppSelect>
           </label>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Part of</span>
-            <select className={FIELD_CLASS} value={form.parentAssetId} onChange={(event) => setForm((prev) => ({ ...prev, parentAssetId: event.target.value }))}>
+            <AppSelect className={FIELD_CLASS} value={form.parentAssetId} onChange={(event) => setForm((prev) => ({ ...prev, parentAssetId: event.target.value }))}>
               <option value="">No parent asset</option>
               {assets.filter((asset) => asset.id !== editingId).map((asset) => (
                 <option key={asset.id} value={asset.id}>{asset.tag} — {asset.name}</option>
               ))}
-            </select>
+            </AppSelect>
           </label>
           <label className="grid gap-1.5 text-sm sm:col-span-2">
             <span className="font-medium">Description</span>

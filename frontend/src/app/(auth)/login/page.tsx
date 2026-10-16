@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LoaderCircle } from "lucide-react";
+import { ArrowLeft, LoaderCircle, ShieldCheck } from "lucide-react";
 import { AUTH_FIELD, AUTH_LINK, PasswordInput } from "@/components/auth/password-input";
-import { BackLink } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { setFirstPassword, signIn } from "@/lib/auth/session";
@@ -53,111 +52,133 @@ function LoginContent() {
   const newPasswordStep = step === "new-password";
 
   return (
-    <div className="flex flex-col gap-7">
-      <div>
-        <BackLink href="/" label="Home" />
-        <h1 className="mt-2 font-heading text-3xl font-bold tracking-tight">{newPasswordStep ? "Set your own password" : "Sign in"}</h1>
-        <p className="mt-1.5 text-muted-foreground">
-          {newPasswordStep
-            ? "You signed in with a temporary password. Choose your own to continue."
-            : "Use the work email your organisation registered."}
-        </p>
+    <section className="w-full">
+      <div className="mb-8 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+        <ShieldCheck className="size-4" aria-hidden />
+        PermitWiseAI workspace
       </div>
-
-      <form onSubmit={submit} className="flex flex-col gap-4">
-        {newPasswordStep ? (
-          <>
-            <p className="rounded-lg bg-muted px-3 py-2 text-sm">
-              Signing in as <strong className="font-semibold">{email}</strong>
-            </p>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="new-password" className="text-sm font-medium">
-                New password
-              </label>
-              <PasswordInput id="new-password" value={newPassword} onChange={setNewPassword} autoComplete="new-password" />
-              <p className="text-xs text-muted-foreground">At least 8 characters. A short sentence is easy to remember and hard to guess.</p>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="confirm-password" className="text-sm font-medium">
-                Type it again
-              </label>
-              <PasswordInput
-                id="confirm-password"
-                value={confirm}
-                onChange={setConfirm}
-                autoComplete="new-password"
-                invalid={confirm.length > 0 && confirm !== newPassword}
-              />
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="email" className="text-sm font-medium">
-                Work email
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                autoComplete="username"
-                autoFocus={!email}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={AUTH_FIELD}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <span className="flex items-baseline justify-between gap-3">
-                <label htmlFor="password" className="text-sm font-medium">
-                  Password
-                </label>
-                <Link href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`} className={`text-sm ${AUTH_LINK}`}>
-                  Forgot password?
-                </Link>
-              </span>
-              <PasswordInput id="password" value={password} onChange={setPassword} autoComplete="current-password" invalid={Boolean(error)} />
-            </div>
-          </>
-        )}
-
-        {error ? (
-          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
+      <div>
+        <div className="mb-6">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.17em] text-muted-foreground">
+            Organisation user sign-in
           </p>
+          <h1 className="font-heading text-4xl font-semibold tracking-tight">
+            {newPasswordStep ? "Set your own password" : "Sign in"}
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {newPasswordStep
+              ? "You signed in with a temporary password. Choose your own to continue."
+              : "Enter your registered work email and password to continue."}
+          </p>
+        </div>
+
+        <form onSubmit={submit} className="flex flex-col gap-5">
+          {newPasswordStep ? (
+            <>
+              <p className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm">
+                Signing in as <strong className="font-semibold">{email}</strong>
+              </p>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="new-password" className="text-sm font-medium">
+                  New password
+                </label>
+                <div className="[&_input]:rounded-[8px]! [&_button]:rounded-r-[8px]!">
+                  <PasswordInput id="new-password" value={newPassword} onChange={setNewPassword} autoComplete="new-password" />
+                </div>
+                <p className="text-xs leading-5 text-muted-foreground">At least 8 characters. A short sentence is easy to remember and hard to guess.</p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="confirm-password" className="text-sm font-medium">
+                  Type it again
+                </label>
+                <div className="[&_input]:rounded-[8px]! [&_button]:rounded-r-[8px]!">
+                  <PasswordInput
+                    id="confirm-password"
+                    value={confirm}
+                    onChange={setConfirm}
+                    autoComplete="new-password"
+                    invalid={confirm.length > 0 && confirm !== newPassword}
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="email" className="text-sm font-semibold">
+                  Work email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="username"
+                  autoFocus={!email}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={`${AUTH_FIELD} rounded-[8px]!`}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="flex items-baseline justify-between gap-3">
+                  <label htmlFor="password" className="text-sm font-medium">
+                    Password
+                  </label>
+                  <Link href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`} className={`text-sm ${AUTH_LINK}`}>
+                    Forgot password?
+                  </Link>
+                </span>
+                <div className="[&_input]:rounded-[8px]! [&_button]:rounded-r-[8px]!">
+                  <PasswordInput id="password" value={password} onChange={setPassword} autoComplete="current-password" invalid={Boolean(error)} />
+                </div>
+              </div>
+            </>
+          )}
+
+          {error ? (
+            <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+
+          <Button type="submit" size="lg" disabled={busy} className="mt-1 h-11 w-full text-base">
+            {busy ? <LoaderCircle className="animate-spin" aria-hidden /> : null}
+            {busy ? (newPasswordStep ? "Saving…" : "Signing in…") : newPasswordStep ? "Save password and sign in" : "Sign in"}
+          </Button>
+
+          {newPasswordStep ? (
+            <button
+              type="button"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                setStep("sign-in");
+                setPassword("");
+                setNewPassword("");
+                setConfirm("");
+                setError(null);
+              }}
+            >
+              Use a different account
+            </button>
+          ) : null}
+        </form>
+
+        {!newPasswordStep ? (
+          <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+            <p className="text-sm text-muted-foreground">
+            New to the platform?{" "}
+            <Link href="/register" className={AUTH_LINK}>
+              Request access
+            </Link>
+            </p>
+            <Link href="/" className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="size-3.5" aria-hidden />
+              Back to site
+            </Link>
+          </div>
         ) : null}
-
-        <Button type="submit" size="lg" disabled={busy} className="mt-1 h-11 w-full text-base">
-          {busy ? <LoaderCircle className="animate-spin" aria-hidden /> : null}
-          {busy ? (newPasswordStep ? "Saving…" : "Signing in…") : newPasswordStep ? "Save password and sign in" : "Sign in"}
-        </Button>
-
-        {newPasswordStep ? (
-          <button
-            type="button"
-            className="text-sm font-medium text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              setStep("sign-in");
-              setPassword("");
-              setNewPassword("");
-              setConfirm("");
-              setError(null);
-            }}
-          >
-            Use a different account
-          </button>
-        ) : null}
-      </form>
-
-      {!newPasswordStep ? (
-        <p className="border-t border-border pt-5 text-sm text-muted-foreground">
-          New to the platform?{" "}
-          <Link href="/register" className={AUTH_LINK}>
-            Request access
-          </Link>
-        </p>
-      ) : null}
-    </div>
+      </div>
+    </section>
   );
 }
 
