@@ -109,6 +109,7 @@ export function emptyPermitHazard(hazardCategoryId = ""): PermitHazardInput {
   return {
     hazardCategoryId,
     extraConsequences: [],
+    extraRisks: [],
     extraControls: [],
     omittedConsequences: [],
     omittedControls: [],
@@ -212,6 +213,7 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
         ? hazards.map((h) => ({
             hazardCategoryId: h.hazardCategoryId,
             extraConsequences: h.extraConsequences ?? [],
+            extraRisks: h.extraRisks ?? [],
             extraControls: h.extraControls ?? [],
             omittedConsequences: h.omittedConsequences ?? [],
             omittedControls: h.omittedControls ?? [],
@@ -313,6 +315,7 @@ export function formToSavePayload(
       .map((h) => ({
         hazardCategoryId: h.hazardCategoryId,
         extraConsequences: (h.extraConsequences ?? []).map((value) => value.trim()).filter(Boolean),
+        extraRisks: (h.extraRisks ?? []).map((value) => value.trim()).filter(Boolean),
         extraControls: (h.extraControls ?? []).map((value) => value.trim()).filter(Boolean),
         omittedConsequences: (h.omittedConsequences ?? []).map((value) => value.trim()).filter(Boolean),
         omittedControls: (h.omittedControls ?? []).map((value) => value.trim()).filter(Boolean),
@@ -489,9 +492,6 @@ export function validateStep(
     void machinery;
     if (!form.hazards.some((h) => h.hazardCategoryId.trim())) {
       errors.push("At least one hazard is required");
-    }
-    if (!form.ppe.some((p) => p.ppeCatalogueId.trim())) {
-      errors.push("At least one PPE item is required");
     }
     if (form.lototoRequired) {
       if (form.assetIds.length === 0 && !form.machineryId.trim()) {

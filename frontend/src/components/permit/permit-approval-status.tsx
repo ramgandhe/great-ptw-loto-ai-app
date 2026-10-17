@@ -88,7 +88,7 @@ export function PermitApprovalStatus({
 
       {status === "deferred" ? (
         <p className="text-sm text-muted-foreground">
-          This permit was deferred for clarification. The issuer should update the permit and resubmit
+          This permit was deferred for clarification. The receiver should update the permit and resubmit
           when ready.
         </p>
       ) : null}

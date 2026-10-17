@@ -136,6 +136,12 @@ export class CreateWorkLocationDto {
   @IsString()
   @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('address') })
   address?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsUUID('4', { each: true })
+  hazardIds?: string[];
 }
 
 export class UpdateWorkLocationDto {
@@ -170,6 +176,12 @@ export class UpdateWorkLocationDto {
   @IsString()
   @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('address') })
   address?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsUUID('4', { each: true })
+  hazardIds?: string[];
 }
 
 export class PutApproversDto {
@@ -215,6 +227,12 @@ export class CreateAssetDto {
   @IsString()
   @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('description') })
   description?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsUUID('4', { each: true })
+  hazardIds?: string[];
 }
 
 export class UpdateAssetDto {
@@ -254,4 +272,10 @@ export class UpdateAssetDto {
   @IsString()
   @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('description') })
   description?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsUUID('4', { each: true })
+  hazardIds?: string[];
 }

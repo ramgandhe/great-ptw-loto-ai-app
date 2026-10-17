@@ -15,6 +15,7 @@ import { confirmAction } from "@/components/ui/confirm-dialog";
 import { RowActions } from "@/components/ui/row-actions";
 import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
+import { HazardLinks } from "@/components/organisation/hazard-links";
 
 const emptyForm = {
   tag: "",
@@ -24,6 +25,13 @@ const emptyForm = {
   assetTypeId: "",
   parentAssetId: "",
   description: "",
+  hazardIds: [] as string[],
+};
+
+type AssetFieldErrors = {
+  tag?: string;
+  name?: string;
+  workLocationId?: string;
 };
 
 export default function AssetsPage() {
@@ -36,6 +44,7 @@ export default function AssetsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [fieldErrors, setFieldErrors] = useState<AssetFieldErrors>({});
   const [typeName, setTypeName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,6 +107,7 @@ export default function AssetsPage() {
   function openNew() {
     setEditingId(null);
     setForm({ ...emptyForm, workLocationId: locationFilter });
+    setFieldErrors({});
     setFormOpen(true);
     setError(null);
   }
@@ -112,7 +122,9 @@ export default function AssetsPage() {
       assetTypeId: asset.assetTypeId ?? "",
       parentAssetId: asset.parentAssetId ?? "",
       description: asset.description ?? "",
+      hazardIds: asset.hazardIds ?? [],
     });
+    setFieldErrors({});
     setFormOpen(true);
     setError(null);
   }
@@ -140,6 +152,15 @@ export default function AssetsPage() {
 
   async function saveAsset(event: React.FormEvent) {
     event.preventDefault();
+    const nextErrors: AssetFieldErrors = {};
+    if (!form.tag.trim()) nextErrors.tag = "Tag is required.";
+    if (!form.name.trim()) nextErrors.name = "Name is required.";
+    if (!form.workLocationId) nextErrors.workLocationId = "Work location is required.";
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      setError(null);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -152,6 +173,7 @@ export default function AssetsPage() {
           assetTypeId: form.assetTypeId || null,
           parentAssetId: form.parentAssetId || null,
           description: form.description.trim(),
+          hazardIds: form.hazardIds,
         });
         toast("Asset saved");
       } else {
@@ -163,6 +185,7 @@ export default function AssetsPage() {
           ...(form.assetTypeId ? { assetTypeId: form.assetTypeId } : {}),
           ...(form.parentAssetId ? { parentAssetId: form.parentAssetId } : {}),
           ...(form.description.trim() ? { description: form.description.trim() } : {}),
+          hazardIds: form.hazardIds,
         });
         toast("Asset added");
         setFormOpen(false);
@@ -290,24 +313,51 @@ export default function AssetsPage() {
         </div>
       ) : null}
       {formOpen ? (
-        <form onSubmit={(event) => void saveAsset(event)} className="grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
+        <form noValidate onSubmit={(event) => void saveAsset(event)} className="grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
           <h2 className="font-semibold sm:col-span-2">{editingId ? "Asset details" : "New asset"}</h2>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Tag</span>
-            <input required className={FIELD_CLASS} value={form.tag} onChange={(event) => setForm((prev) => ({ ...prev, tag: event.target.value }))} />
+            <input
+              className={`${FIELD_CLASS} ${fieldErrors.tag ? "border-destructive" : ""}`}
+              aria-invalid={fieldErrors.tag ? true : undefined}
+              value={form.tag}
+              onChange={(event) => {
+                setForm((prev) => ({ ...prev, tag: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, tag: undefined }));
+              }}
+            />
+            {fieldErrors.tag ? <span className="text-sm text-destructive">{fieldErrors.tag}</span> : null}
           </label>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Name</span>
-            <input required className={FIELD_CLASS} value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+            <input
+              className={`${FIELD_CLASS} ${fieldErrors.name ? "border-destructive" : ""}`}
+              aria-invalid={fieldErrors.name ? true : undefined}
+              value={form.name}
+              onChange={(event) => {
+                setForm((prev) => ({ ...prev, name: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, name: undefined }));
+              }}
+            />
+            {fieldErrors.name ? <span className="text-sm text-destructive">{fieldErrors.name}</span> : null}
           </label>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Work location</span>
-            <AppSelect required className={FIELD_CLASS} value={form.workLocationId} onChange={(event) => setForm((prev) => ({ ...prev, workLocationId: event.target.value }))}>
+            <AppSelect
+              className={FIELD_CLASS}
+              aria-invalid={fieldErrors.workLocationId ? true : undefined}
+              value={form.workLocationId}
+              onChange={(event) => {
+                setForm((prev) => ({ ...prev, workLocationId: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, workLocationId: undefined }));
+              }}
+            >
               <option value="">Select a location</option>
               {locations.map((row) => (
                 <option key={row.id} value={row.id}>{row.pathText || row.name}</option>
               ))}
             </AppSelect>
+            {fieldErrors.workLocationId ? <span className="text-sm text-destructive">{fieldErrors.workLocationId}</span> : null}
           </label>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Asset number</span>
@@ -331,6 +381,10 @@ export default function AssetsPage() {
               ))}
             </AppSelect>
           </label>
+          <HazardLinks
+            hazardIds={form.hazardIds}
+            onChange={(hazardIds) => setForm((prev) => ({ ...prev, hazardIds }))}
+          />
           <label className="grid gap-1.5 text-sm sm:col-span-2">
             <span className="font-medium">Description</span>
             <textarea className={`${FIELD_CLASS} h-20 py-2`} value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} />

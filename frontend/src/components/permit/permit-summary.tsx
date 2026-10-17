@@ -29,7 +29,6 @@ export function permitGaps(form: PermitFormState): string[] {
   if (!form.workLocationId && !form.locationId && !form.workstationId && !form.machineryId) gaps.push("Where the work happens");
   if (!form.plannedStartAt || !form.plannedEndAt) gaps.push("Planned start and end");
   if (!form.hazards.some((h) => h.hazardCategoryId)) gaps.push("Hazards");
-  if (!form.ppe.some((p) => p.ppeCatalogueId)) gaps.push("PPE");
   if (form.lototoRequired && !form.lototo.some((l) => l.procedureId)) gaps.push("LOTOTO procedure (marked as required)");
   if (form.gasTestingRequired && !form.gasTesting.some((g) => !g.removedReason?.trim() && (g.gasTestingCatalogueId || g.parameter?.trim()))) gaps.push("Gas tests (marked as required)");
   if (!form.executors.some((e) => e.workforceUserId)) gaps.push("Executor");
@@ -326,6 +325,26 @@ export function PermitSummary({
                     {catalogue?.category || "—"} · <span className="capitalize">{catalogue?.severity ?? "medium"}</span>
                   </p>
                   {catalogue?.description ? <p className="whitespace-pre-wrap text-sm">{catalogue.description}</p> : null}
+                  <Field label="Risks">
+                    {(catalogue?.risks ?? []).length ? (
+                      <ul className="list-disc pl-5 font-normal">
+                        {(catalogue?.risks ?? []).map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="font-normal text-muted-foreground">None listed</span>
+                    )}
+                  </Field>
+                  {(item.extraRisks ?? []).filter((line) => line.trim()).length ? (
+                    <Field label="Extra risks (this permit)">
+                      <ul className="list-disc pl-5 font-normal">
+                        {(item.extraRisks ?? []).filter((line) => line.trim()).map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    </Field>
+                  ) : null}
                   <Field label="Potential consequences">
                     {catalogueLinesForPermit(catalogue?.consequences, item.omittedConsequences).length ? (
                       <ul className="list-disc pl-5 font-normal">

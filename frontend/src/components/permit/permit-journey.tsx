@@ -95,11 +95,11 @@ function waitingOn(detail: PermitDetail, review: ApprovalReview | null, journey:
         due: permit.plannedEndAt ? { at: permit.plannedEndAt, overdue: new Date(permit.plannedEndAt).getTime() < Date.now() } : undefined,
       };
     case "suspended":
-      return { who: "HOD or job issuer", people: issuer ? [issuer] : [], action: "Resolve the cause, then revalidate or resume", note: lastComment };
+      return { who: "Approver or receiver", people: issuer ? [issuer] : [], action: "Resolve the cause, then revalidate or resume", note: lastComment };
     case "execution_completed":
       return { who: "Permit receiver", people: issuer ? [issuer] : [], action: "Check the finished work and verify it", note: lastComment };
     case "pending_closure":
-      return { who: "HOD", people: [], action: "Give final sign-off and close the permit" };
+      return { who: "Approver", people: [], action: "Give final sign-off and close the permit" };
     default:
       return null;
   }
@@ -121,10 +121,10 @@ function checksFor(detail: PermitDetail, templates: PermitTemplate[]): Check[] {
         owner === "permit-operator"
           ? "Executor"
           : owner === "shared"
-            ? "Issuer or executor"
+            ? "Receiver or executor"
             : owner === "safety-officer"
               ? "Safety officer"
-              : "Issuer";
+              : "Receiver";
       return errors.length ? errors.map((label) => ({ ok: false, label, who })) : [{ ok: true, label: step.label, who }];
     });
   }
@@ -223,7 +223,7 @@ export function PermitJourney({ id, part = "all" }: { id: string; part?: "all" |
     ["Location", placeOf(permit, lookups) ?? "—"],
     ["Equipment", nameOf(lookups?.machinery, permit.machineryId) ?? "—"],
     ["Planned window", formatWindow(permit.plannedStartAt, permit.plannedEndAt) || "Not set"],
-    ["Issuer", person(permit.submittedBy ?? permit.createdBy) ?? "—"],
+    ["Receiver", person(permit.submittedBy ?? permit.createdBy) ?? "—"],
     ["Executors", detail.executors.map((e) => `${person(e.workforceUserId) ?? "Unknown"}${e.isPrimary ? " (primary)" : ""}`).join(", ") || "None assigned"],
     ["Safety officers", detail.safetyOfficers.map((s) => person(s.workforceUserId) ?? "Unknown").join(", ") || "None"],
     ["Hazards and PPE", `${detail.hazards.length} hazard${detail.hazards.length === 1 ? "" : "s"}, ${detail.ppe.length} PPE item${detail.ppe.length === 1 ? "" : "s"}`],

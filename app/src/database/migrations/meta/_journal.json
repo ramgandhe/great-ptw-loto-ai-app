@@ -589,6 +589,13 @@
       "when": 1793800000000,
       "tag": "0081_energy_sources",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1793900000000,
+      "tag": "0082_hazard_place_links",
+      "breakpoints": true
     }
   ]
 }

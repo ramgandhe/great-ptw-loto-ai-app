@@ -23,6 +23,7 @@ import {
   AdminPageHeader,
   FIELD_CLASS,
 } from "@/components/layout/admin-page-header";
+import { HazardLinks } from "@/components/organisation/hazard-links";
 
 function personName(user: TenantUser): string {
   return (
@@ -82,6 +83,7 @@ const emptyForm = {
   parentId: "",
   locationTypeId: "",
   description: "",
+  hazardIds: [] as string[],
 };
 
 export default function WorkLocationsPage() {
@@ -167,6 +169,7 @@ export default function WorkLocationsPage() {
         parentId: detail.parentId ?? "",
         locationTypeId: detail.locationTypeId ?? "",
         description: detail.description ?? "",
+        hazardIds: detail.hazardIds ?? [],
       });
       setApproverIds(detail.ownApproverIds);
       if (detail.approvers.warning) {
@@ -217,6 +220,7 @@ export default function WorkLocationsPage() {
       parentId: form.parentId || null,
       locationTypeId: form.locationTypeId || null,
       description: form.description.trim(),
+      hazardIds: form.hazardIds,
     };
     try {
       if (selectedId) {
@@ -232,6 +236,7 @@ export default function WorkLocationsPage() {
             ? { locationTypeId: payload.locationTypeId }
             : {}),
           ...(payload.description ? { description: payload.description } : {}),
+          hazardIds: payload.hazardIds,
         });
         setSelectedId(created.id);
         toast("Work location added");
@@ -472,6 +477,10 @@ export default function WorkLocationsPage() {
               ))}
             </AppSelect>
           </label>
+          <HazardLinks
+            hazardIds={form.hazardIds}
+            onChange={(hazardIds) => setForm((prev) => ({ ...prev, hazardIds }))}
+          />
           <label className="grid gap-1.5 text-sm sm:col-span-2">
             <span className="font-medium">Description</span>
             <textarea

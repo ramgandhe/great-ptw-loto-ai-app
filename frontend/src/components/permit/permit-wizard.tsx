@@ -2,7 +2,7 @@
 import { AppSelect } from "@/components/ui/select";
 
 import { inUse } from "@/components/organisation/org-status-badge";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { ApiError } from "@/lib/api";
@@ -11,6 +11,7 @@ import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { masterDataApi, type HazardRecord, type MasterDataRecord } from "@/lib/master-data/api";
 import { hazardFitsPermitType } from "@/lib/master-data/hazard-fit";
+import { linkedPpeIds, originLabel, placeHazardPlan, ppeForHazards } from "@/lib/permit/place-hazards";
 import {
   departmentsApi,
   locationsApi,
@@ -293,6 +294,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   >([]);
   const [userRoles, setUserRoles] = useState<string[]>(authRoles);
   const [masterDataLoading, setMasterDataLoading] = useState(true);
+  const [ppeManualOff, setPpeManualOff] = useState<string[]>([]);
+  const [ppeManualOn, setPpeManualOn] = useState<string[]>([]);
+  const placeSelectionRef = useRef<string | null>(null);
   // One step at a time. A draft reopens where it was left; the executor's part starts at Site safety.
   const [active, setActive] = useState<PermitEditorSectionId>(() =>
     mode === "edit" && authRoles.includes("safety-officer")
@@ -510,6 +514,46 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       setMachineryLototo([...byId.values()]);
     });
   }, [form.assetIds, form.machineryId]);
+
+  const placeSelectionKey = `${form.workLocationId}|${[...form.assetIds].sort().join(",")}`;
+  useEffect(() => {
+    if (masterDataLoading) return;
+    if (placeSelectionRef.current === null) {
+      placeSelectionRef.current = placeSelectionKey;
+      return;
+    }
+    if (placeSelectionRef.current === placeSelectionKey) return;
+    placeSelectionRef.current = placeSelectionKey;
+    const permitTypeCode = permitTypes.find((type) => type.id === form.permitTypeId)?.code;
+    const plan = placeHazardPlan({
+      hazards,
+      locations: workLocations,
+      assets: siteAssets,
+      workLocationId: form.workLocationId,
+      assetIds: form.assetIds,
+      permitTypeCode,
+    });
+    setPpeManualOff([]);
+    setPpeManualOn([]);
+    setDirty(true);
+    setForm((current) => {
+      const kept = new Map(
+        current.hazards.filter((row) => row.hazardCategoryId).map((row) => [row.hazardCategoryId, row]),
+      );
+      const nextHazards = [...plan.defaultOn].map((id) => kept.get(id) ?? emptyPermitHazard(id));
+      return {
+        ...current,
+        hazards: nextHazards.length > 0 ? nextHazards : [emptyPermitHazard()],
+        ppe: ppeForHazards({
+          hazardIds: plan.defaultOn,
+          hazards,
+          manualOff: [],
+          manualOn: [],
+          previous: current.ppe,
+        }),
+      };
+    });
+  }, [placeSelectionKey, masterDataLoading, hazards, workLocations, siteAssets, permitTypes, form.permitTypeId, form.workLocationId, form.assetIds]);
 
   useEffect(() => {
     if (!form.workLocationId) return;
@@ -1037,6 +1081,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       requestAnimationFrame(() => document.getElementById("validation-summary")?.focus());
       return;
     }
+    if (!(await confirmAction(isResubmit ? "Resubmit this permit for approval?" : "Submit this permit for approval?"))) {
+      return;
+    }
 
     setIsSubmitting(true);
     setApiError(null);
@@ -1091,10 +1138,23 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       control,
     }));
   });
+  const permitSafetyRisks = hazardRows.flatMap((hazard) => {
+    const catalogue = hazards.find((row) => row.id === hazard.hazardCategoryId);
+    const lines = [...(catalogue?.risks ?? []), ...(hazard.extraRisks ?? [])].map((line) => line.trim()).filter(Boolean);
+    return lines.map((risk) => ({ hazard: catalogue?.name ?? "Hazard", risk }));
+  });
   const permitTypeCode = permitTypes.find((type) => type.id === form.permitTypeId)?.code;
   const selectedHazardIds = new Set(hazardRows.map((h) => h.hazardCategoryId));
+  const hazardPlan = placeHazardPlan({
+    hazards,
+    locations: workLocations,
+    assets: siteAssets,
+    workLocationId: form.workLocationId,
+    assetIds: form.assetIds,
+    permitTypeCode,
+  });
   const offeredHazards = hazards.filter(
-    (hazard) => hazardFitsPermitType(hazard.permitTypeCodes, permitTypeCode) || selectedHazardIds.has(hazard.id),
+    (hazard) => hazardPlan.listedIds.has(hazard.id) || selectedHazardIds.has(hazard.id),
   );
   const ppeRows = form.ppe.filter((p) => p.ppeCatalogueId);
   const crewRows = form.executors.filter((e) => (e.workforceUserId ?? "").trim());
@@ -1290,8 +1350,17 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                       checked={selected}
                       disabled={!editable(0)}
                       onChange={() => {
+                        const plan = placeHazardPlan({
+                          hazards,
+                          locations: workLocations,
+                          assets: siteAssets,
+                          workLocationId: form.workLocationId,
+                          assetIds: form.assetIds,
+                          permitTypeCode: type.code,
+                        });
                         const kept = form.hazards.filter((row) => {
                           if (!row.hazardCategoryId) return true;
+                          if (plan.defaultOn.has(row.hazardCategoryId)) return true;
                           const catalogue = hazards.find((hazard) => hazard.id === row.hazardCategoryId);
                           return hazardFitsPermitType(catalogue?.permitTypeCodes, type.code);
                         });
@@ -1608,26 +1677,50 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         <div className="grid gap-2">
           <ChipPicker
             label="Hazards"
-            options={offeredHazards}
+            options={offeredHazards.map((hazard) => ({
+              id: hazard.id,
+              name: hazard.code ? `${hazard.name} (${hazard.code})` : hazard.name,
+              hint: originLabel(hazardPlan.origin.get(hazard.id)),
+            }))}
             selected={hazardRows.map((h) => h.hazardCategoryId)}
             disabled={!siteEditable || masterDataLoading}
             selectionStyle="row"
             empty={
               form.permitTypeId
-                ? "No hazards are linked to this permit type yet. An administrator links them under Organisation, Hazards."
+                ? "No hazards for this permit type, work location, or selected assets."
                 : undefined
             }
-            onToggle={(hazardCategoryId) =>
-              edit((current) => {
-                const rows = current.hazards.filter((h) => h.hazardCategoryId);
-                return {
+            onToggle={(hazardCategoryId) => {
+              void (async () => {
+                const selected = form.hazards.some((row) => row.hazardCategoryId === hazardCategoryId);
+                if (selected && hazardPlan.defaultOn.has(hazardCategoryId)) {
+                  const where = hazardPlan.origin.get(hazardCategoryId) === "asset" ? "a selected asset" : "the selected work location";
+                  if (!(await confirmAction(`This hazard is configured for ${where}. Turning it off matters for this permit. Turn it off?`))) return;
+                }
+                const rows = form.hazards.filter((row) => row.hazardCategoryId);
+                const nextRows = selected
+                  ? rows.filter((row) => row.hazardCategoryId !== hazardCategoryId)
+                  : [...rows, emptyPermitHazard(hazardCategoryId)];
+                const nextIds = nextRows.map((row) => row.hazardCategoryId);
+                const linked = linkedPpeIds(nextIds, hazards);
+                const added = new Set(hazards.find((row) => row.id === hazardCategoryId)?.ppeIds ?? []);
+                const nextOn = selected ? ppeManualOn.filter((id) => linked.has(id)) : ppeManualOn;
+                const nextOff = selected ? ppeManualOff : ppeManualOff.filter((id) => !added.has(id));
+                setPpeManualOn(nextOn);
+                setPpeManualOff(nextOff);
+                edit((current) => ({
                   ...current,
-                  hazards: rows.some((h) => h.hazardCategoryId === hazardCategoryId)
-                    ? rows.filter((h) => h.hazardCategoryId !== hazardCategoryId)
-                    : [...rows, emptyPermitHazard(hazardCategoryId)],
-                };
-              })
-            }
+                  hazards: nextRows.length > 0 ? nextRows : [emptyPermitHazard()],
+                  ppe: ppeForHazards({
+                    hazardIds: nextIds,
+                    hazards,
+                    manualOff: nextOff,
+                    manualOn: nextOn,
+                    previous: current.ppe,
+                  }),
+                }));
+              })();
+            }}
           />
           {hazardRows.map((hazard) => {
             const catalogue = hazards.find((h) => h.id === hazard.hazardCategoryId);
@@ -1644,7 +1737,35 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     {catalogue?.severity ? ` · ${catalogue.severity}` : ""}
                   </p>
                   {catalogue?.description ? <p className="mt-1 whitespace-pre-wrap text-sm">{catalogue.description}</p> : null}
+                  {originLabel(hazardPlan.origin.get(hazard.hazardCategoryId)) ? (
+                    <p className="mt-1 text-xs text-muted-foreground">{originLabel(hazardPlan.origin.get(hazard.hazardCategoryId))}</p>
+                  ) : null}
                 </div>
+                <div className="grid gap-1">
+                  <p className="text-sm font-medium">Risks</p>
+                  {(catalogue?.risks ?? []).length > 0 ? (
+                    <ul className="list-disc space-y-1 pl-5 text-sm">
+                      {(catalogue?.risks ?? []).map((risk) => (
+                        <li key={risk}>{risk}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No risks configured for this hazard.</p>
+                  )}
+                </div>
+                <ExtraStringList
+                  label="Additional risks"
+                  values={hazard.extraRisks ?? []}
+                  disabled={!siteEditable}
+                  onChange={(extraRisks) =>
+                    edit((current) => ({
+                      ...current,
+                      hazards: current.hazards.map((h) =>
+                        h.hazardCategoryId === hazard.hazardCategoryId ? { ...h, extraRisks } : h,
+                      ),
+                    }))
+                  }
+                />
                 <ConfiguredList
                   title="Consequences"
                   empty="No consequences configured for this hazard."
@@ -1709,7 +1830,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         <div className="grid gap-2">
           <ChipPicker
             label="PPE"
-            options={ppeItems}
+            options={ppeItems.map((item) => ({
+              id: item.id,
+              name: item.code ? `${item.name} (${item.code})` : item.name,
+            }))}
             selected={ppeRows.map((p) => p.ppeCatalogueId)}
             disabled={!siteEditable || masterDataLoading}
             selectionStyle="row"
@@ -1722,17 +1846,33 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 ),
               }))
             }
-            onToggle={(ppeCatalogueId) =>
-              edit((current) => {
-                const rows = current.ppe.filter((p) => p.ppeCatalogueId);
-                return {
+            onToggle={(ppeCatalogueId) => {
+              void (async () => {
+                const rows = form.ppe.filter((row) => row.ppeCatalogueId);
+                const on = rows.some((row) => row.ppeCatalogueId === ppeCatalogueId);
+                const linked = linkedPpeIds(
+                  form.hazards.map((row) => row.hazardCategoryId).filter(Boolean),
+                  hazards,
+                );
+                if (on && linked.has(ppeCatalogueId)) {
+                  if (!(await confirmAction("This PPE is required by a hazard that is on for this permit. Turning it off matters. Turn it off?"))) return;
+                }
+                const nextOff = on
+                  ? linked.has(ppeCatalogueId) ? [...new Set([...ppeManualOff, ppeCatalogueId])] : ppeManualOff
+                  : ppeManualOff.filter((id) => id !== ppeCatalogueId);
+                const nextOn = on
+                  ? ppeManualOn.filter((id) => id !== ppeCatalogueId)
+                  : linked.has(ppeCatalogueId) ? ppeManualOn : [...ppeManualOn, ppeCatalogueId];
+                setPpeManualOff(nextOff);
+                setPpeManualOn(nextOn);
+                edit((current) => ({
                   ...current,
-                  ppe: rows.some((p) => p.ppeCatalogueId === ppeCatalogueId)
-                    ? rows.filter((p) => p.ppeCatalogueId !== ppeCatalogueId)
+                  ppe: on
+                    ? rows.filter((row) => row.ppeCatalogueId !== ppeCatalogueId)
                     : [...rows, { ppeCatalogueId, quantity: 1 }],
-                };
-              })
-            }
+                }));
+              })();
+            }}
           />
         </div>
 
@@ -2159,6 +2299,21 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           One assigned safety officer comments and types their name. That is enough to pass this step.
         </p>
         <div className="grid gap-2">
+          <h3 className="text-sm font-semibold">Risks on this permit</h3>
+          <p className="text-sm text-muted-foreground">Set by the operator in Site safety. Preview only here.</p>
+          {permitSafetyRisks.length ? (
+            <ul className="list-disc space-y-1 pl-5 text-sm">
+              {permitSafetyRisks.map((line) => (
+                <li key={`${line.hazard}:${line.risk}`}>
+                  {line.hazard} — {line.risk}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">No risks listed on this permit.</p>
+          )}
+        </div>
+        <div className="grid gap-2">
           <h3 className="text-sm font-semibold">Safety controls on this permit</h3>
           <p className="text-sm text-muted-foreground">Set by the operator in Site safety. Preview only here.</p>
           {permitSafetyControls.length ? (
@@ -2407,7 +2562,7 @@ function ChipPicker({
   onToggle,
 }: {
   label: string;
-  options: { id: string; name: string }[];
+  options: { id: string; name: string; hint?: string }[];
   selected: string[];
   disabled: boolean;
   empty?: string;
@@ -2490,7 +2645,10 @@ function ChipPicker({
                       <Check className="size-3.5" />
                     </span>
                   ) : null}
-                  <span className="min-w-0">{option.name}</span>
+                  <span className="min-w-0">
+                    {option.name}
+                    {option.hint ? <span className="mt-0.5 block text-xs text-muted-foreground">{option.hint}</span> : null}
+                  </span>
                 </label>
                 {on && quantityFor && onQuantityChange ? (
                   <label className="flex shrink-0 items-center gap-2 text-xs font-medium text-muted-foreground">

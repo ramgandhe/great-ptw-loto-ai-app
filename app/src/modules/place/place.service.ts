@@ -32,6 +32,9 @@ import {
   tenantUsers,
   workLocationApprovers,
   workLocations,
+  assetHazards,
+  hazardCategories,
+  workLocationHazards,
 } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
 import {
@@ -359,10 +362,12 @@ export class PlaceService {
     const tenantId = requireTenant(user);
     await this.assertSiteAccess(tenantId, siteId, user);
     const status = archived ? eq(workLocations.status, 'archived') : ne(workLocations.status, 'archived');
-    return this.db
+    const rows = await this.db
       .select()
       .from(workLocations)
       .where(and(eq(workLocations.tenantId, tenantId), eq(workLocations.siteId, siteId), status));
+    const hazards = await this.locationHazardMap(rows.map((row) => row.id));
+    return rows.map((row) => ({ ...row, hazardIds: hazards.get(row.id) ?? [] }));
   }
 
   async getWorkLocation(id: string, user: AuthenticatedUser) {
@@ -372,7 +377,13 @@ export class PlaceService {
       .select({ userId: workLocationApprovers.userId })
       .from(workLocationApprovers)
       .where(eq(workLocationApprovers.workLocationId, row.id));
-    return { ...row, approvers: resolved, ownApproverIds: own.map((item) => item.userId) };
+    const hazards = await this.locationHazardMap([row.id]);
+    return {
+      ...row,
+      approvers: resolved,
+      ownApproverIds: own.map((item) => item.userId),
+      hazardIds: hazards.get(row.id) ?? [],
+    };
   }
 
   async createWorkLocation(dto: CreateWorkLocationDto, user: AuthenticatedUser) {
@@ -398,8 +409,9 @@ export class PlaceService {
         })
         .returning();
       await this.refreshPaths(dto.siteId, tenantId);
+      await this.replaceLocationHazards(row.id, tenantId, dto.hazardIds ?? [], user.id);
       await this.audit('work_location.created', 'work_location', row.id, user, tenantId);
-      return this.requireLocation(row.id, user);
+      return this.getWorkLocation(row.id, user);
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException('A work location with this code already exists in this site');
@@ -433,8 +445,11 @@ export class PlaceService {
       if (dto.name !== undefined || dto.parentId !== undefined) {
         await this.refreshPaths(current.siteId, current.tenantId);
       }
+      if (dto.hazardIds !== undefined) {
+        await this.replaceLocationHazards(id, current.tenantId, dto.hazardIds, user.id);
+      }
       await this.audit('work_location.updated', 'work_location', id, user, current.tenantId);
-      return this.requireLocation(id, user);
+      return this.getWorkLocation(id, user);
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException('A work location with this code already exists in this site');
@@ -591,11 +606,15 @@ export class PlaceService {
     const status = query.archived ? eq(assets.status, 'archived') : ne(assets.status, 'archived');
     const where = [eq(assets.tenantId, tenantId), eq(assets.siteId, siteId), status];
     if (locationIds) where.push(inArray(assets.workLocationId, locationIds));
-    return this.db.select().from(assets).where(and(...where));
+    const rows = await this.db.select().from(assets).where(and(...where));
+    const hazards = await this.assetHazardMap(rows.map((row) => row.id));
+    return rows.map((row) => ({ ...row, hazardIds: hazards.get(row.id) ?? [] }));
   }
 
   async getAsset(id: string, user: AuthenticatedUser) {
-    return this.requireAsset(id, user);
+    const row = await this.requireAsset(id, user);
+    const hazards = await this.assetHazardMap([row.id]);
+    return { ...row, hazardIds: hazards.get(row.id) ?? [] };
   }
 
   async createAsset(dto: CreateAssetDto, user: AuthenticatedUser) {
@@ -620,8 +639,9 @@ export class PlaceService {
           updatedBy: user.id,
         })
         .returning();
+      await this.replaceAssetHazards(row.id, location.tenantId, dto.hazardIds ?? [], user.id);
       await this.audit('asset.created', 'asset', row.id, user, location.tenantId);
-      return row;
+      return { ...row, hazardIds: dto.hazardIds ?? [] };
     } catch (error) {
       if (isUniqueViolation(error)) throw new ConflictException('This tag or asset number is already used');
       throw error;
@@ -655,8 +675,12 @@ export class PlaceService {
         .where(and(eq(assets.id, id), eq(assets.tenantId, current.tenantId), ne(assets.status, 'archived')))
         .returning();
       if (!row) throw new NotFoundException('Record not found');
+      if (dto.hazardIds !== undefined) {
+        await this.replaceAssetHazards(id, current.tenantId, dto.hazardIds, user.id);
+      }
       await this.audit('asset.updated', 'asset', id, user, current.tenantId);
-      return row;
+      const hazards = await this.assetHazardMap([row.id]);
+      return { ...row, hazardIds: hazards.get(row.id) ?? [] };
     } catch (error) {
       if (isUniqueViolation(error)) throw new ConflictException('This tag or asset number is already used');
       throw error;
@@ -911,5 +935,81 @@ export class PlaceService {
 
   private async audit(action: string, entityType: string, entityId: string, user: AuthenticatedUser, tenantId: string) {
     await this.auditService.log({ action, entityType, entityId, userId: user.id, tenantId });
+  }
+
+  private async assertHazardIds(tenantId: string, hazardIds: string[]) {
+    const unique = [...new Set(hazardIds)];
+    if (unique.length === 0) return unique;
+    const rows = await this.db
+      .select({ id: hazardCategories.id })
+      .from(hazardCategories)
+      .where(and(eq(hazardCategories.tenantId, tenantId), inArray(hazardCategories.id, unique)));
+    if (rows.length !== unique.length) {
+      throw new BadRequestException('One or more hazards are not in this organisation');
+    }
+    return unique;
+  }
+
+  private async locationHazardMap(ids: string[]) {
+    const map = new Map<string, string[]>();
+    if (ids.length === 0) return map;
+    const links = await this.db
+      .select({
+        workLocationId: workLocationHazards.workLocationId,
+        hazardCategoryId: workLocationHazards.hazardCategoryId,
+      })
+      .from(workLocationHazards)
+      .where(inArray(workLocationHazards.workLocationId, ids));
+    for (const link of links) {
+      const list = map.get(link.workLocationId) ?? [];
+      list.push(link.hazardCategoryId);
+      map.set(link.workLocationId, list);
+    }
+    return map;
+  }
+
+  private async assetHazardMap(ids: string[]) {
+    const map = new Map<string, string[]>();
+    if (ids.length === 0) return map;
+    const links = await this.db
+      .select({ assetId: assetHazards.assetId, hazardCategoryId: assetHazards.hazardCategoryId })
+      .from(assetHazards)
+      .where(inArray(assetHazards.assetId, ids));
+    for (const link of links) {
+      const list = map.get(link.assetId) ?? [];
+      list.push(link.hazardCategoryId);
+      map.set(link.assetId, list);
+    }
+    return map;
+  }
+
+  private async replaceLocationHazards(locationId: string, tenantId: string, hazardIds: string[], userId: string) {
+    const unique = await this.assertHazardIds(tenantId, hazardIds);
+    await this.db.delete(workLocationHazards).where(eq(workLocationHazards.workLocationId, locationId));
+    if (unique.length === 0) return;
+    await this.db.insert(workLocationHazards).values(
+      unique.map((hazardCategoryId) => ({
+        tenantId,
+        workLocationId: locationId,
+        hazardCategoryId,
+        createdBy: userId,
+        updatedBy: userId,
+      })),
+    );
+  }
+
+  private async replaceAssetHazards(assetId: string, tenantId: string, hazardIds: string[], userId: string) {
+    const unique = await this.assertHazardIds(tenantId, hazardIds);
+    await this.db.delete(assetHazards).where(eq(assetHazards.assetId, assetId));
+    if (unique.length === 0) return;
+    await this.db.insert(assetHazards).values(
+      unique.map((hazardCategoryId) => ({
+        tenantId,
+        assetId,
+        hazardCategoryId,
+        createdBy: userId,
+        updatedBy: userId,
+      })),
+    );
   }
 }

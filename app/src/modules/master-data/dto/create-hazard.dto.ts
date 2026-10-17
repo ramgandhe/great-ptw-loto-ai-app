@@ -5,6 +5,7 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  IsUUID,
   MinLength,
 } from 'class-validator';
 import { HAZARD_SEVERITIES } from '../master-data.constants';
@@ -41,6 +42,12 @@ export class CreateHazardDto {
   @IsArray()
   @ArrayMaxSize(50)
   @IsString({ each: true })
+  risks?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
   controls?: string[];
 
   @IsOptional()
@@ -48,6 +55,12 @@ export class CreateHazardDto {
   @ArrayMaxSize(20)
   @IsString({ each: true })
   permitTypeCodes?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsUUID('4', { each: true })
+  ppeIds?: string[];
 
   @IsOptional()
   @IsBoolean()

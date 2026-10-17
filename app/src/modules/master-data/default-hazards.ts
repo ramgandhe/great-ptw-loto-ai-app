@@ -1,6 +1,24 @@
 import { and, eq } from 'drizzle-orm';
 import type { Database } from '../../database/database.module';
-import { hazardCategories } from '../../database/schema';
+import { hazardCategories, hazardPpe, ppeCatalogue } from '../../database/schema';
+import { HAZARD_PPE } from './hazard-ppe-map';
+
+export function splitEmbeddedRisks(description: string | null | undefined): {
+  description: string | null;
+  risks: string[];
+} {
+  if (!description) return { description: description ?? null, risks: [] };
+  const marker = '\n\nRisks:';
+  const at = description.indexOf(marker);
+  if (at < 0) return { description, risks: [] };
+  const risks = description
+    .slice(at + marker.length)
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const rest = description.slice(0, at).trim();
+  return { description: rest || null, risks };
+}
 
 /** Catalogue from docs/specs/ptw_hazards.md. */
 export const DEFAULT_HAZARDS = [
@@ -868,11 +886,13 @@ export async function ensureDefaultHazards(
     }
     const aliasCode = Object.entries(HAZARD_ALIASES).find(([, canonical]) => canonical === hazard.code)?.[0];
     const byAlias = aliasCode ? existing.find((row) => row.code === aliasCode) : undefined;
+    const split = splitEmbeddedRisks(hazard.description);
     const values = {
       code: hazard.code,
       name: hazard.name,
       category: hazard.category,
-      description: hazard.description,
+      description: split.description,
+      risks: split.risks,
       severity: hazard.severity,
       consequences: [...hazard.consequences],
       controls: [...hazard.controls],
@@ -902,5 +922,42 @@ export async function ensureDefaultHazards(
     created += 1;
   }
 
+  await linkStandardHazardPpe(db, tenantId, actorId);
   return { created, updated };
+}
+
+async function linkStandardHazardPpe(db: HazardDb, tenantId: string, actorId: string) {
+  const hazards = await db
+    .select({ id: hazardCategories.id, code: hazardCategories.code })
+    .from(hazardCategories)
+    .where(eq(hazardCategories.tenantId, tenantId));
+  const ppe = await db
+    .select({ id: ppeCatalogue.id, code: ppeCatalogue.code })
+    .from(ppeCatalogue)
+    .where(eq(ppeCatalogue.tenantId, tenantId));
+  const ppeByCode = new Map(ppe.map((row) => [row.code, row.id]));
+  const existing = await db
+    .select({
+      hazardCategoryId: hazardPpe.hazardCategoryId,
+      ppeCatalogueId: hazardPpe.ppeCatalogueId,
+    })
+    .from(hazardPpe)
+    .where(eq(hazardPpe.tenantId, tenantId));
+  const have = new Set(existing.map((row) => `${row.hazardCategoryId}:${row.ppeCatalogueId}`));
+  const values = hazards.flatMap((hazard) =>
+    (HAZARD_PPE[hazard.code] ?? []).flatMap((code) => {
+      const ppeCatalogueId = ppeByCode.get(code);
+      if (!ppeCatalogueId || have.has(`${hazard.id}:${ppeCatalogueId}`)) return [];
+      return [
+        {
+          tenantId,
+          hazardCategoryId: hazard.id,
+          ppeCatalogueId,
+          createdBy: actorId,
+          updatedBy: actorId,
+        },
+      ];
+    }),
+  );
+  if (values.length > 0) await db.insert(hazardPpe).values(values);
 }

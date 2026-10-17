@@ -64,6 +64,7 @@ export type PermitHazardInput = {
   hazardCategoryId: string;
   description?: string;
   extraConsequences: string[];
+  extraRisks: string[];
   extraControls: string[];
   omittedConsequences: string[];
   omittedControls: string[];
@@ -188,6 +189,7 @@ export type PermitDetail = {
   hazards: Array<{
     hazardCategoryId: string;
     extraConsequences?: string[] | null;
+    extraRisks?: string[] | null;
     extraControls?: string[] | null;
     omittedConsequences?: string[] | null;
     omittedControls?: string[] | null;

@@ -14,8 +14,10 @@ export type HazardRecord = MasterDataRecord & {
   category?: string | null;
   severity?: string;
   consequences?: string[];
+  risks?: string[];
   controls?: string[];
   permitTypeCodes?: string[];
+  ppeIds?: string[];
 };
 
 export const masterDataApi = {

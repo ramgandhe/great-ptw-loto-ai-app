@@ -19,6 +19,7 @@ export type WorkLocationRecord = {
   address: string | null;
   status: string;
   pathText: string | null;
+  hazardIds?: string[];
 };
 
 export type WorkLocationDetail = WorkLocationRecord & {
@@ -39,6 +40,7 @@ export type AssetRecord = {
   parentAssetId: string | null;
   description: string | null;
   status: string;
+  hazardIds?: string[];
 };
 
 export type SiteMember = { id: string; siteId: string; userId: string };
@@ -54,6 +56,7 @@ export const placeApi = {
     parentId?: string;
     locationTypeId?: string;
     description?: string;
+    hazardIds?: string[];
   }) => fetchApi<WorkLocationRecord>("/work-locations", { method: "POST", body: JSON.stringify(payload) }),
   updateWorkLocation: (
     id: string,
@@ -63,6 +66,7 @@ export const placeApi = {
       parentId?: string | null;
       locationTypeId?: string | null;
       description?: string;
+      hazardIds?: string[];
     },
   ) => fetchApi<WorkLocationRecord>(`/work-locations/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   archiveWorkLocation: (id: string) =>
@@ -93,6 +97,7 @@ export const placeApi = {
     assetTypeId?: string;
     parentAssetId?: string;
     description?: string;
+    hazardIds?: string[];
   }) => fetchApi<AssetRecord>("/assets", { method: "POST", body: JSON.stringify(payload) }),
   updateAsset: (
     id: string,
@@ -104,6 +109,7 @@ export const placeApi = {
       assetTypeId?: string | null;
       parentAssetId?: string | null;
       description?: string;
+      hazardIds?: string[];
     },
   ) => fetchApi<AssetRecord>(`/assets/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   archiveAsset: (id: string) => fetchApi<AssetRecord>(`/assets/${id}/archive`, { method: "POST" }),

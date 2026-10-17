@@ -29,8 +29,10 @@ const emptyForm = {
   description: "",
   severity: "medium",
   consequences: [""],
+  risks: [""],
   controls: [""],
   permitTypeCodes: [] as string[],
+  ppeIds: [] as string[],
 };
 
 export default function HazardsPage() {
@@ -41,6 +43,7 @@ export default function HazardsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [types, setTypes] = useState<MasterDataRecord[]>([]);
+  const [ppe, setPpe] = useState<MasterDataRecord[]>([]);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -56,6 +59,7 @@ export default function HazardsPage() {
   useEffect(() => {
     void load();
     masterDataApi.permitTypes().then(setTypes).catch(() => setTypes([]));
+    masterDataApi.ppe().then(setPpe).catch(() => setPpe([]));
   }, []);
 
   function resetForm() {
@@ -78,8 +82,10 @@ export default function HazardsPage() {
       description: item.description ?? "",
       severity: item.severity ?? "medium",
       consequences: item.consequences?.length ? item.consequences : [""],
+      risks: item.risks?.length ? item.risks : [""],
       controls: item.controls?.length ? item.controls : [""],
       permitTypeCodes: item.permitTypeCodes ?? [],
+      ppeIds: item.ppeIds ?? [],
     });
     setEditingId(item.id);
     setFormOpen(true);
@@ -96,8 +102,10 @@ export default function HazardsPage() {
       description: form.description.trim() || undefined,
       severity: form.severity,
       consequences: form.consequences,
+      risks: form.risks,
       controls: form.controls,
       permitTypeCodes: form.permitTypeCodes,
+      ppeIds: form.ppeIds,
     };
     try {
       if (editingId) {
@@ -260,6 +268,43 @@ export default function HazardsPage() {
               </div>
             </fieldset>
           ) : null}
+          <fieldset className="grid gap-2 sm:col-span-2">
+            <legend className="text-sm font-medium">Associated PPE</legend>
+            <p className="text-xs text-muted-foreground">Optional. The link stays if the PPE name or code is later changed.</p>
+            {ppe.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No PPE items yet.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {ppe.map((item) => {
+                  const checked = form.ppeIds.includes(item.id);
+                  return (
+                    <label key={item.id} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            ppeIds: checked ? prev.ppeIds.filter((id) => id !== item.id) : [...prev.ppeIds, item.id],
+                          }))
+                        }
+                      />
+                      {item.name}
+                      {item.code ? <span className="text-muted-foreground">{item.code}</span> : null}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </fieldset>
+          <div className="sm:col-span-2">
+            <StringListField
+              label="Risks"
+              values={form.risks}
+              addLabel="Add risk"
+              onChange={(risks) => setForm((prev) => ({ ...prev, risks }))}
+            />
+          </div>
           <div className="sm:col-span-2">
             <StringListField
               label="Potential consequences"

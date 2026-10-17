@@ -41,6 +41,8 @@ import {
   siteMembers,
   sites,
   workLocations,
+  workLocationHazards,
+  assetHazards,
   hazardCategories,
   permitTypes,
   revalidationHistory,
@@ -524,7 +526,16 @@ export class PermitService {
         await tx.delete(permitHazards).where(eq(permitHazards.permitId, id));
         if (dto.hazards.length > 0) {
           const permitTypeId = dto.permitTypeId ?? existing.permit.permitTypeId;
-          await this.insertHazards(tx, id, user.id, tenantId, permitTypeId, dto.hazards);
+          await this.insertHazards(
+            tx,
+            id,
+            user.id,
+            tenantId,
+            permitTypeId,
+            dto.hazards,
+            dto.workLocationId ?? existing.permit.workLocationId,
+            dto.assetIds,
+          );
         }
       }
 
@@ -989,6 +1000,7 @@ export class PermitService {
             permitId: renewal.id,
             hazardCategoryId: hazard.hazardCategoryId,
             extraConsequences: hazard.extraConsequences ?? [],
+            extraRisks: hazard.extraRisks ?? [],
             extraControls: hazard.extraControls ?? [],
             omittedConsequences: hazard.omittedConsequences ?? [],
             omittedControls: hazard.omittedControls ?? [],
@@ -1284,7 +1296,16 @@ export class PermitService {
     user?: AuthenticatedUser,
   ): Promise<void> {
     if (dto.hazards?.length) {
-      await this.insertHazards(db, permitId, userId, tenantId, dto.permitTypeId, dto.hazards);
+      await this.insertHazards(
+        db,
+        permitId,
+        userId,
+        tenantId,
+        dto.permitTypeId,
+        dto.hazards,
+        dto.workLocationId ?? place.workLocationId,
+        dto.assetIds ?? place.assetIds,
+      );
     }
     if (dto.ppe?.length) {
       await this.insertPpe(db, permitId, userId, dto.ppe);
@@ -1313,18 +1334,21 @@ export class PermitService {
     tenantId: string,
     permitTypeId: string | null | undefined,
     hazards: NonNullable<CreatePermitDto['hazards']>,
+    workLocationId?: string | null,
+    assetIds?: string[],
   ): Promise<void> {
     if (hazards.length === 0) {
       return;
     }
 
-    await this.assertHazardsFitPermitType(db, tenantId, permitTypeId, hazards);
+    await this.assertHazardsFitPermitType(db, tenantId, permitTypeId, hazards, workLocationId, assetIds);
 
     await db.insert(permitHazards).values(
       hazards.map((hazard) => ({
         permitId,
         hazardCategoryId: hazard.hazardCategoryId,
         extraConsequences: (hazard.extraConsequences ?? []).map((value) => value.trim()).filter(Boolean),
+        extraRisks: (hazard.extraRisks ?? []).map((value) => value.trim()).filter(Boolean),
         extraControls: (hazard.extraControls ?? []).map((value) => value.trim()).filter(Boolean),
         omittedConsequences: (hazard.omittedConsequences ?? []).map((value) => value.trim()).filter(Boolean),
         omittedControls: (hazard.omittedControls ?? []).map((value) => value.trim()).filter(Boolean),
@@ -1339,6 +1363,8 @@ export class PermitService {
     tenantId: string,
     permitTypeId: string | null | undefined,
     hazards: NonNullable<CreatePermitDto['hazards']>,
+    workLocationId?: string | null,
+    assetIds?: string[],
   ): Promise<void> {
     if (!permitTypeId) {
       return;
@@ -1359,12 +1385,53 @@ export class PermitService {
       })
       .from(hazardCategories)
       .where(and(eq(hazardCategories.tenantId, tenantId), inArray(hazardCategories.id, ids)));
-    const unfit = rows.filter((row) => !hazardFitsPermitType(row.permitTypeCodes, permitType.code));
+    const linked = await this.placeLinkedHazardIds(db, tenantId, workLocationId, assetIds);
+    const unfit = rows.filter(
+      (row) => !linked.has(row.id) && !hazardFitsPermitType(row.permitTypeCodes, permitType.code),
+    );
     if (unfit.length > 0) {
       throw new BadRequestException(
         `${unfit.map((row) => row.name).join(', ')} ${unfit.length === 1 ? 'is' : 'are'} not used on this permit type`,
       );
     }
+  }
+
+  /** Hazards linked to the selected location, its ancestors and descendants, or a selected asset. */
+  private async placeLinkedHazardIds(
+    db: Pick<Database, 'select'>,
+    tenantId: string,
+    workLocationId?: string | null,
+    assetIds?: string[],
+  ): Promise<Set<string>> {
+    const ids = new Set<string>();
+    if (workLocationId) {
+      const locations = await db
+        .select({ id: workLocations.id, parentId: workLocations.parentId })
+        .from(workLocations)
+        .where(eq(workLocations.tenantId, tenantId));
+      const parentOf = new Map(locations.map((row) => [row.id, row.parentId]));
+      if (parentOf.has(workLocationId)) {
+        const locationIds = [workLocationId, ...descendantIds(workLocationId, parentOf)];
+        let parent = parentOf.get(workLocationId) ?? null;
+        while (parent) {
+          locationIds.push(parent);
+          parent = parentOf.get(parent) ?? null;
+        }
+        const links = await db
+          .select({ hazardCategoryId: workLocationHazards.hazardCategoryId })
+          .from(workLocationHazards)
+          .where(inArray(workLocationHazards.workLocationId, locationIds));
+        for (const link of links) ids.add(link.hazardCategoryId);
+      }
+    }
+    if (assetIds && assetIds.length > 0) {
+      const links = await db
+        .select({ hazardCategoryId: assetHazards.hazardCategoryId })
+        .from(assetHazards)
+        .where(and(eq(assetHazards.tenantId, tenantId), inArray(assetHazards.assetId, assetIds)));
+      for (const link of links) ids.add(link.hazardCategoryId);
+    }
+    return ids;
   }
 
   private async insertPpe(

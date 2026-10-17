@@ -163,6 +163,7 @@ export const hazardCategories = pgTable(
     category: varchar('category', { length: 255 }).notNull().default(''),
     severity: varchar('severity', { length: 32 }).notNull().default('medium'),
     consequences: jsonb('consequences').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    risks: jsonb('risks').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     controls: jsonb('controls').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     permitTypeCodes: varchar('permit_type_codes', { length: 16 }).array().notNull().default([]),
     isActive: boolean('is_active').notNull().default(true),
@@ -170,6 +171,61 @@ export const hazardCategories = pgTable(
   (table) => [
     uniqueIndex('hazard_categories_tenant_code_unique').on(table.tenantId, table.code),
     index('hazard_categories_tenant_id_idx').on(table.tenantId),
+  ],
+);
+
+/** PPE linked by catalogue id so a rename of the item keeps the association. */
+export const hazardPpe = pgTable(
+  'hazard_ppe',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    hazardCategoryId: uuid('hazard_category_id')
+      .notNull()
+      .references(() => hazardCategories.id, { onDelete: 'cascade' }),
+    ppeCatalogueId: uuid('ppe_catalogue_id')
+      .notNull()
+      .references(() => ppeCatalogue.id, { onDelete: 'cascade' }),
+  },
+  (table) => [
+    uniqueIndex('hazard_ppe_pair_unique').on(table.hazardCategoryId, table.ppeCatalogueId),
+    index('hazard_ppe_tenant_id_idx').on(table.tenantId),
+  ],
+);
+
+export const workLocationHazards = pgTable(
+  'work_location_hazards',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    workLocationId: uuid('work_location_id')
+      .notNull()
+      .references(() => workLocations.id, { onDelete: 'cascade' }),
+    hazardCategoryId: uuid('hazard_category_id')
+      .notNull()
+      .references(() => hazardCategories.id, { onDelete: 'cascade' }),
+  },
+  (table) => [
+    uniqueIndex('work_location_hazards_pair_unique').on(table.workLocationId, table.hazardCategoryId),
+    index('work_location_hazards_tenant_id_idx').on(table.tenantId),
+  ],
+);
+
+export const assetHazards = pgTable(
+  'asset_hazards',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    assetId: uuid('asset_id')
+      .notNull()
+      .references(() => assets.id, { onDelete: 'cascade' }),
+    hazardCategoryId: uuid('hazard_category_id')
+      .notNull()
+      .references(() => hazardCategories.id, { onDelete: 'cascade' }),
+  },
+  (table) => [
+    uniqueIndex('asset_hazards_pair_unique').on(table.assetId, table.hazardCategoryId),
+    index('asset_hazards_tenant_id_idx').on(table.tenantId),
   ],
 );
 

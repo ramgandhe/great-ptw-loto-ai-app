@@ -5,7 +5,7 @@
 export const PERMIT_LIFECYCLE_PHASES = [
   {
     sequence: 1,
-    name: 'Issuer initiation',
+    name: 'Receiver initiation',
     participantRole: 'permit-receiver',
     kind: 'collaboration',
   },
@@ -17,7 +17,7 @@ export const PERMIT_LIFECYCLE_PHASES = [
   },
   {
     sequence: 3,
-    name: 'HOD initial review',
+    name: 'Approver initial review',
     participantRole: 'permit-approver',
     kind: 'approval',
   },
@@ -29,13 +29,13 @@ export const PERMIT_LIFECYCLE_PHASES = [
   },
   {
     sequence: 5,
-    name: 'Issuer completion approval',
+    name: 'Receiver completion approval',
     participantRole: 'permit-receiver',
     kind: 'closure',
   },
   {
     sequence: 6,
-    name: 'HOD final approval',
+    name: 'Approver final approval',
     participantRole: 'permit-approver',
     kind: 'closure',
   },
@@ -45,7 +45,7 @@ export const PERMIT_LIFECYCLE_PHASES = [
 export const DEFAULT_APPROVAL_WORKFLOW_STEPS = [
   {
     stepSequence: 1,
-    name: 'HOD initial review',
+    name: 'Approver initial review',
     approverRole: 'permit-approver',
   },
 ] as const;
