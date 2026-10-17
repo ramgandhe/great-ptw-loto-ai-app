@@ -40,6 +40,17 @@ Burns, fire spread, fatalities, equipment damage, production loss.
 - Provide suitable firefighting equipment and a trained fire watch where required
 - Monitor the area during work and for the site-defined period afterward.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-03
+- PPE-09
+- PPE-12
+- PPE-15
+- PPE-17
+- PPE-18
+
 #### Associated permits:
 
 - HOT,
@@ -88,6 +99,15 @@ Blast injuries, burns, structural damage, multiple fatalities.
 - Maintain ventilation and monitor conditions as specified by the risk assessment;
 - Control ignition sources and use appropriately rated equipment in classified areas.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-09
+- PPE-12
+- PPE-14
+- PPE-15
+
 #### Associated permits:
 
 - HOT,
@@ -134,6 +154,15 @@ Skin burns, eye injuries, serious tissue damage.
 - Install barriers and warning signs
 - Use task-appropriate thermal PPE
 - Verify temperature before handling equipment or materials.
+
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-02
+- PPE-03
+- PPE-09
+- PPE-12
+- PPE-15
+- PPE-23
 
 #### Associated permits:
 
@@ -183,6 +212,16 @@ Respiratory irritation, occupational illness, lung damage, acute poisoning.
 - Prevent exposure to nearby personnel
 - Apply atmospheric monitoring where the substances and task warrant it.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-02
+- PPE-07
+- PPE-08
+- PPE-09
+- PPE-12
+- PPE-15
+- PPE-25
+
 #### Associated permits:
 
 - HOT,
@@ -229,6 +268,15 @@ Electric shock, electrical burns, cardiac arrest, electrocution.
 - Restrict work to competent, authorized personnel
 - Inspect tools, cables, and protective devices
 - Apply approved energized-work procedures only where justified and permitted.
+
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-04
+- PPE-12
+- PPE-15
+- PPE-24
 
 #### Associated permits:
 
@@ -279,6 +327,16 @@ Severe burns, blast injuries, hearing damage, permanent disability, fatalities.
 - Use appropriately rated PPE and tools
 - Follow approved switching and electrical-work procedures.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-04
+- PPE-05
+- PPE-06
+- PPE-12
+- PPE-24
+- PPE-29
+
 #### Associated permits:
 
 - ELEC,
@@ -328,6 +386,16 @@ Crushing, entanglement, amputation, electrocution, fatalities.
 - Release or restrain stored energy
 - Verify the safe, zero-energy state before work
 - Control the removal of locks and restoration of energy.
+
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-04
+- PPE-09
+- PPE-12
+- PPE-15
+- PPE-24
 
 #### Associated permits:
 
@@ -380,6 +448,17 @@ Lacerations, fractures, amputations, permanent disability, fatalities.
 - Use suitable tools and safe work methods
 - Prevent unauthorized startup.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-04
+- PPE-05
+- PPE-09
+- PPE-11
+- PPE-12
+- PPE-15
+
 #### Associated permits:
 
 - COLD,
@@ -427,6 +506,14 @@ Dizziness, unconsciousness, asphyxiation, fatalities.
 - Use continuous monitoring where required by the assessment
 - Establish rescue arrangements that do not rely on unprotected entry.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-08
+- PPE-12
+- PPE-15
+
 #### Associated permits:
 
 - CSP,
@@ -473,6 +560,16 @@ Poisoning, respiratory failure, permanent injury, fatalities.
 - Test for relevant contaminants using appropriate equipment
 - Ventilate and monitor the atmosphere as required
 - Provide suitable respiratory protection and emergency rescue arrangements.
+
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-02
+- PPE-08
+- PPE-10
+- PPE-12
+- PPE-15
+- PPE-22
+- PPE-27
 
 #### Associated permits:
 
@@ -522,6 +619,15 @@ Explosion, burns, structural damage, fatalities.
 - Use appropriately rated equipment
 - Stop work and evacuate if conditions breach approved limits.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-04
+- PPE-08
+- PPE-12
+- PPE-15
+
 #### Associated permits:
 
 - CSP,
@@ -570,6 +676,15 @@ Heat exhaustion, heatstroke, impaired judgment, collapse, fatalities.
 - Monitor workers for symptoms
 - Maintain communication and emergency arrangements.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-12
+- PPE-14
+- PPE-15
+- PPE-30
+
 #### Associated permits:
 
 - CSP,
@@ -617,6 +732,14 @@ Fractures, head injuries, permanent disability, fatalities.
 - Protect openings and edges
 - Use suitable fall-arrest or restraint systems with appropriate anchorage
 - Establish a rescue plan.
+
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-12
+- PPE-19
+- PPE-20
+- PPE-28
 
 #### Associated permits:
 
@@ -667,6 +790,16 @@ Head injuries, fractures, crushing injuries, fatalities.
 - Coordinate work at different elevations
 - Require appropriate head protection.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-04
+- PPE-12
+- PPE-14
+- PPE-15
+- PPE-28
+
 #### Associated permits:
 
 - WAH,
@@ -715,6 +848,17 @@ Falls, collapse, crush injuries, multiple fatalities.
 - Prevent overloading
 - Protect fragile surfaces
 - Restrict access until the structure is confirmed safe.
+
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-04
+- PPE-12
+- PPE-14
+- PPE-19
+- PPE-20
+- PPE-28
 
 #### Associated permits:
 
@@ -766,6 +910,15 @@ Burial, crushing, suffocation, serious injury, fatalities.
 - Prevent entry into unsafe excavations
 - Provide safe access and egress.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-12
+- PPE-13
+- PPE-14
+- PPE-15
+
 #### Associated permits:
 
 - EXC (should display names for these codes)
@@ -810,6 +963,16 @@ Electrocution, fire, explosion, flooding, toxic releases, service disruption.
 - Use controlled digging methods near identified services
 - Isolate services where necessary
 - Stop work if unexpected services are discovered.
+
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-04
+- PPE-09
+- PPE-12
+- PPE-14
+- PPE-24
 
 #### Associated permits:
 
@@ -861,6 +1024,14 @@ Collision, crushing, run-over injuries, fatalities.
 - Control reversing
 - Use suitable barriers and warning systems.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-04
+- PPE-12
+- PPE-14
+
 #### Associated permits:
 
 - EXC,
@@ -911,6 +1082,16 @@ Drowning, burial, collapse, hypothermia, fatalities.
 - Maintain safe escape routes
 - Stop work and evacuate when conditions become unsafe.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-12
+- PPE-13
+- PPE-14
+- PPE-15
+- PPE-19
+
 #### Associated permits:
 
 - EXC,
@@ -957,6 +1138,17 @@ Chemical burns, poisoning, eye damage, respiratory injury, environmental contami
 - Use suitable containment and ventilation
 - Provide substance-specific PPE and eyewash or emergency showers where required
 - Maintain spill-response arrangements.
+
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-02
+- PPE-08
+- PPE-10
+- PPE-12
+- PPE-15
+- PPE-16
+- PPE-22
+- PPE-27
 
 #### Associated permits:
 
@@ -1009,6 +1201,15 @@ Injection injuries, impact injuries, burns, toxic exposure, equipment damage, fa
 - Secure hoses and fittings
 - Use approved pressure limits and exclusion zones for testing.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-03
+- PPE-04
+- PPE-12
+- PPE-15
+
 #### Associated permits:
 
 - COLD,
@@ -1060,6 +1261,17 @@ Burns, poisoning, fire, explosion, environmental damage, fatalities.
 - Establish release response and evacuation arrangements
 - Stop work if isolation integrity is in doubt.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-08
+- PPE-10
+- PPE-12
+- PPE-15
+- PPE-22
+- PPE-27
+
 #### Associated permits:
 
 - HOT,
@@ -1110,6 +1322,14 @@ Hearing loss, hand-arm vibration disorders, fatigue, missed warnings.
 - Provide suitable hearing protection
 - Establish communication methods.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-05
+- PPE-06
+- PPE-09
+- PPE-12
+
 #### Associated permits:
 
 - HOT,
@@ -1158,6 +1378,14 @@ Sprains, fractures, cuts, head injuries.
 - Control spills
 - Provide suitable lighting and footwear
 - Maintain safe access routes.
+
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-04
+- PPE-12
+- PPE-13
+- PPE-14
 
 #### Associated permits:
 
@@ -1210,6 +1438,16 @@ Falls, structural instability, electrocution, dropped loads, heat illness, flood
 - Secure materials and equipment
 - Inspect affected work areas before restarting.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-12
+- PPE-13
+- PPE-14
+- PPE-15
+- PPE-19
+- PPE-28
+
 #### Associated permits:
 
 - HOT,
@@ -1258,6 +1496,13 @@ Falls, contact injuries, equipment damage, incorrect safety-critical actions.
 - Ensure lights are suitable for the hazardous area
 - Keep access routes illuminated
 - Provide backup lighting where loss of lighting would create danger.
+
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-04
+- PPE-12
+- PPE-14
 
 #### Associated permits:
 
@@ -1310,6 +1555,14 @@ Back injuries, muscle strains, joint injuries, musculoskeletal disorders.
 - Reduce repetitive and awkward movements
 - Provide suitable training and rest arrangements.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-09
+- PPE-11
+- PPE-12
+- PPE-21
+
 #### Associated permits:
 
 - HOT,
@@ -1360,6 +1613,15 @@ Fire, explosion, dropped-object injuries, equipment damage, multiple fatalities.
 - Coordinate work through the designated site authority
 - Establish exclusion zones and work sequencing
 - Suspend or prohibit incompatible work when risks cannot be adequately controlled.
+
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-04
+- PPE-12
+- PPE-14
+- PPE-15
 
 #### Associated permits:
 
@@ -1412,6 +1674,14 @@ Unsafe actions, delayed evacuation, exposure to hazards, serious injuries, fatal
 - Record permit handovers and communicate status changes
 - Stop work if essential communication or supervision is lost.
 
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-04
+- PPE-12
+- PPE-14
+
 #### Associated permits:
 
 - HOT,
@@ -1462,6 +1732,18 @@ Escalation of injuries, secondary casualties, permanent disability, fatalities.
 - Maintain emergency access and reliable communication
 - Verify rescue arrangements before high-risk work begins
 - Ensure rescuers do not expose themselves to uncontrolled hazards.
+
+#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+
+- PPE-01
+- PPE-02
+- PPE-04
+- PPE-08
+- PPE-12
+- PPE-14
+- PPE-15
+- PPE-19
+- PPE-20
 
 #### Associated permits:
 

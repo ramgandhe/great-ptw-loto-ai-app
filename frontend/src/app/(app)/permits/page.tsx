@@ -147,7 +147,7 @@ function PermitsBoard() {
           </div>
         </div>
         <div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:px-4">
-          <label className="relative flex h-11 w-full items-center sm:max-w-xl sm:flex-1">
+          <label className="relative flex h-10 w-full items-center sm:max-w-xl sm:flex-1">
             <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
             <span className="sr-only">Search permits</span>
             <input
@@ -158,7 +158,7 @@ function PermitsBoard() {
                 setParams({ q: e.target.value });
               }}
               placeholder="Reference, title, type or place"
-              className="h-11 w-full rounded-[8px] border border-border bg-background pl-9 pr-9 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-10 w-full rounded-[8px] border border-border bg-background pl-9 pr-9 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
             {query ? (
               <button

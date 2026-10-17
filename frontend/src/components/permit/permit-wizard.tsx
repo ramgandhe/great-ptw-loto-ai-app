@@ -1129,13 +1129,13 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               const current = section.id === active;
               const complete = !left && section.id !== "review";
               return (
-                <li key={section.id} className="shrink-0 lg:shrink">
+                <li key={section.id} className="w-40 shrink-0 lg:w-auto lg:shrink">
                   <button
                     type="button"
                     aria-current={current ? "step" : undefined}
                     onClick={() => goTo(section.id)}
                     className={cn(
-                      "group flex h-12 min-h-12 w-full items-center gap-2.5 rounded-lg border px-3 text-left text-xs transition-colors lg:border-transparent lg:text-sm",
+                      "group flex h-13 min-h-13 w-full items-center gap-2.5 rounded-lg border px-3 text-left text-xs transition-colors lg:border-transparent lg:text-sm",
                       current
                         ? "border-primary bg-primary text-primary-foreground shadow-sm lg:border-primary"
                         : "border-border bg-card hover:bg-muted lg:bg-transparent",
@@ -1147,7 +1147,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     )}>
                       {complete ? <Check className="size-3.5" aria-hidden /> : String(index + 1).padStart(2, "0")}
                     </span>
-                    <span className="min-w-0 truncate whitespace-nowrap font-semibold lg:flex-1">{section.label}</span>
+                    <span className="line-clamp-2 min-w-0 whitespace-normal font-semibold leading-tight lg:flex-1">{section.label}</span>
                     {left ? <span className={cn("hidden text-[11px] lg:inline", current ? "text-primary-foreground/80" : "text-amber-700")}>{left} to do</span> : null}
                     {complete ? <span className="hidden text-[10px] font-medium text-emerald-800 lg:inline">Ready</span> : null}
                   </button>

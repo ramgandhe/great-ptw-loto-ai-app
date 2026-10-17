@@ -29,7 +29,7 @@ export function SearchFilters({ value, isLoading = false, onChange, onSearch }: 
           value={value.q ?? ""}
           onChange={(event) => onChange({ ...value, q: event.target.value || undefined })}
           placeholder="Title, reference, or permit ID"
-          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
         />
       </div>
       <div>
