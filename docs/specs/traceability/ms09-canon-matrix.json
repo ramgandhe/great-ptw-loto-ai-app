@@ -1,0 +1,1270 @@
+{
+  "milestone": "MS-09",
+  "title": "Canon Coverage & Acceptance Remediation",
+  "matrixOwnerIssue": "PUS-249",
+  "matrixOwnerUrl": "https://linear.app/pushtirastu/issue/PUS-249",
+  "expectedCount": 53,
+  "scopeNote": "Canon PRD IDs only. FR-NTF-* and FR-DSH-* are plan aliases and never prove FR-NOT/FR-DAS alone.",
+  "aliases": [
+    {
+      "planAlias": "FR-NTF-001",
+      "canonIds": [
+        "FR-NOT-001"
+      ],
+      "note": "Plan NTF infrastructure ≠ FR-NOT event coverage; FR-NOT is canonical."
+    },
+    {
+      "planAlias": "FR-NTF-002",
+      "canonIds": [
+        "FR-NOT-002",
+        "FR-NOT-003",
+        "FR-NOT-004",
+        "FR-NOT-005",
+        "FR-NOT-006",
+        "FR-NOT-007",
+        "FR-NOT-008"
+      ],
+      "note": "NTF reminder/infra may support NOT events but does not prove them without explicit mapping."
+    },
+    {
+      "planAlias": "FR-NTF-003",
+      "canonIds": [
+        "FR-NOT-009"
+      ],
+      "note": "Escalation infra alias; FR-NOT remains PRD source of truth."
+    },
+    {
+      "planAlias": "FR-NTF-004",
+      "canonIds": [
+        "FR-NOT-009"
+      ],
+      "note": "Delivery/history infra alias."
+    },
+    {
+      "planAlias": "FR-DSH-001",
+      "canonIds": [
+        "FR-DAS-001",
+        "FR-DAS-002"
+      ],
+      "note": "Dashboard kinds/RBAC; DAS is canonical for operational metrics."
+    },
+    {
+      "planAlias": "FR-DSH-002",
+      "canonIds": [
+        "FR-DAS-002"
+      ],
+      "note": "Role dashboard surfaces; not sufficient alone for FR-DAS metric reconciliation."
+    },
+    {
+      "planAlias": "FR-DSH-003",
+      "canonIds": [
+        "FR-DAS-002"
+      ],
+      "note": "Management dashboard kind alias."
+    },
+    {
+      "planAlias": "FR-DSH-004",
+      "canonIds": [
+        "FR-DAS-007"
+      ],
+      "note": "Analytics snapshots support DAS organizational analytics (plan alias only; canon PRD IDs remain source of truth)."
+    },
+    {
+      "planAlias": "FR-DSH-005",
+      "canonIds": [
+        "FR-DAS-003",
+        "FR-DAS-004",
+        "FR-DAS-005",
+        "FR-DAS-006",
+        "FR-DAS-008"
+      ],
+      "note": "report_exports infrastructure; report-type/content still must map to DAS (plan alias only; canon PRD IDs remain source of truth)."
+    },
+    {
+      "planAlias": "FR-DSH-006",
+      "canonIds": [
+        "FR-DAS-007"
+      ],
+      "note": "KPI cache infra alias."
+    }
+  ],
+  "requirements": [
+    {
+      "prdId": "FR-ROL-001",
+      "group": "FR-ROL",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/common/decorators/auth.decorators.ts"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-ROL-002",
+      "group": "FR-ROL",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/common/decorators/auth.decorators.ts"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-ROL-003",
+      "group": "FR-ROL",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/common/decorators/auth.decorators.ts"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-ROL-004",
+      "group": "FR-ROL",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/common/decorators/auth.decorators.ts"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-013",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-014",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-015",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-016",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-017",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-018",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-019",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-020",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-021",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-022",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-023",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-024",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-025",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-026",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-027",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-028",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-029",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-PTW-030",
+      "group": "FR-PTW",
+      "planSection": "MS-09 / SP-09.01",
+      "sprint": "SP-09.01",
+      "linearId": "PUS-243",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-243",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/287",
+      "codePaths": [
+        "app/src/modules/approval",
+        "app/src/modules/permits",
+        "app/src/modules/execution"
+      ],
+      "testPaths": [
+        "tests/approval.service.spec.ts",
+        "tests/permit-validation.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/294"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-SIM-011",
+      "group": "FR-SIM",
+      "planSection": "MS-09 / SP-09.02",
+      "sprint": "SP-09.02",
+      "linearId": "PUS-246",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-246",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/290",
+      "codePaths": [
+        "app/src/modules/simops"
+      ],
+      "testPaths": [
+        "tests"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/295"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-SIM-012",
+      "group": "FR-SIM",
+      "planSection": "MS-09 / SP-09.02",
+      "sprint": "SP-09.02",
+      "linearId": "PUS-246",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-246",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/290",
+      "codePaths": [
+        "app/src/modules/simops"
+      ],
+      "testPaths": [
+        "tests"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/295"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-SIM-013",
+      "group": "FR-SIM",
+      "planSection": "MS-09 / SP-09.02",
+      "sprint": "SP-09.02",
+      "linearId": "PUS-246",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-246",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/290",
+      "codePaths": [
+        "app/src/modules/simops"
+      ],
+      "testPaths": [
+        "tests"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/295"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-SIM-014",
+      "group": "FR-SIM",
+      "planSection": "MS-09 / SP-09.02",
+      "sprint": "SP-09.02",
+      "linearId": "PUS-246",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-246",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/290",
+      "codePaths": [
+        "app/src/modules/simops"
+      ],
+      "testPaths": [
+        "tests"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/295"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-SIM-015",
+      "group": "FR-SIM",
+      "planSection": "MS-09 / SP-09.02",
+      "sprint": "SP-09.02",
+      "linearId": "PUS-246",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-246",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/290",
+      "codePaths": [
+        "app/src/modules/simops"
+      ],
+      "testPaths": [
+        "tests"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/295"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-SIM-016",
+      "group": "FR-SIM",
+      "planSection": "MS-09 / SP-09.02",
+      "sprint": "SP-09.02",
+      "linearId": "PUS-246",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-246",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/290",
+      "codePaths": [
+        "app/src/modules/simops"
+      ],
+      "testPaths": [
+        "tests"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/295"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-SIM-017",
+      "group": "FR-SIM",
+      "planSection": "MS-09 / SP-09.02",
+      "sprint": "SP-09.02",
+      "linearId": "PUS-246",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-246",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/290",
+      "codePaths": [
+        "app/src/modules/simops"
+      ],
+      "testPaths": [
+        "tests"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/295"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-SIM-018",
+      "group": "FR-SIM",
+      "planSection": "MS-09 / SP-09.02",
+      "sprint": "SP-09.02",
+      "linearId": "PUS-246",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-246",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/290",
+      "codePaths": [
+        "app/src/modules/simops"
+      ],
+      "testPaths": [
+        "tests"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/295"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-SIM-019",
+      "group": "FR-SIM",
+      "planSection": "MS-09 / SP-09.02",
+      "sprint": "SP-09.02",
+      "linearId": "PUS-246",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-246",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/290",
+      "codePaths": [
+        "app/src/modules/simops"
+      ],
+      "testPaths": [
+        "tests"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/295"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-SIM-020",
+      "group": "FR-SIM",
+      "planSection": "MS-09 / SP-09.02",
+      "sprint": "SP-09.02",
+      "linearId": "PUS-246",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-246",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/290",
+      "codePaths": [
+        "app/src/modules/simops"
+      ],
+      "testPaths": [
+        "tests"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/295"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-SIM-021",
+      "group": "FR-SIM",
+      "planSection": "MS-09 / SP-09.02",
+      "sprint": "SP-09.02",
+      "linearId": "PUS-246",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-246",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/290",
+      "codePaths": [
+        "app/src/modules/simops"
+      ],
+      "testPaths": [
+        "tests"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/295"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-MDP-009",
+      "group": "FR-MDP",
+      "planSection": "MS-09 / SP-09.03",
+      "sprint": "SP-09.03",
+      "linearId": "PUS-242",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-242",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/286",
+      "codePaths": [
+        "app/src/modules/daily-progress",
+        "app/src/modules/revalidation",
+        "app/src/modules/multi-day"
+      ],
+      "testPaths": [
+        "tests"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/296"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-INC-011",
+      "group": "FR-INC",
+      "planSection": "MS-09 / SP-09.04",
+      "sprint": "SP-09.04",
+      "linearId": "PUS-244",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-244",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/288",
+      "codePaths": [
+        "app/src/modules/incidents"
+      ],
+      "testPaths": [
+        "tests/incident-recording-service.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/297"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-NOT-002",
+      "group": "FR-NOT",
+      "planSection": "MS-09 / SP-09.05",
+      "sprint": "SP-09.05",
+      "linearId": "PUS-245",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-245",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/289",
+      "codePaths": [
+        "app/src/modules/notifications"
+      ],
+      "testPaths": [
+        "tests/notifications-infra.spec.ts",
+        "tests/notifications-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/298"
+      ],
+      "aliases": [
+        "FR-NTF-002"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-NOT-003",
+      "group": "FR-NOT",
+      "planSection": "MS-09 / SP-09.05",
+      "sprint": "SP-09.05",
+      "linearId": "PUS-245",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-245",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/289",
+      "codePaths": [
+        "app/src/modules/notifications"
+      ],
+      "testPaths": [
+        "tests/notifications-infra.spec.ts",
+        "tests/notifications-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/298"
+      ],
+      "aliases": [
+        "FR-NTF-002"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-NOT-004",
+      "group": "FR-NOT",
+      "planSection": "MS-09 / SP-09.05",
+      "sprint": "SP-09.05",
+      "linearId": "PUS-245",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-245",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/289",
+      "codePaths": [
+        "app/src/modules/notifications"
+      ],
+      "testPaths": [
+        "tests/notifications-infra.spec.ts",
+        "tests/notifications-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/298"
+      ],
+      "aliases": [
+        "FR-NTF-002"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-NOT-005",
+      "group": "FR-NOT",
+      "planSection": "MS-09 / SP-09.05",
+      "sprint": "SP-09.05",
+      "linearId": "PUS-245",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-245",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/289",
+      "codePaths": [
+        "app/src/modules/notifications"
+      ],
+      "testPaths": [
+        "tests/notifications-infra.spec.ts",
+        "tests/notifications-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/298"
+      ],
+      "aliases": [
+        "FR-NTF-002"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-NOT-006",
+      "group": "FR-NOT",
+      "planSection": "MS-09 / SP-09.05",
+      "sprint": "SP-09.05",
+      "linearId": "PUS-245",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-245",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/289",
+      "codePaths": [
+        "app/src/modules/notifications"
+      ],
+      "testPaths": [
+        "tests/notifications-infra.spec.ts",
+        "tests/notifications-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/298"
+      ],
+      "aliases": [
+        "FR-NTF-002"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-NOT-007",
+      "group": "FR-NOT",
+      "planSection": "MS-09 / SP-09.05",
+      "sprint": "SP-09.05",
+      "linearId": "PUS-245",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-245",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/289",
+      "codePaths": [
+        "app/src/modules/notifications"
+      ],
+      "testPaths": [
+        "tests/notifications-infra.spec.ts",
+        "tests/notifications-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/298"
+      ],
+      "aliases": [
+        "FR-NTF-002"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-NOT-008",
+      "group": "FR-NOT",
+      "planSection": "MS-09 / SP-09.05",
+      "sprint": "SP-09.05",
+      "linearId": "PUS-245",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-245",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/289",
+      "codePaths": [
+        "app/src/modules/notifications"
+      ],
+      "testPaths": [
+        "tests/notifications-infra.spec.ts",
+        "tests/notifications-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/298"
+      ],
+      "aliases": [
+        "FR-NTF-002"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-DAS-002",
+      "group": "FR-DAS",
+      "planSection": "MS-09 / SP-09.06",
+      "sprint": "SP-09.06",
+      "linearId": "PUS-247",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-247",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/291",
+      "codePaths": [
+        "app/src/modules/dashboards"
+      ],
+      "testPaths": [
+        "tests/dashboards-infra.spec.ts",
+        "tests/dashboards-analytics-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/299"
+      ],
+      "aliases": [
+        "FR-DSH-001",
+        "FR-DSH-002",
+        "FR-DSH-003"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-DAS-003",
+      "group": "FR-DAS",
+      "planSection": "MS-09 / SP-09.06",
+      "sprint": "SP-09.06",
+      "linearId": "PUS-247",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-247",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/291",
+      "codePaths": [
+        "app/src/modules/dashboards"
+      ],
+      "testPaths": [
+        "tests/dashboards-infra.spec.ts",
+        "tests/dashboards-analytics-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/299"
+      ],
+      "aliases": [
+        "FR-DSH-005"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-DAS-004",
+      "group": "FR-DAS",
+      "planSection": "MS-09 / SP-09.06",
+      "sprint": "SP-09.06",
+      "linearId": "PUS-247",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-247",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/291",
+      "codePaths": [
+        "app/src/modules/dashboards"
+      ],
+      "testPaths": [
+        "tests/dashboards-infra.spec.ts",
+        "tests/dashboards-analytics-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/299"
+      ],
+      "aliases": [
+        "FR-DSH-005"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-DAS-005",
+      "group": "FR-DAS",
+      "planSection": "MS-09 / SP-09.06",
+      "sprint": "SP-09.06",
+      "linearId": "PUS-247",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-247",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/291",
+      "codePaths": [
+        "app/src/modules/dashboards"
+      ],
+      "testPaths": [
+        "tests/dashboards-infra.spec.ts",
+        "tests/dashboards-analytics-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/299"
+      ],
+      "aliases": [
+        "FR-DSH-005"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-DAS-006",
+      "group": "FR-DAS",
+      "planSection": "MS-09 / SP-09.06",
+      "sprint": "SP-09.06",
+      "linearId": "PUS-247",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-247",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/291",
+      "codePaths": [
+        "app/src/modules/dashboards"
+      ],
+      "testPaths": [
+        "tests/dashboards-infra.spec.ts",
+        "tests/dashboards-analytics-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/299"
+      ],
+      "aliases": [
+        "FR-DSH-005"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-DAS-007",
+      "group": "FR-DAS",
+      "planSection": "MS-09 / SP-09.06",
+      "sprint": "SP-09.06",
+      "linearId": "PUS-247",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-247",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/291",
+      "codePaths": [
+        "app/src/modules/dashboards"
+      ],
+      "testPaths": [
+        "tests/dashboards-infra.spec.ts",
+        "tests/dashboards-analytics-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/299"
+      ],
+      "aliases": [
+        "FR-DSH-004",
+        "FR-DSH-006"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-DAS-008",
+      "group": "FR-DAS",
+      "planSection": "MS-09 / SP-09.06",
+      "sprint": "SP-09.06",
+      "linearId": "PUS-247",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-247",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/291",
+      "codePaths": [
+        "app/src/modules/dashboards"
+      ],
+      "testPaths": [
+        "tests/dashboards-infra.spec.ts",
+        "tests/dashboards-analytics-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/299"
+      ],
+      "aliases": [
+        "FR-DSH-005"
+      ],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-BIL-002",
+      "group": "FR-BIL",
+      "planSection": "MS-09 / SP-09.07",
+      "sprint": "SP-09.07",
+      "linearId": "PUS-248",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-248",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/292",
+      "codePaths": [
+        "app/src/modules/billing"
+      ],
+      "testPaths": [
+        "tests/billing-infra.spec.ts",
+        "tests/billing-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/300"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-BIL-003",
+      "group": "FR-BIL",
+      "planSection": "MS-09 / SP-09.07",
+      "sprint": "SP-09.07",
+      "linearId": "PUS-248",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-248",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/292",
+      "codePaths": [
+        "app/src/modules/billing"
+      ],
+      "testPaths": [
+        "tests/billing-infra.spec.ts",
+        "tests/billing-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/300"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-BIL-004",
+      "group": "FR-BIL",
+      "planSection": "MS-09 / SP-09.07",
+      "sprint": "SP-09.07",
+      "linearId": "PUS-248",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-248",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/292",
+      "codePaths": [
+        "app/src/modules/billing"
+      ],
+      "testPaths": [
+        "tests/billing-infra.spec.ts",
+        "tests/billing-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/300"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    },
+    {
+      "prdId": "FR-BIL-005",
+      "group": "FR-BIL",
+      "planSection": "MS-09 / SP-09.07",
+      "sprint": "SP-09.07",
+      "linearId": "PUS-248",
+      "linearUrl": "https://linear.app/pushtirastu/issue/PUS-248",
+      "githubIssue": "https://github.com/riddhi2106/great-ptw-loto-ai-app/issues/292",
+      "codePaths": [
+        "app/src/modules/billing"
+      ],
+      "testPaths": [
+        "tests/billing-infra.spec.ts",
+        "tests/billing-schema.spec.ts"
+      ],
+      "releaseEvidence": [
+        "https://github.com/riddhi2106/great-ptw-loto-ai-app/pull/300"
+      ],
+      "aliases": [],
+      "status": "mapped"
+    }
+  ]
+}

@@ -625,6 +625,7 @@ The implementation is divided into eight major milestones.
 | MS-06 | Incident Management | Record, investigate and resolve incidents, unsafe conditions and near misses. |
 | MS-07 | Notifications, Dashboards & Analytics | Deliver operational notifications, role-based dashboards and analytical reporting. |
 | MS-08 | Billing, Platform Hardening & Production Release | Complete subscription management, production readiness, security hardening and deployment. |
+| MS-09 | Canon Coverage & Acceptance Remediation | Map and remediate canon PRD gaps (53 IDs); resolve NOT/NTF and DAS/DSH aliases; release verification. |
 
 Each milestone represents a production-quality increment and concludes with integration testing against all implemented functionality.
 
@@ -15036,6 +15037,108 @@ This implementation plan should be read in conjunction with the following projec
 * Test Plan
 
 ---
+
+
+## **MS-09 – Canon Coverage & Acceptance Remediation**
+
+Milestone MS-09 closes canon PRD requirements that were absent from historical sprint completion ranges. Traceability SSOT: `docs/specs/traceability/ms09-canon-matrix.json` and `docs/specs/traceability/MS-09-CANON-TRACEABILITY.md`. Owner: **PUS-249** / **SP-09.08**.
+
+### Alias policy (mandatory)
+
+* Plan identifiers `FR-NTF-*` and `FR-DSH-*` are **aliases** for historical sprint planning.
+* They **do not prove** `FR-NOT-*` or `FR-DAS-*` alone. Canon PRD IDs remain the source of truth.
+* Explicit alias rows are recorded in the MS-09 matrix.
+
+### Sprint allocation
+
+#### SP-09.01 — Role & permit canon (PUS-243)
+
+* FR-ROL-001, FR-ROL-002, FR-ROL-003, FR-ROL-004, FR-PTW-013, FR-PTW-014, FR-PTW-015, FR-PTW-016, FR-PTW-017, FR-PTW-018, FR-PTW-019, FR-PTW-020, FR-PTW-021, FR-PTW-022, FR-PTW-023, FR-PTW-024, FR-PTW-025, FR-PTW-026, FR-PTW-027, FR-PTW-028, FR-PTW-029, FR-PTW-030
+
+#### SP-09.02 — SIMOPS canon (PUS-246)
+
+* FR-SIM-011, FR-SIM-012, FR-SIM-013, FR-SIM-014, FR-SIM-015, FR-SIM-016, FR-SIM-017, FR-SIM-018, FR-SIM-019, FR-SIM-020, FR-SIM-021
+
+#### SP-09.03 — Multi-day validity (PUS-242)
+
+* FR-MDP-009
+
+#### SP-09.04 — Incident severity lifecycle (PUS-244)
+
+* FR-INC-011
+
+#### SP-09.05 — Notification requirements (PUS-245)
+
+* FR-NOT-002, FR-NOT-003, FR-NOT-004, FR-NOT-005, FR-NOT-006, FR-NOT-007, FR-NOT-008
+
+#### SP-09.06 — Dashboard and analytics requirements (PUS-247)
+
+* FR-DAS-002, FR-DAS-003, FR-DAS-004, FR-DAS-005, FR-DAS-006, FR-DAS-007, FR-DAS-008
+
+#### SP-09.07 — Billing canon requirements (PUS-248)
+
+* FR-BIL-002, FR-BIL-003, FR-BIL-004, FR-BIL-005
+
+#### SP-09.08 — Canon-to-plan traceability and release verification (PUS-249)
+
+* Matrix + automated coverage checker for all 53 IDs above.
+* Release sign-off: `docs/specs/traceability/MS-09-RELEASE-SIGNOFF.md`.
+
+### Functional requirement IDs (exact)
+
+* FR-ROL-001
+* FR-ROL-002
+* FR-ROL-003
+* FR-ROL-004
+* FR-PTW-013
+* FR-PTW-014
+* FR-PTW-015
+* FR-PTW-016
+* FR-PTW-017
+* FR-PTW-018
+* FR-PTW-019
+* FR-PTW-020
+* FR-PTW-021
+* FR-PTW-022
+* FR-PTW-023
+* FR-PTW-024
+* FR-PTW-025
+* FR-PTW-026
+* FR-PTW-027
+* FR-PTW-028
+* FR-PTW-029
+* FR-PTW-030
+* FR-SIM-011
+* FR-SIM-012
+* FR-SIM-013
+* FR-SIM-014
+* FR-SIM-015
+* FR-SIM-016
+* FR-SIM-017
+* FR-SIM-018
+* FR-SIM-019
+* FR-SIM-020
+* FR-SIM-021
+* FR-MDP-009
+* FR-INC-011
+* FR-NOT-002
+* FR-NOT-003
+* FR-NOT-004
+* FR-NOT-005
+* FR-NOT-006
+* FR-NOT-007
+* FR-NOT-008
+* FR-DAS-002
+* FR-DAS-003
+* FR-DAS-004
+* FR-DAS-005
+* FR-DAS-006
+* FR-DAS-007
+* FR-DAS-008
+* FR-BIL-002
+* FR-BIL-003
+* FR-BIL-004
+* FR-BIL-005
 
 # **21\. Conclusion**
 
