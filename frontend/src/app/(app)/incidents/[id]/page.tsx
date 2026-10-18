@@ -229,7 +229,7 @@ export default function IncidentDetailPage() {
             {detail.permits.length
               ? detail.permits.map((link) => (
                   <Link key={link.permitId} href={`/permits/${link.permitId}`} className="font-medium text-primary hover:underline">
-                    {link.permit.reference ?? link.permit.title}
+                    {link.permit?.reference ?? link.permit?.title ?? "Permit"}
                   </Link>
                 ))
               : "None"}
@@ -272,7 +272,16 @@ export default function IncidentDetailPage() {
           {detail.equipment.length > 0 ? (
             <p>
               <span className="text-muted-foreground">Equipment: </span>
-              <span className="font-medium">{detail.equipment.map((e) => e.machinery.name).join(", ")}</span>
+              <span className="font-medium">
+                {detail.equipment
+                  .map((item) =>
+                    item.asset
+                      ? `${item.asset.tag} — ${item.asset.name}`
+                      : item.machinery?.name,
+                  )
+                  .filter(Boolean)
+                  .join(", ")}
+              </span>
             </p>
           ) : null}
         </div>

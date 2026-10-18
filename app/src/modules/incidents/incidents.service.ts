@@ -441,7 +441,61 @@ export class IncidentsService {
         .where(and(eq(incidentPermits.tenantId, tenantId), eq(incidentPermits.incidentId, id))),
     ]);
 
-    return { incident, evidence, equipment, permits: linkedPermits };
+    const permitRows = Array.isArray(linkedPermits) ? linkedPermits : [];
+    const equipmentRows = Array.isArray(equipment) ? equipment : [];
+    const permitIds = [...new Set(permitRows.map((row) => row.permitId))];
+    const machineryIds = [
+      ...new Set(equipmentRows.map((row) => row.machineryId).filter((id): id is string => Boolean(id))),
+    ];
+    const assetIds = [
+      ...new Set(equipmentRows.map((row) => row.assetId).filter((id): id is string => Boolean(id))),
+    ];
+    const [permitList, machineryList, assetList] = await Promise.all([
+      permitIds.length
+        ? this.db
+            .select({
+              id: permits.id,
+              title: permits.title,
+              reference: permits.reference,
+              status: permits.status,
+            })
+            .from(permits)
+            .where(and(eq(permits.tenantId, tenantId), inArray(permits.id, permitIds)))
+        : [],
+      machineryIds.length
+        ? this.db
+            .select({
+              id: machineryCatalogue.id,
+              name: machineryCatalogue.name,
+              code: machineryCatalogue.code,
+            })
+            .from(machineryCatalogue)
+            .where(and(eq(machineryCatalogue.tenantId, tenantId), inArray(machineryCatalogue.id, machineryIds)))
+        : [],
+      assetIds.length
+        ? this.db
+            .select({ id: assets.id, name: assets.name, tag: assets.tag })
+            .from(assets)
+            .where(and(eq(assets.tenantId, tenantId), inArray(assets.id, assetIds)))
+        : [],
+    ]);
+    const permitById = new Map(permitList.map((row) => [row.id, row]));
+    const machineryById = new Map(machineryList.map((row) => [row.id, row]));
+    const assetById = new Map(assetList.map((row) => [row.id, row]));
+
+    return {
+      incident,
+      evidence: Array.isArray(evidence) ? evidence : [],
+      equipment: equipmentRows.map((row) => ({
+        ...row,
+        machinery: row.machineryId ? (machineryById.get(row.machineryId) ?? null) : null,
+        asset: row.assetId ? (assetById.get(row.assetId) ?? null) : null,
+      })),
+      permits: permitRows.map((row) => ({
+        ...row,
+        permit: permitById.get(row.permitId) ?? null,
+      })),
+    };
   }
 
   private async linkAssociations(

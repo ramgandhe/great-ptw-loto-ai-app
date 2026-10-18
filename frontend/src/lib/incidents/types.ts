@@ -45,13 +45,18 @@ export type IncidentEvidence = {
 
 export type IncidentPermitLink = {
   permitId: string;
-  permit: { id: string; title: string; reference: string | null; status: string };
+  permit?: { id: string; title: string; reference: string | null; status: string } | null;
 };
 
 export type IncidentDetail = {
   incident: Incident;
   evidence: IncidentEvidence[];
-  equipment: Array<{ machineryId: string; machinery: { id: string; name: string; code: string } }>;
+  equipment: Array<{
+    machineryId?: string | null;
+    assetId?: string | null;
+    machinery?: { id: string; name: string; code: string } | null;
+    asset?: { id: string; name: string; tag: string } | null;
+  }>;
   permits: IncidentPermitLink[];
 };
 

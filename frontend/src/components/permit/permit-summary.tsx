@@ -181,7 +181,7 @@ export function PermitSummary({
     ]).then(([hazards, ppe, lototo, gas]) =>
       setCatalogues({
         hazards: new Map(hazards.map((row) => [row.id, row])),
-        ppe: named(ppe, (row) => row.name),
+        ppe: named(ppe, (row) => (row.code ? `${row.name} (${row.code})` : row.name)),
         lototo: named(lototo, (row) => `${row.code} ${row.title}`),
         gas: new Map(gas.map((row) => [row.id, row])),
       }),
@@ -232,9 +232,13 @@ export function PermitSummary({
     .filter((part, index, parts) => part !== parts[index - 1]);
 
   const hazardRows = form.hazards.filter((h) => h.hazardCategoryId);
-  const ppe = form.ppe
-    .filter((p) => p.ppeCatalogueId)
-    .map((p) => `${pick(catalogues?.ppe, p.ppeCatalogueId)}${p.quantity > 1 ? ` × ${p.quantity}` : ""}`);
+  const selectedPpe = form.ppe.filter((p) => p.ppeCatalogueId);
+  const ppe = catalogues
+    ? selectedPpe.map((p) => {
+        const name = catalogues.ppe.get(p.ppeCatalogueId) ?? "Unknown item";
+        return `${name}${p.quantity > 1 ? ` × ${p.quantity}` : ""}`;
+      })
+    : [];
   const gasRows = form.gasTesting.filter((g) => g.gasTestingCatalogueId || g.parameter?.trim());
   const executors = form.executors.filter((e) => e.workforceUserId);
   const operator = executors.find((e) => e.isPrimary) ?? executors[0];
@@ -392,7 +396,11 @@ export function PermitSummary({
         )}
       </Section>
       <Section kind="ppe" title="PPE">
-        <Chips items={ppe} empty="None recorded" missing />
+        {catalogues ? (
+          <Chips items={ppe} empty="None recorded" missing={selectedPpe.length === 0} />
+        ) : (
+          <span className="text-sm text-muted-foreground">Loading…</span>
+        )}
       </Section>
       <Section kind="lototo" title="LOTOTO">
         {form.lototoRequired ? (
