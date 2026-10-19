@@ -14,6 +14,7 @@ describe('PermitValidationService', () => {
       permitTypeId: 'type-id',
       title: 'Hot work',
       workScope: 'Welding',
+      siteNotes: null,
       emergencyPhone: null,
       safetyApprovalComment: null,
       safetyApprovalSignedName: null,
@@ -63,8 +64,10 @@ describe('PermitValidationService', () => {
         hazardCategoryId: 'hazard-cat-id',
         description: null,
         extraConsequences: [],
+        extraRisks: [],
         extraControls: [],
         omittedConsequences: [],
+        omittedRisks: [],
         omittedControls: [],
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -134,7 +137,7 @@ describe('PermitValidationService', () => {
     expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
   });
 
-  it('rejects LOTOTO required without an asset', () => {
+  it('allows LOTOTO required for a work location with no asset', () => {
     const record = baseRecord();
     record.permit.lototoRequired = true;
     record.assetIds = [];
@@ -152,7 +155,7 @@ describe('PermitValidationService', () => {
       },
     ];
 
-    expect(() => service.validateForSubmit(record)).toThrow(BadRequestException);
+    expect(() => service.validateForSubmit(record)).not.toThrow();
   });
 
   it('rejects LOTOTO required without a procedure', () => {

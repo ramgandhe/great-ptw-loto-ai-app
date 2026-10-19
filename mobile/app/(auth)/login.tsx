@@ -15,10 +15,12 @@ export default function LoginScreen() {
   // First sign-in with a temporary password asks for the person's own before going in.
   const [newPasswordStep, setNewPasswordStep] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit() {
     setError(null);
+    if (!newPasswordStep) setNotice(null);
     if (!newPasswordStep && (!email.trim() || !password)) {
       setError("Enter your email and password.");
       return;
@@ -29,7 +31,15 @@ export default function LoginScreen() {
     }
     setBusy(true);
     try {
-      await signIn(email.trim(), password, newPasswordStep ? newPassword : undefined);
+      const result = await signIn(email.trim(), password, newPasswordStep ? newPassword : undefined);
+      if (result === "password-reset") {
+        setNewPasswordStep(false);
+        setPassword("");
+        setNewPassword("");
+        setConfirm("");
+        setNotice("Your password has been reset. Sign in again with the new password.");
+        setBusy(false);
+      }
     } catch (err) {
       if (err instanceof ApiError && err.code === "PASSWORD_CHANGE_REQUIRED") setNewPasswordStep(true);
       else setError(err instanceof ApiError ? err.message : "We couldn't reach the server. Check your connection and try again.");
@@ -47,7 +57,7 @@ export default function LoginScreen() {
               {newPasswordStep ? "Set your own password" : "Sign in"}
             </AppText>
             <AppText variant="body" tone="secondary" style={{ fontSize: tokens.text.md }}>
-              {newPasswordStep ? "You signed in with a temporary password. Choose your own to continue." : "Use the work email your organisation registered."}
+              {newPasswordStep ? "You signed in with a temporary password. Choose your own. You will sign in again with it." : "Use the work email your organisation registered."}
             </AppText>
           </View>
 
@@ -103,9 +113,10 @@ export default function LoginScreen() {
             </>
           )}
 
+          {notice && !newPasswordStep ? <Banner>{notice}</Banner> : null}
           {error ? <Banner tone="danger">{error}</Banner> : null}
 
-          <Button label={newPasswordStep ? "Save password and sign in" : "Sign in"} onPress={submit} loading={busy} size="lg" full />
+          <Button label={newPasswordStep ? "Save password" : "Sign in"} onPress={submit} loading={busy} size="lg" full />
         </View>
       </Screen>
     </KeyboardAvoidingView>

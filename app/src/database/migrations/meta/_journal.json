@@ -610,6 +610,13 @@
       "when": 1794100000000,
       "tag": "0084_industry_description_site_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1794200000000,
+      "tag": "0085_omitted_risks_lototo_location",
+      "breakpoints": true
     }
   ]
 }

@@ -145,6 +145,7 @@ export type LototoProcedure = {
   id: string;
   machineryId: string | null;
   assetId?: string | null;
+  workLocationId?: string | null;
   workstationId: string | null;
   code: string;
   title: string;
@@ -159,6 +160,7 @@ export type LototoProcedureListItem = {
   id: string;
   machineryId: string | null;
   assetId?: string | null;
+  workLocationId?: string | null;
   workstationId: string | null;
   code: string;
   title: string;
@@ -169,6 +171,7 @@ export type LototoProcedureListItem = {
 export type LototoProcedurePayload = {
   machineryId?: string;
   assetId?: string;
+  workLocationId?: string;
   workstationId?: string;
   code: string;
   title: string;

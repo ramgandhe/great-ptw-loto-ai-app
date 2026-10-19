@@ -14,6 +14,7 @@ import {
   isolationPoints,
   lototoPlans,
   machineryCatalogue,
+  workLocations,
   workstationCatalogue,
 } from '../../database/schema';
 import { LOTOTO_EDITABLE_STATUSES } from './lototo.constants';
@@ -77,6 +78,16 @@ export class LototoValidationService {
       .from(assets)
       .where(and(eq(assets.id, requestedMachinery!), eq(assets.tenantId, tenantId)));
     return { assetId: asset?.id ?? null, machineryId: requestedMachinery };
+  }
+
+  async assertWorkLocationExists(tenantId: string, workLocationId: string): Promise<void> {
+    const [row] = await this.db
+      .select({ id: workLocations.id })
+      .from(workLocations)
+      .where(and(eq(workLocations.id, workLocationId), eq(workLocations.tenantId, tenantId)));
+    if (!row) {
+      throw new NotFoundException('Work location not found');
+    }
   }
 
   async assertMachineryExists(tenantId: string, machineryId: string): Promise<void> {

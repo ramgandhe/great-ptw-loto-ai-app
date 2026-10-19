@@ -37,9 +37,10 @@ export class LototoProcedureController {
     @CurrentUser() user: AuthenticatedUser,
     @Query('machineryId') machineryId?: string,
     @Query('assetId') assetId?: string,
+    @Query('workLocationId') workLocationId?: string,
     @Query('published') published?: string,
   ) {
-    return this.procedureService.list(user, machineryId, published === 'true', assetId);
+    return this.procedureService.list(user, machineryId, published === 'true', assetId, workLocationId);
   }
 
   @Roles(...LOTOTO_LIBRARY_READ_ROLES)

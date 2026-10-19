@@ -16,7 +16,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   /** Throws ApiError with code PASSWORD_CHANGE_REQUIRED when a temporary password must be replaced (pass newPassword). */
-  signIn: (email: string, password: string, newPassword?: string) => Promise<void>;
+  signIn: (email: string, password: string, newPassword?: string) => Promise<"signed-in" | "password-reset">;
   signOut: () => Promise<void>;
 }
 
@@ -35,11 +35,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string, newPassword?: string) => {
-    const session = newPassword
-      ? await apiClient.post<Session>("/auth/sign-in/new-password", { email, password, newPassword }, { auth: false })
-      : await apiClient.post<Session>("/auth/sign-in", { email, password }, { auth: false });
+    if (newPassword) {
+      const session = await apiClient.post<Session>("/auth/sign-in/new-password", { email, password, newPassword }, { auth: false });
+      if (session.refreshToken) {
+        await apiClient.post("/auth/sign-out", { refreshToken: session.refreshToken }, { auth: false }).catch(() => undefined);
+      }
+      await clearTokens();
+      setIsAuthenticated(false);
+      return "password-reset" as const;
+    }
+    const session = await apiClient.post<Session>("/auth/sign-in", { email, password }, { auth: false });
     await saveTokens(session);
     setIsAuthenticated(true);
+    return "signed-in" as const;
   }, []);
 
   const signOut = useCallback(async () => {

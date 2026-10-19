@@ -34,7 +34,7 @@ import type {
   LototoSequenceStep,
 } from "@/lib/lototo/types";
 import { sitesApi } from "@/lib/organisation/api";
-import { placeApi, type AssetRecord } from "@/lib/place/api";
+import { placeApi, type AssetRecord, type WorkLocationRecord } from "@/lib/place/api";
 
 const FIELD =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -68,6 +68,7 @@ function emptyStep(phase: "apply" | "remove", order: number): EditorStep {
 
 type FormState = {
   machineryId: string;
+  workLocationId: string;
   assetId: string;
   workstationId: string;
   code: string;
@@ -90,6 +91,7 @@ function fromProcedure(detail: LototoProcedure): FormState {
   const version = detail.draftVersion ?? detail.publishedVersion;
   return {
     machineryId: detail.machineryId ?? "",
+    workLocationId: detail.workLocationId ?? "",
     assetId: detail.assetId || detail.machineryId || "",
     workstationId: detail.workstationId ?? "",
     code: detail.code,
@@ -116,7 +118,8 @@ function fromProcedure(detail: LototoProcedure): FormState {
 function payloadOf(form: FormState): LototoProcedurePayload {
   return {
     assetId: form.assetId || undefined,
-    machineryId: form.assetId ? undefined : form.machineryId || undefined,
+    workLocationId: form.assetId ? undefined : form.workLocationId || undefined,
+    machineryId: form.assetId || form.workLocationId ? undefined : form.machineryId || undefined,
     workstationId: form.workstationId || undefined,
     code: form.code.trim(),
     title: form.title.trim(),
@@ -203,9 +206,11 @@ export function LototoProcedureEditor({
   const { roles } = useAuthProfile();
   const canWrite = hasAnyRole(roles, LOTOTO_LIBRARY_WRITE_ROLES);
   const [assets, setAssets] = useState<AssetRecord[]>([]);
+  const [locations, setLocations] = useState<WorkLocationRecord[]>([]);
   const [detail, setDetail] = useState<LototoProcedure | null>(null);
   const [form, setForm] = useState<FormState>({
     machineryId: "",
+    workLocationId: "",
     assetId: initialMachineryId ?? "",
     workstationId: "",
     code: "",
@@ -232,12 +237,25 @@ export function LototoProcedureEditor({
 
   useEffect(() => {
     sitesApi.list().then(async (sites) => {
-      const groups = await Promise.all(
-        sites.filter((site) => site.status !== "archived").map((site) => placeApi.listAssets(site.id).catch(() => [])),
-      );
-      setAssets(groups.flat());
-    }).catch(() => setAssets([]));
+      const active = sites.filter((site) => site.status !== "archived");
+      const [assetGroups, locationGroups] = await Promise.all([
+        Promise.all(active.map((site) => placeApi.listAssets(site.id).catch(() => []))),
+        Promise.all(active.map((site) => placeApi.listWorkLocations(site.id).catch(() => []))),
+      ]);
+      setAssets(assetGroups.flat());
+      setLocations(locationGroups.flat());
+    }).catch(() => {
+      setAssets([]);
+      setLocations([]);
+    });
   }, []);
+
+  useEffect(() => {
+    if (form.workLocationId || !form.assetId) return;
+    const asset = assets.find((item) => item.id === form.assetId);
+    if (!asset?.workLocationId) return;
+    setForm((current) => (current.workLocationId ? current : { ...current, workLocationId: asset.workLocationId }));
+  }, [assets, form.assetId, form.workLocationId]);
 
   useEffect(() => {
     if (!procedureId) {
@@ -264,9 +282,16 @@ export function LototoProcedureEditor({
     }));
   }
 
+  const locationAssets = assets.filter((item) => item.workLocationId === form.workLocationId);
+
   async function save() {
     setSaving(true);
     setError(null);
+    if (!form.workLocationId && !form.assetId && !form.machineryId) {
+      setError("Choose a work location.");
+      setSaving(false);
+      return;
+    }
     try {
       const body = payloadOf(form);
       const saved = procedureId
@@ -377,7 +402,7 @@ export function LototoProcedureEditor({
     <main className="flex flex-1 flex-col gap-6 px-4 pb-8 sm:px-8">
       <PageHeader
         title={procedureId ? form.title || "LOTOTO procedure" : "New LOTOTO procedure"}
-        description="Reusable lockout procedure for a machine. Permits snapshot the published version."
+        description="Reusable lockout procedure for one work location, or for one asset at that location. Permits snapshot the published version."
         back={{ href: "/lototo", label: "LOTOTO procedures" }}
         actions={
           canWrite ? (
@@ -439,15 +464,35 @@ export function LototoProcedureEditor({
           <input className={FIELD} value={form.title} disabled={readOnly} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Bucket Elevator lockout" />
         </label>
         <label className="grid gap-1 text-sm">
+          <span className="font-medium">Work location</span>
+          <AppSelect
+            className={FIELD}
+            value={form.workLocationId}
+            disabled={readOnly}
+            onChange={(e) => {
+              const workLocationId = e.target.value;
+              const stillThere = assets.some((item) => item.id === form.assetId && item.workLocationId === workLocationId);
+              setForm({ ...form, workLocationId, assetId: stillThere ? form.assetId : "" });
+            }}
+          >
+            <option value="">Select a work location</option>
+            {locations.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.pathText || item.name}
+              </option>
+            ))}
+          </AppSelect>
+        </label>
+        <label className="grid gap-1 text-sm">
           <span className="font-medium">Asset</span>
           <AppSelect
             className={FIELD}
             value={form.assetId}
-            disabled={readOnly}
+            disabled={readOnly || !form.workLocationId}
             onChange={(e) => setForm({ ...form, assetId: e.target.value })}
           >
-            <option value="">Select asset</option>
-            {assets.map((item) => (
+            <option value="">{form.workLocationId ? "None — this procedure is for the location" : "Select a work location first"}</option>
+            {locationAssets.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.tag} — {item.name}
               </option>
@@ -459,7 +504,7 @@ export function LototoProcedureEditor({
           <input className={FIELD} value={form.facility} disabled={readOnly} onChange={(e) => setForm({ ...form, facility: e.target.value })} />
         </label>
         <label className="grid gap-1 text-sm sm:col-span-2">
-          <span className="font-medium">Location</span>
+          <span className="font-medium">Location note</span>
           <input className={FIELD} value={form.locationText} disabled={readOnly} onChange={(e) => setForm({ ...form, locationText: e.target.value })} placeholder={selectedAsset ? `${selectedAsset.tag} ${selectedAsset.name}` : undefined} />
         </label>
       </section>

@@ -661,6 +661,7 @@ export class PermitService {
           dto.machineryId !== undefined ? dto.machineryId : existing.permit.machineryId,
           dto.lototo,
           lototoAssets,
+          dto.workLocationId !== undefined ? dto.workLocationId : existing.permit.workLocationId,
         );
       } else if (
         dto.machineryId !== undefined &&
@@ -1098,6 +1099,7 @@ export class PermitService {
             extraRisks: hazard.extraRisks ?? [],
             extraControls: hazard.extraControls ?? [],
             omittedConsequences: hazard.omittedConsequences ?? [],
+            omittedRisks: hazard.omittedRisks ?? [],
             omittedControls: hazard.omittedControls ?? [],
             createdBy: user.id,
             updatedBy: user.id,
@@ -1144,6 +1146,7 @@ export class PermitService {
             verifiers: item.verifiers,
           })),
           source.assets.map((row) => row.assetId),
+          source.permit.workLocationId,
         );
       }
 
@@ -1409,7 +1412,16 @@ export class PermitService {
       await this.insertExecutors(db, permitId, userId, dto.executors, [userId]);
     }
     if (dto.lototo?.length) {
-      await this.replaceLototo(db, permitId, userId, tenantId, machineryId, dto.lototo, place.assetIds ?? []);
+      await this.replaceLototo(
+        db,
+        permitId,
+        userId,
+        tenantId,
+        machineryId,
+        dto.lototo,
+        place.assetIds ?? [],
+        dto.workLocationId ?? place.workLocationId,
+      );
     }
     if (dto.gasTesting?.length) {
       await this.insertGasTesting(db, permitId, userId, tenantId, place, dto.gasTesting, user);
@@ -1446,6 +1458,7 @@ export class PermitService {
         extraRisks: (hazard.extraRisks ?? []).map((value) => value.trim()).filter(Boolean),
         extraControls: (hazard.extraControls ?? []).map((value) => value.trim()).filter(Boolean),
         omittedConsequences: (hazard.omittedConsequences ?? []).map((value) => value.trim()).filter(Boolean),
+        omittedRisks: (hazard.omittedRisks ?? []).map((value) => value.trim()).filter(Boolean),
         omittedControls: (hazard.omittedControls ?? []).map((value) => value.trim()).filter(Boolean),
         createdBy: userId,
         updatedBy: userId,
@@ -1631,6 +1644,7 @@ export class PermitService {
     machineryId: string | null | undefined,
     lototoItems: PermitLototoDto[],
     assetIds: string[] = [],
+    workLocationId: string | null | undefined = null,
   ): Promise<void> {
     const existing = await db
       .select({ frozenAt: permitLototoInstances.frozenAt })
@@ -1644,8 +1658,8 @@ export class PermitService {
       return;
     }
     const selected = new Set([...assetIds, machineryId].filter((id): id is string => Boolean(id)));
-    if (selected.size === 0) {
-      throw new BadRequestException('An asset is required when attaching LOTOTO procedures');
+    if (selected.size === 0 && !workLocationId) {
+      throw new BadRequestException('A work location is required when attaching LOTOTO procedures');
     }
 
     const ids = [...new Set(lototoItems.map((item) => item.procedureId))];
@@ -1658,6 +1672,7 @@ export class PermitService {
         id: lototoProcedures.id,
         machineryId: lototoProcedures.machineryId,
         assetId: lototoProcedures.assetId,
+        workLocationId: lototoProcedures.workLocationId,
         publishedVersionId: lototoProcedures.publishedVersionId,
         status: lototoProcedures.status,
       })
@@ -1667,8 +1682,15 @@ export class PermitService {
     if (rows.length !== ids.length) {
       throw new BadRequestException('One or more LOTOTO procedures were not found');
     }
-    if (rows.some((row) => !selected.has(row.assetId ?? '') && !selected.has(row.machineryId ?? ''))) {
-      throw new BadRequestException('LOTOTO procedures must belong to a selected asset');
+    if (
+      rows.some(
+        (row) =>
+          !selected.has(row.assetId ?? '') &&
+          !selected.has(row.machineryId ?? '') &&
+          !(row.workLocationId && !row.assetId && row.workLocationId === workLocationId),
+      )
+    ) {
+      throw new BadRequestException('LOTOTO procedures must belong to the selected location or a selected asset');
     }
     if (rows.some((row) => row.status !== 'published' || !row.publishedVersionId)) {
       throw new BadRequestException('Only published LOTOTO procedures can be attached');

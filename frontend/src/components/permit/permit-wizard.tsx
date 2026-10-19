@@ -43,6 +43,7 @@ import {
   applicableTemplates,
   canRoleEditWizardStep,
   canRoleSubmitPermit,
+  catalogueLinesForPermit,
   emptyPermitHazard,
   emptyPermitLototo,
   createEmptyPermitForm,
@@ -505,27 +506,47 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   }, [form.workLocationId, people]);
 
   useEffect(() => {
-    if (!form.siteId) {
+    if (!form.siteId || !form.workLocationId) {
       setSiteAssets([]);
       return;
     }
-    placeApi.listAssets(form.siteId, form.workLocationId || undefined).then(setSiteAssets).catch(() => setSiteAssets([]));
+    const locationId = form.workLocationId;
+    placeApi.listAssets(form.siteId, locationId, true).then((rows) => {
+      setSiteAssets(rows);
+      const allowed = new Set(rows.map((row) => row.id));
+      let stripped = false;
+      setForm((current) => {
+        if (current.workLocationId !== locationId) return current;
+        const assetIds = current.assetIds.filter((id) => allowed.has(id));
+        if (assetIds.length === current.assetIds.length) return current;
+        stripped = true;
+        return { ...current, assetIds };
+      });
+      if (stripped) setDirty(true);
+    }).catch(() => setSiteAssets([]));
   }, [form.siteId, form.workLocationId]);
 
   useEffect(() => {
+    const jobs: Promise<LototoProcedureListItem[]>[] = [];
+    if (form.workLocationId) {
+      jobs.push(listLototoProcedures({ workLocationId: form.workLocationId, published: true }).catch(() => []));
+    }
     const targets = form.assetIds.length > 0 ? form.assetIds : form.machineryId ? [form.machineryId] : [];
-    if (targets.length === 0) {
+    for (const id of targets) {
+      jobs.push(
+        listLototoProcedures(form.assetIds.length > 0 ? { assetId: id, published: true } : { machineryId: id, published: true }).catch(() => []),
+      );
+    }
+    if (jobs.length === 0) {
       setMachineryLototo([]);
       return;
     }
-    Promise.all(targets.map((id) =>
-      listLototoProcedures(form.assetIds.length > 0 ? { assetId: id, published: true } : { machineryId: id, published: true }).catch(() => []),
-    )).then((groups) => {
+    Promise.all(jobs).then((groups) => {
       const byId = new Map<string, LototoProcedureListItem>();
       for (const row of groups.flat()) byId.set(row.id, row);
       setMachineryLototo([...byId.values()]);
     });
-  }, [form.assetIds, form.machineryId]);
+  }, [form.assetIds, form.machineryId, form.workLocationId]);
 
   const placeSelectionKey = `${form.workLocationId}|${[...form.assetIds].sort().join(",")}`;
   useEffect(() => {
@@ -1189,7 +1210,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   });
   const permitSafetyRisks = hazardRows.flatMap((hazard) => {
     const catalogue = hazards.find((row) => row.id === hazard.hazardCategoryId);
-    const lines = [...(catalogue?.risks ?? []), ...(hazard.extraRisks ?? [])].map((line) => line.trim()).filter(Boolean);
+    const lines = [
+      ...catalogueLinesForPermit(catalogue?.risks, hazard.omittedRisks),
+      ...(hazard.extraRisks ?? []),
+    ].map((line) => line.trim()).filter(Boolean);
     return lines.map((risk) => ({ hazard: catalogue?.name ?? "Hazard", risk }));
   });
   const permitTypeCode = permitTypes.find((type) => type.id === form.permitTypeId)?.code;
@@ -1730,7 +1754,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           <h3 className="text-sm font-semibold">Assets</h3>
           {fieldError("assetIds") ? <p className="text-sm text-destructive">{fieldError("assetIds")}</p> : null}
           {siteAssets.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No assets at this location. Search the whole site if the asset sits elsewhere.</p>
+            <p className="text-sm text-muted-foreground">No assets are recorded at this work location.</p>
           ) : (
             <div className="grid gap-1">
               {siteAssets.map((asset) => (
@@ -1754,17 +1778,6 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               ))}
             </div>
           )}
-          {siteEditable && form.workLocationId ? (
-            <button
-              type="button"
-              className="justify-self-start text-sm font-medium underline underline-offset-2"
-              onClick={() => {
-                placeApi.listAssets(form.siteId).then(setSiteAssets).catch(() => undefined);
-              }}
-            >
-              Search the whole site
-            </button>
-          ) : null}
         </div>
         </div>
         ) : null}
@@ -1837,18 +1850,21 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     <p className="mt-1 text-xs text-muted-foreground">{originLabel(hazardPlan.origin.get(hazard.hazardCategoryId))}</p>
                   ) : null}
                 </div>
-                <div className="grid gap-1">
-                  <p className="text-sm font-medium">Risks</p>
-                  {(catalogue?.risks ?? []).length > 0 ? (
-                    <ul className="list-disc space-y-1 pl-5 text-sm">
-                      {(catalogue?.risks ?? []).map((risk) => (
-                        <li key={risk}>{risk}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No risks configured for this hazard.</p>
-                  )}
-                </div>
+                <ConfiguredList
+                  title="Risks"
+                  empty="No risks configured for this hazard."
+                  items={catalogue?.risks ?? []}
+                  omitted={hazard.omittedRisks ?? []}
+                  disabled={!siteEditable}
+                  onOmit={(omittedRisks) =>
+                    edit((current) => ({
+                      ...current,
+                      hazards: current.hazards.map((h) =>
+                        h.hazardCategoryId === hazard.hazardCategoryId ? { ...h, omittedRisks } : h,
+                      ),
+                    }))
+                  }
+                />
                 <ExtraStringList
                   label="Additional risks"
                   values={hazard.extraRisks ?? []}
@@ -1976,13 +1992,13 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         ) : null}
 
         {siteSafetyStep === "lototo" ? (
-        <div className="grid gap-4">
+        <div id="lototo" className="grid gap-4">
         <label className={safetyParameterClassName}>
           <input
             type="checkbox"
             className="size-4 shrink-0 accent-primary"
             checked={form.lototoRequired}
-            disabled={!siteEditable || form.assetIds.length === 0}
+            disabled={!siteEditable || !form.workLocationId}
             onChange={(e) =>
               edit({
                 ...form,
@@ -1997,13 +2013,16 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             }
           />
           LOTOTO required
-          {form.assetIds.length === 0 && siteEditable ? <span className="text-sm font-normal text-muted-foreground">(choose at least one asset first)</span> : null}
+          {!form.workLocationId && siteEditable ? <span className="text-sm font-normal text-muted-foreground">(choose a work location first)</span> : null}
         </label>
+        {fieldError("lototo") ? <p className="text-sm text-destructive">{fieldError("lototo")}</p> : null}
         {form.lototoRequired ? (
           <div className="grid gap-3">
             {machineryLototo.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                The selected assets have no LOTOTO plan yet.{" "}
+                {form.assetIds.length > 0
+                  ? "This location and the selected assets have no LOTOTO plan yet."
+                  : "This location has no LOTOTO plan yet."}{" "}
                 <a href="/lototo" target="_blank" rel="noreferrer" className="font-medium text-(--act-do) underline underline-offset-2">
                   Create one in a new tab
                 </a>
@@ -2011,7 +2030,16 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 <button
                   type="button"
                   className="font-medium underline underline-offset-2"
-                  onClick={() => void Promise.all(form.assetIds.map((assetId) => listLototoProcedures({ assetId, published: true }))).then((groups) => setMachineryLototo(groups.flat())).catch(() => setMachineryLototo([]))}
+                  onClick={() => {
+                    const jobs: Promise<LototoProcedureListItem[]>[] = [];
+                    if (form.workLocationId) jobs.push(listLototoProcedures({ workLocationId: form.workLocationId, published: true }).catch(() => []));
+                    for (const assetId of form.assetIds) jobs.push(listLototoProcedures({ assetId, published: true }).catch(() => []));
+                    void Promise.all(jobs).then((groups) => {
+                      const byId = new Map<string, LototoProcedureListItem>();
+                      for (const row of groups.flat()) byId.set(row.id, row);
+                      setMachineryLototo([...byId.values()]);
+                    }).catch(() => setMachineryLototo([]));
+                  }}
                 >
                   refresh the list
                 </button>

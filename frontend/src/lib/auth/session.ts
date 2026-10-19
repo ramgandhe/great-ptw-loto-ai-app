@@ -25,9 +25,12 @@ export async function signIn(email: string, password: string) {
   saveTokens(await post<Session>("/auth/sign-in", { email, password }));
 }
 
-/** First sign-in: swaps the temporary password for the person's own, then signs in. */
+/** First sign-in: saves the new password, then ends the session so the person signs in again. */
 export async function setFirstPassword(email: string, password: string, newPassword: string) {
-  saveTokens(await post<Session>("/auth/sign-in/new-password", { email, password, newPassword }));
+  const session = await post<Session>("/auth/sign-in/new-password", { email, password, newPassword });
+  if (session.refreshToken) {
+    await post("/auth/sign-out", { refreshToken: session.refreshToken }).catch(() => undefined);
+  }
 }
 
 /** Emails a one-time reset link if the address has an account; the answer is the same either way. */

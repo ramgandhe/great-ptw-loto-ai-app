@@ -21,6 +21,7 @@ function LoginContent() {
   // First sign-in with a temporary password asks for the person's own before going in.
   const [step, setStep] = useState<"sign-in" | "new-password">("sign-in");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -30,15 +31,25 @@ function LoginContent() {
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    if (step === "sign-in") setNotice(null);
     if (step === "new-password" && newPassword !== confirm) {
       setError("The two new passwords do not match.");
       return;
     }
     setBusy(true);
     try {
-      if (step === "sign-in") await signIn(email, password);
-      else await setFirstPassword(email, password, newPassword);
-      router.replace(next);
+      if (step === "sign-in") {
+        await signIn(email, password);
+        router.replace(next);
+        return;
+      }
+      await setFirstPassword(email, password, newPassword);
+      setStep("sign-in");
+      setPassword("");
+      setNewPassword("");
+      setConfirm("");
+      setNotice("Your password has been reset. Sign in again with the new password.");
+      setBusy(false);
     } catch (err) {
       if (err instanceof ApiError && err.code === "PASSWORD_CHANGE_REQUIRED") {
         setStep("new-password");
@@ -67,7 +78,7 @@ function LoginContent() {
           </h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {newPasswordStep
-              ? "You signed in with a temporary password. Choose your own to continue."
+              ? "You signed in with a temporary password. Choose your own. You will sign in again with it."
               : "Enter your registered work email and password to continue."}
           </p>
         </div>
@@ -135,6 +146,12 @@ function LoginContent() {
             </>
           )}
 
+          {notice && !newPasswordStep ? (
+            <p role="status" className="rounded-lg border border-border bg-muted px-3 py-2.5 text-sm">
+              {notice}
+            </p>
+          ) : null}
+
           {error ? (
             <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
               {error}
@@ -143,7 +160,7 @@ function LoginContent() {
 
           <Button type="submit" size="lg" disabled={busy} className="mt-1 h-11 w-full text-base">
             {busy ? <LoaderCircle className="animate-spin" aria-hidden /> : null}
-            {busy ? (newPasswordStep ? "Saving…" : "Signing in…") : newPasswordStep ? "Save password and sign in" : "Sign in"}
+            {busy ? (newPasswordStep ? "Saving…" : "Signing in…") : newPasswordStep ? "Save password" : "Sign in"}
           </Button>
 
           {newPasswordStep ? (

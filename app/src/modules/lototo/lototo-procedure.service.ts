@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { and, asc, desc, eq, max } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, max } from 'drizzle-orm';
 import { optionalUuid } from '../../common/helpers/optional-uuid';
 import { throwInUse } from '../../common/http/in-use';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -42,10 +42,26 @@ export class LototoProcedureService {
     private readonly storageService: StorageService,
   ) {}
 
+  /** An asset wins. A location is the target only when no asset is chosen. */
+  private async resolveTarget(
+    tenantId: string,
+    dto: { assetId?: string | null; machineryId?: string | null; workLocationId?: string | null },
+  ): Promise<{ assetId: string | null; machineryId: string | null; workLocationId: string | null }> {
+    if (dto.assetId || dto.machineryId) {
+      const linked = await this.validationService.resolveAssetLink(tenantId, dto);
+      return { assetId: linked.assetId, machineryId: linked.machineryId, workLocationId: null };
+    }
+    if (dto.workLocationId) {
+      await this.validationService.assertWorkLocationExists(tenantId, dto.workLocationId);
+      return { assetId: null, machineryId: null, workLocationId: dto.workLocationId };
+    }
+    throw new BadRequestException('A work location or an asset is required');
+  }
+
   async create(dto: CreateLototoProcedureDto, user: AuthenticatedUser) {
     const tenantId = this.validationService.requireTenant(user);
     await this.assertEnergyTypes(tenantId, dto.lockoutPoints);
-    const target = await this.validationService.resolveAssetLink(tenantId, dto);
+    const target = await this.resolveTarget(tenantId, dto);
     if (dto.workstationId) {
       await this.validationService.assertWorkstationExists(tenantId, dto.workstationId);
     }
@@ -58,6 +74,7 @@ export class LototoProcedureService {
             tenantId,
             machineryId: target.machineryId,
             assetId: target.assetId,
+            workLocationId: target.workLocationId,
             workstationId: dto.workstationId,
             code: dto.code.trim(),
             title: dto.title.trim(),
@@ -106,7 +123,13 @@ export class LototoProcedureService {
     }
   }
 
-  async list(user: AuthenticatedUser, machineryId?: string, publishedOnly?: boolean, assetId?: string) {
+  async list(
+    user: AuthenticatedUser,
+    machineryId?: string,
+    publishedOnly?: boolean,
+    assetId?: string,
+    workLocationId?: string,
+  ) {
     const tenantId = this.validationService.requireTenant(user);
     const conditions = [eq(lototoProcedures.tenantId, tenantId)];
     if (machineryId) {
@@ -114,6 +137,10 @@ export class LototoProcedureService {
     }
     if (assetId) {
       conditions.push(eq(lototoProcedures.assetId, assetId));
+    }
+    if (workLocationId) {
+      conditions.push(eq(lototoProcedures.workLocationId, workLocationId));
+      conditions.push(isNull(lototoProcedures.assetId));
     }
     if (publishedOnly) {
       conditions.push(eq(lototoProcedures.status, 'published'));
@@ -153,8 +180,8 @@ export class LototoProcedureService {
     const procedure = await this.requireProcedure(id, tenantId);
     this.assertMutable(procedure);
     const target =
-      dto.assetId || dto.machineryId
-        ? await this.validationService.resolveAssetLink(tenantId, dto)
+      dto.assetId || dto.machineryId || dto.workLocationId
+        ? await this.resolveTarget(tenantId, dto)
         : null;
     if (dto.workstationId) {
       await this.validationService.assertWorkstationExists(tenantId, dto.workstationId);
@@ -170,8 +197,9 @@ export class LototoProcedureService {
         await tx
           .update(lototoProcedures)
           .set({
-            machineryId: target?.machineryId ?? procedure.machineryId,
-            assetId: target?.assetId ?? procedure.assetId,
+            machineryId: target ? target.machineryId : procedure.machineryId,
+            assetId: target ? target.assetId : procedure.assetId,
+            workLocationId: target ? target.workLocationId : procedure.workLocationId,
             workstationId: dto.workstationId ?? procedure.workstationId,
             code: dto.code?.trim() ?? procedure.code,
             title: dto.title?.trim() ?? procedure.title,

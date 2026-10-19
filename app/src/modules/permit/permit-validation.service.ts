@@ -68,10 +68,6 @@ export class PermitValidationService {
     }
 
     if (permit.lototoRequired) {
-      const assetIds = record.assetIds ?? (permit.machineryId ? [permit.machineryId] : []);
-      if (assetIds.length === 0) {
-        errors.push('at least one asset is required when LOTOTO is required');
-      }
       if (lototo.length === 0) {
         errors.push('at least one LOTOTO procedure is required when LOTOTO is required');
       }

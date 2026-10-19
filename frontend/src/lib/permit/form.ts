@@ -112,6 +112,7 @@ export function emptyPermitHazard(hazardCategoryId = ""): PermitHazardInput {
     extraRisks: [],
     extraControls: [],
     omittedConsequences: [],
+    omittedRisks: [],
     omittedControls: [],
   };
 }
@@ -218,6 +219,7 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
             extraRisks: h.extraRisks ?? [],
             extraControls: h.extraControls ?? [],
             omittedConsequences: h.omittedConsequences ?? [],
+            omittedRisks: h.omittedRisks ?? [],
             omittedControls: h.omittedControls ?? [],
           }))
         : [emptyPermitHazard()],
@@ -321,6 +323,7 @@ export function formToSavePayload(
         extraRisks: (h.extraRisks ?? []).map((value) => value.trim()).filter(Boolean),
         extraControls: (h.extraControls ?? []).map((value) => value.trim()).filter(Boolean),
         omittedConsequences: (h.omittedConsequences ?? []).map((value) => value.trim()).filter(Boolean),
+        omittedRisks: (h.omittedRisks ?? []).map((value) => value.trim()).filter(Boolean),
         omittedControls: (h.omittedControls ?? []).map((value) => value.trim()).filter(Boolean),
       })),
     ppe: form.ppe.filter((p) => p.ppeCatalogueId.trim()),
@@ -457,9 +460,8 @@ export const ERROR_FIELDS: Record<string, string> = {
   "Assign a primary executor before handing off on-site details": "primary-executor",
   "Workstation is required": "workstationId",
   "Machinery is required": "machineryId",
-  "At least one asset is required when LOTOTO is required": "assetIds",
-  "An asset is required when attaching LOTOTO procedures": "assetIds",
-  "LOTOTO procedures must belong to a selected asset": "assetIds",
+  "A work location is required when attaching LOTOTO procedures": "workLocationId",
+  "LOTOTO procedures must belong to the selected location or a selected asset": "lototo",
   "Machinery is required when LOTOTO is required": "machineryId",
   "Safety Approval comments are required": "safetyApprovalComment",
   "A typed name is required for Safety Approval": "safetyApprovalSignedName",
@@ -497,9 +499,6 @@ export function validateStep(
       errors.push("At least one hazard is required");
     }
     if (form.lototoRequired) {
-      if (form.assetIds.length === 0 && !form.machineryId.trim()) {
-        errors.push("At least one asset is required when LOTOTO is required");
-      }
       if (!form.lototo.some((item) => item.procedureId.trim())) {
         errors.push("Select at least one LOTOTO procedure");
       }

@@ -50,7 +50,7 @@ export function createEmptyPermitForm(): PermitFormState {
     lototoRequired: false,
     plannedStartAt: "",
     plannedEndAt: "",
-    hazards: [{ hazardCategoryId: "", extraConsequences: [], extraControls: [], omittedConsequences: [], omittedControls: [] }],
+    hazards: [{ hazardCategoryId: "", extraConsequences: [], extraRisks: [], extraControls: [], omittedConsequences: [], omittedRisks: [], omittedControls: [] }],
     ppe: [{ ppeCatalogueId: "", quantity: 1 }],
     lototo: [],
     gasTestingRequired: false,
@@ -91,11 +91,13 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
         ? hazards.map((h) => ({
             hazardCategoryId: h.hazardCategoryId,
             extraConsequences: h.extraConsequences ?? [],
+            extraRisks: h.extraRisks ?? [],
             extraControls: h.extraControls ?? [],
             omittedConsequences: h.omittedConsequences ?? [],
+            omittedRisks: h.omittedRisks ?? [],
             omittedControls: h.omittedControls ?? [],
           }))
-        : [{ hazardCategoryId: "", extraConsequences: [], extraControls: [], omittedConsequences: [], omittedControls: [] }],
+        : [{ hazardCategoryId: "", extraConsequences: [], extraRisks: [], extraControls: [], omittedConsequences: [], omittedRisks: [], omittedControls: [] }],
     ppe:
       ppe.length > 0
         ? ppe.map((item) => ({
@@ -227,9 +229,6 @@ export function validateStep(form: PermitFormState, step: number): string[] {
       errors.push("At least one PPE item is required");
     }
     if (form.lototoRequired) {
-      if (form.assetIds.length === 0) {
-        errors.push("An asset is required when LOTOTO is required");
-      }
       if (!form.lototo.some((item) => item.procedureId.trim())) {
         errors.push("Select at least one LOTOTO procedure");
       }

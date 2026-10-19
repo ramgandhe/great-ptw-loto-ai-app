@@ -384,7 +384,7 @@ export function PermitSummary({
                 ...(item.extraControls ?? []).filter((line) => line.trim()),
               ];
               const risks = [
-                ...(catalogue?.risks ?? []),
+                ...catalogueLinesForPermit(catalogue?.risks, item.omittedRisks),
                 ...(item.extraRisks ?? []).filter((line) => line.trim()),
               ];
               const consequences = [
@@ -392,6 +392,7 @@ export function PermitSummary({
                 ...(item.extraConsequences ?? []).filter((line) => line.trim()),
               ];
               const omittedControls = (catalogue?.controls ?? []).filter((line) => item.omittedControls?.includes(line));
+              const omittedRisks = (catalogue?.risks ?? []).filter((line) => item.omittedRisks?.includes(line));
               const omittedConsequences = (catalogue?.consequences ?? []).filter((line) => item.omittedConsequences?.includes(line));
               return (
                 <article key={item.hazardCategoryId} className="overflow-hidden rounded-xl border border-border bg-background">
@@ -450,13 +451,14 @@ export function PermitSummary({
                       ))}
                     </div>
                   )}
-                  {omittedControls.length || omittedConsequences.length ? (
+                  {omittedControls.length || omittedRisks.length || omittedConsequences.length ? (
                     <details className="permit-hazard-details group border-t border-border bg-(--status-warning-bg)/40 px-4">
                       <summary className="flex min-h-10 cursor-pointer items-center justify-between gap-3 text-xs font-medium marker:content-none">
-                        <span>Items excluded for this permit <span className="text-muted-foreground">· {omittedControls.length + omittedConsequences.length}</span></span>
+                        <span>Items excluded for this permit <span className="text-muted-foreground">· {omittedControls.length + omittedRisks.length + omittedConsequences.length}</span></span>
                         <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden />
                       </summary>
                       <div className="grid gap-3 border-t border-border py-3 text-sm sm:grid-cols-2">
+                        {omittedRisks.length ? <Field label="Excluded risks">{omittedRisks.join("; ")}</Field> : null}
                         {omittedConsequences.length ? <Field label="Excluded consequences">{omittedConsequences.join("; ")}</Field> : null}
                         {omittedControls.length ? <Field label="Excluded controls">{omittedControls.join("; ")}</Field> : null}
                       </div>

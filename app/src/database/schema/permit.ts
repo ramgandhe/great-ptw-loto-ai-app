@@ -153,6 +153,7 @@ export const permitHazards = pgTable(
     extraRisks: jsonb('extra_risks').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     extraControls: jsonb('extra_controls').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     omittedConsequences: jsonb('omitted_consequences').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    omittedRisks: jsonb('omitted_risks').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     omittedControls: jsonb('omitted_controls').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   },
   (table) => [

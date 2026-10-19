@@ -84,9 +84,10 @@ export const placeApi = {
   deleteLocationType: (id: string, force = false) =>
     fetchApi<{ deleted: boolean }>(`/location-types/${id}${force ? "?force=true" : ""}`, { method: "DELETE" }),
   getAsset: (id: string) => fetchApi<AssetRecord>(`/assets/${id}`),
-  listAssets: (siteId: string, workLocationId?: string) => {
+  listAssets: (siteId: string, workLocationId?: string, exact?: boolean) => {
     const params = new URLSearchParams({ siteId });
     if (workLocationId) params.set("workLocationId", workLocationId);
+    if (exact) params.set("exact", "true");
     return fetchApi<AssetRecord[]>(`/assets?${params.toString()}`);
   },
   createAsset: (payload: {

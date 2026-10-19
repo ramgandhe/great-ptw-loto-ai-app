@@ -159,6 +159,10 @@ export class CreateLototoProcedureDto extends LototoProcedureContentDto {
 
   @IsOptional()
   @IsUUID()
+  workLocationId?: string;
+
+  @IsOptional()
+  @IsUUID()
   workstationId?: string;
 
   @IsString()
@@ -180,6 +184,10 @@ export class UpdateLototoProcedureDto extends LototoProcedureContentDto {
   @IsOptional()
   @IsUUID()
   assetId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  workLocationId?: string;
 
   @IsOptional()
   @IsUUID()

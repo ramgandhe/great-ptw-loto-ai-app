@@ -47,6 +47,12 @@ export class PermitHazardDto {
   @IsArray()
   @ArrayMaxSize(50)
   @IsString({ each: true })
+  omittedRisks?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
   omittedControls?: string[];
 }
 
