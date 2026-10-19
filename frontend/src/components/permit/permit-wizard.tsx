@@ -86,7 +86,7 @@ import {
 } from "@/lib/workforce/api";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { ensureEndAfterStart } from "@/lib/datetime";
-import { Check, ChevronLeft, ChevronRight, Copy, Pencil, PenLine, Search, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, CircleAlert, Copy, Pencil, PenLine, Search, X } from "lucide-react";
 import { formatRelative } from "@/lib/format";
 import { useWorkQueue } from "@/lib/work-queue-context";
 import { cn } from "@/lib/utils";
@@ -219,6 +219,17 @@ function schedulePresets(now = new Date()): { label: string; start: string; end:
   ];
 }
 
+const SITE_SAFETY_STEPS = [
+  { id: "place", label: "Location & assets" },
+  { id: "hazards", label: "Hazards & controls" },
+  { id: "ppe", label: "PPE" },
+  { id: "lototo", label: "LOTOTO" },
+  { id: "gas", label: "Gas testing" },
+  { id: "verification", label: "Verification" },
+  { id: "notes", label: "Notes" },
+] as const;
+type SiteSafetyStep = (typeof SITE_SAFETY_STEPS)[number]["id"];
+
 export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const router = useRouter();
   const { permits: visiblePermits } = useWorkQueue();
@@ -277,6 +288,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [approverText, setApproverText] = useState("");
   const [people, setPeople] = useState<TenantUser[]>([]);
   const [locationQuery, setLocationQuery] = useState("");
+  const [siteSafetyStep, setSiteSafetyStep] = useState<SiteSafetyStep>("place");
   const [hazards, setHazards] = useState<HazardRecord[]>([]);
   const [lototoDetails, setLototoDetails] = useState<Record<string, LototoProcedure>>({});
   const [ppeItems, setPpeItems] = useState<MasterDataRecord[]>([]);
@@ -920,10 +932,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     safety: validateStep(prefilled, 5),
     review: [],
   };
+  const handoffAtEndOfSiteAssessment = active !== "site" || siteSafetyStep === "notes";
   const showHandoff =
     isEditablePermitStatus(status) &&
     Boolean(nextHold) &&
     isCurrentHolder &&
+    handoffAtEndOfSiteAssessment &&
     handoffSectionFor(draftHolder) === active &&
     (draftHolder === "receiver"
       ? missing.work.length + missing.place.length === 0
@@ -939,6 +953,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   useLeaveGuard(dirty);
 
   const visibleSections = editorSectionsFor(prefilled);
+  const reviewSections = visibleSections.filter((section) => section.id !== "review");
   const activeIndex = Math.max(0, visibleSections.findIndex((section) => section.id === active));
   useEffect(() => {
     if (active === "safety" && !needsSafetyApproval(form)) {
@@ -947,6 +962,20 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   }, [active, form.safetyOfficers]);
   const goTo = (id: PermitEditorSectionId) => {
     setActive(id);
+    if (id === "site") {
+      const siteGaps = missing.site.join(" ");
+      setSiteSafetyStep(
+        siteGaps.includes("asset")
+          ? "place"
+          : siteGaps.includes("hazard")
+            ? "hazards"
+            : siteGaps.includes("LOTOTO")
+              ? "lototo"
+              : siteGaps.includes("gas testing")
+                ? "gas"
+                : "verification",
+      );
+    }
     const step = PERMIT_EDITOR_SECTIONS.find((section) => section.id === id)!.steps[0];
     setForm((current) => ({ ...current, currentStep: step }));
     window.scrollTo({ top: 0 });
@@ -960,6 +989,14 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     });
   /** Next checks only this step, and only when this person fills it in. */
   const handleNext = () => {
+    if (active === "site") {
+      const safetyIndex = SITE_SAFETY_STEPS.findIndex((step) => step.id === siteSafetyStep);
+      if (safetyIndex < SITE_SAFETY_STEPS.length - 1) {
+        setSiteSafetyStep(SITE_SAFETY_STEPS[safetyIndex + 1].id);
+        setErrors([]);
+        return;
+      }
+    }
     const stepErrors = sectionEditable(active) ? errorsFor(active) : [];
     setErrors(stepErrors);
     if (stepErrors.length) {
@@ -967,6 +1004,17 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       return;
     }
     goTo(visibleSections[activeIndex + 1].id);
+  };
+  const handleBack = () => {
+    if (active === "site") {
+      const safetyIndex = SITE_SAFETY_STEPS.findIndex((step) => step.id === siteSafetyStep);
+      if (safetyIndex > 0) {
+        setSiteSafetyStep(SITE_SAFETY_STEPS[safetyIndex - 1].id);
+        setErrors([]);
+        return;
+      }
+    }
+    goTo(visibleSections[activeIndex - 1].id);
   };
 
   const applyHandoffDetail = (detail: PermitDetail, message: string) => {
@@ -1629,8 +1677,44 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         owner="Permit operator"
         editable={siteEditable}
         left={missing.site.length}
-        note={!siteEditable ? "Read-only until the operator holds the draft (or returns it)." : "Assets, isolation, gas tests, hazards and PPE. The place is set by the receiver."}
+        note={!siteEditable ? "Read-only until the operator holds the draft (or returns it)." : "Complete each safety area. Hazard-linked risks and controls stay with their hazard."}
       >
+        <div className="grid gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Safety assessment</p>
+            </div>
+            <p className="text-xs text-muted-foreground" aria-live="polite">
+              Step {SITE_SAFETY_STEPS.findIndex((step) => step.id === siteSafetyStep) + 1} of {SITE_SAFETY_STEPS.length}
+              {" · "}{hazardRows.length} hazard{hazardRows.length === 1 ? "" : "s"} · {ppeRows.length} PPE item{ppeRows.length === 1 ? "" : "s"}
+              {form.lototoRequired ? " · LOTOTO required" : ""}
+              {form.gasTestingRequired ? " · Gas test required" : ""}
+            </p>
+          </div>
+          <nav aria-label="Site safety sections" className="flex gap-1 overflow-x-auto border-b border-border">
+            {SITE_SAFETY_STEPS.map((step, index) => {
+              const selected = siteSafetyStep === step.id;
+              return (
+                <button
+                  key={step.id}
+                  type="button"
+                  aria-current={selected ? "step" : undefined}
+                  aria-label={`${step.label}, step ${index + 1} of ${SITE_SAFETY_STEPS.length}`}
+                  onClick={() => setSiteSafetyStep(step.id)}
+                  className={cn(
+                    "relative flex min-h-9 shrink-0 items-center gap-1.5 px-2.5 text-xs font-medium transition-colors after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-transparent sm:px-3 sm:text-sm",
+                    selected ? "text-primary after:bg-primary" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <span className={cn("font-mono text-[10px]", selected ? "text-primary" : "text-muted-foreground/70")}>{String(index + 1).padStart(2, "0")}</span>
+                  <span className="min-w-0">{step.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+        {siteSafetyStep === "place" ? (
+        <div className="grid gap-5">
         <div className="grid gap-1.5 text-sm">
           <span className="font-medium">Place</span>
           <p className="text-muted-foreground">
@@ -1682,7 +1766,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             </button>
           ) : null}
         </div>
+        </div>
+        ) : null}
 
+        {siteSafetyStep === "hazards" ? (
         <div className="grid gap-2">
           <ChipPicker
             label="Hazards"
@@ -1835,7 +1922,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             );
           })}
         </div>
+        ) : null}
 
+        {siteSafetyStep === "ppe" ? (
         <div className="grid gap-2">
           <ChipPicker
             label="PPE"
@@ -1884,7 +1973,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             }}
           />
         </div>
+        ) : null}
 
+        {siteSafetyStep === "lototo" ? (
+        <div className="grid gap-4">
         <label className={safetyParameterClassName}>
           <input
             type="checkbox"
@@ -1978,7 +2070,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             )}
           </div>
         ) : null}
+        </div>
+        ) : null}
 
+        {siteSafetyStep === "gas" ? (
+        <div className="grid gap-4">
         <label className={safetyParameterClassName}>
           <input
             type="checkbox"
@@ -2113,7 +2209,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             ) : null}
           </div>
         ) : null}
+        </div>
+        ) : null}
 
+        {siteSafetyStep === "verification" ? (
         <label className={safetyParameterClassName}>
           <input
             type="checkbox"
@@ -2124,8 +2223,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           />
           Site visited and verified
         </label>
+        ) : null}
+
+        {siteSafetyStep === "notes" ? (
         <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Notes <span className="font-normal text-muted-foreground">(optional)</span></span>
+          <span className="font-medium">Additional job notes <span className="font-normal text-muted-foreground">(optional)</span></span>
           <textarea
             rows={3}
             maxLength={4000}
@@ -2136,6 +2238,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             onChange={(event) => edit({ ...form, siteNotes: event.target.value })}
           />
         </label>
+        ) : null}
       </EditorSection>
       ) : null}
 
@@ -2409,11 +2512,54 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             </Button>
           ))}
         </div>
+        <section aria-labelledby="submission-readiness-title" className="overflow-hidden rounded-xl border border-border">
+          <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/40 px-4 py-3">
+            <div>
+              <h3 id="submission-readiness-title" className="text-sm font-semibold">Submission readiness</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">Check each section before sending this permit for approval.</p>
+            </div>
+            <span className={cn(
+              "rounded-full px-2.5 py-1 text-xs font-semibold",
+              reviewSections.some((section) => missing[section.id].length) ? "bg-(--status-warning-bg) text-(--status-warning)" : "bg-(--status-success-bg) text-(--status-success)",
+            )}>
+              {reviewSections.filter((section) => missing[section.id].length).length
+                ? `${reviewSections.filter((section) => missing[section.id].length).length} sections need attention`
+                : "Ready for final review"}
+            </span>
+          </header>
+          <ul className="divide-y divide-border">
+            {reviewSections.map((section) => {
+              const sectionGaps = missing[section.id];
+              const ready = sectionGaps.length === 0;
+              return (
+                <li key={section.id} className="flex flex-wrap items-start gap-3 px-4 py-3">
+                  {ready ? (
+                    <Check className="mt-0.5 size-4 shrink-0 text-(--status-success)" aria-label="Ready" />
+                  ) : (
+                    <CircleAlert className="mt-0.5 size-4 shrink-0 text-(--status-warning)" aria-label="Needs attention" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{section.label}</p>
+                    <p className={cn("mt-0.5 text-xs", ready ? "text-muted-foreground" : "text-(--status-warning)")}>
+                      {ready ? "Required information is present" : sectionGaps.join("; ")}
+                    </p>
+                  </div>
+                  {!ready ? (
+                    <Button type="button" variant="ghost" className="min-h-9 shrink-0 px-2 text-xs" onClick={() => goTo(section.id)}>
+                      Fix section
+                    </Button>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
         <PermitSummary
           form={form}
           status={status}
           attachments={attachments}
           showHeader={false}
+          showSectionNavigation
           placeText={[
             sites.find((row) => row.id === form.siteId)?.name,
             workLocations.find((row) => row.id === form.workLocationId)?.pathText,
@@ -2422,20 +2568,6 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           ].filter(Boolean).join(" — ")}
           identity={initialDetail ? identityFromPermit(initialDetail.permit) : { version: 1 }}
         />
-        {visibleSections.some((section) => missing[section.id].length) ? (
-          <ul className="grid gap-2 text-sm">
-            {visibleSections.filter((section) => missing[section.id].length).map((section) => (
-              <li key={section.id}>
-                <button type="button" onClick={() => goTo(section.id)} className="font-medium underline underline-offset-2">
-                  {section.label}
-                </button>
-                <span className="text-muted-foreground">: {missing[section.id].join("; ")}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-(--status-success)">Everything needed for submission is filled in.</p>
-        )}
         <label className={safetyParameterClassName}>
           <input
             type="checkbox"
@@ -2508,15 +2640,15 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             {nextHold ? handoffButtonLabel(nextHold, selfOperator) : "Hand over"}
           </Button>
         ) : null}
-        {activeIndex > 0 ? (
-          <Button type="button" size="lg" variant="outline" className="min-h-11 px-4" onClick={() => goTo(visibleSections[activeIndex - 1].id)}>
+        {activeIndex > 0 || (active === "site" && siteSafetyStep !== SITE_SAFETY_STEPS[0].id) ? (
+          <Button type="button" size="lg" variant="outline" className="min-h-11 px-4" onClick={handleBack}>
             <ChevronLeft aria-hidden />
             Back
           </Button>
         ) : null}
         {active !== "review" ? (
           <Button type="button" size="lg" className="min-h-11 px-4" onClick={handleNext}>
-            Next
+            {active === "site" && siteSafetyStep !== SITE_SAFETY_STEPS[SITE_SAFETY_STEPS.length - 1].id ? "Next safety section" : active === "site" ? "Continue to Crew" : "Next"}
             <ChevronRight aria-hidden />
           </Button>
         ) : canSubmit && draftHolder === "ready_for_review" ? (

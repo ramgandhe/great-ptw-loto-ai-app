@@ -297,10 +297,7 @@ function PermitsBoard() {
                         selected ? "border-l-primary bg-primary/5" : "border-l-transparent hover:bg-muted/50",
                       )}
                     >
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="truncate font-semibold leading-5">{permit.title}</span>
-                        <PermitStatusBadge status={permit.status} />
-                      </span>
+                      <span className="block truncate font-semibold leading-5">{permit.title}</span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                         <span className="font-mono">{permit.reference ?? "Draft"}</span>
                         <span aria-hidden>·</span>
@@ -308,22 +305,25 @@ function PermitsBoard() {
                       </span>
                       <span className="mt-2 block truncate text-xs text-muted-foreground">{placeOf(permit, lookups) ?? "Place not set"}</span>
                     </button>
-                    {action || isOwner ? (
-                      <div className="flex items-center gap-2 pr-3">
-                        {action ? <ActionLink item={action} /> : null}
-                        {isOwner ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="destructive"
-                            disabled={purgingId === permit.id}
-                            onClick={() => void purgeRow(permit)}
-                          >
-                            Delete
-                          </Button>
-                        ) : null}
-                      </div>
-                    ) : null}
+                    <div className="flex shrink-0 flex-col items-end justify-start gap-2 px-3 pt-3.5">
+                      <PermitStatusBadge status={permit.status} />
+                      {action || isOwner ? (
+                        <div className="flex items-center gap-2">
+                          {action ? <ActionLink item={action} /> : null}
+                          {isOwner ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              disabled={purgingId === permit.id}
+                              onClick={() => void purgeRow(permit)}
+                            >
+                              Delete
+                            </Button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
                   </motion.li>
                 );
               })}

@@ -12,6 +12,7 @@ import type { LototoProcedureVersion } from "@/lib/lototo/types";
 import { formatDateTime, formatWindow } from "@/lib/format";
 import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
 import { PermitStatusBadge } from "./permit-status-badge";
+import { cn } from "@/lib/utils";
 
 type Catalogues = {
   hazards: Map<string, HazardRecord>;
@@ -22,6 +23,24 @@ type Catalogues = {
 
 const named = <T extends { id: string }>(rows: T[], label: (row: T) => string) =>
   new Map(rows.map((row) => [row.id, label(row)]));
+
+const recordSections = [
+  "Permit",
+  "Work",
+  "Where",
+  "When",
+  "Hazards",
+  "PPE",
+  "LOTOTO",
+  "Gas testing",
+  "People",
+  "Attachments",
+  "Notes",
+] as const;
+
+function recordSectionId(title: string) {
+  return `permit-record-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+}
 
 /** Plain-language list of what the permit is still missing. */
 export function permitGaps(form: PermitFormState): string[] {
@@ -55,32 +74,40 @@ const SECTION = {
 function Section({
   kind,
   title,
+  id,
   color,
   icon,
+  wide = false,
   children,
 }: {
   kind: keyof typeof SECTION;
   title: string;
+  id?: string;
   color?: string;
   icon?: LucideIcon;
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   const { icon: baseIcon, color: base } = SECTION[kind];
   const Icon = icon ?? baseIcon;
   const tone = color ?? base;
   return (
-    <section
-      style={{ "--chip": tone } as React.CSSProperties}
-      className="grid gap-2 border-t border-border py-4 first:border-t-0 first:pt-0 sm:grid-cols-[10rem_1fr] sm:gap-6 print:break-inside-avoid"
-    >
-      <h3 className="flex items-center gap-2 text-sm font-semibold">
-        <span aria-hidden className="chip flex size-7 shrink-0 items-center justify-center rounded-lg">
-          <Icon className="size-4" />
-        </span>
-        {title}
-      </h3>
-      <div className="min-w-0 space-y-3 text-sm">{children}</div>
-    </section>
+    <div className={`permit-summary-section-container min-w-0 ${wide ? "col-span-full" : ""}`}>
+      <section
+        id={id ?? recordSectionId(title)}
+        aria-labelledby={`${id ?? recordSectionId(title)}-title`}
+        style={{ "--chip": tone } as React.CSSProperties}
+        className="permit-summary-section grid scroll-mt-20 gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:gap-6 sm:p-5 print:break-inside-avoid"
+      >
+        <h3 id={`${id ?? recordSectionId(title)}-title`} className="flex items-center gap-2 text-sm font-semibold">
+          <span aria-hidden className="chip flex size-7 shrink-0 items-center justify-center rounded-lg">
+            <Icon className="size-4" />
+          </span>
+          {title}
+        </h3>
+        <div className="min-w-0 space-y-3 text-sm">{children}</div>
+      </section>
+    </div>
   );
 }
 
@@ -158,6 +185,9 @@ export function PermitSummary({
   attachments = [],
   showHeader = true,
   placeText,
+  showSectionNavigation = false,
+  singleColumn = false,
+  additionalSections = [],
 }: {
   form: PermitFormState;
   status?: string;
@@ -165,6 +195,9 @@ export function PermitSummary({
   identity?: PermitIdentity;
   attachments?: PermitAttachment[];
   placeText?: string;
+  showSectionNavigation?: boolean;
+  singleColumn?: boolean;
+  additionalSections?: { id: string; label: string }[];
   /** Pages that already show the title, reference and status pass false to avoid repeating them. */
   showHeader?: boolean;
 }) {
@@ -241,6 +274,8 @@ export function PermitSummary({
       })
     : [];
   const gasRows = form.gasTesting.filter((g) => g.gasTestingCatalogueId || g.parameter?.trim());
+  const activeGasRows = gasRows.filter((g) => !g.removedReason?.trim());
+  const excludedGasRows = gasRows.filter((g) => g.removedReason?.trim());
   const executors = form.executors.filter((e) => e.workforceUserId);
   const operator = executors.find((e) => e.isPrimary) ?? executors[0];
   const officers = form.safetyOfficers.filter((e) => e.workforceUserId).map((e) => person(e.workforceUserId));
@@ -249,9 +284,27 @@ export function PermitSummary({
   const type = form.permitTypeId ? lookups?.permitTypes.get(form.permitTypeId) : undefined;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className={cn("grid min-w-0 gap-3 print:grid-cols-1", singleColumn ? "grid-cols-1" : "lg:grid-cols-2")}>
+      {showSectionNavigation ? (
+        <nav aria-label="Permit record sections" className="sticky top-16 z-10 -mx-1 flex gap-1 overflow-x-auto rounded-xl border border-border bg-card/95 p-2 shadow-sm backdrop-blur lg:col-span-2 print:hidden">
+          {[
+            ...recordSections
+              .filter((title) => title !== "Attachments" || attachments.length > 0)
+              .map((title) => ({ id: recordSectionId(title), label: title })),
+            ...additionalSections,
+          ].map(({ id, label }) => (
+              <a
+                key={id}
+                href={`#${id}`}
+                className="flex min-h-9 shrink-0 items-center rounded-lg px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                {label}
+              </a>
+          ))}
+        </nav>
+      ) : null}
       {showHeader ? (
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-card p-4 lg:col-span-2">
           <div>
             <h3 className="text-lg font-semibold">{form.title || "Untitled permit"}</h3>
             {reference ? <p className="font-mono text-xs text-muted-foreground">{reference}</p> : null}
@@ -261,7 +314,7 @@ export function PermitSummary({
       ) : null}
 
       {gaps.length > 0 ? (
-        <div role="note" className="mb-4 flex gap-3 rounded-lg bg-(--status-warning-bg) px-4 py-3 text-sm text-(--status-warning)">
+        <div role="note" className="flex gap-3 rounded-lg bg-(--status-warning-bg) px-4 py-3 text-sm text-(--status-warning)">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>
             <span className="font-semibold">Not provided yet: </span>
@@ -271,7 +324,7 @@ export function PermitSummary({
       ) : null}
 
       <Section kind="work" title="Permit">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="permit-summary-facts grid gap-3">
           <Field label="Number">{identity?.number || reference || "Not issued until submitted"}</Field>
           <Field label="Version">
             {`v${identity?.version ?? 1}`}
@@ -282,10 +335,16 @@ export function PermitSummary({
         </div>
       </Section>
 
-      <Section kind="work" title="Work" color={type?.color ?? undefined}>
+      <Section kind="work" title="Work" color={type?.color ?? undefined} wide>
         <Field label="Permit type">{type ? <PermitTypeChip name={type.name} color={type.color} /> : lookups ? "Not set" : loading}</Field>
-        {form.workScope ? <p className="whitespace-pre-wrap leading-6">{form.workScope}</p> : null}
-        {form.emergencyPhone.trim() ? <Field label="Emergency phone">{form.emergencyPhone.trim()}</Field> : null}
+        <Field label="Permit scope">
+          {form.workScope.trim()
+            ? <p className="whitespace-pre-wrap leading-6">{form.workScope.trim()}</p>
+            : <span className="font-normal text-muted-foreground">Not provided</span>}
+        </Field>
+        <Field label="Emergency contact number">
+          {form.emergencyPhone.trim() || <span className="font-normal text-muted-foreground">Not provided</span>}
+        </Field>
       </Section>
 
       <Section kind="where" title="Where" icon={form.assetIds.length || form.machineryId ? DOMAIN_ICONS.machinery : undefined}>
@@ -306,111 +365,117 @@ export function PermitSummary({
       </Section>
 
       <Section kind="when" title="When">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="permit-summary-facts grid gap-3">
           <Field label="Planned start">{form.plannedStartAt ? formatDateTime(form.plannedStartAt) : "Not set"}</Field>
           <Field label="Planned end (expiry)">{form.plannedEndAt ? formatDateTime(form.plannedEndAt) : "Not set"}</Field>
         </div>
         <p className="text-muted-foreground">{formatWindow(form.plannedStartAt, form.plannedEndAt)}</p>
       </Section>
 
-      <Section kind="hazards" title="Hazards">
+      <Section kind="hazards" title="Hazards" wide>
         {hazardRows.length === 0 ? (
           <span className="font-semibold text-(--status-danger)">None recorded</span>
         ) : (
           <div className="grid gap-4">
-            {hazardRows.map((item) => {
+            {hazardRows.map((item, index) => {
               const catalogue = catalogues?.hazards.get(item.hazardCategoryId);
+              const controls = [
+                ...catalogueLinesForPermit(catalogue?.controls, item.omittedControls),
+                ...(item.extraControls ?? []).filter((line) => line.trim()),
+              ];
+              const risks = [
+                ...(catalogue?.risks ?? []),
+                ...(item.extraRisks ?? []).filter((line) => line.trim()),
+              ];
+              const consequences = [
+                ...catalogueLinesForPermit(catalogue?.consequences, item.omittedConsequences),
+                ...(item.extraConsequences ?? []).filter((line) => line.trim()),
+              ];
+              const omittedControls = (catalogue?.controls ?? []).filter((line) => item.omittedControls?.includes(line));
+              const omittedConsequences = (catalogue?.consequences ?? []).filter((line) => item.omittedConsequences?.includes(line));
               return (
-                <div key={item.hazardCategoryId} className="grid gap-2">
-                  <p className="font-medium">
-                    {catalogue?.name ?? "Hazard"}
-                    {catalogue?.code ? ` (${catalogue.code})` : ""}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {catalogue?.category || "—"} · <span className="capitalize">{catalogue?.severity ?? "medium"}</span>
-                  </p>
-                  {catalogue?.description ? <p className="whitespace-pre-wrap text-sm">{catalogue.description}</p> : null}
-                  <Field label="Risks">
-                    {(catalogue?.risks ?? []).length ? (
-                      <ul className="list-disc pl-5 font-normal">
-                        {(catalogue?.risks ?? []).map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span className="font-normal text-muted-foreground">None listed</span>
-                    )}
-                  </Field>
-                  {(item.extraRisks ?? []).filter((line) => line.trim()).length ? (
-                    <Field label="Extra risks (this permit)">
-                      <ul className="list-disc pl-5 font-normal">
-                        {(item.extraRisks ?? []).filter((line) => line.trim()).map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    </Field>
+                <article key={item.hazardCategoryId} className="overflow-hidden rounded-xl border border-border bg-background">
+                  <header className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                      <span className="font-mono text-sm font-bold">{String(index + 1).padStart(2, "0")}</span>
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-semibold">
+                        {catalogue?.name ?? "Hazard"}
+                        {catalogue?.code ? <span className="ml-1 font-mono text-xs font-normal text-muted-foreground">{catalogue.code}</span> : null}
+                      </h4>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{catalogue?.category || "Uncategorised"}</p>
+                    </div>
+                    <span className={cn(
+                      "rounded-full px-2.5 py-1 text-xs font-semibold capitalize",
+                      !catalogues
+                        ? "bg-muted text-muted-foreground"
+                        : catalogue?.severity?.toLowerCase().includes("high")
+                          ? "bg-(--status-danger-bg) text-(--status-danger)"
+                          : catalogue?.severity?.toLowerCase().includes("low")
+                            ? "bg-(--status-info-bg) text-(--status-info)"
+                            : "bg-(--status-warning-bg) text-(--status-warning)",
+                    )}>
+                      {catalogues ? `${catalogue?.severity ?? "Unclassified"} severity` : "Loading"}
+                    </span>
+                  </header>
+                  {catalogue?.description ? <p className="border-b border-border px-4 py-3 text-sm leading-6 text-muted-foreground">{catalogue.description}</p> : null}
+                  {!catalogues ? (
+                    <p className="p-4 text-sm text-muted-foreground">Loading hazard assessment…</p>
+                  ) : (
+                    <div className="grid divide-y divide-border md:grid-cols-3 md:divide-x md:divide-y-0">
+                      {[
+                        { title: "Risks", items: risks, tone: "text-(--status-warning)" },
+                        { title: "Potential consequences", items: consequences, tone: "text-(--status-danger)" },
+                        { title: "Required controls", items: controls, tone: "text-(--status-success)" },
+                      ].map(({ title, items, tone }) => (
+                        <section key={title} className="p-4">
+                          <h5 className="mb-2 flex items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {title}
+                            <span className="font-mono text-[10px]">{items.length}</span>
+                          </h5>
+                          {items.length ? (
+                            <ul className="grid gap-2 text-sm leading-5">
+                              {items.map((line) => (
+                                <li key={line} className="flex items-start gap-2">
+                                  <span className={cn("mt-0.5 shrink-0 font-semibold", tone)} aria-hidden>{title === "Required controls" ? "✓" : "•"}</span>
+                                  <span>{line}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">None listed</p>
+                          )}
+                        </section>
+                      ))}
+                    </div>
+                  )}
+                  {omittedControls.length || omittedConsequences.length ? (
+                    <details className="permit-hazard-details group border-t border-border bg-(--status-warning-bg)/40 px-4">
+                      <summary className="flex min-h-10 cursor-pointer items-center justify-between gap-3 text-xs font-medium marker:content-none">
+                        <span>Items excluded for this permit <span className="text-muted-foreground">· {omittedControls.length + omittedConsequences.length}</span></span>
+                        <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden />
+                      </summary>
+                      <div className="grid gap-3 border-t border-border py-3 text-sm sm:grid-cols-2">
+                        {omittedConsequences.length ? <Field label="Excluded consequences">{omittedConsequences.join("; ")}</Field> : null}
+                        {omittedControls.length ? <Field label="Excluded controls">{omittedControls.join("; ")}</Field> : null}
+                      </div>
+                    </details>
                   ) : null}
-                  <Field label="Potential consequences">
-                    {catalogueLinesForPermit(catalogue?.consequences, item.omittedConsequences).length ? (
-                      <ul className="list-disc pl-5 font-normal">
-                        {catalogueLinesForPermit(catalogue?.consequences, item.omittedConsequences).map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span className="font-normal text-muted-foreground">None listed</span>
-                    )}
-                  </Field>
-                  {(item.extraConsequences ?? []).filter((line) => line.trim()).length ? (
-                    <Field label="Extra consequences (this permit)">
-                      <ul className="list-disc pl-5 font-normal">
-                        {(item.extraConsequences ?? []).filter((line) => line.trim()).map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    </Field>
-                  ) : null}
-                  <Field label="Controls">
-                    {catalogueLinesForPermit(catalogue?.controls, item.omittedControls).length ? (
-                      <ul className="list-disc pl-5 font-normal">
-                        {catalogueLinesForPermit(catalogue?.controls, item.omittedControls).map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span className="font-normal text-muted-foreground">None listed</span>
-                    )}
-                  </Field>
-                  {(item.extraControls ?? []).filter((line) => line.trim()).length ? (
-                    <Field label="Extra controls (this permit)">
-                      <ul className="list-disc pl-5 font-normal">
-                        {(item.extraControls ?? []).filter((line) => line.trim()).map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    </Field>
-                  ) : null}
-                </div>
+                </article>
               );
             })}
           </div>
         )}
       </Section>
-      <Section kind="notes" title="Notes">
-        {form.siteNotes.trim() ? (
-          <p className="whitespace-pre-wrap leading-6">{form.siteNotes.trim()}</p>
-        ) : (
-          <span className="text-muted-foreground">None recorded</span>
-        )}
-      </Section>
-      <Section kind="ppe" title="PPE">
+      <Section kind="ppe" title="PPE" wide>
         {catalogues ? (
           <Chips items={ppe} empty="None recorded" missing={selectedPpe.length === 0} />
         ) : (
           <span className="text-sm text-muted-foreground">Loading…</span>
         )}
       </Section>
-      <Section kind="lototo" title="LOTOTO">
+      <Section kind="lototo" title="LOTOTO" wide>
         {form.lototoRequired ? (
           form.lototo.filter((item) => item.procedureId).length === 0 ? (
             <span className="font-semibold text-(--status-danger)">Required, no procedure attached</span>
@@ -421,59 +486,69 @@ export function PermitSummary({
                 .map((item) => {
                   const version = lototoVersions[item.procedureId];
                   return (
-                    <div key={item.procedureId} className="grid gap-2">
-                      <p className="font-medium">{pick(catalogues?.lototo, item.procedureId)}</p>
-                      {version?.note ? <Field label="Note">{version.note}</Field> : null}
-                      {version?.description ? <Field label="Description">{version.description}</Field> : null}
-                      <Field label="Isolation points">
-                        {version?.lockoutPoints?.length ? (
-                          <ul className="space-y-2">
-                            {version.lockoutPoints.map((point) => (
-                              <li key={point.id ?? point.pointCode}>
-                                <p>
-                                  {point.pointCode} · {point.energyType}
-                                  {point.action ? ` — ${point.action}` : ""}
-                                </p>
-                                {point.locationText ? (
-                                  <p className="font-normal text-muted-foreground">{point.locationText}</p>
-                                ) : null}
-                                {point.photo?.url ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={point.photo.url} alt="" className="mt-1 max-h-32 w-fit rounded-md border border-border object-contain" />
-                                ) : null}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <span className="font-normal text-muted-foreground">None listed</span>
-                        )}
-                      </Field>
-                      <Field label="Apply sequence">
-                        {(version?.sequenceSteps.filter((s) => s.phase === "apply") ?? []).length ? (
-                          version!.sequenceSteps
-                            .filter((s) => s.phase === "apply")
-                            .map((step) => (
-                              <p key={`${step.phase}-${step.sequenceOrder}`}>
-                                {step.sequenceOrder}. {step.title}
-                              </p>
-                            ))
+                      <article key={item.procedureId} className="grid gap-4 rounded-xl border border-border border-l-4 border-l-(--st-execution_completed) bg-background p-4 sm:p-5">
+                        <header className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold">{pick(catalogues?.lototo, item.procedureId)}</p>
+                            {version?.description ? <p className="mt-1 text-sm text-muted-foreground">{version.description}</p> : null}
+                          </div>
+                          <span className="rounded-full bg-(--st-execution_completed)/10 px-2.5 py-1 text-xs font-semibold text-(--st-execution_completed)">Isolation procedure</span>
+                        </header>
+                        {version?.note ? <p className="rounded-md bg-muted/50 px-3 py-2 text-sm">{version.note}</p> : null}
+                        <Field label={`Isolation points · ${version?.lockoutPoints?.length ?? 0}`}>
+                          {version?.lockoutPoints?.length ? (
+                            <ul className="grid gap-2 sm:grid-cols-2">
+                              {version.lockoutPoints.map((point, index) => (
+                                <li key={point.id ?? point.pointCode} className="rounded-lg border border-border bg-card p-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-(--st-execution_completed)/10 font-mono text-xs font-semibold text-(--st-execution_completed)">{String(index + 1).padStart(2, "0")}</span>
+                                    <span className="font-semibold">{point.pointCode}</span>
+                                    <span className="ml-auto rounded-full border border-border px-2 py-0.5 text-[11px] capitalize text-muted-foreground">{point.energyType}</span>
+                                  </div>
+                                  {point.action ? <p className="mt-2 text-sm">{point.action}</p> : null}
+                                  {point.locationText ? <p className="mt-1 text-xs text-muted-foreground">{point.locationText}</p> : null}
+                                  {point.photo?.url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={point.photo.url} alt="" className="mt-2 max-h-32 w-fit rounded-md border border-border object-contain" />
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <span className="font-normal text-muted-foreground">None listed</span>
+                          )}
+                        </Field>
+                        <div className="grid gap-3 lg:grid-cols-2">
+                        <Field label="Apply isolation">
+                          {(version?.sequenceSteps.filter((s) => s.phase === "apply") ?? []).length ? (
+                            <ol className="mt-2 grid gap-2 rounded-lg border border-border bg-card p-3">
+                              {version!.sequenceSteps.filter((s) => s.phase === "apply").map((step) => (
+                                <li key={`${step.phase}-${step.sequenceOrder}`} className="flex items-start gap-2 border-b border-border/70 pb-2 last:border-0 last:pb-0">
+                                  <span className="grid size-6 shrink-0 place-items-center rounded-md bg-(--st-execution_completed)/10 font-mono text-[10px] font-semibold text-(--st-execution_completed)">{String(step.sequenceOrder).padStart(2, "0")}</span>
+                                  <span className="pt-0.5">{step.title}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          ) : (
+                            <span className="font-normal text-muted-foreground">None</span>
+                          )}
+                        </Field>
+                        <Field label="Restore sequence">
+                          {(version?.sequenceSteps.filter((s) => s.phase === "remove") ?? []).length ? (
+                            <ol className="mt-2 grid gap-2 rounded-lg border border-border bg-card p-3">
+                              {version!.sequenceSteps.filter((s) => s.phase === "remove").map((step) => (
+                                <li key={`${step.phase}-${step.sequenceOrder}`} className="flex items-start gap-2 border-b border-border/70 pb-2 last:border-0 last:pb-0">
+                                  <span className="grid size-6 shrink-0 place-items-center rounded-md bg-muted font-mono text-[10px] font-semibold">{String(step.sequenceOrder).padStart(2, "0")}</span>
+                                  <span className="pt-0.5">{step.title}</span>
+                                </li>
+                              ))}
+                            </ol>
                         ) : (
                           <span className="font-normal text-muted-foreground">None</span>
                         )}
                       </Field>
-                      <Field label="Remove sequence">
-                        {(version?.sequenceSteps.filter((s) => s.phase === "remove") ?? []).length ? (
-                          version!.sequenceSteps
-                            .filter((s) => s.phase === "remove")
-                            .map((step) => (
-                              <p key={`${step.phase}-${step.sequenceOrder}`}>
-                                {step.sequenceOrder}. {step.title}
-                              </p>
-                            ))
-                        ) : (
-                          <span className="font-normal text-muted-foreground">None</span>
-                        )}
-                      </Field>
+                        </div>
+                        <div className="grid gap-3 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-3">
                       {(item.extraPoints ?? []).some((p) => p.pointCode) ? (
                         <Field label="Extra points">
                           {(item.extraPoints ?? [])
@@ -506,6 +581,7 @@ export function PermitSummary({
                               .join(", ")
                           : "Not assigned"}
                       </Field>
+                        </div>
                       {(item.verification ?? []).filter((row) => row.signedName).length > 0 ? (
                         <Field label="Who reviewed LOTOTO">
                           {(item.verification ?? [])
@@ -517,7 +593,7 @@ export function PermitSummary({
                             .join("; ")}
                         </Field>
                       ) : null}
-                    </div>
+                    </article>
                   );
                 })}
             </div>
@@ -529,38 +605,69 @@ export function PermitSummary({
           <p className="text-xs text-muted-foreground">Procedure content is frozen at approval. Assigned people can still be changed until work starts.</p>
         ) : null}
       </Section>
-      <Section kind="gas" title="Gas testing">
+      <Section kind="gas" title="Gas testing" wide>
         {form.gasTestingRequired ? (
-          gasRows.length === 0 ? (
-            <span className="font-semibold text-(--status-danger)">Required, no tests selected</span>
-          ) : (
-            <div className="grid gap-3">
-              {gasRows.map((item) => {
+          <div className="grid gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-(--status-info)/30 bg-(--status-info-bg) px-3 py-2">
+              <span className="text-sm font-semibold text-(--status-info)">Gas testing required</span>
+              <span className="font-mono text-xs text-(--status-info)">{activeGasRows.length} active test{activeGasRows.length === 1 ? "" : "s"}</span>
+            </div>
+            {activeGasRows.length === 0 ? (
+              <p className="rounded-lg border border-(--status-danger)/30 bg-(--status-danger-bg) px-3 py-2 text-sm font-medium text-(--status-danger)">
+                No active test parameters recorded.
+              </p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+              {activeGasRows.map((item) => {
                 const row = item.gasTestingCatalogueId ? catalogues?.gas.get(item.gasTestingCatalogueId) : undefined;
                 const minimum = item.minimum ?? row?.minimum;
                 const maximum = item.maximum ?? row?.maximum;
+                const unit = item.unit || row?.unit || (catalogues ? "Not set" : loading);
                 return (
-                  <div key={item.gasTestingCatalogueId} className="grid gap-1">
-                    <p className="font-medium">{item.parameter || row?.parameter || (catalogues ? "Unknown parameter" : loading)}{item.removedReason ? " (removed for this permit)" : ""}</p>
-                    {item.removedReason ? <p className="text-muted-foreground">{item.removedReason}</p> : (
-                      <>
-                        <Field label="Acceptable range">
-                          {minimum != null && maximum != null ? `${minimum}–${maximum}` : catalogues ? "—" : loading}
-                        </Field>
-                        <Field label="Unit">{item.unit || row?.unit || (catalogues ? "—" : loading)}</Field>
-                      </>
-                    )}
-                  </div>
+                  <article key={`${item.gasTestingCatalogueId ?? item.parameter}-${item.sourceName ?? ""}`} className="overflow-hidden rounded-xl border border-border bg-background">
+                    <div className="border-l-4 border-l-(--status-info) px-4 py-3">
+                      <p className="font-semibold">{item.parameter || row?.parameter || (catalogues ? "Unknown parameter" : loading)}</p>
+                      {item.sourceName ? <p className="mt-0.5 text-xs text-muted-foreground">{item.sourceName}</p> : null}
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto] items-end gap-3 border-t border-border bg-muted/40 px-4 py-3">
+                      <Field label="Acceptable range">
+                        <span className="font-mono text-lg font-semibold">
+                          {minimum != null && maximum != null ? `${minimum}–${maximum}` : catalogues ? "Not set" : loading}
+                        </span>
+                      </Field>
+                      <Field label="Unit">{unit}</Field>
+                    </div>
+                  </article>
                 );
               })}
-            </div>
-          )
+              </div>
+            )}
+            {excludedGasRows.length ? (
+              <details className="permit-hazard-details group rounded-lg border border-border bg-muted/30 px-3">
+                <summary className="flex min-h-10 cursor-pointer items-center justify-between gap-3 text-sm font-medium marker:content-none">
+                  <span>Excluded test parameters <span className="font-mono text-xs text-muted-foreground">· {excludedGasRows.length}</span></span>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden />
+                </summary>
+                <ul className="grid gap-2 border-t border-border py-3 sm:grid-cols-2">
+                  {excludedGasRows.map((item) => {
+                    const row = item.gasTestingCatalogueId ? catalogues?.gas.get(item.gasTestingCatalogueId) : undefined;
+                    return (
+                      <li key={`${item.gasTestingCatalogueId ?? item.parameter}-${item.sourceName ?? ""}`} className="rounded-md border border-border bg-background p-3">
+                        <p className="text-sm font-medium">{item.parameter || row?.parameter || (catalogues ? "Unknown parameter" : loading)}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{item.removedReason}</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </details>
+            ) : null}
+          </div>
         ) : (
           <span className="font-normal text-muted-foreground">Not required for this work</span>
         )}
       </Section>
 
-      <Section kind="people" title="People">
+      <Section kind="people" title="People" wide>
         <Field label="Initiator (receiver)">
           {identity?.initiatorId ? person(identity.initiatorId) : <span className="font-normal text-muted-foreground">Not submitted</span>}
         </Field>
@@ -634,6 +741,13 @@ export function PermitSummary({
           </ul>
         </Section>
       ) : null}
+      <Section kind="notes" title="Notes" wide>
+        {form.siteNotes.trim() ? (
+          <p className="whitespace-pre-wrap leading-6">{form.siteNotes.trim()}</p>
+        ) : (
+          <span className="text-muted-foreground">None recorded</span>
+        )}
+      </Section>
     </div>
   );
 }

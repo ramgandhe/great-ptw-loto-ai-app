@@ -190,6 +190,7 @@ export default function PermitReviewPage() {
             status={review.permit.status}
             attachments={review.attachments}
             showHeader={false}
+            singleColumn
             placeText={[review.permit.placePath, review.permit.exactSpot].filter(Boolean).join(" — ") || undefined}
             identity={identityFromPermit(review.permit)}
           />

@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, CalendarClock, Check, ClipboardList, FileText, Paperclip, ShieldCheck, TriangleAlert } from "lucide-react";
+import { ArrowLeft, CalendarClock, Check, ClipboardList, FileText, Paperclip, Printer, ShieldCheck, TriangleAlert } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { PermitFormResponses } from "@/components/permit/permit-form-responses";
 import { permitGaps, identityFromPermit, PermitSummary } from "@/components/permit/permit-summary";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
+import { PermitJourney } from "@/components/permit/permit-journey";
 import { ApiError } from "@/lib/api";
 import { formatDateTime, formatWindow } from "@/lib/format";
 import { permitDetailToForm } from "@/lib/permit/form";
@@ -73,10 +74,13 @@ export default function PermitPreviewPage() {
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">Review the permit record, controls and supporting evidence.</p>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2 print:hidden">
           <Link href={`/permits/${detail.permit.id}`}>
             <Button variant="outline"><ArrowLeft aria-hidden /> Permit details</Button>
           </Link>
+          <Button type="button" variant="outline" onClick={() => window.print()} className="print:hidden">
+            <Printer aria-hidden /> Print record
+          </Button>
           {isDraft ? (
             <Link href={`/permits/${detail.permit.id}/edit`}>
               <Button>Edit draft</Button>
@@ -85,9 +89,9 @@ export default function PermitPreviewPage() {
         </div>
       </header>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] print:block">
         <div className="min-w-0 space-y-5">
-          <section className="overflow-hidden rounded-xl border border-border bg-card shadow-(--shadow-card)" aria-label="Permit snapshot">
+          <section className="rounded-xl border border-border bg-card shadow-(--shadow-card)" aria-label="Permit snapshot">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/35 px-5 py-3.5">
               <div className="flex items-center gap-2">
                 <ClipboardList className="size-4 text-primary" aria-hidden />
@@ -101,15 +105,28 @@ export default function PermitPreviewPage() {
                 status={detail.permit.status}
                 reference={detail.permit.reference}
                 identity={identity}
-                attachments={detail.attachments}
+                attachments={[]}
                 showHeader={false}
+                showSectionNavigation
+                additionalSections={[
+                  { id: "permit-form-responses", label: "Forms & evidence" },
+                  { id: "permit-lifecycle-history", label: "Lifecycle history" },
+                  { id: "permit-supporting-files", label: "Attachments" },
+                ]}
               />
             </div>
           </section>
 
-          <PermitFormResponses responses={detail.permit.formResponses ?? []} expanded />
+          <section id="permit-form-responses" className="scroll-mt-20 rounded-xl border border-border bg-card p-4 shadow-(--shadow-card) sm:p-5">
+            <PermitFormResponses responses={detail.permit.formResponses ?? []} expanded />
+          </section>
 
-          <section className="overflow-hidden rounded-xl border border-border bg-card shadow-(--shadow-card)">
+          <section id="permit-lifecycle-history" aria-labelledby="permit-lifecycle-title" className="scroll-mt-20 rounded-xl border border-border bg-card p-4 shadow-(--shadow-card) sm:p-5">
+            <h2 id="permit-lifecycle-title" className="mb-4 text-base font-semibold">Lifecycle history</h2>
+            <PermitJourney id={detail.permit.id} part="history" />
+          </section>
+
+          <section id="permit-supporting-files" className="scroll-mt-20 overflow-hidden rounded-xl border border-border bg-card shadow-(--shadow-card)">
             <div className="flex items-center gap-2 border-b border-border px-5 py-3.5">
               <Paperclip className="size-4 text-primary" aria-hidden />
               <h2 className="text-sm font-semibold">Supporting files</h2>

@@ -341,8 +341,12 @@ function PermitWorkspace() {
             attachments={detail.attachments}
             showHeader={false}
             identity={identityFromPermit(permit)}
+            showSectionNavigation
+            additionalSections={[{ id: "permit-form-responses", label: "Forms & evidence" }]}
           />
-          <PermitFormResponses responses={permit.formResponses ?? []} />
+          <section id="permit-form-responses" className="scroll-mt-20">
+            <PermitFormResponses responses={permit.formResponses ?? []} />
+          </section>
         </>
       ) : null}
 

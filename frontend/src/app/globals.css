@@ -541,6 +541,40 @@ textarea::placeholder {
   background: color-mix(in srgb, var(--primary) 4%, transparent);
 }
 
+.permit-summary-section-container {
+  container-type: inline-size;
+}
+
+.permit-summary-section {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.permit-summary-facts {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (min-width: 32rem) {
+  .permit-summary-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 40rem) {
+  .permit-summary-section {
+    grid-template-columns: 10rem minmax(0, 1fr);
+  }
+}
+
+@media print {
+  .permit-hazard-details:not([open]) > :not(summary) {
+    display: block !important;
+  }
+
+  .permit-hazard-details > summary {
+    display: none;
+  }
+}
+
 .ptw-app :focus-visible {
   scroll-margin-block: 1rem;
 }
