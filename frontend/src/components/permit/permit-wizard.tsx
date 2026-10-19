@@ -1145,6 +1145,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     return lines.map((risk) => ({ hazard: catalogue?.name ?? "Hazard", risk }));
   });
   const permitTypeCode = permitTypes.find((type) => type.id === form.permitTypeId)?.code;
+  const selectedWorkLocation = workLocations.find((row) => row.id === form.workLocationId);
   const selectedHazardIds = new Set(hazardRows.map((h) => h.hazardCategoryId));
   const hazardPlan = placeHazardPlan({
     hazards,
@@ -1468,6 +1469,13 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 />
               </div>
             </div>
+            {form.workLocationId ? (
+              <p aria-live="polite" className="flex min-h-10 items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 text-sm font-medium">
+                <Check aria-hidden className="size-4 shrink-0 text-primary" />
+                <span className="text-muted-foreground">Selected:</span>
+                <span className="min-w-0 truncate">{selectedWorkLocation?.pathText || selectedWorkLocation?.name || "Selected work location"}</span>
+              </p>
+            ) : null}
             <div className={cn("max-h-48 overflow-y-auto rounded-md border border-border", fieldError("workLocationId") && "border-destructive")}>
               {workLocations
                 .filter((row) => !locationQuery.trim() || `${row.pathText} ${row.name}`.toLowerCase().includes(locationQuery.trim().toLowerCase()))

@@ -18,6 +18,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 export function AppLayoutShell({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
   // Ctrl/Cmd+K anywhere, or "/" when not typing, opens search.
@@ -38,7 +39,12 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
   return (
     <WorkQueueProvider>
       <div className="ptw-app flex min-h-dvh bg-background text-foreground">
-        <AppNavigation open={navOpen} onClose={() => setNavOpen(false)} />
+        <AppNavigation
+          open={navOpen}
+          collapsed={navCollapsed}
+          onClose={() => setNavOpen(false)}
+          onToggleCollapsed={() => setNavCollapsed((value) => !value)}
+        />
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader onOpenNav={() => setNavOpen(true)} onOpenSearch={() => setSearchOpen(true)} />
           <div className="flex flex-1 flex-col">
