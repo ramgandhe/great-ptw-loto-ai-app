@@ -38,6 +38,8 @@ export function StartExecutionSteps({
   onChange,
   onSave,
   onBeginWork,
+  onPostpone,
+  onSuspend,
 }: {
   permitId: string;
   detail: PermitDetail;
@@ -50,6 +52,8 @@ export function StartExecutionSteps({
   onChange: (next: ExecutionStartState) => void;
   onSave: () => Promise<void>;
   onBeginWork: () => Promise<void>;
+  onPostpone?: () => void;
+  onSuspend?: () => void;
 }) {
   const [step, setStep] = useState(0);
   const lototoRequired = Boolean(detail.permit.lototoRequired);
@@ -76,15 +80,22 @@ export function StartExecutionSteps({
   const ppeDone = ppeItems.every((item) => start.ppeIds.includes(item.ppeCatalogueId));
   const lototoDone = !lototoRequired || lototoIsolated || start.lototoVerified;
   const gasItems = detail.gasTesting.filter((row) => !row.removedReason?.trim());
-  const gasDone =
+  function gasOutOfRange(row: (typeof gasItems)[number], value: number) {
+    return (row.minimum != null && value < row.minimum) || (row.maximum != null && value > row.maximum);
+  }
+  const gasEntered =
     !gasRequired ||
     gasItems.every((row) => {
       const reading = start.gasReadings.find((item) => item.gasTestingCatalogueId === gasReadingKey(row));
-      if (!reading || Number.isNaN(reading.value)) return false;
-      if (row.minimum != null && reading.value < row.minimum) return false;
-      if (row.maximum != null && reading.value > row.maximum) return false;
-      return true;
+      return Boolean(reading) && !Number.isNaN(reading?.value);
     });
+  const gasUnfavourable =
+    gasRequired &&
+    gasItems.some((row) => {
+      const reading = start.gasReadings.find((item) => item.gasTestingCatalogueId === gasReadingKey(row));
+      return reading != null && !Number.isNaN(reading.value) && gasOutOfRange(row, reading.value);
+    });
+  const gasDone = gasEntered && !gasUnfavourable;
 
   const canAdvance = [
     start.toolboxTalk,
@@ -92,7 +103,7 @@ export function StartExecutionSteps({
     ppeDone,
     lototoDone,
     gasDone,
-    true,
+    gasDone,
   ][step];
 
   async function goNext() {
@@ -190,10 +201,6 @@ export function StartExecutionSteps({
               {gasItems.map((row) => {
                 const key = gasReadingKey(row);
                 const reading = start.gasReadings.find((item) => item.gasTestingCatalogueId === key);
-                const outOfRange =
-                  reading != null &&
-                  ((row.minimum != null && reading.value < row.minimum) ||
-                    (row.maximum != null && reading.value > row.maximum));
                 const range =
                   row.minimum != null && row.maximum != null
                     ? `${row.minimum}–${row.maximum}${row.unit ? ` ${row.unit}` : ""}`
@@ -221,12 +228,38 @@ export function StartExecutionSteps({
                       }}
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     />
-                    {outOfRange ? (
-                      <span className="text-destructive">Enter a value inside {range}.</span>
-                    ) : null}
                   </label>
                 );
               })}
+              {gasUnfavourable ? (
+                <div role="status" className="grid gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-3 text-sm">
+                  <p>Conditions are not favourable. Work cannot start until the readings are inside the range.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isSubmitting}
+                      onClick={() =>
+                        onChange({
+                          ...start,
+                          gasReadings: start.gasReadings.filter((item) => {
+                            const row = gasItems.find((candidate) => gasReadingKey(candidate) === item.gasTestingCatalogueId);
+                            return !row || !gasOutOfRange(row, item.value);
+                          }),
+                        })
+                      }
+                    >
+                      Retest
+                    </Button>
+                    <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => onPostpone?.()}>
+                      Postpone
+                    </Button>
+                    <Button type="button" variant="destructive" disabled={isSubmitting} onClick={() => onSuspend?.()}>
+                      Suspend
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           )
         ) : (

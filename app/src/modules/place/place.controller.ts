@@ -218,6 +218,16 @@ export class AssetTypeController {
   ) {
     return this.placeService.updateAssetType(id, dto, user);
   }
+
+  @Roles(...ORGANISATION_WRITE_ROLES)
+  @Delete(':id')
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ForceQuery() force: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.placeService.deleteAssetType(id, user, force);
+  }
 }
 
 @Controller('assets')

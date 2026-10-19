@@ -10,7 +10,7 @@ import type { OrgRecord } from "@/lib/organisation/types";
 import { placeApi, type AssetRecord, type NamedType, type WorkLocationRecord } from "@/lib/place/api";
 import { getLototoProcedure, listLototoProcedures } from "@/lib/lototo/api";
 import type { LototoProcedureListItem } from "@/lib/lototo/types";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 import { RowActions } from "@/components/ui/row-actions";
 import { toast } from "@/components/ui/toast";
@@ -45,7 +45,6 @@ export default function AssetsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [fieldErrors, setFieldErrors] = useState<AssetFieldErrors>({});
-  const [typeName, setTypeName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -240,24 +239,6 @@ export default function AssetsPage() {
       } catch (next) {
         setError(next instanceof ApiError ? next.message : "Failed to delete this asset");
       }
-    }
-  }
-
-  async function addType(event: React.FormEvent) {
-    event.preventDefault();
-    const name = typeName.trim();
-    if (!name) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await placeApi.createAssetType(name);
-      setTypes((await placeApi.listAssetTypes()).filter((type) => type.status !== "archived"));
-      setTypeName("");
-      toast("Asset type added");
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to add this asset type");
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -458,26 +439,11 @@ export default function AssetsPage() {
           </table>
         </div>
       ) : null}
-      <section className="grid gap-3 rounded-xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Asset types</h2>
-        <p className="text-sm text-muted-foreground">Labels only.</p>
-        {types.length > 0 ? (
-          <ul className="flex flex-wrap gap-2">
-            {types.map((type) => (
-              <li key={type.id} className="rounded-md border border-border px-2 py-1 text-sm">{type.name}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground">No types yet.</p>
-        )}
-        <form className="flex flex-wrap items-end gap-2" onSubmit={(event) => void addType(event)}>
-          <label className="grid gap-1.5 text-sm">
-            <span className="font-medium">New type</span>
-            <input className={FIELD_CLASS} value={typeName} onChange={(event) => setTypeName(event.target.value)} placeholder="Pump" />
-          </label>
-          <Button type="submit" disabled={saving || !typeName.trim()}>Add type</Button>
-        </form>
-      </section>
+      <div className="flex justify-end">
+        <Link href="/organisation/assets/types" className={buttonVariants({ variant: "outline" })}>
+          Add Asset Type
+        </Link>
+      </div>
     </AdminPage>
   );
 }

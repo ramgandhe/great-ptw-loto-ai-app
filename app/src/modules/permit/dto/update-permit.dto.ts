@@ -39,6 +39,11 @@ export class UpdatePermitDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(4000)
+  siteNotes?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(32)
   emergencyPhone?: string;
 

@@ -1,23 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FIELD_CLASS } from "@/components/layout/admin-page-header";
-import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 import { RowActions } from "@/components/ui/row-actions";
 import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api";
 import { industriesApi, type Industry } from "@/lib/platform/api";
-import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
+import { Alert, CatalogueAdd, recordHref } from "./catalogue";
+
+const QUERY = "tab=industries";
 
 export function IndustriesPanel() {
+  const router = useRouter();
   const [industries, setIndustries] = useState<Industry[]>([]);
-  const [name, setName] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
   function load() {
     return industriesApi
@@ -29,42 +27,6 @@ export function IndustriesPanel() {
   useEffect(() => {
     load().finally(() => setLoading(false));
   }, []);
-
-  async function addIndustry(event: React.FormEvent) {
-    event.preventDefault();
-    setSaving(true);
-    setError(null);
-    try {
-      await industriesApi.create(name.trim());
-      toast(`${name.trim()} added`);
-      setName("");
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not add the industry");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function rename(industry: Industry) {
-    const next = draft.trim();
-    if (!next || next === industry.name) {
-      setEditingId(null);
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      await industriesApi.update(industry.id, next);
-      toast(`${next} saved`);
-      setEditingId(null);
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not rename the industry");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function remove(industry: Industry) {
     if (!(await confirmAction(`Remove ${industry.name}?`))) return;
@@ -95,8 +57,9 @@ export function IndustriesPanel() {
   return (
     <div className="grid gap-4">
       <p className="text-sm text-muted-foreground">
-        Industries a platform admin can assign when creating or editing a tenant. Others stays on the list. Renaming one updates the tenants that already use it.
+        Industries a platform admin can assign when creating or editing a tenant. Others stays on the list. Editing one updates the tenants that already use it.
       </p>
+      <CatalogueAdd href={recordHref("industry", "new", QUERY)} label="Add industry" />
       {error ? <Alert message={error} /> : null}
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -106,6 +69,7 @@ export function IndustriesPanel() {
             <thead className="table-tone text-left text-xs">
               <tr className="border-b border-border">
                 <th className="px-4 py-2.5 font-medium">Industry</th>
+                <th className="px-4 py-2.5 font-medium">Description</th>
                 <th className="px-4 py-2.5 text-right font-medium">
                   <span className="sr-only">Actions</span>
                 </th>
@@ -114,47 +78,19 @@ export function IndustriesPanel() {
             <tbody>
               {industries.map((industry) => (
                 <tr key={industry.id} className="row-hover border-t border-border first:border-t-0">
-                  <td className="px-4 py-3">
-                    {editingId === industry.id ? (
-                      <input
-                        value={draft}
-                        autoFocus
-                        required
-                        pattern={NAME_PATTERN}
-                        title={NAME_HINT}
-                        maxLength={128}
-                        className={FIELD_CLASS}
-                        onChange={(event) => setDraft(event.target.value)}
-                      />
-                    ) : (
-                      <span className="font-medium">
-                        {industry.name}
-                        {industry.isFallback ? <span className="ml-2 font-normal text-muted-foreground">Default</span> : null}
-                      </span>
-                    )}
+                  <td className="px-4 py-3 font-medium">
+                    {industry.name}
+                    {industry.isFallback ? <span className="ml-2 font-normal text-muted-foreground">Default</span> : null}
                   </td>
+                  <td className="max-w-md px-4 py-3 text-muted-foreground">{industry.description || "—"}</td>
                   <td className="px-4 py-3">
                     <RowActions
-                      actions={
-                        editingId === industry.id
-                          ? [
-                              { label: "Save", disabled: saving, onClick: () => void rename(industry) },
-                              { label: "Cancel", disabled: saving, onClick: () => setEditingId(null) },
-                            ]
-                          : [
-                              {
-                                label: "Rename",
-                                disabled: saving,
-                                onClick: () => {
-                                  setEditingId(industry.id);
-                                  setDraft(industry.name);
-                                },
-                              },
-                              industry.isFallback
-                                ? null
-                                : { label: "Remove", danger: true, disabled: saving, onClick: () => void remove(industry) },
-                            ]
-                      }
+                      actions={[
+                        { label: "Edit", onClick: () => router.push(recordHref("industry", industry.id, QUERY)) },
+                        industry.isFallback
+                          ? null
+                          : { label: "Remove", danger: true, onClick: () => void remove(industry) },
+                      ]}
                     />
                   </td>
                 </tr>
@@ -163,31 +99,6 @@ export function IndustriesPanel() {
           </table>
         </div>
       )}
-      <form onSubmit={addIndustry} className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-5">
-        <label className="grid min-w-64 flex-1 gap-1.5 text-sm">
-          <span className="font-medium">New industry</span>
-          <input
-            required
-            value={name}
-            pattern={NAME_PATTERN}
-            title={NAME_HINT}
-            maxLength={128}
-            className={FIELD_CLASS}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </label>
-        <Button type="submit" disabled={saving}>
-          {saving ? "Saving…" : "Add industry"}
-        </Button>
-      </form>
-    </div>
-  );
-}
-
-function Alert({ message }: { message: string }) {
-  return (
-    <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-      {message}
     </div>
   );
 }

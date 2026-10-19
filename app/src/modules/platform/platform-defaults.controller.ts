@@ -4,7 +4,9 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ForceQuery } from '../../common/decorators/force-query.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import {
+  DefaultAssetTypeDto,
   DefaultEnergySourceDto,
+  DefaultHazardDto,
   DefaultLocationTypeDto,
   DefaultPermitTypeDto,
   DefaultPpeCategoryDto,
@@ -136,5 +138,53 @@ export class PlatformDefaultsController {
   @Delete('permit-types/:id')
   deletePermitType(@Param('id', ParseUUIDPipe) id: string) {
     return this.defaults.deletePermitType(id);
+  }
+
+  @Get('asset-types')
+  listAssetTypes() {
+    return this.defaults.listAssetTypes();
+  }
+
+  @Post('asset-types')
+  createAssetType(@Body() dto: DefaultAssetTypeDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.defaults.createAssetType(dto, user);
+  }
+
+  @Patch('asset-types/:id')
+  updateAssetType(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DefaultAssetTypeDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.defaults.updateAssetType(id, dto, user);
+  }
+
+  @Delete('asset-types/:id')
+  deleteAssetType(@Param('id', ParseUUIDPipe) id: string) {
+    return this.defaults.deleteAssetType(id);
+  }
+
+  @Get('hazards')
+  listHazards() {
+    return this.defaults.listHazards();
+  }
+
+  @Post('hazards')
+  createHazard(@Body() dto: DefaultHazardDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.defaults.createHazard(dto, user);
+  }
+
+  @Patch('hazards/:id')
+  updateHazard(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DefaultHazardDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.defaults.updateHazard(id, dto, user);
+  }
+
+  @Delete('hazards/:id')
+  deleteHazard(@Param('id', ParseUUIDPipe) id: string) {
+    return this.defaults.deleteHazard(id);
   }
 }

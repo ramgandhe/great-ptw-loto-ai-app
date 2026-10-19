@@ -7,7 +7,11 @@ import { motion, useReducedMotion } from "motion/react";
 import { ClipboardList, ListFilter, Plus, Search, X } from "lucide-react";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { PermitTypeChip } from "@/components/permit/permit-type-chip";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
+import { toast } from "@/components/ui/toast";
+import { ApiError } from "@/lib/api";
+import { purgePermit } from "@/lib/permit/api";
 import { MultiToggle, SegmentedToggle } from "@/components/ui/toggle-group";
 import { ActionLink } from "@/components/work/action-link";
 import { WorkQueueUnavailable } from "@/components/work/work-queue-panel";
@@ -32,7 +36,9 @@ function PermitsBoard() {
   const params = useSearchParams();
   const reduce = useReducedMotion();
   const { roles } = useAuthProfile();
-  const { permits, items, loaded } = useWorkQueue();
+  const { permits, items, loaded, retry } = useWorkQueue();
+  const isOwner = hasAnyRole(roles, ["tenant-owner"]);
+  const [purgingId, setPurgingId] = useState<string | null>(null);
   const [lookups, setLookups] = useState<Lookups | null>(null);
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -118,6 +124,22 @@ function PermitsBoard() {
     ...(siteId ? [{ key: "site", label: placeRows.find((row) => row.siteId === siteId)?.pathText?.split(" › ")[0] ?? "Site", remove: () => setParams({ site: "", location: "" }) }] : []),
     ...(locationId ? [{ key: "location", label: placeRows.find((row) => row.id === locationId)?.pathText || "Work location", remove: () => setParams({ location: "" }) }] : []),
   ];
+
+  async function purgeRow(permit: PermitRecord) {
+    const label = permit.reference ?? permit.title;
+    if (!(await confirmAction(`Permanently delete ${label}? This removes the permit, its records, and any incidents linked to it.`))) return;
+    setPurgingId(permit.id);
+    try {
+      await purgePermit(permit.id);
+      if (selectedPermitId === permit.id) setSelectedPermitId(null);
+      toast(`${label} deleted`);
+      retry();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Could not delete this permit");
+    } finally {
+      setPurgingId(null);
+    }
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-370 flex-1 flex-col gap-5 px-4 pb-10 pt-6 sm:gap-6 sm:px-8 sm:pt-8">
@@ -286,9 +308,20 @@ function PermitsBoard() {
                       </span>
                       <span className="mt-2 block truncate text-xs text-muted-foreground">{placeOf(permit, lookups) ?? "Place not set"}</span>
                     </button>
-                    {action ? (
-                      <div className="flex items-center pr-3">
-                        <ActionLink item={action} />
+                    {action || isOwner ? (
+                      <div className="flex items-center gap-2 pr-3">
+                        {action ? <ActionLink item={action} /> : null}
+                        {isOwner ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            disabled={purgingId === permit.id}
+                            onClick={() => void purgeRow(permit)}
+                          >
+                            Delete
+                          </Button>
+                        ) : null}
                       </div>
                     ) : null}
                   </motion.li>

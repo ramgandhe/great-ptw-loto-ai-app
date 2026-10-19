@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { boolean, index, pgTable, text, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
+import { boolean, index, jsonb, pgTable, text, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
 import { auditColumns } from './base';
 
 /** Copied onto a tenant only when that tenant is created. */
@@ -72,4 +72,45 @@ export const defaultPermitTypes = pgTable(
     color: varchar('color', { length: 7 }).notNull(),
   },
   (table) => [uniqueIndex('default_permit_types_code_unique').on(table.code)],
+);
+
+export const defaultAssetTypes = pgTable(
+  'default_asset_types',
+  {
+    ...auditColumns,
+    name: varchar('name', { length: 64 }).notNull(),
+    description: text('description'),
+  },
+  (table) => [uniqueIndex('default_asset_types_name_unique').on(sql`lower(${table.name})`)],
+);
+
+export const defaultHazards = pgTable(
+  'default_hazards',
+  {
+    ...auditColumns,
+    code: varchar('code', { length: 64 }).notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    category: varchar('category', { length: 255 }).notNull().default(''),
+    severity: varchar('severity', { length: 32 }).notNull().default('medium'),
+    description: text('description'),
+    risks: jsonb('risks').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    consequences: jsonb('consequences').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    controls: jsonb('controls').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    permitTypeCodes: varchar('permit_type_codes', { length: 16 }).array().notNull().default([]),
+  },
+  (table) => [uniqueIndex('default_hazards_code_unique').on(sql`lower(${table.code})`)],
+);
+
+export const defaultHazardPpe = pgTable(
+  'default_hazard_ppe',
+  {
+    ...auditColumns,
+    hazardId: uuid('hazard_id')
+      .notNull()
+      .references(() => defaultHazards.id, { onDelete: 'cascade' }),
+    ppeItemId: uuid('ppe_item_id')
+      .notNull()
+      .references(() => defaultPpeItems.id, { onDelete: 'cascade' }),
+  },
+  (table) => [uniqueIndex('default_hazard_ppe_pair_unique').on(table.hazardId, table.ppeItemId)],
 );

@@ -21,6 +21,7 @@ export type PlatformTenant = {
 export type Industry = {
   id: string;
   name: string;
+  description: string | null;
   isFallback: boolean;
 };
 
@@ -137,6 +138,39 @@ export type DefaultPpeItem = {
   description: string | null;
 };
 
+export type DefaultAssetType = {
+  id: string;
+  name: string;
+  description: string | null;
+};
+
+export type DefaultHazard = {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  severity: string;
+  description: string | null;
+  risks: string[];
+  consequences: string[];
+  controls: string[];
+  permitTypeCodes: string[];
+  ppeIds: string[];
+};
+
+export type DefaultHazardInput = {
+  code: string;
+  name: string;
+  category: string;
+  severity: string;
+  description?: string | null;
+  risks?: string[];
+  consequences?: string[];
+  controls?: string[];
+  permitTypeCodes?: string[];
+  ppeIds?: string[];
+};
+
 export type DefaultPermitType = {
   id: string;
   code: string;
@@ -189,14 +223,30 @@ export const platformDefaultsApi = {
     fetchApi<DefaultPermitType>(`${defaults}/permit-types/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   removePermitType: (id: string) =>
     fetchApi<{ id: string; deleted: boolean }>(`${defaults}/permit-types/${id}`, { method: "DELETE" }),
+
+  assetTypes: () => fetchApi<DefaultAssetType[]>(`${defaults}/asset-types`),
+  createAssetType: (body: { name: string; description?: string }) =>
+    fetchApi<DefaultAssetType>(`${defaults}/asset-types`, { method: "POST", body: JSON.stringify(body) }),
+  updateAssetType: (id: string, body: { name: string; description?: string }) =>
+    fetchApi<DefaultAssetType>(`${defaults}/asset-types/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  removeAssetType: (id: string) =>
+    fetchApi<{ id: string; deleted: boolean }>(`${defaults}/asset-types/${id}`, { method: "DELETE" }),
+
+  hazards: () => fetchApi<DefaultHazard[]>(`${defaults}/hazards`),
+  createHazard: (body: DefaultHazardInput) =>
+    fetchApi<DefaultHazard>(`${defaults}/hazards`, { method: "POST", body: JSON.stringify(body) }),
+  updateHazard: (id: string, body: DefaultHazardInput) =>
+    fetchApi<DefaultHazard>(`${defaults}/hazards/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  removeHazard: (id: string) =>
+    fetchApi<{ id: string; deleted: boolean }>(`${defaults}/hazards/${id}`, { method: "DELETE" }),
 };
 
 export const industriesApi = {
   list: () => fetchApi<Industry[]>("/platform/industries"),
-  create: (name: string) =>
-    fetchApi<Industry>("/platform/industries", { method: "POST", body: JSON.stringify({ name }) }),
-  update: (id: string, name: string) =>
-    fetchApi<Industry>(`/platform/industries/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+  create: (body: { name: string; description?: string }) =>
+    fetchApi<Industry>("/platform/industries", { method: "POST", body: JSON.stringify(body) }),
+  update: (id: string, body: { name: string; description?: string }) =>
+    fetchApi<Industry>(`/platform/industries/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   remove: (id: string, force = false) =>
     fetchApi<{ id: string; deleted: boolean }>(`/platform/industries/${id}${force ? "?force=true" : ""}`, {
       method: "DELETE",

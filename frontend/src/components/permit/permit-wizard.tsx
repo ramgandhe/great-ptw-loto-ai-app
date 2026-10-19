@@ -811,6 +811,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     lototo: "LOTOTO plans",
     gasTestingRequired: "Gas testing required",
     gasTesting: "Gas tests",
+    siteNotes: "Notes",
     executors: "Executors and crew",
     viewers: "Viewers",
     safetyOfficers: "Safety officers",
@@ -2114,6 +2115,18 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             onChange={(e) => edit({ ...form, executorSiteVisited: e.target.checked })}
           />
           Site visited and verified
+        </label>
+        <label className="grid gap-1.5 text-sm">
+          <span className="font-medium">Notes <span className="font-normal text-muted-foreground">(optional)</span></span>
+          <textarea
+            rows={3}
+            maxLength={4000}
+            disabled={!siteEditable}
+            value={form.siteNotes}
+            placeholder="Anything specific about this job"
+            className={fieldClassName}
+            onChange={(event) => edit({ ...form, siteNotes: event.target.value })}
+          />
         </label>
       </EditorSection>
       ) : null}

@@ -11,14 +11,19 @@ import { throwInUse } from '../../common/http/in-use';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
+  defaultAssetTypes,
   defaultEnergySources,
+  defaultHazardPpe,
+  defaultHazards,
   defaultLocationTypes,
   defaultPermitTypes,
   defaultPpeCategories,
   defaultPpeItems,
 } from '../../database/schema';
 import {
+  DefaultAssetTypeDto,
   DefaultEnergySourceDto,
+  DefaultHazardDto,
   DefaultLocationTypeDto,
   DefaultPermitTypeDto,
   DefaultPpeCategoryDto,
@@ -34,6 +39,10 @@ function energyCode(name: string): string {
 function blank(value: string | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function lines(values: string[] | undefined): string[] {
+  return (values ?? []).map((value) => value.trim()).filter(Boolean);
 }
 
 @Injectable()
@@ -295,6 +304,178 @@ export class PlatformDefaultsService {
     const [row] = await this.db.select().from(defaultLocationTypes).where(eq(defaultLocationTypes.id, id));
     if (!row) throw new NotFoundException('Location type not found');
     return row;
+  }
+
+  listAssetTypes() {
+    return this.db.select().from(defaultAssetTypes).orderBy(asc(defaultAssetTypes.name));
+  }
+
+  async createAssetType(dto: DefaultAssetTypeDto, user: AuthenticatedUser) {
+    const name = dto.name.trim();
+    await this.assertAssetTypeNameFree(name);
+    const actor = optionalUuid(user.id) ?? null;
+    const [row] = await this.db
+      .insert(defaultAssetTypes)
+      .values({ name, description: blank(dto.description), createdBy: actor, updatedBy: actor })
+      .returning();
+    return row;
+  }
+
+  async updateAssetType(id: string, dto: DefaultAssetTypeDto, user: AuthenticatedUser) {
+    await this.getAssetType(id);
+    const name = dto.name.trim();
+    await this.assertAssetTypeNameFree(name, id);
+    const [row] = await this.db
+      .update(defaultAssetTypes)
+      .set({
+        name,
+        description: blank(dto.description),
+        updatedBy: optionalUuid(user.id) ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(defaultAssetTypes.id, id))
+      .returning();
+    return row;
+  }
+
+  async deleteAssetType(id: string) {
+    await this.getAssetType(id);
+    await this.db.delete(defaultAssetTypes).where(eq(defaultAssetTypes.id, id));
+    return { id, deleted: true };
+  }
+
+  async listHazards() {
+    const rows = await this.db.select().from(defaultHazards).orderBy(asc(defaultHazards.name));
+    const links = await this.db.select().from(defaultHazardPpe);
+    const ppeOf = new Map<string, string[]>();
+    for (const link of links) {
+      const list = ppeOf.get(link.hazardId) ?? [];
+      list.push(link.ppeItemId);
+      ppeOf.set(link.hazardId, list);
+    }
+    return rows.map((row) => ({ ...row, ppeIds: ppeOf.get(row.id) ?? [] }));
+  }
+
+  async createHazard(dto: DefaultHazardDto, user: AuthenticatedUser) {
+    const code = dto.code.trim();
+    await this.assertHazardCodeFree(code);
+    await this.assertHazardRefs(dto);
+    const actor = optionalUuid(user.id) ?? null;
+    return this.db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(defaultHazards)
+        .values({ ...this.hazardValues(dto, actor), createdBy: actor })
+        .returning();
+      await this.replaceHazardPpe(tx, row.id, dto.ppeIds ?? [], actor);
+      return { ...row, ppeIds: dto.ppeIds ?? [] };
+    });
+  }
+
+  async updateHazard(id: string, dto: DefaultHazardDto, user: AuthenticatedUser) {
+    await this.getHazard(id);
+    const code = dto.code.trim();
+    await this.assertHazardCodeFree(code, id);
+    await this.assertHazardRefs(dto);
+    const actor = optionalUuid(user.id) ?? null;
+    return this.db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(defaultHazards)
+        .set({ ...this.hazardValues(dto, actor), updatedAt: new Date() })
+        .where(eq(defaultHazards.id, id))
+        .returning();
+      await this.replaceHazardPpe(tx, id, dto.ppeIds ?? [], actor);
+      return { ...row, ppeIds: dto.ppeIds ?? [] };
+    });
+  }
+
+  async deleteHazard(id: string) {
+    await this.getHazard(id);
+    await this.db.delete(defaultHazards).where(eq(defaultHazards.id, id));
+    return { id, deleted: true };
+  }
+
+  private hazardValues(dto: DefaultHazardDto, actor: string | null) {
+    return {
+      code: dto.code.trim(),
+      name: dto.name.trim(),
+      category: dto.category.trim(),
+      severity: dto.severity ?? 'medium',
+      description: blank(dto.description),
+      risks: lines(dto.risks),
+      consequences: lines(dto.consequences),
+      controls: lines(dto.controls),
+      permitTypeCodes: lines(dto.permitTypeCodes),
+      updatedBy: actor,
+    };
+  }
+
+  private async replaceHazardPpe(
+    tx: Pick<Database, 'insert' | 'delete'>,
+    hazardId: string,
+    ppeIds: string[],
+    actor: string | null,
+  ) {
+    await tx.delete(defaultHazardPpe).where(eq(defaultHazardPpe.hazardId, hazardId));
+    const unique = [...new Set(ppeIds)];
+    if (unique.length === 0) return;
+    await tx.insert(defaultHazardPpe).values(
+      unique.map((ppeItemId) => ({
+        hazardId,
+        ppeItemId,
+        createdBy: actor,
+        updatedBy: actor,
+      })),
+    );
+  }
+
+  private async assertHazardRefs(dto: DefaultHazardDto) {
+    const codes = lines(dto.permitTypeCodes);
+    if (codes.length > 0) {
+      const types = await this.db.select({ code: defaultPermitTypes.code }).from(defaultPermitTypes);
+      const known = new Set(types.map((row) => row.code));
+      if (codes.some((code) => !known.has(code))) {
+        throw new BadRequestException('One or more permit types are not in the default list');
+      }
+    }
+    const ppeIds = [...new Set(dto.ppeIds ?? [])];
+    if (ppeIds.length === 0) return;
+    const items = await this.db.select({ id: defaultPpeItems.id }).from(defaultPpeItems);
+    const known = new Set(items.map((row) => row.id));
+    if (ppeIds.some((id) => !known.has(id))) {
+      throw new BadRequestException('One or more PPE items are not in the default list');
+    }
+  }
+
+  private async getAssetType(id: string) {
+    const [row] = await this.db.select().from(defaultAssetTypes).where(eq(defaultAssetTypes.id, id));
+    if (!row) throw new NotFoundException('Asset type not found');
+    return row;
+  }
+
+  private async assertAssetTypeNameFree(name: string, exceptId?: string) {
+    const [existing] = await this.db
+      .select({ id: defaultAssetTypes.id })
+      .from(defaultAssetTypes)
+      .where(sql`lower(${defaultAssetTypes.name}) = ${name.toLowerCase()}`);
+    if (existing && existing.id !== exceptId) {
+      throw new ConflictException('That name is already on the list');
+    }
+  }
+
+  private async getHazard(id: string) {
+    const [row] = await this.db.select().from(defaultHazards).where(eq(defaultHazards.id, id));
+    if (!row) throw new NotFoundException('Hazard not found');
+    return row;
+  }
+
+  private async assertHazardCodeFree(code: string, exceptId?: string) {
+    const [existing] = await this.db
+      .select({ id: defaultHazards.id })
+      .from(defaultHazards)
+      .where(sql`lower(${defaultHazards.code}) = ${code.toLowerCase()}`);
+    if (existing && existing.id !== exceptId) {
+      throw new ConflictException('That code is already on the list');
+    }
   }
 
   private async getPpeCategory(id: string) {

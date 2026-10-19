@@ -596,6 +596,20 @@
       "when": 1793900000000,
       "tag": "0082_hazard_place_links",
       "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1794000000000,
+      "tag": "0083_platform_hazards_asset_types",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1794100000000,
+      "tag": "0084_industry_description_site_notes",
+      "breakpoints": true
     }
   ]
 }

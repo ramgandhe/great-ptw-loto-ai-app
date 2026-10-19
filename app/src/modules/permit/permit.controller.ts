@@ -55,6 +55,15 @@ export class PermitController {
     return this.permitService.findOne(id, user);
   }
 
+  @Roles('tenant-owner')
+  @Delete(':id/purge')
+  purge(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.permitService.purge(id, user);
+  }
+
   @Roles(...PERMIT_DELETE_ROLES)
   @Delete(':id')
   remove(

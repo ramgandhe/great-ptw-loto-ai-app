@@ -333,7 +333,7 @@ export class PlatformTenantsService {
     const actorId = optionalUuid(actor.id);
     const [row] = await this.db
       .insert(industries)
-      .values({ name, isFallback: false, createdBy: actorId, updatedBy: actorId })
+      .values({ name, description: dto.description?.trim() || null, isFallback: false, createdBy: actorId, updatedBy: actorId })
       .returning();
     return row;
   }
@@ -344,7 +344,12 @@ export class PlatformTenantsService {
     await this.assertIndustryNameFree(name, industry.id);
     const [row] = await this.db
       .update(industries)
-      .set({ name, updatedBy: optionalUuid(actor.id), updatedAt: new Date() })
+      .set({
+        name,
+        ...(dto.description !== undefined ? { description: dto.description.trim() || null } : {}),
+        updatedBy: optionalUuid(actor.id),
+        updatedAt: new Date(),
+      })
       .where(eq(industries.id, industry.id))
       .returning();
     return row;

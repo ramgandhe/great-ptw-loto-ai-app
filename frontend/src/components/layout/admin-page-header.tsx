@@ -35,11 +35,13 @@ export function AdminPageHeader({
   description,
   action,
   children,
+  back,
 }: {
   title: string;
   description: React.ReactNode;
   action?: React.ReactNode;
   children?: React.ReactNode;
+  back?: { href: string; label: string };
 }) {
   const hub = usePathname().split("/")[1] ?? "";
   // Inside the wizard the step supplies its own title and help; keep only the action and filters.
@@ -53,7 +55,7 @@ export function AdminPageHeader({
   }
   return (
     <PageHeader
-      back={HUBS[hub]}
+      back={back ?? HUBS[hub]}
       title={title}
       description={description}
       actions={action}

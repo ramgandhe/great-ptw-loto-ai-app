@@ -112,4 +112,10 @@ export class IndustryNameDto {
   @MaxLength(128)
   @Matches(NAME_REGEX, { message: NAME_MESSAGE('name') })
   name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('description') })
+  description?: string;
 }

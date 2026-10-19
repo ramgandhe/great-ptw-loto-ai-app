@@ -22,6 +22,7 @@ export const industries = pgTable(
   {
     ...auditColumns,
     name: varchar('name', { length: 128 }).notNull(),
+    description: text('description'),
     isFallback: boolean('is_fallback').notNull().default(false),
   },
   (table) => [

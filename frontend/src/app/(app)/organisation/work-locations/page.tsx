@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
-import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { sitesApi } from "@/lib/organisation/api";
 import type { OrgRecord } from "@/lib/organisation/types";
 import {
@@ -15,7 +14,7 @@ import {
 } from "@/lib/place/api";
 import { listTenantUsers } from "@/lib/workforce/api";
 import type { TenantUser } from "@/lib/workforce/types";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 import { toast } from "@/components/ui/toast";
 import {
@@ -97,9 +96,6 @@ export default function WorkLocationsPage() {
   const [form, setForm] = useState(emptyForm);
   const [approverIds, setApproverIds] = useState<string[]>([]);
   const [approverNote, setApproverNote] = useState<string | null>(null);
-  const [typeName, setTypeName] = useState("");
-  const [typeDescription, setTypeDescription] = useState("");
-  const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -295,48 +291,6 @@ export default function WorkLocationsPage() {
       );
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function addType(event: React.FormEvent) {
-    event.preventDefault();
-    const name = typeName.trim();
-    if (!name) return;
-    setSaving(true);
-    setError(null);
-    try {
-      if (editingTypeId) {
-        await placeApi.updateLocationType(editingTypeId, { name, description: typeDescription.trim() || null });
-        toast("Location type updated");
-      } else {
-        await placeApi.createLocationType({ name, description: typeDescription.trim() || undefined });
-        toast("Location type added");
-      }
-      setTypes(await placeApi.listLocationTypes());
-      setTypeName("");
-      setTypeDescription("");
-      setEditingTypeId(null);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to save this location type");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function removeType(type: { id: string; name: string }) {
-    setError(null);
-    try {
-      const removed = await deleteWithAssignmentConfirm(type.name, (force) => placeApi.deleteLocationType(type.id, force).then(() => undefined));
-      if (!removed) return;
-      setTypes(await placeApi.listLocationTypes());
-      if (editingTypeId === type.id) {
-        setEditingTypeId(null);
-        setTypeName("");
-        setTypeDescription("");
-      }
-      toast("Location type removed");
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to remove this location type");
     }
   }
 
@@ -572,54 +526,11 @@ export default function WorkLocationsPage() {
           ) : null}
         </form>
       ) : null}
-      <section className="grid gap-3 rounded-xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Location types</h2>
-        <p className="text-sm text-muted-foreground">
-          Labels only. They do not change how a location behaves.
-        </p>
-        {types.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No types yet.</p>
-        ) : (
-          <ul className="grid gap-2">
-            {types.map((type) => (
-              <li key={type.id} className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm">
-                <span>
-                  <span className="font-medium">{type.name}</span>
-                  {type.description ? <span className="mt-0.5 block text-muted-foreground">{type.description}</span> : null}
-                </span>
-                <span className="flex gap-2">
-                  <button
-                    type="button"
-                    className="underline"
-                    onClick={() => {
-                      setEditingTypeId(type.id);
-                      setTypeName(type.name);
-                      setTypeDescription(type.description ?? "");
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button type="button" className="underline" onClick={() => void removeType(type)}>Remove</button>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <form className="flex flex-wrap items-end gap-2" onSubmit={(event) => void addType(event)}>
-          <label className="grid gap-1.5 text-sm">
-            <span className="font-medium">{editingTypeId ? "Type name" : "New type"}</span>
-            <input className={FIELD_CLASS} value={typeName} onChange={(event) => setTypeName(event.target.value)} placeholder="Area" />
-          </label>
-          <label className="grid min-w-64 flex-1 gap-1.5 text-sm">
-            <span className="font-medium">Description</span>
-            <input className={FIELD_CLASS} value={typeDescription} onChange={(event) => setTypeDescription(event.target.value)} placeholder="Optional" />
-          </label>
-          <Button type="submit" disabled={saving || !typeName.trim()}>{editingTypeId ? "Save type" : "Add type"}</Button>
-          {editingTypeId ? (
-            <Button type="button" variant="ghost" onClick={() => { setEditingTypeId(null); setTypeName(""); setTypeDescription(""); }}>Cancel</Button>
-          ) : null}
-        </form>
-      </section>
+      <div className="flex justify-end">
+        <Link href="/organisation/work-locations/types" className={buttonVariants({ variant: "outline" })}>
+          Add Location Type
+        </Link>
+      </div>
     </AdminPage>
   );
 }

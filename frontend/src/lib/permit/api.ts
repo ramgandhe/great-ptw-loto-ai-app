@@ -217,6 +217,13 @@ export function deleteDraftPermit(id: string) {
   });
 }
 
+/** Temporary owner cleanup. Removes the permit and incidents linked to it. */
+export function purgePermit(id: string) {
+  return fetchApi<{ id: string; deleted: boolean }>(`/permits/${id}/purge`, {
+    method: "DELETE",
+  });
+}
+
 export async function uploadPermitAttachment(permitId: string, file: File) {
   const formData = new FormData();
   formData.append("file", file);

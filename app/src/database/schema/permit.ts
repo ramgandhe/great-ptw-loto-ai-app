@@ -42,6 +42,8 @@ export const permits = pgTable(
     permitTypeId: uuid('permit_type_id').notNull(),
     title: varchar('title', { length: 255 }).notNull(),
     workScope: text('work_scope'),
+    /** Optional operator note from Site safety. */
+    siteNotes: text('site_notes'),
     emergencyPhone: varchar('emergency_phone', { length: 32 }),
     safetyApprovalComment: text('safety_approval_comment'),
     safetyApprovalSignedName: varchar('safety_approval_signed_name', { length: 255 }),

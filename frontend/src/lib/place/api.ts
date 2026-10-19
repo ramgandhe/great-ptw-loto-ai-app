@@ -121,8 +121,12 @@ export const placeApi = {
     return fetchApi<{ deleted: boolean }>(`/assets/${id}/delete${query ? `?${query}` : ""}`, { method: "POST" });
   },
   listAssetTypes: () => fetchApi<NamedType[]>("/asset-types"),
-  createAssetType: (name: string) =>
-    fetchApi<NamedType>("/asset-types", { method: "POST", body: JSON.stringify({ name }) }),
+  createAssetType: (payload: { name: string; description?: string }) =>
+    fetchApi<NamedType>("/asset-types", { method: "POST", body: JSON.stringify(payload) }),
+  updateAssetType: (id: string, payload: { name?: string; description?: string | null }) =>
+    fetchApi<NamedType>(`/asset-types/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteAssetType: (id: string, force = false) =>
+    fetchApi<{ deleted: boolean }>(`/asset-types/${id}${force ? "?force=true" : ""}`, { method: "DELETE" }),
   listMembers: (siteId: string) => fetchApi<SiteMember[]>(`/sites/${siteId}/members`),
   addMember: (siteId: string, userId: string) =>
     fetchApi<SiteMember>(`/sites/${siteId}/members`, { method: "POST", body: JSON.stringify({ userId }) }),

@@ -547,7 +547,13 @@ export class PlaceService {
     try {
       const [row] = await this.db
         .insert(assetTypes)
-        .values({ tenantId, name: dto.name.trim(), createdBy: user.id, updatedBy: user.id })
+        .values({
+          tenantId,
+          name: dto.name.trim(),
+          description: dto.description?.trim() || null,
+          createdBy: user.id,
+          updatedBy: user.id,
+        })
         .returning();
       await this.audit('asset_type.created', 'asset_type', row.id, user, tenantId);
       return row;
@@ -565,6 +571,7 @@ export class PlaceService {
         .update(assetTypes)
         .set({
           ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+          ...(dto.description !== undefined ? { description: dto.description?.trim() || null } : {}),
           ...(dto.status !== undefined ? { status: dto.status } : {}),
           updatedBy: user.id,
           updatedAt: new Date(),
@@ -578,6 +585,29 @@ export class PlaceService {
       if (isUniqueViolation(error)) throw new ConflictException('This asset type already exists');
       throw error;
     }
+  }
+
+  async deleteAssetType(id: string, user: AuthenticatedUser, force = false) {
+    this.assertWriter(user);
+    const tenantId = requireTenant(user);
+    const [current] = await this.db
+      .select()
+      .from(assetTypes)
+      .where(and(eq(assetTypes.id, id), eq(assetTypes.tenantId, tenantId)));
+    if (!current) throw new NotFoundException('Record not found');
+    if (!force) {
+      const used = await this.db
+        .select({ name: assets.name })
+        .from(assets)
+        .where(and(eq(assets.tenantId, tenantId), eq(assets.assetTypeId, id)))
+        .limit(8);
+      if (used.length > 0) {
+        throwInUse(used.map((row) => `${row.name} uses this asset type`));
+      }
+    }
+    await this.db.delete(assetTypes).where(and(eq(assetTypes.id, id), eq(assetTypes.tenantId, tenantId)));
+    await this.audit('asset_type.deleted', 'asset_type', id, user, tenantId);
+    return { deleted: true };
   }
 
   async listAssets(user: AuthenticatedUser, query: { siteId?: string; workLocationId?: string; exact?: boolean; archived?: boolean }) {

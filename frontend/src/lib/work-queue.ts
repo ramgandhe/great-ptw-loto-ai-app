@@ -131,6 +131,9 @@ export function buildWorkQueue(
 
   const canCreate = hasAnyRole(roles, PERMIT_CREATE_ROLES);
   const isExecutor = hasAnyRole(roles, NAV_OPERATOR_DRAFTS_ROLES) || hasAnyRole(roles, EXECUTOR_ROLES);
+  const privileged = hasAnyRole(roles, ["tenant-owner", "tenant-admin", "platform-admin"]);
+  const canRunPermit = (permit: PermitRecord) =>
+    privileged || Boolean(userId && permit.executorIds?.includes(userId));
 
   // The API only returns permits a safety officer is assigned to.
   const isSafetyOfficer = hasAnyRole(roles, SAFETY_OFFICER_ROLES);
@@ -172,13 +175,13 @@ export function buildWorkQueue(
         if (canCreate) add("revise", permit, `/permits/${permit.id}/edit`, undefined, true);
         break;
       case "approved":
-        if (isExecutor) {
+        if (canRunPermit(permit)) {
           const note = startsSoonNote(permit, now);
           add("start-work", permit, workspaceHref(permit.id, "work"), note, Boolean(note));
         }
         break;
       case "active":
-        if (isExecutor) {
+        if (canRunPermit(permit)) {
           const note = overdueNote(permit, now);
           add("log-progress", permit, workspaceHref(permit.id, "work"), note, Boolean(note));
         }

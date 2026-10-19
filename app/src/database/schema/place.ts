@@ -122,6 +122,7 @@ export const assetTypes = pgTable(
     ...auditColumns,
     tenantId: uuid('tenant_id').notNull(),
     name: varchar('name', { length: 64 }).notNull(),
+    description: text('description'),
     status: varchar('status', { length: 32 }).notNull().default('active'),
   },
   (table) => [

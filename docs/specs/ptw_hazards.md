@@ -1,38 +1,28 @@
-# HAZARD CONFIGURATIONS - TYPES OF HAZARDS
+# APP CONFIGURATION : HAZARDS - TYPES OF HAZARDS
 
 ## 1. Fire and Ignition
 
-#### Name:
+**Name :** Fire and Ignition;
+**Code :** HAZ-FIRE-001
+**Category :** Fire and Explosion
+**Severity :** Critical
+**Description :** Ignition of combustible or flammable materials due to flames, sparks, hot surfaces, or other ignition sources.
 
-Fire and Ignition;
-
-#### Code:
-
-HAZ-FIRE-001;
-
-#### Category:
-
-Fire and Explosion;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Ignition of combustible or flammable materials due to flames, sparks, hot surfaces, or other ignition sources.
-
-#### Risks:
+**Risks :**
 
 - Ignition of flammable vapours
 - Sparks reaching combustible materials
 - Inadequate separation of hot work from hazardous substances.
 
-#### Consequences:
+**Consequences :**
 
-Burns, fire spread, fatalities, equipment damage, production loss.
+- Burns
+- fire spread
+- fatalities
+- equipment damage
+- production loss
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Remove or protect combustible materials
 - Verify flammable atmospheres are controlled where relevant
@@ -40,7 +30,7 @@ Burns, fire spread, fatalities, equipment damage, production loss.
 - Provide suitable firefighting equipment and a trained fire watch where required
 - Monitor the area during work and for the site-defined period afterward.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
@@ -49,49 +39,38 @@ Burns, fire spread, fatalities, equipment damage, production loss.
 - PPE-12
 - PPE-15
 - PPE-17
-- PPE-18
+- PPE-18 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- HOT,
-- COLD,
-- CSP,
-- WAH,
+- HOT
+- COLD
+- CSP
+- WAH
 - ELEC (should display names for these codes)
 
 ## 2. Explosion / Flammable Atmosphere
 
-#### Name:
+**Name :** Explosion / Flammable Atmosphere;
+**Code :** HAZ-FIRE-002
+**Category :** Fire and Explosion
+**Severity :** Critical
+**Description :** Presence or possible accumulation of flammable gases, vapours, mists, or combustible dust that can ignite or explode.
 
-Explosion / Flammable Atmosphere;
-
-#### Code:
-
-HAZ-FIRE-002;
-
-#### Category:
-
-Fire and Explosion;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Presence or possible accumulation of flammable gases, vapours, mists, or combustible dust that can ignite or explode.
-
-#### Risks:
+**Risks :**
 
 - Ignition by sparks, static discharge, electrical equipment, or hot work;
 - Accumulation of flammable substances;
 - Uncontrolled release of flammable materials.
 
-#### Consequences:
+**Consequences :**
 
-Blast injuries, burns, structural damage, multiple fatalities.
+- Blast injuries
+- burns
+- structural damage
+- multiple fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Identify flammable substances and potential release sources;
 - Isolate and eliminate leaks where practicable;
@@ -99,55 +78,43 @@ Blast injuries, burns, structural damage, multiple fatalities.
 - Maintain ventilation and monitor conditions as specified by the risk assessment;
 - Control ignition sources and use appropriately rated equipment in classified areas.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
 - PPE-09
 - PPE-12
 - PPE-14
-- PPE-15
+- PPE-15 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- HOT,
-- COLD,
-- CSP,
+- HOT
+- COLD
+- CSP
 - ELEC (should display names for these codes)
 
 ## 3. Hot Surfaces and Thermal Burns
 
-#### Name:
+**Name :** Hot Surfaces and Thermal Burns;
+**Code :** HAZ-THERM-001
+**Category :** Thermal
+**Severity :** High
+**Description :** Exposure to heated equipment, molten material, hot workpieces, steam, or other high-temperature surfaces.
 
-Hot Surfaces and Thermal Burns;
-
-#### Code:
-
-HAZ-THERM-001;
-
-#### Category:
-
-Thermal;
-
-#### Default severity:
-
-High;
-
-#### Description:
-
-Exposure to heated equipment, molten material, hot workpieces, steam, or other high-temperature surfaces.
-
-#### Risks:
+**Risks :**
 
 - Accidental contact with hot surfaces
 - Hot material splashes
 - Unexpected release of steam or heat.
 
-#### Consequences:
+**Consequences :**
 
-Skin burns, eye injuries, serious tissue damage.
+- Skin burns
+- eye injuries
+- serious tissue damage.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Allow equipment to cool where possible
 - Isolate heat and pressure sources before work
@@ -155,56 +122,45 @@ Skin burns, eye injuries, serious tissue damage.
 - Use task-appropriate thermal PPE
 - Verify temperature before handling equipment or materials.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-02
 - PPE-03
 - PPE-09
 - PPE-12
 - PPE-15
-- PPE-23
+- PPE-23 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- HOT,
-- COLD,
-- CSP,
+- HOT
+- COLD
+- CSP
 - ELEC (should display names for these codes)
 
 ## 4. Smoke, Welding Fumes and Harmful Dust
 
-#### Name:
+**Name :** Smoke, Welding Fumes and Harmful Dust;
+**Code :** HAZ-AIR-001
+**Category :** Chemical / Airborne Exposure
+**Severity :** High
+**Description :** Generation or accumulation of welding fumes, grinding dust, airborne particulates, or harmful vapours during work.
 
-Smoke, Welding Fumes and Harmful Dust;
-
-#### Code:
-
-HAZ-AIR-001;
-
-#### Category:
-
-Chemical / Airborne Exposure;
-
-#### Default severity:
-
-High;
-
-#### Description:
-
-Generation or accumulation of welding fumes, grinding dust, airborne particulates, or harmful vapours during work.
-
-#### Risks:
+**Risks :**
 
 - Inhalation of toxic substances
 - Exposure to metal fumes
 - Inadequate ventilation
 - Secondary exposure to nearby workers.
 
-#### Consequences:
+**Consequences :**
 
-Respiratory irritation, occupational illness, lung damage, acute poisoning.
+- Respiratory irritation
+- occupational illness,
+- lung damage,
+- acute poisoning.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Assess the materials and expected contaminants
 - Use local exhaust ventilation or suitable extraction
@@ -212,7 +168,7 @@ Respiratory irritation, occupational illness, lung damage, acute poisoning.
 - Prevent exposure to nearby personnel
 - Apply atmospheric monitoring where the substances and task warrant it.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-02
 - PPE-07
@@ -220,48 +176,37 @@ Respiratory irritation, occupational illness, lung damage, acute poisoning.
 - PPE-09
 - PPE-12
 - PPE-15
-- PPE-25
+- PPE-25 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- HOT,
-- COLD,
-- CSP,
+- HOT
+- COLD
+- CSP
 - ELEC (should display names for these codes)
 
 ## 5. Electric Shock and Electrocution
 
-#### Name:
+**Name :** Electric Shock and Electrocution;
+**Code :** HAZ-ELEC-001
+**Category :** Electrical
+**Severity :** Critical
+**Description :** Exposure to live electrical conductors, faulty equipment, damaged insulation, or unexpected energization.
 
-Electric Shock and Electrocution;
-
-#### Code:
-
-HAZ-ELEC-001;
-
-#### Category:
-
-Electrical;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Exposure to live electrical conductors, faulty equipment, damaged insulation, or unexpected energization.
-
-#### Risks:
+**Risks :**
 
 - Direct or indirect electrical contact
 - Current passing through the body
 - Contact with energized metalwork.
 
-#### Consequences:
+**Consequences :**
 
-Electric shock, electrical burns, cardiac arrest, electrocution.
+- Electric shock,
+- electrical burns,
+- cardiac arrest,
+- electrocution.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Isolate all relevant electrical supplies where required
 - Apply lockout/tagout and verify absence of voltage using suitable equipment
@@ -269,57 +214,47 @@ Electric shock, electrical burns, cardiac arrest, electrocution.
 - Inspect tools, cables, and protective devices
 - Apply approved energized-work procedures only where justified and permitted.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
 - PPE-04
 - PPE-12
 - PPE-15
-- PPE-24
+- PPE-24 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- ELEC,
-- COLD,
-- HOT,
-- CSP,
+- ELEC
+- COLD
+- HOT
+- CSP
 - WAH (should display names for these codes)
 
 ## 6. Arc Flash and Arc Blast
 
-#### Name:
+**Name :** Arc Flash and Arc Blast;
+**Code :** HAZ-ELEC-002
+**Category :** Electrical
+**Severity :** Critical
+**Description :** Release of intense thermal energy, pressure, and debris from an electrical arc fault.
 
-Arc Flash and Arc Blast;
-
-#### Code:
-
-HAZ-ELEC-002;
-
-#### Category:
-
-Electrical;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Release of intense thermal energy, pressure, and debris from an electrical arc fault.
-
-#### Risks:
+**Risks :**
 
 - Switching or testing faults
 - Short circuits
 - Accidental contact
 - Electrical equipment failure.
 
-#### Consequences:
+**Consequences :**
 
-Severe burns, blast injuries, hearing damage, permanent disability, fatalities.
+- Severe burns
+- blast injuries
+- hearing damage
+- permanent disability
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Assess arc-flash risk and incident energy where applicable
 - De-energize equipment where practicable
@@ -327,7 +262,7 @@ Severe burns, blast injuries, hearing damage, permanent disability, fatalities.
 - Use appropriately rated PPE and tools
 - Follow approved switching and electrical-work procedures.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-04
@@ -335,37 +270,23 @@ Severe burns, blast injuries, hearing damage, permanent disability, fatalities.
 - PPE-06
 - PPE-12
 - PPE-24
-- PPE-29
+- PPE-29 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- ELEC,
-- COLD,
+- ELEC
+- COLD
 - HOT (should display names for these codes)
 
 ## 7. Unexpected Energization / Stored Energy
 
-#### Name:
+**Name :** Unexpected Energization / Stored Energy;
+**Code :** HAZ-ENERGY-001
+**Category :** Hazardous Energy
+**Severity :** Critical
+**Description :** Unexpected startup, movement, release, or energization of equipment or systems during maintenance.
 
-Unexpected Energization / Stored Energy;
-
-#### Code:
-
-HAZ-ENERGY-001;
-
-#### Category:
-
-Hazardous Energy;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Unexpected startup, movement, release, or energization of equipment or systems during maintenance.
-
-#### Risks:
+**Risks :**
 
 - Residual electrical charge
 - Rotating machinery
@@ -375,11 +296,15 @@ Unexpected startup, movement, release, or energization of equipment or systems d
 - Gravity
 - Remote startup.
 
-#### Consequences:
+**Consequences :**
 
-Crushing, entanglement, amputation, electrocution, fatalities.
+- Crushing
+- entanglement
+- amputation
+- electrocution
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Identify all energy sources and isolation points
 - Apply approved isolation and lockout/tagout procedures
@@ -387,7 +312,7 @@ Crushing, entanglement, amputation, electrocution, fatalities.
 - Verify the safe, zero-energy state before work
 - Control the removal of locks and restoration of energy.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
@@ -395,40 +320,26 @@ Crushing, entanglement, amputation, electrocution, fatalities.
 - PPE-09
 - PPE-12
 - PPE-15
-- PPE-24
+- PPE-24 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- ELEC,
-- COLD,
-- HOT,
-- CSP,
-- WAH,
+- ELEC
+- COLD
+- HOT
+- CSP
+- WAH
 - EXC (should display names for these codes)
 
 ## 8. Mechanical Movement / Rotating Machinery
 
-#### Name:
+**Name :** Mechanical Movement / Rotating Machinery;
+**Code :** HAZ-MECH-001
+**Category :** Mechanical
+**Severity :** High
+**Description :** Exposure to moving machinery, rotating components, pinch points, or mechanical forces.
 
-Mechanical Movement / Rotating Machinery;
-
-#### Code:
-
-HAZ-MECH-001;
-
-#### Category:
-
-Mechanical;
-
-#### Default severity:
-
-High;
-
-#### Description:
-
-Exposure to moving machinery, rotating components, pinch points, or mechanical forces.
-
-#### Risks:
+**Risks :**
 
 - Entanglement
 - Trapping
@@ -436,11 +347,15 @@ Exposure to moving machinery, rotating components, pinch points, or mechanical f
 - Contact with moving parts
 - Unexpected movement.
 
-#### Consequences:
+**Consequences :**
 
-Lacerations, fractures, amputations, permanent disability, fatalities.
+- Lacerations
+- fractures
+- amputations
+- permanent disability
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Isolate and secure machinery before intervention;
 - Verify that moving parts have stopped
@@ -448,7 +363,7 @@ Lacerations, fractures, amputations, permanent disability, fatalities.
 - Use suitable tools and safe work methods
 - Prevent unauthorized startup.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
@@ -457,48 +372,37 @@ Lacerations, fractures, amputations, permanent disability, fatalities.
 - PPE-09
 - PPE-11
 - PPE-12
-- PPE-15
+- PPE-15 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- COLD,
-- HOT,
-- ELEC,
+- COLD
+- HOT
+- ELEC
 - CSP (should display names for these codes)
 
 ## 9. Oxygen Deficiency
 
-#### Name:
+**Name :** Oxygen Deficiency;
+**Code :** HAZ-ATM-001
+**Category :** Atmospheric
+**Severity :** Critical
+**Description :** An atmosphere with insufficient oxygen to safely support human life, potentially caused by displacement, consumption, or inerting.
 
-Oxygen Deficiency;
-
-#### Code:
-
-HAZ-ATM-001;
-
-#### Category:
-
-Atmospheric;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-An atmosphere with insufficient oxygen to safely support human life, potentially caused by displacement, consumption, or inerting.
-
-#### Risks:
+**Risks :**
 
 - Entry into an oxygen-deficient space
 - Oxygen displacement by inert gases
 - Oxygen depletion from chemical or biological processes.
 
-#### Consequences:
+**Consequences :**
 
-Dizziness, unconsciousness, asphyxiation, fatalities.
+- Dizziness
+- unconsciousness
+- asphyxiation
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Test the atmosphere before entry and as frequently as required
 - Isolate inert-gas and other supply sources
@@ -506,54 +410,43 @@ Dizziness, unconsciousness, asphyxiation, fatalities.
 - Use continuous monitoring where required by the assessment
 - Establish rescue arrangements that do not rely on unprotected entry.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
 - PPE-08
 - PPE-12
-- PPE-15
+- PPE-15 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- CSP,
-- HOT,
-- COLD,
+- CSP
+- HOT
+- COLD
 - ELEC (should display names for these codes)
 
 ## 10. Toxic Gas / Harmful Atmosphere
 
-#### Name:
+**Name :** Toxic Gas / Harmful Atmosphere;
+**Code :** HAZ-ATM-002
+**Category :** Atmospheric / Chemical
+**Severity :** Critical
+**Description :** Presence or potential release of toxic gases, vapours, or airborne contaminants.
 
-Toxic Gas / Harmful Atmosphere;
-
-#### Code:
-
-HAZ-ATM-002;
-
-#### Category:
-
-Atmospheric / Chemical;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Presence or potential release of toxic gases, vapours, or airborne contaminants.
-
-#### Risks:
+**Risks :**
 
 - Exposure to toxic process gases
 - Exposure to cleaning chemicals
 - Exposure to decomposition products or harmful vapours.
 
-#### Consequences:
+**Consequences :**
 
-Poisoning, respiratory failure, permanent injury, fatalities.
+- Poisoning
+- Respiratory failure
+- permanent injury
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Identify substances and their exposure limits
 - Isolate release sources where possible
@@ -561,7 +454,7 @@ Poisoning, respiratory failure, permanent injury, fatalities.
 - Ventilate and monitor the atmosphere as required
 - Provide suitable respiratory protection and emergency rescue arrangements.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-02
 - PPE-08
@@ -569,49 +462,38 @@ Poisoning, respiratory failure, permanent injury, fatalities.
 - PPE-12
 - PPE-15
 - PPE-22
-- PPE-27
+- PPE-27 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- CSP,
-- HOT,
-- COLD,
+- CSP
+- HOT
+- COLD
 - ELEC (should display names for these codes)
 
 ## 11. Flammable Atmosphere in Confined Space
 
-#### Name:
+**Name :** Flammable Atmosphere in Confined Space;
+**Code :** HAZ-ATM-003
+**Category :** Atmospheric / Fire and Explosion
+**Severity :** Critical
+**Description :** Accumulation of flammable gas, vapour, mist, or combustible dust in an enclosed or poorly ventilated area.
 
-Flammable Atmosphere in Confined Space;
-
-#### Code:
-
-HAZ-ATM-003;
-
-#### Category:
-
-Atmospheric / Fire and Explosion;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Accumulation of flammable gas, vapour, mist, or combustible dust in an enclosed or poorly ventilated area.
-
-#### Risks:
+**Risks :**
 
 - Ignition from hot work
 - Electrical faults
 - Static electricity
 - Use of unsuitable tools.
 
-#### Consequences:
+**Consequences :**
 
-Explosion, burns, structural damage, fatalities.
+- Explosion
+- burns
+- structural damage
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Test the atmosphere before entry and hot work
 - Eliminate ignition sources and control hazardous releases
@@ -619,56 +501,46 @@ Explosion, burns, structural damage, fatalities.
 - Use appropriately rated equipment
 - Stop work and evacuate if conditions breach approved limits.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
 - PPE-04
 - PPE-08
 - PPE-12
-- PPE-15
+- PPE-15 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- CSP,
-- HOT,
-- ELEC,
+- CSP
+- HOT
+- ELEC
   COLD(should display names for these codes)
 
 ## 12. Heat Stress / Poor Ventilation
 
-#### Name:
+**Name :** Heat Stress / Poor Ventilation;
+**Code :** HAZ-ENV-001
+**Category :** Environmental / Occupational Health
+**Severity :** High
+**Description :** Exposure to high temperatures, humidity, radiant heat, or inadequate ventilation during work.
 
-Heat Stress / Poor Ventilation;
-
-#### Code:
-
-HAZ-ENV-001;
-
-#### Category:
-
-Environmental / Occupational Health;
-
-#### Default severity:
-
-High;
-
-#### Description:
-
-Exposure to high temperatures, humidity, radiant heat, or inadequate ventilation during work.
-
-#### Risks:
+**Risks :**
 
 - Heat accumulation
 - Strenuous activity
 - Restricted air movement
 - Dehydration.
 
-#### Consequences:
+**Consequences :**
 
-Heat exhaustion, heatstroke, impaired judgment, collapse, fatalities.
+- Heat exhaustion
+- heatstroke
+- impaired judgment
+- collapse
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Assess environmental and workload conditions
 - Provide ventilation, hydration, and suitable rest periods
@@ -676,56 +548,45 @@ Heat exhaustion, heatstroke, impaired judgment, collapse, fatalities.
 - Monitor workers for symptoms
 - Maintain communication and emergency arrangements.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
 - PPE-12
 - PPE-14
 - PPE-15
-- PPE-30
+- PPE-30 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- CSP,
-- HOT,
-- COLD,
+- CSP
+- HOT
+- COLD
 - WAH (should display names for these codes)
 
 ## 13. Fall from Height
 
-#### Name:
+**Name :** Fall from Height;
+**Code :** HAZ-HEIGHT-001
+**Category :** Work at Height
+**Severity :** Critical
+**Description :** Exposure to unprotected edges, openings, fragile surfaces, or elevated work positions.
 
-Fall from Height;
-
-#### Code:
-
-HAZ-HEIGHT-001;
-
-#### Category:
-
-Work at Height;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Exposure to unprotected edges, openings, fragile surfaces, or elevated work positions.
-
-#### Risks:
+**Risks :**
 
 - Loss of balance
 - Ladder failure
 - Unsafe access
 - Failure of fall protection.
 
-#### Consequences:
+**Consequences :**
 
-Fractures, head injuries, permanent disability, fatalities.
+- Fractures
+- head injuries
+- permanent disability
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Prioritize safe platforms and collective protection
 - Inspect scaffolds and ladders
@@ -733,55 +594,44 @@ Fractures, head injuries, permanent disability, fatalities.
 - Use suitable fall-arrest or restraint systems with appropriate anchorage
 - Establish a rescue plan.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-12
 - PPE-19
 - PPE-20
-- PPE-28
+- PPE-28 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- WAH,
-- HOT,
-- COLD,
+- WAH
+- HOT
+- COLD
 - ELEC (should display names for these codes)
 
 ## 14. Falling Objects
 
-#### Name:
+**Name :** Falling Objects;
+**Code :** HAZ-HEIGHT-002
+**Category :** Work at Height / Dropped Objects
+**Severity :** High
+**Description :** Tools, materials, debris, or equipment falling from elevated work areas.
 
-Falling Objects;
-
-#### Code:
-
-HAZ-HEIGHT-002;
-
-#### Category:
-
-Work at Height / Dropped Objects;
-
-#### Default severity:
-
-High;
-
-#### Description:
-
-Tools, materials, debris, or equipment falling from elevated work areas.
-
-#### Risks:
+**Risks :**
 
 - Dropped tools
 - Unsecured materials
 - Dislodged components
 - Simultaneous work above and below.
 
-#### Consequences:
+**Consequences :**
 
-Head injuries, fractures, crushing injuries, fatalities.
+- Head injuries
+- fractures
+- crushing injuries
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Secure tools and materials
 - Use tool lanyards where suitable
@@ -790,7 +640,7 @@ Head injuries, fractures, crushing injuries, fatalities.
 - Coordinate work at different elevations
 - Require appropriate head protection.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
@@ -798,38 +648,24 @@ Head injuries, fractures, crushing injuries, fatalities.
 - PPE-12
 - PPE-14
 - PPE-15
-- PPE-28
+- PPE-28 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- WAH,
-- HOT,
-- COLD,
+- WAH
+- HOT
+- COLD
 - ELEC (should display names for these codes)
 
 ## 15. Structural Instability / Platform Failure
 
-#### Name:
+**Name :** Structural Instability / Platform Failure;
+**Code :** HAZ-STRUCT-001
+**Category :** Structural / Access
+**Severity :** Critical
+**Description :** Failure or instability of scaffolds, temporary platforms, roofs, floors, supports, or structures.
 
-Structural Instability / Platform Failure;
-
-#### Code:
-
-HAZ-STRUCT-001;
-
-#### Category:
-
-Structural / Access;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Failure or instability of scaffolds, temporary platforms, roofs, floors, supports, or structures.
-
-#### Risks:
+**Risks :**
 
 - Overloading
 - Inadequate foundations
@@ -837,11 +673,14 @@ Failure or instability of scaffolds, temporary platforms, roofs, floors, support
 - Unstable surfaces
 - Unauthorized modifications.
 
-#### Consequences:
+**Consequences :**
 
-Falls, collapse, crush injuries, multiple fatalities.
+- Falls
+- collapse
+- crush injuries
+- multiple fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Verify load capacity and structural condition
 - Inspect and approve temporary structures
@@ -849,7 +688,7 @@ Falls, collapse, crush injuries, multiple fatalities.
 - Protect fragile surfaces
 - Restrict access until the structure is confirmed safe.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
@@ -858,38 +697,24 @@ Falls, collapse, crush injuries, multiple fatalities.
 - PPE-14
 - PPE-19
 - PPE-20
-- PPE-28
+- PPE-28 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- WAH,
+- WAH
 - EXC,
-- COLD,
+- COLD
 - HOT (should display names for these codes)
 
 ## 16. Excavation Collapse / Ground Failure
 
-#### Name:
+**Name :** Excavation Collapse / Ground Failure;
+**Code :** HAZ-EXC-001
+**Category :** Excavation / Ground Stability
+**Severity :** Critical
+**Description :** Collapse of excavation walls, trenches, embankments, or unstable ground.
 
-Excavation Collapse / Ground Failure;
-
-#### Code:
-
-HAZ-EXC-001;
-
-#### Category:
-
-Excavation / Ground Stability;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Collapse of excavation walls, trenches, embankments, or unstable ground.
-
-#### Risks:
+**Risks :**
 
 - Unsupported excavation faces
 - Vibration
@@ -897,11 +722,15 @@ Collapse of excavation walls, trenches, embankments, or unstable ground.
 - Nearby loads
 - Unsuitable soil conditions.
 
-#### Consequences:
+**Consequences :**
 
-Burial, crushing, suffocation, serious injury, fatalities.
+- Burial
+- crushing
+- suffocation
+- serious injury
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Assess ground conditions
 - Provide suitable shoring, shielding, or sloping
@@ -910,52 +739,43 @@ Burial, crushing, suffocation, serious injury, fatalities.
 - Prevent entry into unsafe excavations
 - Provide safe access and egress.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
 - PPE-12
 - PPE-13
 - PPE-14
-- PPE-15
+- PPE-15 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
 - EXC (should display names for these codes)
 
 ## 17. Underground Utilities / Buried Services
 
-#### Name:
+**Name :** Underground Utilities / Buried Services;
+**Code :** HAZ-EXC-002
+**Category :** Excavation / Utilities
+**Severity :** Critical
+**Description :** Contact with or damage to buried electrical cables, gas lines, pipelines, drains, or communication services.
 
-Underground Utilities / Buried Services;
-
-#### Code:
-
-HAZ-EXC-002;
-
-#### Category:
-
-Excavation / Utilities;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Contact with or damage to buried electrical cables, gas lines, pipelines, drains, or communication services.
-
-#### Risks:
+**Risks :**
 
 - Excavating without verified service locations
 - Inaccurate drawings
 - Accidental penetration of buried infrastructure.
 
-#### Consequences:
+**Consequences :**
 
-Electrocution, fire, explosion, flooding, toxic releases, service disruption.
+- Electrocution
+- fire
+- explosion
+- flooding
+- toxic releases
+- service disruption.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Review utility drawings
 - Obtain required service-owner clearances
@@ -964,7 +784,7 @@ Electrocution, fire, explosion, flooding, toxic releases, service disruption.
 - Isolate services where necessary
 - Stop work if unexpected services are discovered.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
@@ -972,38 +792,24 @@ Electrocution, fire, explosion, flooding, toxic releases, service disruption.
 - PPE-09
 - PPE-12
 - PPE-14
-- PPE-24
+- PPE-24 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
 - EXC,
-- ELEC,
-- COLD,
+- ELEC
+- COLD
 - HOT (should display names for these codes)
 
 ## 18. Mobile Plant / Vehicle Interaction
 
-#### Name:
+**Name :** Mobile Plant / Vehicle Interaction;
+**Code :** HAZ-TRAFFIC-001
+**Category :** Vehicle / Equipment Movement
+**Severity :** High
+**Description :** Exposure to moving vehicles, excavators, loaders, cranes, or other mobile equipment around the work area.
 
-Mobile Plant / Vehicle Interaction;
-
-#### Code:
-
-HAZ-TRAFFIC-001;
-
-#### Category:
-
-Vehicle / Equipment Movement;
-
-#### Default severity:
-
-High;
-
-#### Description:
-
-Exposure to moving vehicles, excavators, loaders, cranes, or other mobile equipment around the work area.
-
-#### Risks:
+**Risks :**
 
 - Blind spots
 - Reversing
@@ -1011,11 +817,14 @@ Exposure to moving vehicles, excavators, loaders, cranes, or other mobile equipm
 - Unstable ground
 - Pedestrian and vehicle route conflicts.
 
-#### Consequences:
+**Consequences :**
 
-Collision, crushing, run-over injuries, fatalities.
+- Collision
+- crushing
+- run-over injuries
+- fatalities
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Establish traffic and pedestrian segregation
 - Use competent operators and trained spotters where needed
@@ -1024,44 +833,30 @@ Collision, crushing, run-over injuries, fatalities.
 - Control reversing
 - Use suitable barriers and warning systems.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
 - PPE-04
 - PPE-12
-- PPE-14
+- PPE-14 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
 - EXC,
-- WAH,
-- COLD,
+- WAH
+- COLD
 - HOT (should display names for these codes)
 
 ## 19. Water Ingress / Flooding / Engulfment
 
-#### Name:
+**Name :** Water Ingress / Flooding / Engulfment;
+**Code :** HAZ-EXC-003
+**Category :** Excavation / Environmental
+**Severity :** High
+**Description :** Water, slurry, loose material, or other substances entering an excavation or work area and creating entrapment or engulfment hazards.
 
-Water Ingress / Flooding / Engulfment;
-
-#### Code:
-
-HAZ-EXC-003;
-
-#### Category:
-
-Excavation / Environmental;
-
-#### Default severity:
-
-High;
-
-#### Description:
-
-Water, slurry, loose material, or other substances entering an excavation or work area and creating entrapment or engulfment hazards.
-
-#### Risks:
+**Risks :**
 
 - Groundwater ingress
 - Damaged water services
@@ -1069,11 +864,15 @@ Water, slurry, loose material, or other substances entering an excavation or wor
 - Unstable saturated soil
 - Nearby material release.
 
-#### Consequences:
+**Consequences :**
 
-Drowning, burial, collapse, hypothermia, fatalities.
+- Drowning
+- burial
+- collapse
+- hypothermia
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Assess water sources and weather
 - Provide suitable drainage or pumping
@@ -1082,7 +881,7 @@ Drowning, burial, collapse, hypothermia, fatalities.
 - Maintain safe escape routes
 - Stop work and evacuate when conditions become unsafe.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
@@ -1090,36 +889,22 @@ Drowning, burial, collapse, hypothermia, fatalities.
 - PPE-13
 - PPE-14
 - PPE-15
-- PPE-19
+- PPE-19 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
 - EXC,
 - CSP (should display names for these codes)
 
 ## 20. Hazardous Chemical Exposure
 
-#### Name:
+**Name :** Hazardous Chemical Exposure;
+**Code :** HAZ-CHEM-001
+**Category :** Chemical
+**Severity :** High
+**Description :** Contact with or exposure to corrosive, toxic, irritant, reactive, or otherwise hazardous substances.
 
-Hazardous Chemical Exposure;
-
-#### Code:
-
-HAZ-CHEM-001;
-
-#### Category:
-
-Chemical;
-
-#### Default severity:
-
-High;
-
-#### Description:
-
-Contact with or exposure to corrosive, toxic, irritant, reactive, or otherwise hazardous substances.
-
-#### Risks:
+**Risks :**
 
 - Splashing
 - Spills
@@ -1127,11 +912,15 @@ Contact with or exposure to corrosive, toxic, irritant, reactive, or otherwise h
 - Skin absorption
 - Incompatible chemical reactions.
 
-#### Consequences:
+**Consequences :**
 
-Chemical burns, poisoning, eye damage, respiratory injury, environmental contamination.
+- Chemical burns
+- poisoning
+- eye damage
+- respiratory injury
+- environmental contamination.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Review safety data sheets
 - Assess chemical compatibility
@@ -1139,7 +928,7 @@ Chemical burns, poisoning, eye damage, respiratory injury, environmental contami
 - Provide substance-specific PPE and eyewash or emergency showers where required
 - Maintain spill-response arrangements.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-02
 - PPE-08
@@ -1148,39 +937,25 @@ Chemical burns, poisoning, eye damage, respiratory injury, environmental contami
 - PPE-15
 - PPE-16
 - PPE-22
-- PPE-27
+- PPE-27 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- HOT,
-- COLD,
-- CSP,
-- ELEC,
+- HOT
+- COLD
+- CSP
+- ELEC
 - EXC (should display names for these codes)
 
 ## 21. Pressure Release / Stored Pressure
 
-#### Name:
+**Name :** Pressure Release / Stored Pressure;
+**Code :** HAZ-PRESS-001
+**Category :** Pressure / Mechanical Energy
+**Severity :** Critical
+**Description :** Uncontrolled release of pressurized gas, liquid, steam, or other stored pressure during work.
 
-Pressure Release / Stored Pressure;
-
-#### Code:
-
-HAZ-PRESS-001;
-
-#### Category:
-
-Pressure / Mechanical Energy;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Uncontrolled release of pressurized gas, liquid, steam, or other stored pressure during work.
-
-#### Risks:
+**Risks :**
 
 - Opening pressurized equipment
 - Failed hoses
@@ -1188,11 +963,16 @@ Uncontrolled release of pressurized gas, liquid, steam, or other stored pressure
 - Incorrect isolation
 - Pressure surges.
 
-#### Consequences:
+**Consequences :**
 
-Injection injuries, impact injuries, burns, toxic exposure, equipment damage, fatalities.
+- Injection injuries
+- impact injuries
+- burns
+- toxic exposure
+- equipment damage
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Identify pressure sources
 - Isolate and depressurize equipment
@@ -1201,46 +981,32 @@ Injection injuries, impact injuries, burns, toxic exposure, equipment damage, fa
 - Secure hoses and fittings
 - Use approved pressure limits and exclusion zones for testing.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
 - PPE-03
 - PPE-04
 - PPE-12
-- PPE-15
+- PPE-15 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- COLD,
-- HOT,
-- CSP,
-- ELEC,
+- COLD
+- HOT
+- CSP
+- ELEC
 - EXC (should display names for these codes)
 
 ## 22. Unexpected Material / Process Release
 
-#### Name:
+**Name :** Unexpected Material / Process Release;
+**Code :** HAZ-REL-001
+**Category :** Process Safety / Release
+**Severity :** Critical
+**Description :** Uncontrolled release of process fluids, gases, steam, dust, or other materials from equipment, piping, tanks, or nearby systems.
 
-Unexpected Material / Process Release;
-
-#### Code:
-
-HAZ-REL-001;
-
-#### Category:
-
-Process Safety / Release;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Uncontrolled release of process fluids, gases, steam, dust, or other materials from equipment, piping, tanks, or nearby systems.
-
-#### Risks:
+**Risks :**
 
 - Incomplete isolation
 - Leaking valves
@@ -1248,11 +1014,16 @@ Uncontrolled release of process fluids, gases, steam, dust, or other materials f
 - Residual material
 - Damage to adjacent equipment.
 
-#### Consequences:
+**Consequences :**
 
-Burns, poisoning, fire, explosion, environmental damage, fatalities.
+- Burns
+- poisoning
+- fire
+- explosion
+- environmental damage
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Identify and isolate relevant sources
 - Verify isolation effectiveness
@@ -1261,7 +1032,7 @@ Burns, poisoning, fire, explosion, environmental damage, fatalities.
 - Establish release response and evacuation arrangements
 - Stop work if isolation integrity is in doubt.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
@@ -1270,50 +1041,39 @@ Burns, poisoning, fire, explosion, environmental damage, fatalities.
 - PPE-12
 - PPE-15
 - PPE-22
-- PPE-27
+- PPE-27 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- HOT,
-- COLD,
-- CSP,
-- ELEC,
+- HOT
+- COLD
+- CSP
+- ELEC
 - EXC (should display names for these codes)
 
 ## 23. Noise and Vibration
 
-#### Name:
+**Name :** Noise and Vibration;
+**Code :** HAZ-PHYS-001
+**Category :** Physical / Occupational Health
+**Severity :** Medium
+**Description :** Exposure to high noise levels or mechanical vibration from tools, machinery, and surrounding operations.
 
-Noise and Vibration;
-
-#### Code:
-
-HAZ-PHYS-001;
-
-#### Category:
-
-Physical / Occupational Health;
-
-#### Default severity:
-
-Medium;
-
-#### Description:
-
-Exposure to high noise levels or mechanical vibration from tools, machinery, and surrounding operations.
-
-#### Risks:
+**Risks :**
 
 - Excessive exposure duration
 - High-impact noise
 - Vibrating hand tools
 - Impaired communication.
 
-#### Consequences:
+**Consequences :**
 
-Hearing loss, hand-arm vibration disorders, fatigue, missed warnings.
+- Hearing loss
+- hand-arm vibration disorders
+- fatigue
+- missed warnings.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Assess noise and vibration exposure
 - Use quieter methods where practicable
@@ -1322,55 +1082,44 @@ Hearing loss, hand-arm vibration disorders, fatigue, missed warnings.
 - Provide suitable hearing protection
 - Establish communication methods.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-05
 - PPE-06
 - PPE-09
-- PPE-12
+- PPE-12 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- HOT,
-- COLD,
-- ELEC,
+- HOT
+- COLD
+- ELEC
 - EXC,
 - WAH (should display names for these codes)
 
 ## 24. Slips, Trips and Same-Level Falls
 
-#### Name:
+**Name :** Slips, Trips and Same-Level Falls;
+**Code :** HAZ-PHYS-002
+**Category :** Physical / Access
+**Severity :** Medium
+**Description :** Unsafe walking or working surfaces caused by obstructions, spills, uneven ground, cables, or poor housekeeping.
 
-Slips, Trips and Same-Level Falls;
-
-#### Code:
-
-HAZ-PHYS-002;
-
-#### Category:
-
-Physical / Access;
-
-#### Default severity:
-
-Medium;
-
-#### Description:
-
-Unsafe walking or working surfaces caused by obstructions, spills, uneven ground, cables, or poor housekeeping.
-
-#### Risks:
+**Risks :**
 
 - Slipping on wet surfaces
 - Tripping over tools or cables
 - Falling on uneven terrain.
 
-#### Consequences:
+**Consequences :**
 
-Sprains, fractures, cuts, head injuries.
+- Sprains
+- fractures
+- cuts
+- head injuries.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Maintain housekeeping
 - Remove obstructions
@@ -1379,46 +1128,32 @@ Sprains, fractures, cuts, head injuries.
 - Provide suitable lighting and footwear
 - Maintain safe access routes.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-04
 - PPE-12
 - PPE-13
-- PPE-14
+- PPE-14 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- HOT,
-- COLD,
-- CSP,
-- WAH,
-- ELEC,
+- HOT
+- COLD
+- CSP
+- WAH
+- ELEC
 - EXC (should display names for these codes)
 
 ## 25. Adverse Weather / Environmental Conditions
 
-#### Name:
+**Name :** Adverse Weather / Environmental Conditions;
+**Code :** HAZ-ENV-002
+**Category :** Environmental
+**Severity :** High
+**Description :** Weather or environmental conditions that make work unsafe.
 
-Adverse Weather / Environmental Conditions;
-
-#### Code:
-
-HAZ-ENV-002;
-
-#### Category:
-
-Environmental;
-
-#### Default severity:
-
-High;
-
-#### Description:
-
-Weather or environmental conditions that make work unsafe.
-
-#### Risks:
+**Risks :**
 
 - High winds affecting elevated work or suspended loads
 - Lightning near exposed work
@@ -1426,11 +1161,16 @@ Weather or environmental conditions that make work unsafe.
 - Poor visibility
 - Extreme temperatures.
 
-#### Consequences:
+**Consequences :**
 
-Falls, structural instability, electrocution, dropped loads, heat illness, flooding.
+- Falls
+- structural instability
+- electrocution
+- dropped loads
+- heat illness
+- flooding.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Define task-specific weather limits
 - Monitor forecasts and actual conditions
@@ -1438,7 +1178,7 @@ Falls, structural instability, electrocution, dropped loads, heat illness, flood
 - Secure materials and equipment
 - Inspect affected work areas before restarting.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-12
@@ -1446,50 +1186,39 @@ Falls, structural instability, electrocution, dropped loads, heat illness, flood
 - PPE-14
 - PPE-15
 - PPE-19
-- PPE-28
+- PPE-28 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- HOT,
-- COLD,
-- WAH,
-- ELEC,
+- HOT
+- COLD
+- WAH
+- ELEC
 - EXC (should display names for these codes)
 
 ## 26. Inadequate Lighting / Visibility
 
-#### Name:
+**Name :** Inadequate Lighting / Visibility;
+**Code :** HAZ-ENV-003
+**Category :** Environmental / Access
+**Severity :** Medium
+**Description :** Insufficient lighting or visibility for safe access, inspection, tool use, or hazard identification.
 
-Inadequate Lighting / Visibility;
-
-#### Code:
-
-HAZ-ENV-003;
-
-#### Category:
-
-Environmental / Access;
-
-#### Default severity:
-
-Medium;
-
-#### Description:
-
-Insufficient lighting or visibility for safe access, inspection, tool use, or hazard identification.
-
-#### Risks:
+**Risks :**
 
 - Missed hazards
 - Incorrect connections
 - Unsafe movement
 - Impaired communication.
 
-#### Consequences:
+**Consequences :**
 
-Falls, contact injuries, equipment damage, incorrect safety-critical actions.
+- Falls
+- contact injuries
+- equipment damage
+- incorrect safety-critical actions.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Provide adequate task lighting
 - Maintain emergency lighting where required
@@ -1497,45 +1226,31 @@ Falls, contact injuries, equipment damage, incorrect safety-critical actions.
 - Keep access routes illuminated
 - Provide backup lighting where loss of lighting would create danger.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-04
 - PPE-12
-- PPE-14
+- PPE-14 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- HOT,
-- COLD,
-- CSP,
-- WAH,
-- ELEC,
+- HOT
+- COLD
+- CSP
+- WAH
+- ELEC
 - EXC (should display names for these codes)
 
 ## 27. Manual Handling / Ergonomic Strain
 
-#### Name:
+**Name :** Manual Handling / Ergonomic Strain;
+**Code :** HAZ-ERG-001
+**Category :** Ergonomic / Physical
+**Severity :** Medium
+**Description :** Physical strain from lifting, carrying, pushing, pulling, repetitive movements, or awkward working postures.
 
-Manual Handling / Ergonomic Strain;
-
-#### Code:
-
-HAZ-ERG-001;
-
-#### Category:
-
-Ergonomic / Physical;
-
-#### Default severity:
-
-Medium;
-
-#### Description:
-
-Physical strain from lifting, carrying, pushing, pulling, repetitive movements, or awkward working postures.
-
-#### Risks:
+**Risks :**
 
 - Heavy loads
 - Twisting
@@ -1543,11 +1258,14 @@ Physical strain from lifting, carrying, pushing, pulling, repetitive movements, 
 - Repetitive tool use
 - Restricted access.
 
-#### Consequences:
+**Consequences :**
 
-Back injuries, muscle strains, joint injuries, musculoskeletal disorders.
+- Back injuries
+- muscle strains
+- joint injuries
+- musculoskeletal disorders.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Assess load weight, shape, and handling conditions
 - Use mechanical aids or team lifting where appropriate
@@ -1555,46 +1273,32 @@ Back injuries, muscle strains, joint injuries, musculoskeletal disorders.
 - Reduce repetitive and awkward movements
 - Provide suitable training and rest arrangements.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-09
 - PPE-11
 - PPE-12
-- PPE-21
+- PPE-21 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- HOT,
-- COLD,
-- CSP,
-- WAH,
-- ELEC,
+- HOT
+- COLD
+- CSP
+- WAH
+- ELEC
 - EXC (should display names for these codes)
 
 ## 28. Simultaneous Operations (SIMOPS) / Work Interface
 
-#### Name:
+**Name :** Simultaneous Operations (SIMOPS) / Work Interface;
+**Code :** HAZ-SIMOPS-001
+**Category :** Work Coordination
+**Severity :** High
+**Description :** Interactions between concurrent jobs, equipment, personnel, or work areas that introduce additional hazards.
 
-Simultaneous Operations (SIMOPS) / Work Interface;
-
-#### Code:
-
-HAZ-SIMOPS-001;
-
-#### Category:
-
-Work Coordination;
-
-#### Default severity:
-
-High;
-
-#### Description:
-
-Interactions between concurrent jobs, equipment, personnel, or work areas that introduce additional hazards.
-
-#### Risks:
+**Risks :**
 
 - Hot work near flammable releases
 - Overhead work above other workers
@@ -1602,11 +1306,15 @@ Interactions between concurrent jobs, equipment, personnel, or work areas that i
 - Conflicting isolations
 - Incompatible simultaneous activities.
 
-#### Consequences:
+**Consequences :**
 
-Fire, explosion, dropped-object injuries, equipment damage, multiple fatalities.
+- Fire
+- explosion
+- dropped-object injuries
+- equipment damage
+- multiple fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Identify overlapping permits and nearby activities
 - Conduct a SIMOPS assessment where required
@@ -1614,47 +1322,33 @@ Fire, explosion, dropped-object injuries, equipment damage, multiple fatalities.
 - Establish exclusion zones and work sequencing
 - Suspend or prohibit incompatible work when risks cannot be adequately controlled.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
 - PPE-04
 - PPE-12
 - PPE-14
-- PPE-15
+- PPE-15 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- HOT,
-- COLD,
-- CSP,
-- WAH,
-- ELEC,
+- HOT
+- COLD
+- CSP
+- WAH
+- ELEC
 - EXC (should display names for these codes)
 
 ## 29. Communication Failure / Inadequate Supervision
 
-#### Name:
+**Name :** Communication Failure / Inadequate Supervision;
+**Code :** HAZ-HUMAN-001
+**Category :** Human Factors / Work Coordination
+**Severity :** High
+**Description :** Failure to communicate work status, hazards, changes, isolation status, or emergency instructions to affected personnel.
 
-Communication Failure / Inadequate Supervision;
-
-#### Code:
-
-HAZ-HUMAN-001;
-
-#### Category:
-
-Human Factors / Work Coordination;
-
-#### Default severity:
-
-High;
-
-#### Description:
-
-Failure to communicate work status, hazards, changes, isolation status, or emergency instructions to affected personnel.
-
-#### Risks:
+**Risks :**
 
 - Misunderstood instructions
 - Unauthorized restart
@@ -1662,11 +1356,15 @@ Failure to communicate work status, hazards, changes, isolation status, or emerg
 - Inadequate handover
 - Loss of contact with confined-space workers.
 
-#### Consequences:
+**Consequences :**
 
-Unsafe actions, delayed evacuation, exposure to hazards, serious injuries, fatalities.
+- Unsafe actions
+- delayed evacuation
+- exposure to hazards
+- serious injuries
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Conduct a pre-job briefing or toolbox talk
 - Confirm roles, responsibilities, and communication methods
@@ -1674,46 +1372,32 @@ Unsafe actions, delayed evacuation, exposure to hazards, serious injuries, fatal
 - Record permit handovers and communicate status changes
 - Stop work if essential communication or supervision is lost.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
 - PPE-04
 - PPE-12
-- PPE-14
+- PPE-14 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- HOT,
-- COLD,
-- CSP,
-- WAH,
-- ELEC,
+- HOT
+- COLD
+- CSP
+- WAH
+- ELEC
 - EXC (should display names for these codes)
 
 ## 30. Inadequate Emergency Response / Rescue Arrangements
 
-#### Name:
+**Name :** Inadequate Emergency Response / Rescue Arrangements;
+**Code :** HAZ-EMER-001
+**Category :** Emergency Preparedness
+**Severity :** Critical
+**Description :** Inadequate preparation, equipment, personnel, or access to respond effectively to a foreseeable work-related emergency.
 
-Inadequate Emergency Response / Rescue Arrangements;
-
-#### Code:
-
-HAZ-EMER-001;
-
-#### Category:
-
-Emergency Preparedness;
-
-#### Default severity:
-
-Critical;
-
-#### Description:
-
-Inadequate preparation, equipment, personnel, or access to respond effectively to a foreseeable work-related emergency.
-
-#### Risks:
+**Risks :**
 
 - Delayed rescue
 - Unavailable emergency equipment
@@ -1721,11 +1405,14 @@ Inadequate preparation, equipment, personnel, or access to respond effectively t
 - Inaccessible casualty locations
 - Unsafe rescue attempts.
 
-#### Consequences:
+**Consequences :**
 
-Escalation of injuries, secondary casualties, permanent disability, fatalities.
+- Escalation of injuries
+- secondary casualties
+- permanent disability
+- fatalities.
 
-#### Safety/Controls:
+**Safety/Controls :**
 
 - Define task-specific emergency and rescue arrangements
 - Confirm trained responders and suitable equipment are available
@@ -1733,7 +1420,7 @@ Escalation of injuries, secondary casualties, permanent disability, fatalities.
 - Verify rescue arrangements before high-risk work begins
 - Ensure rescuers do not expose themselves to uncontrolled hazards.
 
-#### Associated PPEs: (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)
+**Associated PPEs : (list of associated PPE Code - mapped to PPE Items with code in the 'ptw_ppe.md' file)**
 
 - PPE-01
 - PPE-02
@@ -1743,13 +1430,13 @@ Escalation of injuries, secondary casualties, permanent disability, fatalities.
 - PPE-14
 - PPE-15
 - PPE-19
-- PPE-20
+- PPE-20 (should display names for these codes)
 
-#### Associated permits:
+**Associated permits :**
 
-- CSP,
-- WAH,
-- HOT,
-- COLD,
-- ELEC,
+- CSP
+- WAH
+- HOT
+- COLD
+- ELEC
 - EXC (should display names for these codes)

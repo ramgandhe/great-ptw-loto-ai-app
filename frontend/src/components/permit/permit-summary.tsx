@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronRight, Paperclip, TriangleAlert, type LucideIcon } from "lucide-react";
+import { ChevronRight, NotebookPen, Paperclip, TriangleAlert, type LucideIcon } from "lucide-react";
 import { DOMAIN_ICONS } from "@/lib/domain-icons";
 import { PermitTypeChip } from "./permit-type-chip";
 import type { PermitAttachment, PermitFormState } from "@/lib/permit/types";
@@ -44,6 +44,7 @@ const SECTION = {
   where: { icon: DOMAIN_ICONS.location, color: "var(--st-approved)" },
   when: { icon: DOMAIN_ICONS.schedule, color: "var(--st-pending_closure)" },
   hazards: { icon: DOMAIN_ICONS.hazard, color: "var(--status-danger)" },
+  notes: { icon: NotebookPen, color: "var(--muted-foreground)" },
   ppe: { icon: DOMAIN_ICONS.ppe, color: "var(--status-warning)" },
   lototo: { icon: DOMAIN_ICONS.lototo, color: "var(--st-execution_completed)" },
   gas: { icon: DOMAIN_ICONS.gas, color: "var(--status-info)" },
@@ -393,6 +394,13 @@ export function PermitSummary({
               );
             })}
           </div>
+        )}
+      </Section>
+      <Section kind="notes" title="Notes">
+        {form.siteNotes.trim() ? (
+          <p className="whitespace-pre-wrap leading-6">{form.siteNotes.trim()}</p>
+        ) : (
+          <span className="text-muted-foreground">None recorded</span>
         )}
       </Section>
       <Section kind="ppe" title="PPE">

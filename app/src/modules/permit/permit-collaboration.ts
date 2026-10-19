@@ -38,6 +38,7 @@ export const EXECUTOR_FIELDS = [
   'lototo',
   'gasTestingRequired',
   'gasTesting',
+  'siteNotes',
   'executors',
   'safetyOfficers',
   'currentStep',

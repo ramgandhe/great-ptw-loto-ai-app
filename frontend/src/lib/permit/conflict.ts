@@ -21,6 +21,7 @@ const FIELDS = [
   "lototo",
   "gasTestingRequired",
   "gasTesting",
+  "siteNotes",
   "executors",
   "viewers",
   "safetyOfficers",

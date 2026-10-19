@@ -17,6 +17,7 @@ export type PermitRecord = {
   permitTypeId: string;
   title: string;
   workScope: string | null;
+  siteNotes?: string | null;
   emergencyPhone?: string | null;
   plantId: string | null;
   departmentId: string | null;
@@ -54,6 +55,8 @@ export type PermitRecord = {
   draftRevision: number;
   draftHolder?: string | null;
   draftHeldBy?: string | null;
+  /** Workforce user ids assigned to run this permit. */
+  executorIds?: string[];
   draftReturnReason?: string | null;
   executionStart?: Record<string, unknown> | null;
   createdAt: string;
@@ -131,6 +134,7 @@ export type PermitFormState = {
   permitTypeId: string;
   title: string;
   workScope: string;
+  siteNotes: string;
   emergencyPhone: string;
   plantId: string;
   departmentId: string;
@@ -218,6 +222,7 @@ export type CreatePermitPayload = {
   permitTypeId: string;
   title: string;
   workScope?: string;
+  siteNotes?: string;
   emergencyPhone?: string;
   plantId?: string;
   departmentId?: string;

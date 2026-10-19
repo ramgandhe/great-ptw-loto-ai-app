@@ -44,6 +44,14 @@ import {
   workLocationHazards,
   assetHazards,
   hazardCategories,
+  incidentArchive,
+  incidentClosures,
+  incidentEvidence,
+  incidentPermits,
+  incidentVerifications,
+  incidents,
+  investigationHistory,
+  investigations,
   permitTypes,
   revalidationHistory,
   tenantUsers,
@@ -103,6 +111,7 @@ import {
   PERMIT_CREATE_ROLES,
   PERMIT_EXECUTOR_DRAFT_ROLES,
 } from './permit.constants';
+import { CacheService } from '../../infrastructure/redis/cache.service';
 import { PermitCacheService } from './permit-cache.service';
 import { PermitLogService } from './permit-log.service';
 import { PermitValidationService } from './permit-validation.service';
@@ -193,6 +202,7 @@ export class PermitService {
     @Optional() private readonly storageService?: StorageService,
     @Optional() private readonly notificationsService?: NotificationsService,
     @Optional() private readonly gasTestingService?: GasTestingService,
+    @Optional() private readonly cacheService?: CacheService,
   ) {}
 
   async create(rawDto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -216,6 +226,7 @@ export class PermitService {
           permitTypeId: dto.permitTypeId,
           title: dto.title,
           workScope: dto.workScope,
+          siteNotes: dto.siteNotes?.trim() || null,
           emergencyPhone: dto.emergencyPhone?.trim() || null,
           plantId: dto.plantId,
           departmentId: dto.departmentId,
@@ -300,7 +311,7 @@ export class PermitService {
     status?: string,
     siteId?: string,
     workLocationId?: string,
-  ): Promise<(typeof permits.$inferSelect)[]> {
+  ): Promise<Array<(typeof permits.$inferSelect) & { executorIds: string[] }>> {
     const tenantId = this.requireTenant(user);
 
     const listKey = `${tenantId}:${user.id}:${siteId ?? ''}:${workLocationId ?? ''}`;
@@ -309,7 +320,7 @@ export class PermitService {
       status,
     );
     if (cached) {
-      return cached;
+      return this.withExecutorIds(cached);
     }
 
     const conditions = [eq(permits.tenantId, tenantId)];
@@ -363,7 +374,27 @@ export class PermitService {
     }
 
     await this.permitCacheService.setPermitList(listKey, status, results);
-    return results;
+    return this.withExecutorIds(results);
+  }
+
+  private async withExecutorIds(rows: (typeof permits.$inferSelect)[]) {
+    if (rows.length === 0) {
+      return rows.map((permit) => ({ ...permit, executorIds: [] as string[] }));
+    }
+    const links = await this.db
+      .select({
+        permitId: permitExecutors.permitId,
+        workforceUserId: permitExecutors.workforceUserId,
+      })
+      .from(permitExecutors)
+      .where(inArray(permitExecutors.permitId, rows.map((row) => row.id)));
+    const byPermit = new Map<string, string[]>();
+    for (const link of links) {
+      const list = byPermit.get(link.permitId) ?? [];
+      list.push(link.workforceUserId);
+      byPermit.set(link.permitId, list);
+    }
+    return rows.map((permit) => ({ ...permit, executorIds: byPermit.get(permit.id) ?? [] }));
   }
 
   async findOne(id: string, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -418,6 +449,68 @@ export class PermitService {
     return { id, deleted: true };
   }
 
+  /** Temporary owner cleanup. Does not replace draft delete. */
+  async purge(id: string, user: AuthenticatedUser): Promise<{ id: string; deleted: boolean }> {
+    if (!user.roles?.includes('tenant-owner')) {
+      throw new ForbiddenException('Only the organisation owner can delete this permit');
+    }
+    const tenantId = this.requireTenant(user);
+    const { detail, incidentIds, evidenceKeys } = await this.db.transaction(async (tx) => {
+      const locked = await this.loadLockedDetail(tx, id, tenantId);
+      const links = await tx
+        .select({ incidentId: incidentPermits.incidentId })
+        .from(incidentPermits)
+        .where(and(eq(incidentPermits.permitId, id), eq(incidentPermits.tenantId, tenantId)));
+      const incidentIds = [...new Set(links.map((row) => row.incidentId))];
+      const evidence =
+        incidentIds.length > 0
+          ? await tx
+              .select({ storageKey: incidentEvidence.storageKey })
+              .from(incidentEvidence)
+              .where(inArray(incidentEvidence.incidentId, incidentIds))
+          : [];
+      if (incidentIds.length > 0) {
+        await tx.delete(incidentClosures).where(inArray(incidentClosures.incidentId, incidentIds));
+        await tx.delete(incidentVerifications).where(inArray(incidentVerifications.incidentId, incidentIds));
+        await tx.delete(incidentArchive).where(inArray(incidentArchive.incidentId, incidentIds));
+        await tx.delete(incidentEvidence).where(inArray(incidentEvidence.incidentId, incidentIds));
+        await tx.delete(investigationHistory).where(inArray(investigationHistory.incidentId, incidentIds));
+        await tx.delete(investigations).where(inArray(investigations.incidentId, incidentIds));
+        await tx.delete(incidents).where(and(eq(incidents.tenantId, tenantId), inArray(incidents.id, incidentIds)));
+      }
+      await tx.delete(permits).where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
+      return { detail: locked, incidentIds, evidenceKeys: evidence.map((row) => row.storageKey) };
+    });
+
+    await Promise.all([
+      ...detail.attachments.map((attachment) => this.storageService?.deleteObject(attachment.storageKey).catch(() => undefined)),
+      ...evidenceKeys.map((storageKey) => this.storageService?.deleteObject(storageKey).catch(() => undefined)),
+    ]);
+    await this.auditService.log({
+      action: 'permit.purged',
+      entityType: 'permit',
+      entityId: id,
+      userId: user.id,
+      tenantId,
+      metadata: { status: detail.permit.status, title: detail.permit.title },
+    });
+    await this.permitCacheService.invalidatePermit(tenantId, id);
+    this.permitLogService.logEvent({
+      action: 'permit.purged',
+      permitId: id,
+      tenantId,
+      userId: user.id,
+    });
+    for (const incidentId of incidentIds) {
+      await this.cacheService?.del(`incident:detail:${tenantId}:${incidentId}`);
+    }
+    if (incidentIds.length > 0) {
+      await this.cacheService?.del(`incident:list:${tenantId}`);
+    }
+
+    return { id, deleted: true };
+  }
+
   async update(
     id: string,
     input: SaveDraftDto,
@@ -460,6 +553,7 @@ export class PermitService {
       if (dto.permitTypeId !== undefined) permitUpdates.permitTypeId = dto.permitTypeId;
       if (dto.title !== undefined) permitUpdates.title = dto.title;
       if (dto.workScope !== undefined) permitUpdates.workScope = dto.workScope;
+      if (dto.siteNotes !== undefined) permitUpdates.siteNotes = dto.siteNotes.trim() || null;
       if (dto.emergencyPhone !== undefined) permitUpdates.emergencyPhone = dto.emergencyPhone.trim() || null;
       if (dto.plantId !== undefined) permitUpdates.plantId = dto.plantId;
       if (dto.departmentId !== undefined) permitUpdates.departmentId = dto.departmentId;
@@ -960,6 +1054,7 @@ export class PermitService {
           permitTypeId: source.permit.permitTypeId,
           title: source.permit.title,
           workScope: source.permit.workScope,
+          siteNotes: source.permit.siteNotes,
           emergencyPhone: source.permit.emergencyPhone,
           plantId: source.permit.plantId,
           departmentId: source.permit.departmentId,

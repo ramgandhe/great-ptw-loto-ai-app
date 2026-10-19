@@ -2,6 +2,8 @@ import { and, eq } from 'drizzle-orm';
 import { optionalUuid } from '../../common/helpers/optional-uuid';
 import type { Database } from '../../database/database.module';
 import {
+  assetTypes,
+  defaultAssetTypes,
   defaultEnergySources,
   defaultLocationTypes,
   defaultPermitTypes,
@@ -112,6 +114,22 @@ export async function copyPlatformDefaults(
       description: row.description,
       color: row.color,
       isActive: true,
+      createdBy: actor,
+      updatedBy: actor,
+    });
+  }
+
+  const assetTypeRows = await db.select().from(defaultAssetTypes);
+  for (const row of assetTypeRows) {
+    const [existing] = await db
+      .select({ id: assetTypes.id })
+      .from(assetTypes)
+      .where(and(eq(assetTypes.tenantId, tenantId), eq(assetTypes.name, row.name)));
+    if (existing) continue;
+    await db.insert(assetTypes).values({
+      tenantId,
+      name: row.name,
+      description: row.description,
       createdBy: actor,
       updatedBy: actor,
     });

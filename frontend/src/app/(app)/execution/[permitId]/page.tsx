@@ -63,7 +63,7 @@ export default function PermitExecutionPage() {
   const permitId = usePermitPageId("permitId");
   const embedded = useInPermitWorkspace();
   const router = useRouter();
-  const { roles } = useAuthProfile();
+  const { roles, profile } = useAuthProfile();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
   const [progress, setProgress] = useState<ProgressRecord[]>([]);
   const [evidence, setEvidence] = useState<EvidenceRecord[]>([]);
@@ -280,6 +280,15 @@ export default function PermitExecutionPage() {
   const isApproved = permit.status === "approved";
   const isActive = permit.status === "active";
   const isSuspended = permit.status === "suspended";
+  const privileged = hasAnyRole(roles, ["tenant-owner", "tenant-admin", "platform-admin"]);
+  const assignedExecutor = Boolean(profile && detail.executors.some((row) => row.workforceUserId === profile.id));
+  const primaryExecutor = Boolean(
+    profile && detail.executors.some((row) => row.workforceUserId === profile.id && row.isPrimary),
+  );
+  const canRunThisPermit = privileged || assignedExecutor;
+  const canWriteProgress = hasAnyRole(roles, START_RESUME_ROLES);
+  const canComplete = privileged || (hasAnyRole(roles, ["permit-operator"]) && primaryExecutor);
+  const completeOff = hasAnyRole(roles, ["permit-operator"]) && !canComplete;
 
   return (
     <PermitPageShell>
@@ -320,7 +329,7 @@ export default function PermitExecutionPage() {
         />
       ) : null}
 
-      {isApproved && hasAnyRole(roles, START_RESUME_ROLES) && wizardOpen ? (
+      {isApproved && canRunThisPermit && wizardOpen ? (
         <StartExecutionSteps
           permitId={permit.id}
           detail={detail}
@@ -335,11 +344,13 @@ export default function PermitExecutionPage() {
             await saveExecutionStart(permitId, start);
           }}
           onBeginWork={handleActivate}
+          onPostpone={() => setWizardOpen(false)}
+          onSuspend={() => setSuspendOpen(true)}
         />
       ) : null}
 
       <section className="flex flex-wrap gap-2">
-        {isApproved && hasAnyRole(roles, START_RESUME_ROLES) && !wizardOpen ? (
+        {isApproved && canRunThisPermit && !wizardOpen ? (
           <Button onClick={() => setWizardOpen(true)} disabled={isSubmitting}>
             Start Permit Execution
           </Button>
@@ -351,7 +362,7 @@ export default function PermitExecutionPage() {
             </Button>
           ) : null
         ) : null}
-        {isSuspended && hasAnyRole(roles, START_RESUME_ROLES) ? (
+        {isSuspended && canRunThisPermit ? (
           <Button onClick={() => void handleResume()} disabled={isSubmitting}>
             {isSubmitting ? "Resuming..." : "Resume work"}
           </Button>
@@ -371,17 +382,20 @@ export default function PermitExecutionPage() {
             <StatusTimeline execution={execution} />
           </section>
 
-          {isActive ? (
+          {isActive && canWriteProgress ? (
             <>
               <section className="grid gap-3">
                 <h2 className="text-sm font-semibold">Add progress update</h2>
+                {!canRunThisPermit ? (
+                  <p className="text-sm text-muted-foreground">Only an assigned executor can log progress on this permit.</p>
+                ) : null}
                 <form className="grid gap-3 rounded-lg border border-border p-4" onSubmit={handleAddProgress}>
                   <div className="flex flex-wrap gap-1.5">
                     {PROGRESS_PHRASES.map((phrase) => (
                       <button
                         key={phrase}
                         type="button"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !canRunThisPermit}
                         onClick={() => setProgressSummary((c) => (c.trim() ? `${c.trim()}. ${phrase}` : phrase))}
                         className="rounded-full border border-border px-2.5 py-1 text-xs hover:bg-muted"
                       >
@@ -392,13 +406,13 @@ export default function PermitExecutionPage() {
                   <textarea
                     value={progressSummary}
                     required
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !canRunThisPermit}
                     onChange={(event) => setProgressSummary(event.target.value)}
                     placeholder="Describe work completed or current status..."
                     rows={3}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   />
-                  <Button type="submit" disabled={isSubmitting || !progressSummary.trim()}>
+                  <Button type="submit" disabled={isSubmitting || !canRunThisPermit || !progressSummary.trim()}>
                     {isSubmitting ? "Saving..." : "Save progress"}
                   </Button>
                 </form>
@@ -407,19 +421,23 @@ export default function PermitExecutionPage() {
               <section className="grid gap-3">
                 <h2 className="text-sm font-semibold">Upload evidence</h2>
                 <EvidenceUpload
-                  disabled={!isActive}
+                  disabled={!isActive || !canRunThisPermit}
                   isUploading={isUploading}
                   error={uploadError}
                   onUpload={handleUploadEvidence}
                 />
               </section>
 
-              {hasAnyRole(roles, ["permit-operator", "tenant-owner", "tenant-admin", "platform-admin"]) ? (
+              {canComplete || completeOff ? (
                 <section className="grid gap-3 rounded-lg border border-border p-4">
                   <h2 className="text-sm font-semibold">Declare execution completed</h2>
+                  {completeOff ? (
+                    <p className="text-sm text-muted-foreground">Only the primary executor can complete this permit.</p>
+                  ) : null}
                   <label className="flex items-start gap-2 text-sm">
                     <input
                       type="checkbox"
+                      disabled={completeOff}
                       checked={completeChecklist.workDescribedComplete}
                       onChange={(e) => setCompleteChecklist((current) => ({ ...current, workDescribedComplete: e.target.checked }))}
                     />
@@ -428,6 +446,7 @@ export default function PermitExecutionPage() {
                   <label className="flex items-start gap-2 text-sm">
                     <input
                       type="checkbox"
+                      disabled={completeOff}
                       checked={completeChecklist.procedureFollowed}
                       onChange={(e) => setCompleteChecklist((current) => ({ ...current, procedureFollowed: e.target.checked }))}
                     />
@@ -436,8 +455,9 @@ export default function PermitExecutionPage() {
                   {permit.lototoRequired ? (
                     <label className="flex items-start gap-2 text-sm">
                       <input
-                        type="checkbox"
-                        checked={completeChecklist.lototoDone}
+                      type="checkbox"
+                      disabled={completeOff}
+                      checked={completeChecklist.lototoDone}
                         onChange={(e) => setCompleteChecklist((current) => ({ ...current, lototoDone: e.target.checked }))}
                       />
                       LOTOTO is done
@@ -446,8 +466,9 @@ export default function PermitExecutionPage() {
                   {permit.gasTestingRequired ? (
                     <label className="flex items-start gap-2 text-sm">
                       <input
-                        type="checkbox"
-                        checked={completeChecklist.gasTestingDone}
+                      type="checkbox"
+                      disabled={completeOff}
+                      checked={completeChecklist.gasTestingDone}
                         onChange={(e) => setCompleteChecklist((current) => ({ ...current, gasTestingDone: e.target.checked }))}
                       />
                       Gas testing is done
@@ -456,7 +477,7 @@ export default function PermitExecutionPage() {
                   <textarea
                     value={completeComment}
                     required
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || completeOff}
                     onChange={(event) => setCompleteComment(event.target.value)}
                     placeholder="Completion comments (required)"
                     rows={3}
@@ -464,7 +485,7 @@ export default function PermitExecutionPage() {
                   />
                   <Button
                     onClick={() => void handleCompleteExecution()}
-                    disabled={isSubmitting || !completeComment.trim()}
+                    disabled={isSubmitting || completeOff || !completeComment.trim()}
                   >
                     {isSubmitting ? "Submitting..." : "Mark execution completed"}
                   </Button>
