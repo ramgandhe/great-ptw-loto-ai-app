@@ -12,6 +12,16 @@ import {
   removePendingProgress,
 } from "./offline";
 
+export function releasePermitForExecution(
+  permitId: string,
+  payload: { siteReady: boolean; detailsCorrect: boolean },
+) {
+  return fetchApi<unknown>(`/permits/${permitId}/release-execution`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function activatePermit(
   permitId: string,
   payload?: { comment?: string; actualStartAt?: string },

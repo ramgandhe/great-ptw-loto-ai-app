@@ -11,6 +11,7 @@ export type WorkAction =
   | "final-approval"
   | "approve-completion"
   | "revalidate"
+  | "release-execution"
   | "start-work"
   | "log-progress"
   | "site-details"
@@ -26,6 +27,7 @@ export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string; kin
   "final-approval": { group: "Waiting for final sign-off", verb: "Sign off", kind: "decide" },
   "approve-completion": { group: "Work finished, confirm completion", verb: "Confirm", kind: "decide" },
   revalidate: { group: "Suspended, needs revalidation", verb: "Revalidate", kind: "fix" },
+  "release-execution": { group: "Approved, release for execution", verb: "Release for execution", kind: "do" },
   "start-work": { group: "Approved, ready to start", verb: "Start work", kind: "do" },
   "log-progress": { group: "In progress", verb: "Update", kind: "do" },
   "site-details": { group: "Add your on-site details", verb: "Add details", kind: "do" },
@@ -42,7 +44,7 @@ const REVALIDATE = ["permit-receiver", "permit-approver", "tenant-owner", "tenan
 const COMPLETION = ["permit-receiver", "tenant-owner", "tenant-admin"];
 const FINAL = ["permit-approver", "tenant-owner", "tenant-admin"];
 
-export function buildWorkQueue(roles: string[], permits: PermitRecord[], approvals: PendingApprovalItem[]): WorkItem[] {
+export function buildWorkQueue(roles: string[], permits: PermitRecord[], approvals: PendingApprovalItem[], userId?: string): WorkItem[] {
   const items: WorkItem[] = [];
   const add = (action: WorkAction, permit: PermitRecord, href: string, urgent = false) =>
     items.push({ key: `${action}:${permit.id}`, action, permit, href, urgent });
@@ -72,9 +74,13 @@ export function buildWorkQueue(roles: string[], permits: PermitRecord[], approva
       case "rejected":
         if (has(roles, CREATE)) add("revise", permit, `/permits/${permit.id}/edit`, true);
         break;
-      case "approved":
-        if (has(roles, EXECUTOR)) add("start-work", permit, `/execution/${permit.id}`);
+      case "approved": {
+        const released = Boolean(permit.executionReleasedAt);
+        const isReceiver = Boolean(userId && (permit.submittedBy === userId || permit.createdBy === userId));
+        if (!released && isReceiver) add("release-execution", permit, `/execution/${permit.id}`);
+        if (released && has(roles, EXECUTOR)) add("start-work", permit, `/execution/${permit.id}`);
         break;
+      }
       case "active":
         if (has(roles, EXECUTOR)) add("log-progress", permit, `/execution/${permit.id}`);
         break;

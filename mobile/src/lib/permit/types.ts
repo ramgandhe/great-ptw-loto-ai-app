@@ -29,6 +29,10 @@ export type PermitRecord = {
   approvedAt?: string | null;
   approvedBy?: string | null;
   approvedSignedName?: string | null;
+  submittedBy?: string | null;
+  createdBy?: string | null;
+  executionReleasedAt?: string | null;
+  executorIds?: string[];
   safetyApprovalComment?: string | null;
   safetyApprovalSignedName?: string | null;
   /** Send back on every save and submit; the server refuses an older one with PERMIT_REVISION_CONFLICT. */

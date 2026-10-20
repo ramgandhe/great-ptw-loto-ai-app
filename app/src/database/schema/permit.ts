@@ -76,6 +76,11 @@ export const permits = pgTable(
     approvedAt: timestamp('approved_at', { withTimezone: true }),
     approvedBy: uuid('approved_by'),
     approvedSignedName: varchar('approved_signed_name', { length: 255 }),
+    /** Set when the receiver releases an approved permit. Empty means the executor cannot start. */
+    executionReleasedAt: timestamp('execution_released_at', { withTimezone: true }),
+    executionReleasedBy: uuid('execution_released_by'),
+    executionReleaseSiteReady: boolean('execution_release_site_ready').notNull().default(false),
+    executionReleaseDetailsCorrect: boolean('execution_release_details_correct').notNull().default(false),
     receiverSiteVisited: boolean('receiver_site_visited').notNull().default(false),
     executorSiteVisited: boolean('executor_site_visited').notNull().default(false),
     safetyOfficerSiteVisited: boolean('safety_officer_site_visited').notNull().default(false),

@@ -56,7 +56,7 @@ export default function HomeScreen() {
         listPermits().catch(() => (missing.push("permits"), [])),
         profile.roles.some((r) => APPROVAL_READ.includes(r)) ? listPendingApprovals().catch(() => (missing.push("approvals"), [])) : Promise.resolve([]),
       ]);
-      setItems(buildWorkQueue(profile.roles, permits, approvals));
+      setItems(buildWorkQueue(profile.roles, permits, approvals, profile.id));
     } catch {
       missing.push("your profile");
       setItems([]);

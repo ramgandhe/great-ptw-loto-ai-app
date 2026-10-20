@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
   forwardRef,
 } from '@nestjs/common';
 import { and, eq, inArray } from 'drizzle-orm';
@@ -34,8 +36,10 @@ import { isPrimaryExecutor, isPermitIssuer, isPrivilegedPermitViewer, visiblePer
 import { SuspendPermitDto } from './dto/suspend-permit.dto';
 import { ExecutionCacheService } from './execution-cache.service';
 import { ExecutionLogService } from './execution-log.service';
+import { NotificationsService as InboxNotificationsService } from '../notifications/notifications.service';
 import { NotificationService } from './notification.service';
 import { StatusTransitionService } from './status-transition.service';
+import { ReleaseExecutionDto } from './dto/release-execution.dto';
 
 @Injectable()
 export class ExecutionService {
@@ -51,6 +55,9 @@ export class ExecutionService {
     private readonly executionLogService: ExecutionLogService,
     @Inject(forwardRef(() => WorkflowEngineService))
     private readonly workflowEngine: WorkflowEngineService,
+    @Optional()
+    @Inject(InboxNotificationsService)
+    private readonly inbox?: InboxNotificationsService,
   ) {}
 
   async activate(permitId: string, dto: ActivatePermitDto, user: AuthenticatedUser) {
@@ -62,6 +69,7 @@ export class ExecutionService {
       throw new ConflictException('Only approved permits can be activated');
     }
 
+    this.requireReleased(permit);
     await this.requireExecutor(permitId, user);
     const start = await this.requireStartReady(detail, dto.start, user);
 
@@ -276,6 +284,17 @@ export class ExecutionService {
         },
         tx,
       );
+
+      await tx
+        .update(permits)
+        .set({
+          executionReleasedAt: null,
+          executionReleasedBy: null,
+          executionReleaseSiteReady: false,
+          executionReleaseDetailsCorrect: false,
+          updatedBy: user.id,
+        })
+        .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
 
       await this.workflowEngine.initializeAtSubmit(
         permitId,
@@ -573,12 +592,95 @@ export class ExecutionService {
     return this.permitService.findOne(permitId, user);
   }
 
+  async releaseForExecution(permitId: string, dto: ReleaseExecutionDto, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const detail = await this.permitService.findOne(permitId, user);
+    const { permit } = detail;
+
+    if (permit.status !== APPROVED_STATUS) {
+      throw new ConflictException('Only an approved permit can be released for execution');
+    }
+    if (!isPermitIssuer(detail, user.id)) {
+      throw new ForbiddenException('Only the permit receiver can release this permit for execution');
+    }
+    if (permit.executionReleasedAt) {
+      throw new ConflictException('This permit is already released for execution');
+    }
+    if (!dto.siteReady || !dto.detailsCorrect) {
+      throw new BadRequestException('Confirm both checks before releasing the permit');
+    }
+
+    const comment =
+      'Site is ready for execution. The approved work, place and people are still correct.';
+
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(permits)
+        .set({
+          executionReleasedAt: new Date(),
+          executionReleasedBy: user.id,
+          executionReleaseSiteReady: true,
+          executionReleaseDetailsCorrect: true,
+          updatedBy: user.id,
+        })
+        .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
+
+      await this.statusTransitionService.transition(
+        {
+          permitId,
+          tenantId,
+          action: 'execution_released',
+          fromStatus: APPROVED_STATUS,
+          toStatus: APPROVED_STATUS,
+          actorId: user.id,
+          comment,
+          metadata: { siteReady: true, detailsCorrect: true },
+        },
+        tx,
+      );
+    });
+
+    await this.auditService.log({
+      action: 'permit.execution_released',
+      entityType: 'permit',
+      entityId: permitId,
+      userId: user.id,
+      tenantId,
+      metadata: { siteReady: true, detailsCorrect: true },
+    });
+
+    const recipients = detail.executors
+      .map((row) => row.workforceUserId)
+      .filter((id) => id !== user.id);
+    if (recipients.length > 0 && this.inbox) {
+      try {
+        await this.inbox.generateSystem(tenantId, user.id, {
+          eventType: 'task_reminder',
+          category: 'workflow',
+          title: `Released for execution: ${permit.title}`,
+          body: `Permit "${permit.title}" is released. You can start the work.`,
+          recipientUserIds: recipients,
+          entityType: 'permit',
+          entityId: permitId,
+          dedupeKey: `${tenantId}:permit:${permitId}:execution_released`,
+          sourceModule: 'execution',
+        });
+      } catch {
+        // The release is already saved. A missed notice must not undo it.
+      }
+    }
+
+    await this.permitCacheService.invalidatePermit(tenantId, permitId);
+    return this.permitService.findOne(permitId, user);
+  }
+
   async saveExecutionStart(permitId: string, dto: ExecutionStartDto, user: AuthenticatedUser) {
     const tenantId = this.requireTenant(user);
     const detail = await this.permitService.findOne(permitId, user);
     if (detail.permit.status !== APPROVED_STATUS) {
       throw new ConflictException('Start-of-execution steps can only be recorded on an approved permit');
     }
+    this.requireReleased(detail.permit);
     await this.requireExecutor(permitId, user);
     const start = this.normaliseStart(dto);
     await this.db
@@ -646,6 +748,12 @@ export class ExecutionService {
         })),
     });
     return start;
+  }
+
+  private requireReleased(permit: { executionReleasedAt: Date | null }) {
+    if (!permit.executionReleasedAt) {
+      throw new ConflictException('The receiver must release this permit before work can start');
+    }
   }
 
   private async requireExecutor(permitId: string, user: AuthenticatedUser) {

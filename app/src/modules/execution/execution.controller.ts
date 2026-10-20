@@ -5,10 +5,12 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import {
   EXECUTION_ACTION_ROLES,
   EXECUTION_READ_ROLES,
+  EXECUTION_RELEASE_ROLES,
   EXECUTION_REVALIDATE_ROLES,
   EXECUTION_SUSPEND_ROLES,
 } from './execution.constants';
 import { ActivatePermitDto } from './dto/activate-permit.dto';
+import { ReleaseExecutionDto } from './dto/release-execution.dto';
 import { ExecutionStartDto } from './dto/execution-start.dto';
 import { CompleteExecutionDto, SendBackDto } from './dto/complete-execution.dto';
 import { SuspendPermitDto } from './dto/suspend-permit.dto';
@@ -32,6 +34,16 @@ export class ExecutionController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.executionService.saveExecutionStart(id, dto, user);
+  }
+
+  @Roles(...EXECUTION_RELEASE_ROLES)
+  @Post(':id/release-execution')
+  releaseForExecution(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReleaseExecutionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.executionService.releaseForExecution(id, dto, user);
   }
 
   @Roles(...EXECUTION_ACTION_ROLES)

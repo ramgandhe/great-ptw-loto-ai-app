@@ -32,6 +32,7 @@ const ACTION_LABEL: Record<string, string> = {
   resubmitted: "Resubmitted",
   stage_advanced: "Approved a stage",
   approved: "Final approval",
+  execution_released: "Released for execution",
   deferred: "Deferred",
   rejected: "Rejected",
   safety_veto: "Safety veto",
@@ -81,6 +82,13 @@ function waitingOn(detail: PermitDetail, review: ApprovalReview | null, journey:
       };
     }
     case "approved":
+      if (!permit.executionReleasedAt) {
+        return {
+          who: "Permit receiver",
+          people: issuer ? [issuer] : [],
+          action: "Confirm the site checklist and release the permit for execution",
+        };
+      }
       return {
         who: "Permit operator",
         people: executors,

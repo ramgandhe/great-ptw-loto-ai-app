@@ -35,6 +35,13 @@ export const EXECUTION_WRITE_ROLES = EXECUTION_UPDATE_ROLES;
 
 export const EXECUTION_READ_ROLES = [...EXECUTION_UPDATE_ROLES, 'permit-receiver', 'viewer'] as const;
 
+/** Release an approved permit — the person who submitted it, checked in the service. */
+export const EXECUTION_RELEASE_ROLES = [
+  'permit-receiver',
+  'tenant-owner',
+  'tenant-admin',
+] as const;
+
 export const MAX_EVIDENCE_SIZE_BYTES = 10 * 1024 * 1024;
 
 export const ALLOWED_EVIDENCE_CONTENT_TYPES = [

@@ -1,18 +1,21 @@
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
-import { View } from "react-native";
-import { ActionBar, AppText, Banner, Button, Card, ChipRow, PageHeader, PermitStatusChip, RefChip, Screen, ScreenState, SectionTitle, TextField } from "@/components/ui";
+import { Alert, View } from "react-native";
+import { ActionBar, AppText, Banner, Button, Card, CheckRow, ChipRow, PageHeader, PermitStatusChip, RefChip, Screen, ScreenState, SectionTitle, TextField } from "@/components/ui";
 import { Camera, CalendarDays, CloudOff, Images, ListChecks, Pause, Play, Save } from "@/components/ui/icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { ApiError } from "@/lib/api";
 import {
   activatePermit,
+  releasePermitForExecution,
   addProgress,
   resumePermit,
   suspendPermit,
   uploadEvidence,
 } from "@/lib/execution/api";
 import { initExecutionOfflineStorage, queueOfflineEvidence, queueOfflineProgress } from "@/lib/execution/offline";
+import { getProfile } from "@/lib/auth/api";
+import { formatDateTime } from "@/lib/format";
 import { getPermit } from "@/lib/permit/api";
 import type { PermitDetail } from "@/lib/permit/types";
 import { useTheme } from "@/providers/theme-provider";
@@ -29,13 +32,23 @@ export default function ExecutePermitScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [privileged, setPrivileged] = useState(false);
+  const [siteReady, setSiteReady] = useState(false);
+  const [detailsCorrect, setDetailsCorrect] = useState(false);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
       await initExecutionOfflineStorage();
-      setDetail(await getPermit(permitId));
+      const [permitDetail, profile] = await Promise.all([
+        getPermit(permitId),
+        getProfile().catch(() => null),
+      ]);
+      setDetail(permitDetail);
+      setUserId(profile?.id ?? null);
+      setPrivileged(Boolean(profile?.roles.some((role) => role === "tenant-owner" || role === "tenant-admin" || role === "platform-admin")));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "The permit could not be loaded.");
     } finally {
@@ -66,6 +79,30 @@ export default function ExecutePermitScreen() {
 
   async function handleActivate() {
     await runAction(() => activatePermit(permitId), "Work started");
+  }
+
+  async function handleRelease() {
+    Alert.alert("Release for execution", "Release this permit for execution? The executor can then start the work.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Release for execution",
+        onPress: () => void runAction(
+          () => releasePermitForExecution(permitId, { siteReady: true, detailsCorrect: true }),
+          "Released for execution",
+        ),
+      },
+    ]);
+  }
+
+  async function handleStart() {
+    if (!detail?.permit.executionReleasedAt) {
+      await runAction(async () => {
+        await releasePermitForExecution(permitId, { siteReady: true, detailsCorrect: true });
+        await activatePermit(permitId);
+      }, "Work started");
+      return;
+    }
+    await handleActivate();
   }
 
   async function handleResume() {
@@ -166,13 +203,27 @@ export default function ExecutePermitScreen() {
   const isApproved = permit.status === "approved";
   const isActive = permit.status === "active";
   const isSuspended = permit.status === "suspended";
+  const released = Boolean(permit.executionReleasedAt);
+  const isReceiver = Boolean(userId && (permit.submittedBy === userId || permit.createdBy === userId));
+  const assigned = Boolean(userId && detail.executors.some((row) => row.workforceUserId === userId));
+  const canStart = assigned || privileged;
+  const checksReady = siteReady && detailsCorrect;
+  const releasesThenStarts = isApproved && !released && isReceiver && canStart;
 
   return (
     <Screen
       footer={
-        isApproved || isSuspended ? (
+        (isApproved && !released && isReceiver) || (isApproved && released && canStart) || isSuspended ? (
           <ActionBar>
-            <Button label={isApproved ? "Start work" : "Resume work"} icon={Play} size="lg" loading={submitting} onPress={() => void (isApproved ? handleActivate() : handleResume())} />
+            {isApproved && !released && isReceiver && !canStart ? (
+              <Button label="Release for execution" size="lg" loading={submitting} disabled={!checksReady} onPress={handleRelease} />
+            ) : null}
+            {isApproved && ((released && canStart) || releasesThenStarts) ? (
+              <Button label="Start work" icon={Play} size="lg" loading={submitting} disabled={releasesThenStarts && !checksReady} onPress={() => void handleStart()} />
+            ) : null}
+            {isSuspended ? (
+              <Button label="Resume work" icon={Play} size="lg" loading={submitting} onPress={() => void handleResume()} />
+            ) : null}
           </ActionBar>
         ) : undefined
       }
@@ -187,6 +238,19 @@ export default function ExecutePermitScreen() {
       {error ? <Banner tone="danger">{error}</Banner> : null}
       {message ? <Banner tone="success">{message}</Banner> : null}
       {isSuspended ? <Banner tone="warning" title="Work is suspended">Resume only once the reason for stopping is dealt with.</Banner> : null}
+      {isApproved && !released && isReceiver ? (
+        <Card style={{ gap: tokens.space[2] }}>
+          <SectionTitle title="Release for execution" />
+          <CheckRow label="Site is ready for execution" value={siteReady} onChange={setSiteReady} />
+          <CheckRow label="The approved work, place and people are still correct" value={detailsCorrect} onChange={setDetailsCorrect} />
+        </Card>
+      ) : null}
+      {isApproved && !released && !isReceiver ? (
+        <Banner tone="warning">Waiting for the receiver to release this permit.</Banner>
+      ) : null}
+      {isApproved && released ? (
+        <Banner tone="success">Released for execution{permit.executionReleasedAt ? ` ${formatDateTime(permit.executionReleasedAt)}` : ""}.</Banner>
+      ) : null}
 
       {isActive ? (
         <>

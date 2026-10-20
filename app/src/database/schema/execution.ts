@@ -13,6 +13,7 @@ import { auditColumns } from './base';
 import { permits } from './permit';
 
 export const PERMIT_STATUS_HISTORY_ACTIONS = [
+  'execution_released',
   'activated',
   'suspended',
   'resumed',

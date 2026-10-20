@@ -190,6 +190,9 @@ describe('ExecutionService integration (PUS-141)', () => {
           submittedAt: new Date(),
           submittedBy: issuerId,
           createdBy: issuerId,
+          ...(status === 'approved'
+            ? { executionReleasedAt: new Date(), executionReleaseSiteReady: true, executionReleaseDetailsCorrect: true }
+            : {}),
         })
         .returning();
 
@@ -242,6 +245,19 @@ describe('ExecutionService integration (PUS-141)', () => {
     await expect(
       executionService.activate(permit.id, { start: startOk }, outsiderUser),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  dbTest('rejects activation before the receiver releases the permit', async () => {
+    const { executorUser, createApprovedPermit, startOk } = testContext();
+    const permit = await createApprovedPermit();
+    await db
+      .update(schema.permits)
+      .set({ executionReleasedAt: null })
+      .where(eq(schema.permits.id, permit.id));
+
+    await expect(
+      executionService.activate(permit.id, { start: startOk }, executorUser),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   dbTest('rejects activation when toolbox talk is not ticked', async () => {

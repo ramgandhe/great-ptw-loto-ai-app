@@ -40,6 +40,10 @@ export type PermitRecord = {
   approvedAt?: string | null;
   approvedBy?: string | null;
   approvedSignedName?: string | null;
+  executionReleasedAt?: string | null;
+  executionReleasedBy?: string | null;
+  executionReleaseSiteReady?: boolean;
+  executionReleaseDetailsCorrect?: boolean;
   receiverSiteVisited?: boolean | null;
   executorSiteVisited?: boolean | null;
   safetyOfficerSiteVisited?: boolean | null;

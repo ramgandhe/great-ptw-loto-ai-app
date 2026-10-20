@@ -5,8 +5,10 @@ import { ActionBar, AppText, Banner, Button, Card, ChipRow, InfoList, PageHeader
 import { History, Lock, Pencil, Play } from "@/components/ui/icons";
 import { formatDateTime, formatWindow } from "@/lib/format";
 import { ApiError } from "@/lib/api";
+import { getProfile } from "@/lib/auth/api";
 import { getApprovalHistory, getApprovalReview } from "@/lib/approval/api";
 import type { ApprovalHistoryEntry, ApprovalReview } from "@/lib/approval/types";
+import { getProfile } from "@/lib/auth/api";
 import { getPermit } from "@/lib/permit/api";
 import { getLocalPermitDraft, resolvePermitId } from "@/lib/permit/offline";
 import { permitDetailToForm } from "@/lib/permit/form";
@@ -31,6 +33,8 @@ export default function PermitDetailScreen() {
   const [history, setHistory] = useState<ApprovalHistoryEntry[]>([]);
   const [localTitle, setLocalTitle] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [privileged, setPrivileged] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -42,6 +46,9 @@ export default function PermitDetailScreen() {
       .then(getPermit)
       .then(async (permitDetail) => {
         setDetail(permitDetail);
+        const profile = await getProfile().catch(() => null);
+        setUserId(profile?.id ?? null);
+        setPrivileged(Boolean(profile?.roles.some((role) => role === "tenant-owner" || role === "tenant-admin" || role === "platform-admin")));
         if (APPROVAL_STATUSES.has(permitDetail.permit.status)) {
           const [reviewData, historyData] = await Promise.all([
             getApprovalReview(id).catch(() => null),
@@ -85,6 +92,9 @@ export default function PermitDetailScreen() {
   const totalStages = review?.workflow.length ?? 0;
   const type = names.permitType(permit.permitTypeId);
   const executable = ["approved", "active", "suspended"].includes(status);
+  const released = Boolean(permit.executionReleasedAt);
+  const isReceiver = Boolean(userId && (permit.submittedBy === userId || permit.createdBy === userId));
+  const assigned = Boolean(userId && detail.executors.some((row) => row.workforceUserId === userId));
 
   return (
     <Screen
@@ -102,7 +112,15 @@ export default function PermitDetailScreen() {
             {canEdit ? (
               <Button label={isResubmit ? "Revise and resubmit" : "Edit draft"} icon={Pencil} color={isResubmit ? tokens.action.fix : undefined} onPress={() => router.push(`/permits/${id}/edit`)} />
             ) : null}
-            {executable ? <Button label={status === "approved" ? "Start work" : "Open work"} icon={Play} onPress={() => router.push(`/execution/${id}`)} /> : null}
+            {status === "approved" && !released && isReceiver ? (
+              <Button label="Release for execution" onPress={() => router.push(`/execution/${id}`)} />
+            ) : null}
+            {status === "approved" && released && (assigned || privileged) ? (
+              <Button label="Start work" icon={Play} onPress={() => router.push(`/execution/${id}`)} />
+            ) : null}
+            {executable && status !== "approved" ? (
+              <Button label="Open work" icon={Play} onPress={() => router.push(`/execution/${id}`)} />
+            ) : null}
           </ActionBar>
         ) : undefined
       }
@@ -114,6 +132,13 @@ export default function PermitDetailScreen() {
           {type ? <PermitTypeChip name={type.name} color={type.color} /> : null}
         </ChipRow>
       </PageHeader>
+
+      {status === "approved" && !released ? (
+        <Banner tone="warning">{isReceiver ? "Confirm the site checklist, then release this permit for execution." : "Waiting for the receiver to release this permit."}</Banner>
+      ) : null}
+      {status === "approved" && released ? (
+        <Banner tone="success">Released for execution{permit.executionReleasedAt ? ` ${formatDateTime(permit.executionReleasedAt)}` : ""}.</Banner>
+      ) : null}
 
       <Card accent={tokens.status[status]}>
         <InfoList

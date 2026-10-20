@@ -11,6 +11,7 @@ export type WorkAction =
   | "finish-draft"
   | "site-details"
   | "revise"
+  | "release-execution"
   | "start-work"
   | "log-progress"
   | "revalidate"
@@ -56,6 +57,7 @@ export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string; kin
   "final-approval": { group: "Waiting for final sign-off", verb: "Sign off", kind: "decide" },
   "approve-completion": { group: "Work finished, confirm completion", verb: "Confirm", kind: "decide" },
   revalidate: { group: "Suspended, needs revalidation", verb: "Revalidate", kind: "fix" },
+  "release-execution": { group: "Approved, release for execution", verb: "Release for execution", kind: "do" },
   "start-work": { group: "Approved, ready to start", verb: "Start Permit Execution", kind: "do" },
   "log-progress": { group: "In progress", verb: "Update", kind: "do" },
   "site-details": { group: "Add your on-site details", verb: "Add details", kind: "do" },
@@ -174,12 +176,18 @@ export function buildWorkQueue(
         // The row's status badge already says deferred or rejected.
         if (canCreate) add("revise", permit, `/permits/${permit.id}/edit`, undefined, true);
         break;
-      case "approved":
-        if (canRunPermit(permit)) {
+      case "approved": {
+        const released = Boolean(permit.executionReleasedAt);
+        const isReceiver = Boolean(userId && (permit.submittedBy === userId || permit.createdBy === userId));
+        if (!released && isReceiver) {
+          add("release-execution", permit, workspaceHref(permit.id, "work"));
+        }
+        if (released && canRunPermit(permit)) {
           const note = startsSoonNote(permit, now);
           add("start-work", permit, workspaceHref(permit.id, "work"), note, Boolean(note));
         }
         break;
+      }
       case "active":
         if (canRunPermit(permit)) {
           const note = overdueNote(permit, now);

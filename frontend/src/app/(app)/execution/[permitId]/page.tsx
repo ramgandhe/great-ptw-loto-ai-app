@@ -2,13 +2,14 @@
 
 import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
-import { formatWindow } from "@/lib/format";
+import { formatDateTime, formatWindow } from "@/lib/format";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PermitPageShell, useInPermitWorkspace, usePermitPageId } from "@/lib/permit/workspace";
 import { ApiError } from "@/lib/api";
 import {
   activatePermit,
+  releasePermitForExecution,
   addProgress,
   completeExecution,
   listEvidence,
@@ -82,6 +83,8 @@ export default function PermitExecutionPage() {
   const [hazards, setHazards] = useState<Map<string, HazardRecord>>(new Map());
   const [ppeNames, setPpeNames] = useState<Map<string, string>>(new Map());
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [siteReady, setSiteReady] = useState(false);
+  const [detailsCorrect, setDetailsCorrect] = useState(false);
   const [completeComment, setCompleteComment] = useState("");
   const [completeChecklist, setCompleteChecklist] = useState({
     workDescribedComplete: false,
@@ -140,6 +143,45 @@ export default function PermitExecutionPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  async function handleRelease() {
+    if (!(await confirmAction("Release this permit for execution? The executor can then start the work.", {
+      title: "Release for execution",
+      confirmLabel: "Release for execution",
+    }))) {
+      return;
+    }
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      await releasePermitForExecution(permitId, { siteReady: true, detailsCorrect: true });
+      setSiteReady(false);
+      setDetailsCorrect(false);
+      await loadData();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Release failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleBegin() {
+    const released = Boolean(detail?.permit.executionReleasedAt);
+    if (!released) {
+      setIsSubmitting(true);
+      setActionError(null);
+      try {
+        await releasePermitForExecution(permitId, { siteReady: true, detailsCorrect: true });
+        await loadData();
+      } catch (err) {
+        setActionError(err instanceof ApiError ? err.message : "Release failed");
+        setIsSubmitting(false);
+        return;
+      }
+      setIsSubmitting(false);
+    }
+    setWizardOpen(true);
   }
 
   async function handleResume() {
@@ -286,6 +328,10 @@ export default function PermitExecutionPage() {
     profile && detail.executors.some((row) => row.workforceUserId === profile.id && row.isPrimary),
   );
   const canRunThisPermit = privileged || assignedExecutor;
+  const released = Boolean(permit.executionReleasedAt);
+  const isReceiver = Boolean(profile && (permit.submittedBy === profile.id || permit.createdBy === profile.id));
+  const checksReady = siteReady && detailsCorrect;
+  const releasesThenStarts = isApproved && !released && isReceiver && canRunThisPermit;
   const canWriteProgress = hasAnyRole(roles, START_RESUME_ROLES);
   const canComplete = privileged || (hasAnyRole(roles, ["permit-operator"]) && primaryExecutor);
   const completeOff = hasAnyRole(roles, ["permit-operator"]) && !canComplete;
@@ -329,7 +375,31 @@ export default function PermitExecutionPage() {
         />
       ) : null}
 
-      {isApproved && canRunThisPermit && wizardOpen ? (
+      {isApproved && !released && isReceiver ? (
+        <section className="grid gap-3 rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold">Release for execution</h2>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={siteReady} onChange={(event) => setSiteReady(event.target.checked)} />
+            Site is ready for execution
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={detailsCorrect} onChange={(event) => setDetailsCorrect(event.target.checked)} />
+            The approved work, place and people are still correct
+          </label>
+        </section>
+      ) : null}
+
+      {isApproved && !released && !isReceiver ? (
+        <p className="text-sm text-muted-foreground">Waiting for the receiver to release this permit.</p>
+      ) : null}
+
+      {isApproved && released ? (
+        <p className="text-sm text-muted-foreground">
+          Released for execution{permit.executionReleasedAt ? ` ${formatDateTime(permit.executionReleasedAt)}` : ""}.
+        </p>
+      ) : null}
+
+      {isApproved && released && canRunThisPermit && wizardOpen ? (
         <StartExecutionSteps
           permitId={permit.id}
           detail={detail}
@@ -350,8 +420,13 @@ export default function PermitExecutionPage() {
       ) : null}
 
       <section className="flex flex-wrap gap-2">
-        {isApproved && canRunThisPermit && !wizardOpen ? (
-          <Button onClick={() => setWizardOpen(true)} disabled={isSubmitting}>
+        {isApproved && !released && isReceiver && !canRunThisPermit ? (
+          <Button onClick={() => void handleRelease()} disabled={isSubmitting || !checksReady}>
+            Release for execution
+          </Button>
+        ) : null}
+        {((isApproved && released && canRunThisPermit) || releasesThenStarts) && !wizardOpen ? (
+          <Button onClick={() => void handleBegin()} disabled={isSubmitting || (releasesThenStarts && !checksReady)}>
             Start Permit Execution
           </Button>
         ) : null}

@@ -617,6 +617,20 @@
       "when": 1794200000000,
       "tag": "0085_omitted_risks_lototo_location",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1794300000000,
+      "tag": "0086_execution_release",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1794400000000,
+      "tag": "0087_execution_released_history",
+      "breakpoints": true
     }
   ]
 }

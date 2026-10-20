@@ -56,9 +56,11 @@ export class CanonicalNotificationService {
       body:
         payload.action === 'resubmitted'
           ? `${name} was resubmitted after changes and is waiting for approval.`
-          : awaitingApproval
-            ? `${name} is waiting for your approval.`
-            : `${name} was ${payload.action.replace('_', ' ')}.`,
+          : payload.action === 'approved'
+            ? `${name} is approved and waiting for the receiver to release it for execution.`
+            : awaitingApproval
+              ? `${name} is waiting for your approval.`
+              : `${name} was ${payload.action.replace('_', ' ')}.`,
       recipientUserIds: recipients,
       entityType: 'permit',
       entityId: payload.permitId,
@@ -205,7 +207,7 @@ export class CanonicalNotificationService {
   private approvalTitle(action: string): string {
     switch (action) {
       case 'approved':
-        return 'Permit approved';
+        return 'Permit waiting for release';
       case 'rejected':
         return 'Permit rejected';
       case 'deferred':
