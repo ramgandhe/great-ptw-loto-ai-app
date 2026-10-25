@@ -499,15 +499,15 @@ export class ExecutionService {
       await this.db.delete(permitExecutionCompletions).where(eq(permitExecutionCompletions.permitId, permitId));
     }
 
-    await this.db.transaction(async (tx) => {
-      await tx.insert(permitExecutionCompletions).values({
+    const completion = await this.db.transaction(async (tx) => {
+      const [record] = await tx.insert(permitExecutionCompletions).values({
         permitId,
         completedBy: user.id,
         comment: dto.comment.trim(),
         checklist: { ...dto.checklist },
         createdBy: user.id,
         updatedBy: user.id,
-      });
+      }).returning();
       await this.statusTransitionService.transition(
         {
           permitId,
@@ -520,7 +520,31 @@ export class ExecutionService {
         },
         tx,
       );
+      return record;
     });
+
+    const recipients = [...new Set(
+      [detail.permit.createdBy, detail.permit.submittedBy].filter(
+        (id): id is string => Boolean(id) && id !== user.id,
+      ),
+    )];
+    if (recipients.length > 0 && this.inbox) {
+      try {
+        await this.inbox.generateSystem(tenantId, user.id, {
+          eventType: 'task_reminder',
+          category: 'workflow',
+          title: `Work finished: ${detail.permit.title}`,
+          body: `Permit "${detail.permit.title}" is finished. Check the work and confirm completion.`,
+          recipientUserIds: recipients,
+          entityType: 'permit',
+          entityId: permitId,
+          dedupeKey: `${tenantId}:permit:${permitId}:execution_completed:${completion.id}`,
+          sourceModule: 'execution',
+        });
+      } catch {
+        // The completion is already saved. A missed notice must not undo it.
+      }
+    }
 
     await this.permitCacheService.invalidatePermit(tenantId, permitId);
     await this.executionCacheService.invalidatePermit(tenantId, permitId);

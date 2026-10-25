@@ -238,6 +238,12 @@ function PermitWorkspace() {
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="grid min-w-0 gap-5">
             <PermitJourney id={permit.id} part="now" />
+            {permit.status === "execution_completed" ? (
+              <p className="text-sm text-muted-foreground">Work is complete and sent for review and closure.</p>
+            ) : null}
+            {permit.status === "pending_closure" ? (
+              <p className="text-sm text-muted-foreground">Verification is done and sent for sign-off.</p>
+            ) : null}
             {detail.permit.lototoRequired &&
             ["approved", "active", "execution_completed", "pending_closure"].includes(detail.permit.status) ? (
               <PermitLototoExecution permitId={detail.permit.id} />

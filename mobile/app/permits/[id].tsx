@@ -139,6 +139,12 @@ export default function PermitDetailScreen() {
       {status === "approved" && released ? (
         <Banner tone="success">Released for execution{permit.executionReleasedAt ? ` ${formatDateTime(permit.executionReleasedAt)}` : ""}.</Banner>
       ) : null}
+      {status === "execution_completed" ? (
+        <Banner tone="success">Work is complete and sent for review and closure.</Banner>
+      ) : null}
+      {status === "pending_closure" ? (
+        <Banner tone="info">Verification is done and sent for sign-off.</Banner>
+      ) : null}
 
       <Card accent={tokens.status[status]}>
         <InfoList

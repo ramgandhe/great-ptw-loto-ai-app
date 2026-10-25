@@ -399,6 +399,10 @@ export default function PermitExecutionPage() {
         </p>
       ) : null}
 
+      {permit.status === "execution_completed" ? (
+        <p className="text-sm text-muted-foreground">Work is complete and sent for review and closure.</p>
+      ) : null}
+
       {isApproved && released && canRunThisPermit && wizardOpen ? (
         <StartExecutionSteps
           permitId={permit.id}

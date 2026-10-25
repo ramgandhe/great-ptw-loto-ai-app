@@ -300,7 +300,7 @@ export default function PermitClosurePage() {
         </section>
       ) : verification ? (
         <section className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm">
-          Verification submitted {formatDateTime(verification.verifiedAt)}.
+          Verification is done and sent for sign-off. Submitted {formatDateTime(verification.verifiedAt)}.
         </section>
       ) : null}
 

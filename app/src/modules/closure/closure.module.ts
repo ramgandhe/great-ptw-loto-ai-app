@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { KeycloakAdminModule } from '../../infrastructure/keycloak/keycloak-admin.module';
 import { ExecutionModule } from '../execution/execution.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PermitModule } from '../permit/permit.module';
 import { ArchiveController } from './archive.controller';
 import { ArchiveService } from './archive.service';
@@ -14,7 +16,7 @@ import { NotificationService } from './notification.service';
 import { VerificationService } from './verification.service';
 
 @Module({
-  imports: [PermitModule, ExecutionModule],
+  imports: [PermitModule, ExecutionModule, NotificationsModule, KeycloakAdminModule],
   controllers: [ArchiveController, ClosureController],
   providers: [
     VerificationService,

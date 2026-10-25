@@ -3,9 +3,11 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Optional,
 } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
+import { KeycloakAdminService } from '../../infrastructure/keycloak/keycloak-admin.service';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   auditHistory,
@@ -17,7 +19,8 @@ import { PermitLototoExecutionService } from '../permit/permit-lototo-execution.
 import { PermitService } from '../permit/permit.service';
 import { StatusTransitionService } from '../execution/status-transition.service';
 import { isTenantPrivileged } from '../../common/constants/tenant-roles';
-import { EXECUTION_COMPLETED_STATUS, PENDING_CLOSURE_STATUS } from './closure.constants';
+import { NotificationsService as InboxNotificationsService } from '../notifications/notifications.service';
+import { CLOSURE_CLOSE_ROLES, EXECUTION_COMPLETED_STATUS, PENDING_CLOSURE_STATUS } from './closure.constants';
 import { ClosureCacheService } from './closure-cache.service';
 import { ClosureLogService } from './closure-log.service';
 import { VerificationDto } from './dto/verification.dto';
@@ -35,6 +38,12 @@ export class VerificationService {
     private readonly closureCacheService: ClosureCacheService,
     private readonly closureLogService: ClosureLogService,
     private readonly notificationService: NotificationService,
+    @Optional()
+    @Inject(InboxNotificationsService)
+    private readonly inbox?: InboxNotificationsService,
+    @Optional()
+    @Inject(KeycloakAdminService)
+    private readonly keycloakAdmin?: KeycloakAdminService,
   ) {}
 
   async verify(permitId: string, dto: VerificationDto, user: AuthenticatedUser) {
@@ -132,6 +141,7 @@ export class VerificationService {
       actorId: user.id,
       metadata: { verificationId: verification.id },
     });
+    await this.notifySignOff(tenantId, user.id, permit.title, permitId, verification.id);
 
     this.closureLogService.logEvent({
       action: 'closure.verified',
@@ -183,6 +193,41 @@ export class VerificationService {
       comment: verification.comment,
       checklist: verification.checklist,
     };
+  }
+
+  private async notifySignOff(
+    tenantId: string,
+    actorId: string,
+    title: string,
+    permitId: string,
+    verificationId: string,
+  ) {
+    if (!this.inbox || !this.keycloakAdmin) {
+      return;
+    }
+    try {
+      const closeRoles = new Set<string>(CLOSURE_CLOSE_ROLES);
+      const people = await this.keycloakAdmin.listUsersForTenant(tenantId);
+      const recipients = people
+        .filter((person) => person.enabled && person.id !== actorId && person.roles.some((role) => closeRoles.has(role)))
+        .map((person) => person.id);
+      if (recipients.length === 0) {
+        return;
+      }
+      await this.inbox.generateSystem(tenantId, actorId, {
+        eventType: 'task_reminder',
+        category: 'workflow',
+        title: `Final sign-off: ${title}`,
+        body: `Permit "${title}" is ready for final sign-off.`,
+        recipientUserIds: recipients,
+        entityType: 'permit',
+        entityId: permitId,
+        dedupeKey: `${tenantId}:permit:${permitId}:pending_closure:${verificationId}`,
+        sourceModule: 'closure',
+      });
+    } catch {
+      // The verification is already saved. A missed notice must not undo it.
+    }
   }
 
   private requireTenant(user: AuthenticatedUser): string {

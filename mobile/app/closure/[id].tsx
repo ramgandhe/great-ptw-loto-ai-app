@@ -16,6 +16,7 @@ import { isOfflineError } from "@/lib/permit/offline";
 import { stageAnswersLeft, stageAnswersPayload, type StageAnswerEdits } from "@/lib/permit/forms";
 import { StageAnswers, useSignerName } from "@/components/permit/stage-answers";
 import type { PermitDetail } from "@/lib/permit/types";
+import { formatDateTime } from "@/lib/format";
 import { useTheme } from "@/providers/theme-provider";
 
 const checklistLabels: Record<keyof VerificationChecklist, string> = {
@@ -40,6 +41,7 @@ export default function PermitVerificationScreen() {
   const [checklist, setChecklist] = useState(defaultVerificationChecklist);
   const [comment, setComment] = useState("");
   const [verified, setVerified] = useState(false);
+  const [verifiedAt, setVerifiedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +65,7 @@ export default function PermitVerificationScreen() {
       .then(([, permitDetail, verificationRecord, progress, evidence]) => {
         setDetail(permitDetail);
         setVerified(Boolean(verificationRecord));
+        setVerifiedAt(verificationRecord?.verifiedAt ?? null);
         setProgressCount(progress ? progress.length : null);
         setEvidenceCount(evidence ? evidence.length : null);
       })
@@ -89,15 +92,16 @@ export default function PermitVerificationScreen() {
         await queueOfflineVerification(permitId, checklist, comment.trim() || undefined);
         setMessage("Inspection saved on this phone. It is not verified until it reaches the server.");
       } else {
-        await verifyPermit(permitId, {
+        const result = await verifyPermit(permitId, {
           checklist,
           comment: comment.trim(),
           stageAnswers: detail ? stageAnswersPayload(stageEdits, detail.permit.draftRevision) : undefined,
         });
         setVerified(true);
+        setVerifiedAt(result.verification.verifiedAt);
         setStageEdits({});
         setDetail(await getPermit(permitId));
-        setMessage("Verification submitted");
+        setMessage(null);
       }
     } catch (err) {
       // Only a lost connection is queued; a refusal from the server is shown, never queued.
@@ -182,7 +186,11 @@ export default function PermitVerificationScreen() {
 
       {error ? <Banner tone="danger">{error}</Banner> : null}
       {message ? <Banner tone="success">{message}</Banner> : null}
-      {verified ? <Banner tone="info" title="Verified">The head of department signs off and closes the permit.</Banner> : null}
+      {verified ? (
+        <Banner tone="info">
+          Verification is done and sent for sign-off.{verifiedAt ? ` Submitted ${formatDateTime(verifiedAt)}.` : ""}
+        </Banner>
+      ) : null}
 
       <View style={{ gap: tokens.space[3] }}>
         <SectionTitle title={verified ? "Final sign-off" : "Final inspection"} description={verified ? "Confirm each check before closing." : "Confirm on site, then submit."} />

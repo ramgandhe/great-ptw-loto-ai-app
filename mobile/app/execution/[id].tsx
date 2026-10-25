@@ -251,6 +251,9 @@ export default function ExecutePermitScreen() {
       {isApproved && released ? (
         <Banner tone="success">Released for execution{permit.executionReleasedAt ? ` ${formatDateTime(permit.executionReleasedAt)}` : ""}.</Banner>
       ) : null}
+      {permit.status === "execution_completed" ? (
+        <Banner tone="success">Work is complete and sent for review and closure.</Banner>
+      ) : null}
 
       {isActive ? (
         <>
