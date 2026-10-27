@@ -18,6 +18,9 @@ describe('mobile Needs you (S6)', () => {
     const operator = buildWorkQueue(['permit-operator'], [permit('d', 'draft'), permit('a', 'active')], []);
     expect(operator.map((i) => i.action)).toEqual(['log-progress', 'site-details']);
     expect(buildWorkQueue(['viewer'], [permit('d', 'draft')], [])).toEqual([]);
+    const waiting = { ...permit('e', 'execution_completed'), lototoRequired: true, lototoRestored: false };
+    expect(buildWorkQueue(['permit-receiver'], [waiting], []).map((item) => item.action)).toEqual([]);
+    expect(buildWorkQueue(['permit-operator'], [waiting], []).map((item) => item.action)).toEqual(['restore-energy']);
   });
 });
 

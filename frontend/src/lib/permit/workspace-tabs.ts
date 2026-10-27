@@ -17,9 +17,15 @@ export const CLOSURE_REVIEW_STATUSES = ["execution_completed", "pending_closure"
 export const WORK_STATUSES = ["approved", "active", "suspended"];
 
 /** The tabs this person can open for a permit in `status`; the others have nothing for them yet. */
-export function workspaceTabs(status: string, roles: string[]): WorkspaceTab[] {
+export function workspaceTabs(
+  status: string,
+  roles: string[],
+  options?: { restorationPending?: boolean },
+): WorkspaceTab[] {
   const review = CLOSURE_REVIEW_STATUSES.includes(status) || (status !== "draft" && hasAnyRole(roles, APPROVAL_READ_ROLES));
-  const work = WORK_STATUSES.includes(status) && hasAnyRole(roles, EXECUTION_READ_ROLES);
+  const work =
+    (WORK_STATUSES.includes(status) || (status === "execution_completed" && options?.restorationPending === true)) &&
+    hasAnyRole(roles, EXECUTION_READ_ROLES);
   return WORKSPACE_TABS.map((tab) => tab.key).filter((key) => (key === "review" ? review : key === "work" ? work : true));
 }
 

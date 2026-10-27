@@ -12,6 +12,8 @@ describe('permit workspace (S4)', () => {
     expect(workspaceTabs('active', ['permit-operator'])).toEqual(['overview', 'preparation', 'work', 'history']);
     expect(workspaceTabs('pending_closure', ['permit-operator'])).toEqual(['overview', 'preparation', 'review', 'history']);
     expect(workspaceTabs('active', ['safety-officer'])).not.toContain('work');
+    expect(workspaceTabs('execution_completed', ['permit-operator'], { restorationPending: true })).toContain('work');
+    expect(workspaceTabs('execution_completed', ['permit-operator'])).not.toContain('work');
   });
 
   it('links to a tab, with the overview at the plain permit URL', () => {
@@ -26,11 +28,11 @@ describe('permit workspace (S4)', () => {
   });
 
   it('sends queue items to the workspace tab that does the job; editing stays in the editor', () => {
-    const permit = (id: string, status: string) => ({ id, status, title: id, permitTypeId: 't', updatedAt: '', createdAt: '' }) as unknown as PermitRecord;
+    const permit = (id: string, status: string) => ({ id, status, title: id, permitTypeId: 't', executorIds: ['u'], updatedAt: '', createdAt: '' }) as unknown as PermitRecord;
     const hrefs = Object.fromEntries(
       buildWorkQueue(['permit-receiver', 'permit-approver', 'permit-operator'], [permit('d', 'draft'), permit('a', 'active'), permit('c', 'pending_closure')], [
         { permit: permit('r', 'pending_approval') } as never,
-      ]).map((item) => [item.key, item.href]),
+      ], [], [], Date.now(), 'u').map((item) => [item.key, item.href]),
     );
     expect(hrefs).toMatchObject({
       'review:r': '/permits/r?tab=review',
@@ -38,6 +40,17 @@ describe('permit workspace (S4)', () => {
       'log-progress:a': '/permits/a?tab=work',
       'final-approval:c': '/permits/c?tab=review',
     });
+  });
+
+  it('holds receiver confirmation until LOTOTO restoration has passed', () => {
+    const finished = { id: 'e', status: 'execution_completed', title: 'e', permitTypeId: 't', lototoRequired: true, lototoRestored: false, executorIds: ['op'], updatedAt: '', createdAt: '' } as unknown as PermitRecord;
+    const receiver = buildWorkQueue(['permit-receiver'], [finished], [], [], [], Date.now(), 'recv');
+    expect(receiver.map((item) => item.action)).toEqual([]);
+    const operator = buildWorkQueue(['permit-operator'], [finished], [], [], [], Date.now(), 'op');
+    expect(operator.map((item) => [item.action, item.href])).toEqual([['restore-energy', '/permits/e?tab=work']]);
+    const restored = { ...finished, lototoRestored: true };
+    const after = buildWorkQueue(['permit-receiver'], [restored], [], [], [], Date.now(), 'recv');
+    expect(after.map((item) => item.action)).toEqual(['approve-completion']);
   });
 });
 

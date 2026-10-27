@@ -379,7 +379,7 @@ export class PermitService {
 
   private async withExecutorIds(rows: (typeof permits.$inferSelect)[]) {
     if (rows.length === 0) {
-      return rows.map((permit) => ({ ...permit, executorIds: [] as string[] }));
+      return this.attachLototoRestored(rows.map((permit) => ({ ...permit, executorIds: [] as string[] })));
     }
     const links = await this.db
       .select({
@@ -394,7 +394,61 @@ export class PermitService {
       list.push(link.workforceUserId);
       byPermit.set(link.permitId, list);
     }
-    return rows.map((permit) => ({ ...permit, executorIds: byPermit.get(permit.id) ?? [] }));
+    const withExecutors = rows.map((permit) => ({ ...permit, executorIds: byPermit.get(permit.id) ?? [] }));
+    return this.attachLototoRestored(withExecutors);
+  }
+
+  /** True when LOTOTO is not required, or every attached procedure has a passing remove sequence. */
+  private async attachLototoRestored<T extends { id: string; lototoRequired: boolean }>(
+    rows: T[],
+  ): Promise<Array<T & { lototoRestored: boolean }>> {
+    const needed = rows.filter((row) => row.lototoRequired).map((row) => row.id);
+    const passed = new Set<string>();
+    if (needed.length > 0) {
+      const instances = await this.db
+        .select({ id: permitLototoInstances.id, permitId: permitLototoInstances.permitId })
+        .from(permitLototoInstances)
+        .where(inArray(permitLototoInstances.permitId, needed));
+      const byPermit = new Map<string, string[]>();
+      for (const instance of instances) {
+        const list = byPermit.get(instance.permitId) ?? [];
+        list.push(instance.id);
+        byPermit.set(instance.permitId, list);
+      }
+      const instanceIds = instances.map((row) => row.id);
+      const latest = new Map<string, { runNumber: number; result: string | null }>();
+      if (instanceIds.length > 0) {
+        const runs = await this.db
+          .select({
+            instanceId: permitLototoVerificationRuns.instanceId,
+            runNumber: permitLototoVerificationRuns.runNumber,
+            result: permitLototoVerificationRuns.result,
+          })
+          .from(permitLototoVerificationRuns)
+          .where(
+            and(
+              inArray(permitLototoVerificationRuns.instanceId, instanceIds),
+              eq(permitLototoVerificationRuns.phase, 'remove'),
+            ),
+          );
+        for (const run of runs) {
+          const current = latest.get(run.instanceId);
+          if (!current || run.runNumber > current.runNumber) {
+            latest.set(run.instanceId, { runNumber: run.runNumber, result: run.result });
+          }
+        }
+      }
+      for (const permitId of needed) {
+        const ids = byPermit.get(permitId) ?? [];
+        if (ids.length > 0 && ids.every((id) => latest.get(id)?.result === 'pass')) {
+          passed.add(permitId);
+        }
+      }
+    }
+    return rows.map((row) => ({
+      ...row,
+      lototoRestored: !row.lototoRequired || passed.has(row.id),
+    }));
   }
 
   async findOne(id: string, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -403,13 +457,19 @@ export class PermitService {
     const cached = await this.permitCacheService.getPermitDetail(tenantId, id);
     if (cached) {
       await assertPermitVisible(this.db, user, cached);
-      return cached;
+      return this.withFreshRestoration(cached);
     }
 
     const detail = await this.loadDetail(this.db, id, tenantId);
     await assertPermitVisible(this.db, user, detail);
     await this.permitCacheService.setPermitDetail(tenantId, id, detail);
-    return detail;
+    return this.withFreshRestoration(detail);
+  }
+
+  /** Restoration changes without rewriting the cached permit, so read it on the way out. */
+  private async withFreshRestoration(detail: PermitDetail): Promise<PermitDetail> {
+    const [permit] = await this.attachLototoRestored([detail.permit]);
+    return { ...detail, permit };
   }
 
   async removeDraft(id: string, user: AuthenticatedUser): Promise<{ id: string; deleted: boolean }> {

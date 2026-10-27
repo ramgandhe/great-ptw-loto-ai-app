@@ -16,6 +16,7 @@ import {
 import { initExecutionOfflineStorage, queueOfflineEvidence, queueOfflineProgress } from "@/lib/execution/offline";
 import { getProfile } from "@/lib/auth/api";
 import { formatDateTime } from "@/lib/format";
+import { LototoRestoration } from "@/components/permit/lototo-restoration";
 import { getPermit } from "@/lib/permit/api";
 import type { PermitDetail } from "@/lib/permit/types";
 import { useTheme } from "@/providers/theme-provider";
@@ -36,6 +37,7 @@ export default function ExecutePermitScreen() {
   const [privileged, setPrivileged] = useState(false);
   const [siteReady, setSiteReady] = useState(false);
   const [detailsCorrect, setDetailsCorrect] = useState(false);
+  const [lototoRestored, setLototoRestored] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -47,6 +49,7 @@ export default function ExecutePermitScreen() {
         getProfile().catch(() => null),
       ]);
       setDetail(permitDetail);
+      setLototoRestored(permitDetail.permit.lototoRestored === true);
       setUserId(profile?.id ?? null);
       setPrivileged(Boolean(profile?.roles.some((role) => role === "tenant-owner" || role === "tenant-admin" || role === "platform-admin")));
     } catch (err) {
@@ -251,7 +254,13 @@ export default function ExecutePermitScreen() {
       {isApproved && released ? (
         <Banner tone="success">Released for execution{permit.executionReleasedAt ? ` ${formatDateTime(permit.executionReleasedAt)}` : ""}.</Banner>
       ) : null}
-      {permit.status === "execution_completed" ? (
+      {permit.status === "execution_completed" && permit.lototoRequired && !lototoRestored ? (
+        <>
+          <Banner tone="warning">Work is complete. Verify energy restoration. The receiver is asked to check the work after restoration passes.</Banner>
+          <LototoRestoration permitId={permit.id} onRestored={() => setLototoRestored(true)} />
+        </>
+      ) : null}
+      {permit.status === "execution_completed" && (!permit.lototoRequired || lototoRestored) ? (
         <Banner tone="success">Work is complete and sent for review and closure.</Banner>
       ) : null}
 

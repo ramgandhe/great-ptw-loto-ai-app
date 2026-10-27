@@ -16,6 +16,31 @@ export function getPermitLototoExecution(permitId: string) {
   return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/execution`);
 }
 
+export function tickPermitLototoSequenceStep(permitId: string, instanceId: string, sequenceStepId: string) {
+  return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/instances/${instanceId}/sequence-ticks`, {
+    method: "POST",
+    body: JSON.stringify({ sequenceStepId }),
+  });
+}
+
+export function confirmPermitLototoPhase(
+  permitId: string,
+  instanceId: string,
+  payload: { phase: "remove"; result: "pass" | "fail"; tryOutCompleted: boolean; signedName: string },
+) {
+  return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/instances/${instanceId}/phase-confirm`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function restartPermitLototoVerification(permitId: string, instanceId: string) {
+  return fetchApi<PermitLototoExecutionBoard>(`/permits/${permitId}/lototo/instances/${instanceId}/restart-verification`, {
+    method: "POST",
+    body: JSON.stringify({ phase: "remove" }),
+  });
+}
+
 export function recordPermitLototoCrew(
   permitId: string,
   instanceId: string,

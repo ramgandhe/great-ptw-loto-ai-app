@@ -204,7 +204,8 @@ export default function PermitClosurePage() {
     return <p className="p-8 text-sm text-muted-foreground">Loading permit closure...</p>;
   }
 
-  const canVerify = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["permit-receiver", "tenant-owner", "tenant-admin", "platform-admin"]);
+  const restorationPending = detail.permit.lototoRequired === true && detail.permit.lototoRestored !== true;
+  const canVerify = detail.permit.status === "execution_completed" && !restorationPending && hasAnyRole(roles, ["permit-receiver", "tenant-owner", "tenant-admin", "platform-admin"]);
   const canSendBackToExecutor = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["permit-receiver", "tenant-owner", "tenant-admin", "platform-admin"]);
   const canClose = Boolean(verification) && detail.permit.status === "pending_closure" && hasAnyRole(roles, ["permit-approver", "tenant-owner", "tenant-admin", "platform-admin"]);
   const stageLeft = stageAnswersLeft(detail.permit.formResponses ?? [], "closure", stageEdits);
@@ -271,6 +272,12 @@ export default function PermitClosurePage() {
           </ul>
         )}
       </section>
+
+      {detail.permit.status === "execution_completed" && restorationPending ? (
+        <p className="text-sm text-muted-foreground">
+          Energy restoration still has to be verified. The receiver is asked to confirm completion after that passes.
+        </p>
+      ) : null}
 
       {canVerify ? (
         <section className="grid gap-3 rounded-lg border border-border p-4">

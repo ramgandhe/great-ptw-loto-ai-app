@@ -9,6 +9,7 @@ export type WorkAction =
   | "review"
   | "safety-check"
   | "final-approval"
+  | "restore-energy"
   | "approve-completion"
   | "revalidate"
   | "release-execution"
@@ -25,6 +26,7 @@ export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string; kin
   review: { group: "Waiting for your approval", verb: "Review", kind: "decide" },
   "safety-check": { group: "Safety Approval", verb: "Safety approval", kind: "decide" },
   "final-approval": { group: "Waiting for final sign-off", verb: "Sign off", kind: "decide" },
+  "restore-energy": { group: "Energy restoration to verify", verb: "Verify restoration", kind: "do" },
   "approve-completion": { group: "Work finished, confirm completion", verb: "Confirm", kind: "decide" },
   revalidate: { group: "Suspended, needs revalidation", verb: "Revalidate", kind: "fix" },
   "release-execution": { group: "Approved, release for execution", verb: "Release for execution", kind: "do" },
@@ -88,6 +90,12 @@ export function buildWorkQueue(roles: string[], permits: PermitRecord[], approva
         if (has(roles, REVALIDATE)) add("revalidate", permit, `/execution/${permit.id}`, true);
         break;
       case "execution_completed":
+        if (permit.lototoRequired === true && permit.lototoRestored !== true) {
+          if (has(roles, EXECUTOR) || has(roles, ["tenant-owner", "tenant-admin"])) {
+            add("restore-energy", permit, `/execution/${permit.id}`);
+          }
+          break;
+        }
         if (has(roles, COMPLETION)) add("approve-completion", permit, `/closure/${permit.id}`);
         break;
       case "pending_closure":

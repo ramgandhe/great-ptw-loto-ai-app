@@ -900,13 +900,6 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
 
       {step === last && !optionsLoading ? (
         <>
-          {!isReadOnly ? (
-            <TextField
-              label="Typed name"
-              value={signedName ?? formOptions?.userName ?? ""}
-              onChangeText={setSignedName}
-            />
-          ) : null}
           {reviewSections.map((section) => (
             <StepCard
               key={section.step}
@@ -935,6 +928,13 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
               )
             ) : null}
           </StepCard>
+          {!isReadOnly ? (
+            <TextField
+              label="Typed name"
+              value={signedName ?? formOptions?.userName ?? ""}
+              onChangeText={setSignedName}
+            />
+          ) : null}
         </>
       ) : null}
     </Screen>

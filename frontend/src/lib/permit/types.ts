@@ -29,6 +29,8 @@ export type PermitRecord = {
   exactSpot?: string | null;
   placePath?: string | null;
   lototoRequired?: boolean;
+  /** False while a LOTOTO permit still needs a passing energy-restoration sequence. */
+  lototoRestored?: boolean;
   gasTestingRequired?: boolean;
   plannedStartAt: string | null;
   plannedEndAt: string | null;

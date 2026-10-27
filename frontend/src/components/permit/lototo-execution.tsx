@@ -21,9 +21,12 @@ import { fieldClassName } from "@/components/permit/form-field";
 
 export function PermitLototoExecution({
   permitId,
+  reloadKey,
   onBoardChange,
 }: {
   permitId: string;
+  /** Reload when the permit status changes, so completion switches this board to restoration. */
+  reloadKey?: string;
   onBoardChange?: (board: PermitLototoExecutionBoard) => void;
 }) {
   const { profile } = useAuthProfile();
@@ -38,7 +41,7 @@ export function PermitLototoExecution({
         onBoardChange?.(next);
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load LOTOTO verification"));
-  }, [permitId]);
+  }, [permitId, reloadKey]);
 
   if (error) {
     return (
@@ -76,7 +79,7 @@ export function PermitLototoExecution({
   return (
     <section className="grid gap-4 rounded-xl border border-border bg-card p-5">
       <div>
-        <h2 className="text-lg font-semibold">LOTOTO verification</h2>
+        <h2 className="text-lg font-semibold">{canRestore ? "Energy restoration" : "LOTOTO verification"}</h2>
         <p className="text-sm text-muted-foreground">
           {canRestore
             ? board.restored

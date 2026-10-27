@@ -24,6 +24,7 @@ import {
   permitLototoRestorations,
   permitLototoSequenceTicks,
   permitLototoStepNa,
+  permitExecutionCompletions,
   permitLototoVerificationRuns,
   permitLototoVerifiers,
   tenantUsers,
@@ -326,7 +327,46 @@ export class PermitLototoExecutionService {
         updatedBy: user.id,
       })
       .where(eq(permitLototoVerificationRuns.id, run.id));
-    return this.getBoard(permitId, user);
+    const board = await this.getBoard(permitId, user);
+    if (dto.phase === 'remove' && dto.result === 'pass' && board.restored) {
+      await this.notifyWorkFinished(write.detail.permit, user);
+    }
+    return board;
+  }
+
+  /** The receiver is asked to verify only after energy restoration has passed. */
+  private async notifyWorkFinished(
+    permit: { id: string; tenantId: string; title: string; createdBy: string | null; submittedBy: string | null },
+    user: AuthenticatedUser,
+  ) {
+    try {
+      const [completion] = await this.db
+        .select({ id: permitExecutionCompletions.id })
+        .from(permitExecutionCompletions)
+        .where(eq(permitExecutionCompletions.permitId, permit.id));
+      if (!completion) {
+        return;
+      }
+      const recipients = [...new Set(
+        [permit.createdBy, permit.submittedBy].filter((id): id is string => Boolean(id) && id !== user.id),
+      )];
+      if (recipients.length === 0) {
+        return;
+      }
+      await this.notificationsService.generateSystem(permit.tenantId, user.id, {
+        eventType: 'task_reminder',
+        category: 'workflow',
+        title: `Work finished: ${permit.title}`,
+        body: `Permit "${permit.title}" is finished. Check the work and confirm completion.`,
+        recipientUserIds: recipients,
+        entityType: 'permit',
+        entityId: permit.id,
+        dedupeKey: `${permit.tenantId}:permit:${permit.id}:execution_completed:${completion.id}`,
+        sourceModule: 'execution',
+      });
+    } catch {
+      // Restoration is already saved. A missed notice must not undo it.
+    }
   }
 
   async restartVerification(

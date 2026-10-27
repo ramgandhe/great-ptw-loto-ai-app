@@ -528,7 +528,8 @@ export class ExecutionService {
         (id): id is string => Boolean(id) && id !== user.id,
       ),
     )];
-    if (recipients.length > 0 && this.inbox) {
+    // LOTOTO stays with the operator until the remove sequence passes. The receiver is told then.
+    if (!detail.permit.lototoRequired && recipients.length > 0 && this.inbox) {
       try {
         await this.inbox.generateSystem(tenantId, user.id, {
           eventType: 'task_reminder',

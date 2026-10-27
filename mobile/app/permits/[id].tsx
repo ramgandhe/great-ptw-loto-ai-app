@@ -140,7 +140,11 @@ export default function PermitDetailScreen() {
         <Banner tone="success">Released for execution{permit.executionReleasedAt ? ` ${formatDateTime(permit.executionReleasedAt)}` : ""}.</Banner>
       ) : null}
       {status === "execution_completed" ? (
-        <Banner tone="success">Work is complete and sent for review and closure.</Banner>
+        <Banner tone={permit.lototoRequired && permit.lototoRestored !== true ? "warning" : "success"}>
+          {permit.lototoRequired && permit.lototoRestored !== true
+            ? "Work is complete. Energy restoration still has to be verified before this is sent for review."
+            : "Work is complete and sent for review and closure."}
+        </Banner>
       ) : null}
       {status === "pending_closure" ? (
         <Banner tone="info">Verification is done and sent for sign-off.</Banner>

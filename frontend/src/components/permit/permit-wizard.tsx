@@ -2602,21 +2602,6 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             </Button>
           ))}
         </div>
-        {draftHolder === "ready_for_review" && canSubmit ? (
-          <FormField label="Typed name" htmlFor="initiatorSignedName">
-            <div className="flex gap-2">
-              <input
-                id="initiatorSignedName"
-                className={fieldClassName}
-                value={initiatorName}
-                onChange={(event) => setInitiatorSignedName(event.target.value)}
-              />
-              <Button type="button" variant="outline" onClick={() => setInitiatorSignedName(initiatorName.trim() || signerName)}>
-                Me
-              </Button>
-            </div>
-          </FormField>
-        ) : null}
         <section aria-labelledby="submission-readiness-title" className="overflow-hidden rounded-xl border border-border">
           <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/40 px-4 py-3">
             <div>
@@ -2683,6 +2668,21 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           />
           Site visited and verified
         </label>
+        {draftHolder === "ready_for_review" && canSubmit ? (
+          <FormField label="Typed name" htmlFor="initiatorSignedName">
+            <div className="flex gap-2">
+              <input
+                id="initiatorSignedName"
+                className={fieldClassName}
+                value={initiatorName}
+                onChange={(event) => setInitiatorSignedName(event.target.value)}
+              />
+              <Button type="button" variant="outline" onClick={() => setInitiatorSignedName(initiatorName.trim() || signerName)}>
+                Me
+              </Button>
+            </div>
+          </FormField>
+        ) : null}
         <p className="text-sm text-muted-foreground">
           {isExecutor
             ? `${saveLabel} when you are done. The job issuer reviews the permit and submits it for approval.`

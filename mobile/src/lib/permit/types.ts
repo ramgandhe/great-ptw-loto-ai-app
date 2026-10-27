@@ -19,6 +19,8 @@ export type PermitRecord = {
   exactSpot?: string | null;
   placePath?: string | null;
   lototoRequired?: boolean;
+  /** False while a LOTOTO permit still needs a passing energy-restoration sequence. */
+  lototoRestored?: boolean;
   gasTestingRequired?: boolean;
   plannedStartAt: string | null;
   plannedEndAt: string | null;
@@ -153,6 +155,20 @@ export type PermitLototoExecutionPoint = {
   restoreStatus: PermitLototoPointStatus;
 };
 
+export type PermitLototoSequenceStep = {
+  id: string;
+  sequenceOrder: number;
+  title: string;
+  action: string | null;
+};
+
+export type PermitLototoVerificationRun = {
+  result: string | null;
+  nextStepId: string | null;
+  canConfirm: boolean;
+  ticks: Array<{ sequenceStepId: string }>;
+};
+
 export type PermitLototoExecutionBoard = {
   permitId: string;
   permitStatus: string;
@@ -163,6 +179,8 @@ export type PermitLototoExecutionBoard = {
     procedureCode: string;
     procedureTitle: string;
     points: PermitLototoExecutionPoint[];
+    removeSteps?: PermitLototoSequenceStep[];
+    removeRun?: PermitLototoVerificationRun | null;
   }>;
 };
 

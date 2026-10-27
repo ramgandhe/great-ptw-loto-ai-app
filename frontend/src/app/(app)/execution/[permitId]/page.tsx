@@ -79,6 +79,7 @@ export default function PermitExecutionPage() {
   const [suspendReason, setSuspendReason] = useState("");
   const [suspendError, setSuspendError] = useState<string | null>(null);
   const [lototoIsolated, setLototoIsolated] = useState<boolean | null>(null);
+  const [lototoRestored, setLototoRestored] = useState<boolean | null>(null);
   const [start, setStart] = useState<ExecutionStartState>(parseExecutionStart(null));
   const [hazards, setHazards] = useState<Map<string, HazardRecord>>(new Map());
   const [ppeNames, setPpeNames] = useState<Map<string, string>>(new Map());
@@ -101,8 +102,10 @@ export default function PermitExecutionPage() {
     if (permitDetail.permit.lototoRequired) {
       const board = await getPermitLototoExecution(permitId);
       setLototoIsolated(board.isolated);
+      setLototoRestored(board.restored);
     } else {
       setLototoIsolated(true);
+      setLototoRestored(true);
     }
 
     if (permitDetail.permit.status === "active" || permitDetail.permit.status === "suspended") {
@@ -366,11 +369,21 @@ export default function PermitExecutionPage() {
         </div>
       ) : null}
 
+      {permit.status === "execution_completed" ? (
+        <p className="text-sm text-muted-foreground">
+          {permit.lototoRequired && lototoRestored !== true
+            ? "Work is complete. Verify energy restoration. The receiver is asked to check the work after restoration passes."
+            : "Work is complete and sent for review and closure."}
+        </p>
+      ) : null}
+
       {permit.lototoRequired && (isActive || permit.status === "execution_completed") ? (
         <PermitLototoExecution
           permitId={permit.id}
+          reloadKey={permit.status}
           onBoardChange={(board) => {
             setLototoIsolated(board.isolated);
+            setLototoRestored(board.restored);
           }}
         />
       ) : null}
@@ -397,10 +410,6 @@ export default function PermitExecutionPage() {
         <p className="text-sm text-muted-foreground">
           Released for execution{permit.executionReleasedAt ? ` ${formatDateTime(permit.executionReleasedAt)}` : ""}.
         </p>
-      ) : null}
-
-      {permit.status === "execution_completed" ? (
-        <p className="text-sm text-muted-foreground">Work is complete and sent for review and closure.</p>
       ) : null}
 
       {isApproved && released && canRunThisPermit && wizardOpen ? (

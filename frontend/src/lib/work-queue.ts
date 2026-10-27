@@ -15,6 +15,7 @@ export type WorkAction =
   | "start-work"
   | "log-progress"
   | "revalidate"
+  | "restore-energy"
   | "approve-completion"
   | "final-approval"
   | "resolve-conflict"
@@ -55,6 +56,7 @@ export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string; kin
   review: { group: "Waiting for your approval", verb: "Review", kind: "decide" },
   "safety-check": { group: "Safety Approval", verb: "Safety approval", kind: "decide" },
   "final-approval": { group: "Waiting for final sign-off", verb: "Sign off", kind: "decide" },
+  "restore-energy": { group: "Energy restoration to verify", verb: "Verify restoration", kind: "do" },
   "approve-completion": { group: "Work finished, confirm completion", verb: "Confirm", kind: "decide" },
   revalidate: { group: "Suspended, needs revalidation", verb: "Revalidate", kind: "fix" },
   "release-execution": { group: "Approved, release for execution", verb: "Release for execution", kind: "do" },
@@ -198,6 +200,10 @@ export function buildWorkQueue(
         if (hasAnyRole(roles, REVALIDATE_ROLES)) add("revalidate", permit, workspaceHref(permit.id, "work"), undefined, true);
         break;
       case "execution_completed":
+        if (permit.lototoRequired === true && permit.lototoRestored !== true) {
+          if (canRunPermit(permit)) add("restore-energy", permit, workspaceHref(permit.id, "work"));
+          break;
+        }
         if (hasAnyRole(roles, COMPLETION_ROLES)) add("approve-completion", permit, workspaceHref(permit.id, "review"));
         break;
       case "pending_closure":
