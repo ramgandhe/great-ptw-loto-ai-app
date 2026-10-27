@@ -5,6 +5,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { MASTER_DATA_READ_ROLES, MASTER_DATA_WRITE_ROLES } from './master-data.constants';
 import { CreateHazardDto } from './dto/create-hazard.dto';
+import { DecideHazardRequestDto } from './dto/decide-hazard-request.dto';
 import { HazardService } from './hazard.service';
 
 @Controller('hazards')
@@ -27,6 +28,28 @@ export class HazardController {
   @Get()
   findAll(@CurrentUser() user: AuthenticatedUser) {
     return this.hazardService.findAll(user);
+  }
+
+  @Roles(...MASTER_DATA_WRITE_ROLES)
+  @Get('catalogue-requests')
+  listCatalogueRequests(@CurrentUser() user: AuthenticatedUser) {
+    return this.hazardService.listCatalogueRequests(user);
+  }
+
+  @Roles(...MASTER_DATA_WRITE_ROLES)
+  @Post('catalogue-requests/:id/approve')
+  approveCatalogueRequest(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DecideHazardRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.hazardService.approveCatalogueRequest(id, dto, user);
+  }
+
+  @Roles(...MASTER_DATA_WRITE_ROLES)
+  @Post('catalogue-requests/:id/reject')
+  rejectCatalogueRequest(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.hazardService.rejectCatalogueRequest(id, user);
   }
 
   @Roles(...MASTER_DATA_WRITE_ROLES)

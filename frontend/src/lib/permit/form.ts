@@ -214,7 +214,11 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
     hazards:
       hazards.length > 0
         ? hazards.map((h) => ({
-            hazardCategoryId: h.hazardCategoryId,
+            hazardCategoryId: h.hazardCategoryId ?? "",
+            customKey: h.customKey ?? undefined,
+            customName: h.customName ?? undefined,
+            customDescription: h.customDescription ?? undefined,
+            catalogueRequest: h.catalogueRequest ?? "none",
             extraConsequences: h.extraConsequences ?? [],
             extraRisks: h.extraRisks ?? [],
             extraControls: h.extraControls ?? [],
@@ -316,16 +320,27 @@ export function formToSavePayload(
     plannedEndAt: form.plannedEndAt ? new Date(form.plannedEndAt).toISOString() : undefined,
     currentStep: form.currentStep,
     hazards: form.hazards
-      .filter((h) => h.hazardCategoryId.trim())
-      .map((h) => ({
-        hazardCategoryId: h.hazardCategoryId,
-        extraConsequences: (h.extraConsequences ?? []).map((value) => value.trim()).filter(Boolean),
-        extraRisks: (h.extraRisks ?? []).map((value) => value.trim()).filter(Boolean),
-        extraControls: (h.extraControls ?? []).map((value) => value.trim()).filter(Boolean),
-        omittedConsequences: (h.omittedConsequences ?? []).map((value) => value.trim()).filter(Boolean),
-        omittedRisks: (h.omittedRisks ?? []).map((value) => value.trim()).filter(Boolean),
-        omittedControls: (h.omittedControls ?? []).map((value) => value.trim()).filter(Boolean),
-      })),
+      .filter((h) => (h.hazardCategoryId ?? "").trim() || h.customName?.trim())
+      .map((h) => {
+        const lists = {
+          extraConsequences: (h.extraConsequences ?? []).map((value) => value.trim()).filter(Boolean),
+          extraRisks: (h.extraRisks ?? []).map((value) => value.trim()).filter(Boolean),
+          extraControls: (h.extraControls ?? []).map((value) => value.trim()).filter(Boolean),
+          omittedConsequences: (h.omittedConsequences ?? []).map((value) => value.trim()).filter(Boolean),
+          omittedRisks: (h.omittedRisks ?? []).map((value) => value.trim()).filter(Boolean),
+          omittedControls: (h.omittedControls ?? []).map((value) => value.trim()).filter(Boolean),
+        };
+        if (!(h.hazardCategoryId ?? "").trim()) {
+          return {
+            customKey: h.customKey,
+            customName: h.customName?.trim(),
+            customDescription: h.customDescription?.trim() || undefined,
+            catalogueRequest: h.catalogueRequest ?? "none",
+            ...lists,
+          };
+        }
+        return { hazardCategoryId: h.hazardCategoryId, ...lists };
+      }),
     ppe: form.ppe.filter((p) => p.ppeCatalogueId.trim()),
     lototoRequired: form.lototoRequired,
     lototo: form.lototo
@@ -496,7 +511,7 @@ export function validateStep(
 
   if (step === 2) {
     void machinery;
-    if (!form.hazards.some((h) => h.hazardCategoryId.trim())) {
+    if (!form.hazards.some((h) => (h.hazardCategoryId ?? "").trim() || h.customName?.trim())) {
       errors.push("At least one hazard is required");
     }
     if (form.lototoRequired) {

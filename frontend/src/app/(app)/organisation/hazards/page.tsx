@@ -13,6 +13,7 @@ import { OrgStatusBadge, stateOf } from "@/components/organisation/org-status-ba
 import { StringListField } from "@/components/organisation/string-list-field";
 import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { hazardsApi } from "@/lib/organisation/api";
+import { HazardRequests } from "@/components/organisation/hazard-requests";
 import { masterDataApi, type HazardRecord, type MasterDataRecord } from "@/lib/master-data/api";
 
 const SEVERITY_OPTIONS = [
@@ -198,6 +199,8 @@ export default function HazardsPage() {
           ) : null
         }
       />
+
+      <HazardRequests />
 
       {formOpen ? (
         <form

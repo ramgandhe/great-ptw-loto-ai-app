@@ -47,7 +47,7 @@ export function permitGaps(form: PermitFormState): string[] {
   const gaps: string[] = [];
   if (!form.workLocationId && !form.locationId && !form.workstationId && !form.machineryId) gaps.push("Where the work happens");
   if (!form.plannedStartAt || !form.plannedEndAt) gaps.push("Planned start and end");
-  if (!form.hazards.some((h) => h.hazardCategoryId)) gaps.push("Hazards");
+  if (!form.hazards.some((h) => h.hazardCategoryId || h.customName?.trim())) gaps.push("Hazards");
   if (form.lototoRequired && !form.lototo.some((l) => l.procedureId)) gaps.push("LOTOTO procedure (marked as required)");
   if (form.gasTestingRequired && !form.gasTesting.some((g) => !g.removedReason?.trim() && (g.gasTestingCatalogueId || g.parameter?.trim()))) gaps.push("Gas tests (marked as required)");
   if (!form.executors.some((e) => e.workforceUserId)) gaps.push("Executor");
@@ -265,7 +265,7 @@ export function PermitSummary({
     // A workstation often shares its location's name; don't print it twice.
     .filter((part, index, parts) => part !== parts[index - 1]);
 
-  const hazardRows = form.hazards.filter((h) => h.hazardCategoryId);
+  const hazardRows = form.hazards.filter((h) => h.hazardCategoryId || h.customName?.trim());
   const selectedPpe = form.ppe.filter((p) => p.ppeCatalogueId);
   const ppe = catalogues
     ? selectedPpe.map((p) => {
@@ -395,18 +395,31 @@ export function PermitSummary({
               const omittedRisks = (catalogue?.risks ?? []).filter((line) => item.omittedRisks?.includes(line));
               const omittedConsequences = (catalogue?.consequences ?? []).filter((line) => item.omittedConsequences?.includes(line));
               return (
-                <article key={item.hazardCategoryId} className="overflow-hidden rounded-xl border border-border bg-background">
+                <article key={item.customKey || item.hazardCategoryId} className="overflow-hidden rounded-xl border border-border bg-background">
                   <header className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
                     <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
                       <span className="font-mono text-sm font-bold">{String(index + 1).padStart(2, "0")}</span>
                     </span>
                     <div className="min-w-0 flex-1">
                       <h4 className="font-semibold">
-                        {catalogue?.name ?? "Hazard"}
+                        {item.customName?.trim() || catalogue?.name || "Hazard"}
                         {catalogue?.code ? <span className="ml-1 font-mono text-xs font-normal text-muted-foreground">{catalogue.code}</span> : null}
                       </h4>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{catalogue?.category || "Uncategorised"}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {item.customName?.trim() ? "Added for this permit" : catalogue?.category || "Uncategorised"}
+                      </p>
                     </div>
+                    {item.customName?.trim() ? (
+                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                        {item.catalogueRequest === "pending"
+                          ? "Sent for the organisation hazard list"
+                          : item.catalogueRequest === "approved"
+                            ? "On the organisation hazard list"
+                            : item.catalogueRequest === "rejected"
+                              ? "Stays on this permit only"
+                              : "This permit only"}
+                      </span>
+                    ) : (
                     <span className={cn(
                       "rounded-full px-2.5 py-1 text-xs font-semibold capitalize",
                       !catalogues
@@ -419,6 +432,7 @@ export function PermitSummary({
                     )}>
                       {catalogues ? `${catalogue?.severity ?? "Unclassified"} severity` : "Loading"}
                     </span>
+                    )}
                   </header>
                   {catalogue?.description ? <p className="border-b border-border px-4 py-3 text-sm leading-6 text-muted-foreground">{catalogue.description}</p> : null}
                   {!catalogues ? (

@@ -89,7 +89,11 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
     hazards:
       hazards.length > 0
         ? hazards.map((h) => ({
-            hazardCategoryId: h.hazardCategoryId,
+            hazardCategoryId: h.hazardCategoryId ?? "",
+            customKey: h.customKey ?? undefined,
+            customName: h.customName ?? undefined,
+            customDescription: h.customDescription ?? undefined,
+            catalogueRequest: h.catalogueRequest ?? "none",
             extraConsequences: h.extraConsequences ?? [],
             extraRisks: h.extraRisks ?? [],
             extraControls: h.extraControls ?? [],
@@ -179,7 +183,23 @@ export function formToSavePayload(form: PermitFormState, options?: { executorOnl
     plannedStartAt: form.plannedStartAt ? new Date(form.plannedStartAt).toISOString() : undefined,
     plannedEndAt: form.plannedEndAt ? new Date(form.plannedEndAt).toISOString() : undefined,
     currentStep: toStoredStep(form.currentStep),
-    hazards: form.hazards.filter((h) => h.hazardCategoryId.trim()),
+    hazards: form.hazards
+      .filter((h) => (h.hazardCategoryId ?? "").trim() || h.customName?.trim())
+      .map((h) => {
+        if ((h.hazardCategoryId ?? "").trim()) return h;
+        return {
+          customKey: h.customKey,
+          customName: h.customName,
+          customDescription: h.customDescription,
+          catalogueRequest: h.catalogueRequest ?? "none",
+          extraConsequences: h.extraConsequences,
+          extraRisks: h.extraRisks ?? [],
+          extraControls: h.extraControls,
+          omittedConsequences: h.omittedConsequences,
+          omittedRisks: h.omittedRisks,
+          omittedControls: h.omittedControls,
+        };
+      }),
     ppe: form.ppe.filter((p) => p.ppeCatalogueId.trim()),
     lototo: form.lototo.filter((item) => item.procedureId.trim()),
     gasTestingRequired: form.gasTestingRequired,
@@ -222,7 +242,7 @@ export function validateStep(form: PermitFormState, step: number): string[] {
   }
 
   if (step === 2) {
-    if (!form.hazards.some((h) => h.hazardCategoryId.trim())) {
+    if (!form.hazards.some((h) => (h.hazardCategoryId ?? "").trim() || h.customName?.trim())) {
       errors.push("At least one hazard is required");
     }
     if (!form.ppe.some((p) => p.ppeCatalogueId.trim())) {

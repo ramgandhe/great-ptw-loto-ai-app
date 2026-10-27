@@ -54,4 +54,41 @@ export const approvalWorkflowsApi = {
 export const safetyChecklistsApi = crud<OrgRecord>("/safety-checklists");
 export const ppeConfigurationsApi = crud<OrgRecord>("/ppe-configurations");
 export const hazardsApi = crud<HazardRecord>("/hazards");
+
+export type HazardCatalogueRequest = {
+  id: string;
+  permitId: string;
+  permitTitle: string;
+  permitReference: string | null;
+  name: string;
+  description: string | null;
+  risks: string[];
+  consequences: string[];
+  controls: string[];
+  permitTypeCode: string | null;
+  siteId: string | null;
+  workLocationId: string | null;
+  workLocationName: string | null;
+  assets: Array<{ id: string; name: string }>;
+  requestedByName: string | null;
+  createdAt: string;
+};
+
+export const hazardRequestsApi = {
+  list: () => fetchApi<HazardCatalogueRequest[]>("/hazards/catalogue-requests"),
+  approve: (
+    id: string,
+    payload: {
+      name: string;
+      description?: string;
+      risks: string[];
+      consequences: string[];
+      controls: string[];
+      permitTypeCodes: string[];
+      workLocationIds: string[];
+      assetIds: string[];
+    },
+  ) => fetchApi<{ id: string; status: string }>(`/hazards/catalogue-requests/${id}/approve`, { method: "POST", body: JSON.stringify(payload) }),
+  reject: (id: string) => fetchApi<{ id: string; status: string }>(`/hazards/catalogue-requests/${id}/reject`, { method: "POST" }),
+};
 export const notificationPreferencesApi = crud<NotificationPreference>("/notification-preferences");

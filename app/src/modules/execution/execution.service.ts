@@ -739,7 +739,7 @@ export class ExecutionService {
   ): Promise<ExecutionStartState> {
     const saved = this.normaliseStart(detail.permit.executionStart as ExecutionStartState | undefined);
     const start = dtoStart ? this.normaliseStart(dtoStart) : saved;
-    const hazardIds = [...new Set(detail.hazards.map((row) => row.hazardCategoryId))];
+    const hazardIds = [...new Set(detail.hazards.map((row) => row.hazardCategoryId).filter((id): id is string => Boolean(id)))];
     const catalogues = new Map<string, { controls?: string[] | null }>();
     if (hazardIds.length > 0) {
       const rows = await this.db
@@ -760,7 +760,10 @@ export class ExecutionService {
       lototoRequired: Boolean(detail.permit.lototoRequired),
       gasTestingRequired: Boolean(detail.permit.gasTestingRequired),
       lototoIsolated,
-      requiredHazardKeys: requiredHazardControlKeys(detail.hazards, catalogues),
+      requiredHazardKeys: requiredHazardControlKeys(
+        detail.hazards.filter((row): row is typeof row & { hazardCategoryId: string } => Boolean(row.hazardCategoryId)),
+        catalogues,
+      ),
       requiredPpeIds: detail.ppe.map((row) => row.ppeCatalogueId),
       gasItems: detail.gasTesting
         .filter((row) => !row.removedReason?.trim())

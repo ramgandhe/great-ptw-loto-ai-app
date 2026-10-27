@@ -72,12 +72,22 @@ export type PermitRecord = {
 export type PermitHazardInput = {
   hazardCategoryId: string;
   description?: string;
+  /** Set for a hazard written on this permit, not chosen from the organisation list. */
+  customKey?: string;
+  customName?: string;
+  customDescription?: string;
+  catalogueRequest?: "none" | "pending" | "approved" | "rejected" | "withdrawn";
   extraConsequences: string[];
   extraRisks: string[];
   extraControls: string[];
   omittedConsequences: string[];
   omittedRisks: string[];
   omittedControls: string[];
+};
+
+/** Saved hazard. A permit-only hazard omits the catalogue id. */
+export type PermitHazardPayload = Omit<PermitHazardInput, "hazardCategoryId"> & {
+  hazardCategoryId?: string;
 };
 
 export type PermitPpeInput = {
@@ -198,7 +208,11 @@ export type PermitDetail = {
   permit: PermitRecord;
   draft: PermitDraft | null;
   hazards: Array<{
-    hazardCategoryId: string;
+    hazardCategoryId: string | null;
+    customKey?: string | null;
+    customName?: string | null;
+    customDescription?: string | null;
+    catalogueRequest?: "none" | "pending" | "approved" | "rejected" | "withdrawn" | null;
     extraConsequences?: string[] | null;
     extraRisks?: string[] | null;
     extraControls?: string[] | null;
@@ -244,7 +258,7 @@ export type CreatePermitPayload = {
   plannedStartAt?: string;
   plannedEndAt?: string;
   currentStep?: number;
-  hazards?: PermitHazardInput[];
+  hazards?: PermitHazardPayload[];
   ppe?: PermitPpeInput[];
   lototoRequired?: boolean;
   lototo?: PermitLototoInput[];

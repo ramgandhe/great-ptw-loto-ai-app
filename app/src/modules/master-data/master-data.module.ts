@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { ChecklistController } from './checklist.controller';
 import { ChecklistService } from './checklist.service';
 import {
@@ -25,6 +26,7 @@ import { WorkstationController } from './workstation.controller';
 import { WorkstationService } from './workstation.service';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [
     PermitTypeController,
     GasTestingController,

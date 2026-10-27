@@ -257,6 +257,14 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [form, setForm] = useState<PermitFormState>(
     initialDetail ? permitDetailToForm(initialDetail) : createEmptyPermitForm(),
   );
+  const [customHazardOpen, setCustomHazardOpen] = useState(false);
+  const [customHazardDraft, setCustomHazardDraft] = useState({
+    name: "",
+    description: "",
+    risks: [""],
+    consequences: [""],
+    controls: [""],
+  });
   const [attachments, setAttachments] = useState<PermitAttachment[]>(
     initialDetail?.attachments ?? [],
   );
@@ -586,7 +594,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       const kept = new Map(
         current.hazards.filter((row) => row.hazardCategoryId).map((row) => [row.hazardCategoryId, row]),
       );
-      const nextHazards = [...plan.defaultOn].map((id) => kept.get(id) ?? emptyPermitHazard(id));
+      const custom = current.hazards.filter((row) => !row.hazardCategoryId && row.customName?.trim());
+      const nextHazards = [...[...plan.defaultOn].map((id) => kept.get(id) ?? emptyPermitHazard(id)), ...custom];
       return {
         ...current,
         hazards: nextHazards.length > 0 ? nextHazards : [emptyPermitHazard()],
@@ -1234,6 +1243,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const personName = (id: string) =>
     executorOptions.find((o) => o.id === id)?.name ?? (id ? "Person no longer available" : "");
   const hazardRows = form.hazards.filter((h) => h.hazardCategoryId);
+  const customHazardCount = form.hazards.filter((row) => !row.hazardCategoryId && row.customName?.trim()).length;
   const permitSafetyControls = hazardRows.flatMap((hazard) => {
     const catalogue = hazards.find((row) => row.id === hazard.hazardCategoryId);
     return permitControlLines(catalogue?.controls, hazard.extraControls, hazard.omittedControls).map((control) => ({
@@ -1269,6 +1279,36 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
   const placeEditable = editable(1);
   const siteEditable = editable(2);
+  const customHazardReady =
+    customHazardDraft.name.trim().length > 0 &&
+    customHazardDraft.risks.some((line) => line.trim()) &&
+    customHazardDraft.controls.some((line) => line.trim());
+
+  function addCustomHazard(askOrganisation: boolean) {
+    if (!customHazardReady) return;
+    const customKey = crypto.randomUUID();
+    edit((current) => ({
+      ...current,
+      hazards: [
+        ...current.hazards,
+        {
+          hazardCategoryId: "",
+          customKey,
+          customName: customHazardDraft.name.trim(),
+          customDescription: customHazardDraft.description.trim(),
+          catalogueRequest: askOrganisation ? "pending" : "none",
+          extraRisks: customHazardDraft.risks.map((line) => line.trim()).filter(Boolean),
+          extraConsequences: customHazardDraft.consequences.map((line) => line.trim()).filter(Boolean),
+          extraControls: customHazardDraft.controls.map((line) => line.trim()).filter(Boolean),
+          omittedConsequences: [],
+          omittedRisks: [],
+          omittedControls: [],
+        },
+      ],
+    }));
+    setCustomHazardDraft({ name: "", description: "", risks: [""], consequences: [""], controls: [""] });
+    setCustomHazardOpen(false);
+  }
   const crewEditable = editable(3);
   const formsEditable = editable(4);
 
@@ -1743,7 +1783,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             </div>
             <p className="text-xs text-muted-foreground" aria-live="polite">
               Step {SITE_SAFETY_STEPS.findIndex((step) => step.id === siteSafetyStep) + 1} of {SITE_SAFETY_STEPS.length}
-              {" · "}{hazardRows.length} hazard{hazardRows.length === 1 ? "" : "s"} · {ppeRows.length} PPE item{ppeRows.length === 1 ? "" : "s"}
+              {" · "}{hazardRows.length + customHazardCount} hazard{hazardRows.length + customHazardCount === 1 ? "" : "s"} · {ppeRows.length} PPE item{ppeRows.length === 1 ? "" : "s"}
               {form.lototoRequired ? " · LOTOTO required" : ""}
               {form.gasTestingRequired ? " · Gas test required" : ""}
             </p>
@@ -1840,6 +1880,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                   if (!(await confirmAction(`This hazard is configured for ${where}. Turning it off matters for this permit. Turn it off?`))) return;
                 }
                 const rows = form.hazards.filter((row) => row.hazardCategoryId);
+                const custom = form.hazards.filter((row) => !row.hazardCategoryId && row.customName?.trim());
                 const nextRows = selected
                   ? rows.filter((row) => row.hazardCategoryId !== hazardCategoryId)
                   : [...rows, emptyPermitHazard(hazardCategoryId)];
@@ -1850,9 +1891,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 const nextOff = selected ? ppeManualOff : ppeManualOff.filter((id) => !added.has(id));
                 setPpeManualOn(nextOn);
                 setPpeManualOff(nextOff);
+                const combined = [...nextRows, ...custom];
                 edit((current) => ({
                   ...current,
-                  hazards: nextRows.length > 0 ? nextRows : [emptyPermitHazard()],
+                  hazards: combined.length > 0 ? combined : [emptyPermitHazard()],
                   ppe: ppeForHazards({
                     hazardIds: nextIds,
                     hazards,
@@ -1970,6 +2012,107 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               </div>
             );
           })}
+          {form.hazards.filter((hazard) => hazard.customName?.trim()).map((hazard) => (
+            <div key={hazard.customKey} className="grid gap-3 rounded-xl border border-border p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="font-medium">{hazard.customName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Added for this permit
+                    {hazard.catalogueRequest === "pending" ? " · Sent for the organisation hazard list" : ""}
+                    {hazard.catalogueRequest === "approved" ? " · On the organisation hazard list" : ""}
+                    {hazard.catalogueRequest === "rejected" ? " · Stays on this permit only" : ""}
+                  </p>
+                </div>
+                {siteEditable ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      edit((current) => ({
+                        ...current,
+                        hazards: current.hazards.filter((row) => row.customKey !== hazard.customKey),
+                      }))
+                    }
+                  >
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+              {hazard.customDescription?.trim() ? <p className="text-sm text-muted-foreground">{hazard.customDescription}</p> : null}
+              <p className="text-sm"><span className="font-medium">Risks. </span>{hazard.extraRisks.filter(Boolean).join(", ")}</p>
+              {hazard.extraConsequences.some((line) => line.trim()) ? (
+                <p className="text-sm"><span className="font-medium">Consequences. </span>{hazard.extraConsequences.filter(Boolean).join(", ")}</p>
+              ) : null}
+              <p className="text-sm"><span className="font-medium">Controls. </span>{hazard.extraControls.filter(Boolean).join(", ")}</p>
+            </div>
+          ))}
+          {siteEditable ? (
+            customHazardOpen ? (
+              <div className="grid gap-3 rounded-xl border border-border p-4">
+                <FormField label="Name" htmlFor="custom-hazard-name">
+                  <input
+                    id="custom-hazard-name"
+                    className={fieldClassName}
+                    value={customHazardDraft.name}
+                    onChange={(event) => setCustomHazardDraft((current) => ({ ...current, name: event.target.value }))}
+                  />
+                </FormField>
+                <FormField label="Description" htmlFor="custom-hazard-description" hint="Optional">
+                  <textarea
+                    id="custom-hazard-description"
+                    className={fieldClassName}
+                    rows={2}
+                    value={customHazardDraft.description}
+                    onChange={(event) => setCustomHazardDraft((current) => ({ ...current, description: event.target.value }))}
+                  />
+                </FormField>
+                <ExtraStringList
+                  label="Risks"
+                  values={customHazardDraft.risks}
+                  disabled={false}
+                  onChange={(risks) => setCustomHazardDraft((current) => ({ ...current, risks }))}
+                />
+                <ExtraStringList
+                  label="Consequences"
+                  values={customHazardDraft.consequences}
+                  disabled={false}
+                  onChange={(consequences) => setCustomHazardDraft((current) => ({ ...current, consequences }))}
+                />
+                <ExtraStringList
+                  label="Controls"
+                  values={customHazardDraft.controls}
+                  disabled={false}
+                  onChange={(controls) => setCustomHazardDraft((current) => ({ ...current, controls }))}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    disabled={!customHazardReady}
+                    onClick={() => addCustomHazard(false)}
+                  >
+                    Add to this permit only
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!customHazardReady}
+                    onClick={() => addCustomHazard(true)}
+                  >
+                    Add to this permit and ask the organisation
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={() => setCustomHazardOpen(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button type="button" variant="outline" onClick={() => setCustomHazardOpen(true)}>
+                Add a hazard for this permit
+              </Button>
+            )
+          ) : null}
         </div>
         ) : null}
 

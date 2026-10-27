@@ -631,6 +631,13 @@
       "when": 1794400000000,
       "tag": "0087_execution_released_history",
       "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1794500000000,
+      "tag": "0088_permit_custom_hazards",
+      "breakpoints": true
     }
   ]
 }

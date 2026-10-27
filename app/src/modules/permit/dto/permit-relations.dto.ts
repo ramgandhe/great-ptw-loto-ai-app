@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsIn,
   IsInt,
   IsNumber,
   IsObject,
@@ -16,8 +17,28 @@ import {
 } from 'class-validator';
 
 export class PermitHazardDto {
+  @IsOptional()
   @IsUUID()
-  hazardCategoryId!: string;
+  hazardCategoryId?: string;
+
+  /** Stable id for a hazard written on this permit. */
+  @IsOptional()
+  @IsUUID()
+  customKey?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  customName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  customDescription?: string;
+
+  @IsOptional()
+  @IsIn(['none', 'pending', 'approved', 'rejected', 'withdrawn'])
+  catalogueRequest?: 'none' | 'pending' | 'approved' | 'rejected' | 'withdrawn';
 
   @IsOptional()
   @IsArray()

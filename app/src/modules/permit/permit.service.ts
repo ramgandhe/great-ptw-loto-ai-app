@@ -20,6 +20,7 @@ import {
   permitDrafts,
   permitExecutors,
   permitHazards,
+  hazardCatalogueRequests,
   permitPpe,
   permitLototo,
   permitLototoCrew,
@@ -63,6 +64,7 @@ import { GasTestingService } from '../master-data/gas-testing.service';
 import { descendantIds } from '../place/place-rules';
 import { MailService } from '../../infrastructure/mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { KeycloakAdminService } from '../../infrastructure/keycloak/keycloak-admin.service';
 import {
   holderNextWork,
   holderStageLabel,
@@ -203,6 +205,7 @@ export class PermitService {
     @Optional() private readonly notificationsService?: NotificationsService,
     @Optional() private readonly gasTestingService?: GasTestingService,
     @Optional() private readonly cacheService?: CacheService,
+    @Optional() private readonly keycloakAdmin?: KeycloakAdminService,
   ) {}
 
   async create(rawDto: CreatePermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -300,10 +303,14 @@ export class PermitService {
 
       await this.permitCacheService.invalidateTenant(tenantId);
 
+      const newHazardRequestIds = dto.hazards
+        ? await this.syncHazardCatalogueRequests(tx, permit.id, user)
+        : [];
       const detail = await this.loadDetail(tx, permit.id, tenantId);
-      return { ...detail, draft };
+      return { detail: { ...detail, draft }, newHazardRequestIds };
     });
-    return created;
+    await this.notifyHazardCatalogueRequests(created.detail.permit, user, created.newHazardRequestIds);
+    return created.detail;
   }
 
   async findAll(
@@ -808,10 +815,16 @@ export class PermitService {
 
       await this.permitCacheService.invalidatePermit(tenantId, id);
 
+      const newHazardRequestIds =
+        dto.hazards !== undefined ? await this.syncHazardCatalogueRequests(tx, id, user) : [];
       const detail = await this.loadDetail(tx, id, tenantId);
-      return gasChanges.length > 0 ? { ...detail, gasChanges } : detail;
+      return {
+        detail: gasChanges.length > 0 ? { ...detail, gasChanges } : detail,
+        newHazardRequestIds,
+      };
     });
-    return updated;
+    await this.notifyHazardCatalogueRequests(updated.detail.permit, user, updated.newHazardRequestIds);
+    return updated.detail;
   }
 
   async reassignPeople(id: string, dto: ReassignPermitPeopleDto, user: AuthenticatedUser): Promise<PermitDetail> {
@@ -1162,6 +1175,10 @@ export class PermitService {
           source.hazards.map((hazard) => ({
             permitId: renewal.id,
             hazardCategoryId: hazard.hazardCategoryId,
+            customKey: hazard.customKey,
+            customName: hazard.customName,
+            customDescription: hazard.customDescription,
+            catalogueRequest: hazard.catalogueRequest === 'pending' ? 'none' : hazard.catalogueRequest,
             extraConsequences: hazard.extraConsequences ?? [],
             extraRisks: hazard.extraRisks ?? [],
             extraControls: hazard.extraControls ?? [],
@@ -1515,22 +1532,220 @@ export class PermitService {
       return;
     }
 
-    await this.assertHazardsFitPermitType(db, tenantId, permitTypeId, hazards, workLocationId, assetIds);
+    const lines = (values?: string[]) => (values ?? []).map((value) => value.trim()).filter(Boolean);
+    for (const hazard of hazards) {
+      if (hazard.hazardCategoryId) {
+        continue;
+      }
+      if (!hazard.customKey || !hazard.customName?.trim()) {
+        throw new BadRequestException('A custom hazard needs a name');
+      }
+      if (lines(hazard.extraRisks).length === 0) {
+        throw new BadRequestException('A custom hazard needs at least one risk');
+      }
+      if (lines(hazard.extraControls).length === 0) {
+        throw new BadRequestException('A custom hazard needs at least one control');
+      }
+    }
+
+    const catalogueHazards = hazards.filter((hazard) => hazard.hazardCategoryId);
+    if (catalogueHazards.length > 0) {
+      await this.assertHazardsFitPermitType(
+        db,
+        tenantId,
+        permitTypeId,
+        catalogueHazards,
+        workLocationId,
+        assetIds,
+      );
+    }
 
     await db.insert(permitHazards).values(
       hazards.map((hazard) => ({
         permitId,
-        hazardCategoryId: hazard.hazardCategoryId,
-        extraConsequences: (hazard.extraConsequences ?? []).map((value) => value.trim()).filter(Boolean),
-        extraRisks: (hazard.extraRisks ?? []).map((value) => value.trim()).filter(Boolean),
-        extraControls: (hazard.extraControls ?? []).map((value) => value.trim()).filter(Boolean),
-        omittedConsequences: (hazard.omittedConsequences ?? []).map((value) => value.trim()).filter(Boolean),
-        omittedRisks: (hazard.omittedRisks ?? []).map((value) => value.trim()).filter(Boolean),
-        omittedControls: (hazard.omittedControls ?? []).map((value) => value.trim()).filter(Boolean),
+        hazardCategoryId: hazard.hazardCategoryId ?? null,
+        customKey: hazard.hazardCategoryId ? null : hazard.customKey ?? null,
+        customName: hazard.hazardCategoryId ? null : hazard.customName?.trim() || null,
+        customDescription: hazard.hazardCategoryId ? null : hazard.customDescription?.trim() || null,
+        catalogueRequest: hazard.hazardCategoryId ? 'none' : hazard.catalogueRequest ?? 'none',
+        extraConsequences: lines(hazard.extraConsequences),
+        extraRisks: lines(hazard.extraRisks),
+        extraControls: lines(hazard.extraControls),
+        omittedConsequences: lines(hazard.omittedConsequences),
+        omittedRisks: lines(hazard.omittedRisks),
+        omittedControls: lines(hazard.omittedControls),
         createdBy: userId,
         updatedBy: userId,
       })),
     );
+  }
+
+  /**
+   * Match permit-only hazards to organisation-list requests.
+   * The permit row is replaced on every save, so the request follows customKey, not the row id.
+   * Returns ids of requests created on this save.
+   */
+  private async syncHazardCatalogueRequests(
+    db: Pick<Database, 'insert' | 'select' | 'update'>,
+    permitId: string,
+    user: AuthenticatedUser,
+  ): Promise<string[]> {
+    const tenantId = this.requireTenant(user);
+    const [permit] = await db
+      .select({
+        id: permits.id,
+        title: permits.title,
+        permitTypeId: permits.permitTypeId,
+        siteId: permits.siteId,
+        workLocationId: permits.workLocationId,
+      })
+      .from(permits)
+      .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
+    if (!permit) {
+      return [];
+    }
+
+    const customRows = await db
+      .select()
+      .from(permitHazards)
+      .where(eq(permitHazards.permitId, permitId));
+    const requests = await db
+      .select()
+      .from(hazardCatalogueRequests)
+      .where(and(eq(hazardCatalogueRequests.permitId, permitId), eq(hazardCatalogueRequests.tenantId, tenantId)));
+
+    let permitTypeCode: string | null = null;
+    if (permit.permitTypeId) {
+      const [permitType] = await db
+        .select({ code: permitTypes.code })
+        .from(permitTypes)
+        .where(and(eq(permitTypes.id, permit.permitTypeId), eq(permitTypes.tenantId, tenantId)));
+      permitTypeCode = permitType?.code ?? null;
+    }
+    const assetRows = await db
+      .select({ assetId: permitAssets.assetId })
+      .from(permitAssets)
+      .where(eq(permitAssets.permitId, permitId));
+    const assetIds = assetRows.map((row) => row.assetId);
+
+    const decided = new Map(
+      requests
+        .filter((request) => request.status === 'approved' || request.status === 'rejected')
+        .map((request) => [request.customKey, request.status]),
+    );
+    const pendingByKey = new Map(
+      requests.filter((request) => request.status === 'pending').map((request) => [request.customKey, request]),
+    );
+    const pendingKeys = new Set<string>();
+    const createdIds: string[] = [];
+
+    for (const row of customRows) {
+      if (!row.customKey) {
+        continue;
+      }
+      const settled = decided.get(row.customKey);
+      if (settled) {
+        if (row.catalogueRequest !== settled) {
+          await db
+            .update(permitHazards)
+            .set({ catalogueRequest: settled, updatedAt: new Date(), updatedBy: user.id })
+            .where(eq(permitHazards.id, row.id));
+        }
+        continue;
+      }
+      if (row.catalogueRequest !== 'pending') {
+        continue;
+      }
+      pendingKeys.add(row.customKey);
+      const snapshot = {
+        name: row.customName?.trim() || 'Hazard',
+        description: row.customDescription?.trim() || null,
+        risks: row.extraRisks ?? [],
+        consequences: row.extraConsequences ?? [],
+        controls: row.extraControls ?? [],
+        permitTypeCode,
+        siteId: permit.siteId,
+        workLocationId: permit.workLocationId,
+        assetIds,
+        updatedAt: new Date(),
+        updatedBy: user.id,
+      };
+      const existing = pendingByKey.get(row.customKey);
+      if (existing) {
+        await db.update(hazardCatalogueRequests).set(snapshot).where(eq(hazardCatalogueRequests.id, existing.id));
+        continue;
+      }
+      const [created] = await db
+        .insert(hazardCatalogueRequests)
+        .values({
+          ...snapshot,
+          tenantId,
+          permitId,
+          customKey: row.customKey,
+          status: 'pending',
+          requestedBy: user.id,
+          createdBy: user.id,
+        })
+        .returning({ id: hazardCatalogueRequests.id });
+      if (created) {
+        createdIds.push(created.id);
+      }
+    }
+
+    for (const request of pendingByKey.values()) {
+      if (pendingKeys.has(request.customKey)) {
+        continue;
+      }
+      await db
+        .update(hazardCatalogueRequests)
+        .set({ status: 'withdrawn', updatedAt: new Date(), updatedBy: user.id })
+        .where(eq(hazardCatalogueRequests.id, request.id));
+    }
+
+    return createdIds;
+  }
+
+  private async notifyHazardCatalogueRequests(
+    permit: { id: string; title: string },
+    user: AuthenticatedUser,
+    requestIds: string[],
+  ) {
+    if (requestIds.length === 0 || !this.notificationsService || !this.keycloakAdmin || !user.tenantId) {
+      return;
+    }
+    try {
+      const people = await this.keycloakAdmin.listUsersForTenant(user.tenantId);
+      const recipients = people
+        .filter(
+          (person) =>
+            person.enabled &&
+            person.id !== user.id &&
+            person.roles.some((role) => role === 'tenant-owner' || role === 'tenant-admin'),
+        )
+        .map((person) => person.id);
+      if (recipients.length === 0) {
+        return;
+      }
+      const requests = await this.db
+        .select({ id: hazardCatalogueRequests.id, name: hazardCatalogueRequests.name })
+        .from(hazardCatalogueRequests)
+        .where(inArray(hazardCatalogueRequests.id, requestIds));
+      for (const request of requests) {
+        await this.notificationsService.generateSystem(user.tenantId, user.id, {
+          eventType: 'task_reminder',
+          category: 'workflow',
+          title: `Hazard to approve: ${request.name}`,
+          body: `A permit asked to add "${request.name}" to the organisation hazard list.`,
+          recipientUserIds: recipients,
+          entityType: 'permit',
+          entityId: permit.id,
+          dedupeKey: `${user.tenantId}:hazard-request:${request.id}`,
+          sourceModule: 'permit',
+        });
+      }
+    } catch {
+      // The hazard is already on the permit. A missed notice must not undo the save.
+    }
   }
 
   private async assertHazardsFitPermitType(
@@ -1551,7 +1766,10 @@ export class PermitService {
     if (!permitType?.code) {
       return;
     }
-    const ids = [...new Set(hazards.map((hazard) => hazard.hazardCategoryId))];
+    const ids = [...new Set(hazards.map((hazard) => hazard.hazardCategoryId).filter((id): id is string => Boolean(id)))];
+    if (ids.length === 0) {
+      return;
+    }
     const rows = await db
       .select({
         id: hazardCategories.id,

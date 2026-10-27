@@ -47,12 +47,21 @@ export type PermitRecord = {
 
 export type PermitHazardInput = {
   hazardCategoryId: string;
+  description?: string;
+  customKey?: string;
+  customName?: string;
+  customDescription?: string;
+  catalogueRequest?: "none" | "pending" | "approved" | "rejected" | "withdrawn";
   extraConsequences: string[];
   extraControls: string[];
   omittedConsequences: string[];
   extraRisks?: string[];
   omittedRisks: string[];
   omittedControls: string[];
+};
+
+export type PermitHazardPayload = Omit<PermitHazardInput, "hazardCategoryId"> & {
+  hazardCategoryId?: string;
 };
 
 export type PermitPpeInput = {
@@ -123,7 +132,11 @@ export type PermitDetail = {
     formSnapshot: Record<string, unknown> | null;
   } | null;
   hazards: Array<{
-    hazardCategoryId: string;
+    hazardCategoryId: string | null;
+    customKey?: string | null;
+    customName?: string | null;
+    customDescription?: string | null;
+    catalogueRequest?: "none" | "pending" | "approved" | "rejected" | "withdrawn" | null;
     extraConsequences?: string[] | null;
     extraRisks?: string[] | null;
     extraControls?: string[] | null;
@@ -202,7 +215,7 @@ export type CreatePermitPayload = {
   plannedStartAt?: string;
   plannedEndAt?: string;
   currentStep?: number;
-  hazards?: PermitHazardInput[];
+  hazards?: PermitHazardPayload[];
   ppe?: PermitPpeInput[];
   lototo?: PermitLototoInput[];
   gasTestingRequired?: boolean;

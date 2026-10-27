@@ -52,6 +52,8 @@ function createLocalId() {
 
 export function PermitWizard({ mode, permitId, initialDetail, initialForm }: PermitWizardProps) {
   const { tokens } = useTheme();
+  const [customHazardOpen, setCustomHazardOpen] = useState(false);
+  const [customHazardDraft, setCustomHazardDraft] = useState({ name: "", description: "", risks: "", consequences: "", controls: "" });
   const [form, setForm] = useState<PermitFormState>(
     initialForm ?? (initialDetail ? permitDetailToForm(initialDetail) : createEmptyPermitForm()),
   );
@@ -199,6 +201,40 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
 
   const permitStatus = initialDetail?.permit.status ?? "draft";
   const isReadOnly = !isEditablePermitStatus(permitStatus);
+  const customHazardReady =
+    customHazardDraft.name.trim().length > 0 &&
+    customHazardDraft.risks.split("\n").some((line) => line.trim()) &&
+    customHazardDraft.controls.split("\n").some((line) => line.trim());
+
+  function addCustomHazard(askOrganisation: boolean) {
+    if (!customHazardReady) return;
+    const lines = (value: string) => value.split("\n").map((line) => line.trim()).filter(Boolean);
+    const customKey = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+      const n = Math.floor(Math.random() * 16);
+      return (char === "x" ? n : (n & 0x3) | 0x8).toString(16);
+    });
+    setForm({
+      ...form,
+      hazards: [
+        ...form.hazards,
+        {
+          hazardCategoryId: "",
+          customKey,
+          customName: customHazardDraft.name.trim(),
+          customDescription: customHazardDraft.description.trim(),
+          catalogueRequest: askOrganisation ? "pending" : "none",
+          extraRisks: lines(customHazardDraft.risks),
+          extraConsequences: lines(customHazardDraft.consequences),
+          extraControls: lines(customHazardDraft.controls),
+          omittedConsequences: [],
+          omittedRisks: [],
+          omittedControls: [],
+        },
+      ],
+    });
+    setCustomHazardDraft({ name: "", description: "", risks: "", consequences: "", controls: "" });
+    setCustomHazardOpen(false);
+  }
 
   const forms = useMemo(() => applicableTemplates(formOptions?.templates ?? [], form.permitTypeId), [formOptions?.templates, form.permitTypeId]);
   // What the permit already says, for the check sheets' "fill from permit" fields.
@@ -666,7 +702,24 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
               options={offeredHazards.map((item) => ({ key: item.id, label: item.name }))}
               value={hazardIds}
               disabled={isReadOnly}
-              onChange={(id) => setForm({ ...form, hazards: toggleRow(form.hazards, "hazardCategoryId", id, { description: "" }) })}
+              onChange={(id) => {
+                const custom = form.hazards.filter((row) => !row.hazardCategoryId && row.customName?.trim());
+                const next = toggleRow(
+                  form.hazards.filter((row) => row.hazardCategoryId),
+                  "hazardCategoryId",
+                  id,
+                  {
+                    description: "",
+                    extraConsequences: [],
+                    extraRisks: [],
+                    extraControls: [],
+                    omittedConsequences: [],
+                    omittedRisks: [],
+                    omittedControls: [],
+                  },
+                );
+                setForm({ ...form, hazards: [...next, ...custom] });
+              }}
             />
             {form.hazards.filter((h) => h.hazardCategoryId).map((hazard) => (
               <TextField
@@ -678,6 +731,40 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
                 onChangeText={(description) => setForm({ ...form, hazards: form.hazards.map((h) => (h === hazard ? { ...h, description } : h)) })}
               />
             ))}
+            {form.hazards.filter((hazard) => hazard.customName?.trim()).map((hazard) => (
+              <Card key={hazard.customKey}>
+                <AppText variant="body">{hazard.customName}</AppText>
+                <AppText variant="caption">
+                  Added for this permit
+                  {hazard.catalogueRequest === "pending" ? ". Sent for the organisation hazard list" : ""}
+                  {hazard.catalogueRequest === "approved" ? ". On the organisation hazard list" : ""}
+                  {hazard.catalogueRequest === "rejected" ? ". Stays on this permit only" : ""}
+                </AppText>
+                {!isReadOnly ? (
+                  <Button
+                    label="Remove"
+                    variant="outline"
+                    size="sm"
+                    onPress={() => setForm({ ...form, hazards: form.hazards.filter((row) => row.customKey !== hazard.customKey) })}
+                  />
+                ) : null}
+              </Card>
+            ))}
+            {!isReadOnly && customHazardOpen ? (
+              <Card>
+                <TextField label="Name" value={customHazardDraft.name} onChangeText={(name) => setCustomHazardDraft({ ...customHazardDraft, name })} />
+                <TextField label="Description" hint="Optional" value={customHazardDraft.description} onChangeText={(description) => setCustomHazardDraft({ ...customHazardDraft, description })} />
+                <TextField label="Risks" hint="One per line" multiline value={customHazardDraft.risks} onChangeText={(risks) => setCustomHazardDraft({ ...customHazardDraft, risks })} />
+                <TextField label="Consequences" hint="Optional. One per line" multiline value={customHazardDraft.consequences} onChangeText={(consequences) => setCustomHazardDraft({ ...customHazardDraft, consequences })} />
+                <TextField label="Controls" hint="One per line" multiline value={customHazardDraft.controls} onChangeText={(controls) => setCustomHazardDraft({ ...customHazardDraft, controls })} />
+                <Button label="Add to this permit only" disabled={!customHazardReady} onPress={() => addCustomHazard(false)} />
+                <Button label="Add to this permit and ask the organisation" variant="outline" disabled={!customHazardReady} onPress={() => addCustomHazard(true)} />
+                <Button label="Cancel" variant="outline" onPress={() => setCustomHazardOpen(false)} />
+              </Card>
+            ) : null}
+            {!isReadOnly && !customHazardOpen ? (
+              <Button label="Add a hazard for this permit" variant="outline" icon={Plus} onPress={() => setCustomHazardOpen(true)} />
+            ) : null}
           </StepCard>
           <StepCard title="Protective equipment" description="Tap everything the crew must wear.">
             <ChoiceGroup

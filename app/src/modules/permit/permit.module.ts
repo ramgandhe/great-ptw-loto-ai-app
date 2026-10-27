@@ -16,6 +16,7 @@ import { PermitLogService } from './permit-log.service';
 import { SimopsModule } from '../simops/simops.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { MasterDataModule } from '../master-data/master-data.module';
+import { KeycloakAdminModule } from '../../infrastructure/keycloak/keycloak-admin.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { MasterDataModule } from '../master-data/master-data.module';
     forwardRef(() => SimopsModule),
     NotificationsModule,
     MasterDataModule,
+    KeycloakAdminModule,
   ],
   controllers: [PermitController, DraftController, AttachmentController, PermitLototoExecutionController],
   providers: [

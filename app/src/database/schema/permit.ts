@@ -152,7 +152,13 @@ export const permitHazards = pgTable(
     permitId: uuid('permit_id')
       .notNull()
       .references(() => permits.id, { onDelete: 'cascade' }),
-    hazardCategoryId: uuid('hazard_category_id').notNull(),
+    hazardCategoryId: uuid('hazard_category_id'),
+    /** Stable id for a hazard written on this permit, kept when the row is replaced on save. */
+    customKey: uuid('custom_key'),
+    customName: varchar('custom_name', { length: 255 }),
+    customDescription: text('custom_description'),
+    /** none | pending | approved | rejected | withdrawn */
+    catalogueRequest: varchar('catalogue_request', { length: 16 }).notNull().default('none'),
     description: text('description'),
     extraConsequences: jsonb('extra_consequences').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     extraRisks: jsonb('extra_risks').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
@@ -162,11 +168,44 @@ export const permitHazards = pgTable(
     omittedControls: jsonb('omitted_controls').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   },
   (table) => [
-    uniqueIndex('permit_hazards_permit_hazard_unique').on(
-      table.permitId,
-      table.hazardCategoryId,
-    ),
+    uniqueIndex('permit_hazards_permit_hazard_unique')
+      .on(table.permitId, table.hazardCategoryId)
+      .where(sql`${table.hazardCategoryId} is not null`),
+    uniqueIndex('permit_hazards_custom_key_unique')
+      .on(table.permitId, table.customKey)
+      .where(sql`${table.customKey} is not null`),
     index('permit_hazards_permit_id_idx').on(table.permitId),
+  ],
+);
+
+/** A request to copy a permit-only hazard into this organisation's hazard list. */
+export const hazardCatalogueRequests = pgTable(
+  'hazard_catalogue_requests',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    permitId: uuid('permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    customKey: uuid('custom_key').notNull(),
+    status: varchar('status', { length: 16 }).notNull().default('pending'),
+    name: varchar('name', { length: 255 }).notNull(),
+    description: text('description'),
+    risks: jsonb('risks').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    consequences: jsonb('consequences').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    controls: jsonb('controls').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    permitTypeCode: varchar('permit_type_code', { length: 16 }),
+    siteId: uuid('site_id'),
+    workLocationId: uuid('work_location_id'),
+    assetIds: uuid('asset_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    requestedBy: uuid('requested_by').notNull(),
+    decidedBy: uuid('decided_by'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    hazardCategoryId: uuid('hazard_category_id'),
+  },
+  (table) => [
+    index('hazard_catalogue_requests_tenant_status_idx').on(table.tenantId, table.status),
+    index('hazard_catalogue_requests_permit_idx').on(table.permitId),
   ],
 );
 
