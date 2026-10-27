@@ -2,6 +2,7 @@
 import { AppSelect } from "@/components/ui/select";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 import { toast } from "@/components/ui/toast";
@@ -65,11 +66,11 @@ function profileOf(form: TenantForm) {
 }
 
 export default function PlatformTenantsPage() {
+  const router = useRouter();
   const [tenants, setTenants] = useState<PlatformTenant[]>([]);
   const [industries, setIndustries] = useState<Industry[]>([]);
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [created, setCreated] = useState<CreatedTenant | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -105,28 +106,7 @@ export default function PlatformTenantsPage() {
   }, [tenants, query]);
 
   function openForm(prefill = EMPTY_FORM) {
-    setEditingId(null);
     setForm(prefill);
-    setCreated(null);
-    setFormOpen(true);
-    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
-  }
-
-  function openEdit(tenant: PlatformTenant) {
-    setEditingId(tenant.id);
-    setForm({
-      organisationName: tenant.name,
-      ownerEmail: tenant.ownerEmail ?? "",
-      ownerFirstName: "",
-      ownerLastName: "",
-      about: tenant.about ?? "",
-      industryId: tenant.industryId,
-      addressLine1: tenant.addressLine1 ?? "",
-      addressLine2: tenant.addressLine2 ?? "",
-      state: tenant.addressState ?? "",
-      country: tenant.addressCountry ?? "",
-      pin: tenant.addressPin ?? "",
-    });
     setCreated(null);
     setFormOpen(true);
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
@@ -134,7 +114,6 @@ export default function PlatformTenantsPage() {
 
   function closeForm() {
     setForm(EMPTY_FORM);
-    setEditingId(null);
     setFormOpen(false);
   }
 
@@ -155,25 +134,19 @@ export default function PlatformTenantsPage() {
     setError(null);
     const profile = profileOf(form);
     try {
-      if (editingId) {
-        await platformTenantsApi.update(editingId, profile);
-        toast(`${profile.organisationName} updated`);
-        closeForm();
-      } else {
-        const result = await platformTenantsApi.create({
-          ...profile,
-          ownerEmail: form.ownerEmail.trim(),
-          ownerFirstName: form.ownerFirstName.trim() || undefined,
-          ownerLastName: form.ownerLastName.trim() || undefined,
-        });
-        toast(`${profile.organisationName} invited`);
-        closeForm();
-        setCreated(result);
-      }
+      const result = await platformTenantsApi.create({
+        ...profile,
+        ownerEmail: form.ownerEmail.trim(),
+        ownerFirstName: form.ownerFirstName.trim() || undefined,
+        ownerLastName: form.ownerLastName.trim() || undefined,
+      });
+      toast(`${profile.organisationName} invited`);
+      closeForm();
+      setCreated(result);
       setView("organisations");
       await loadTenants();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : editingId ? "Failed to update tenant" : "Failed to create tenant");
+      setError(err instanceof ApiError ? err.message : "Failed to create tenant");
     } finally {
       setSaving(false);
     }
@@ -273,7 +246,7 @@ export default function PlatformTenantsPage() {
           onSubmit={handleSubmit}
           className="reveal-in grid scroll-mt-[calc(4.5rem+var(--page-head-h,0px))] gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2"
         >
-          <h2 className="font-semibold sm:col-span-2">{editingId ? "Edit tenant" : "Invite organisation owner"}</h2>
+          <h2 className="font-semibold sm:col-span-2">Invite organisation owner</h2>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Organisation name</span>
             <input
@@ -292,42 +265,37 @@ export default function PlatformTenantsPage() {
             <input
               required
               type="email"
-              disabled={Boolean(editingId)}
               value={form.ownerEmail}
               className={FIELD_CLASS}
               onChange={(e) => setForm((prev) => ({ ...prev, ownerEmail: e.target.value }))}
             />
           </label>
-          {editingId ? null : (
-            <>
-              <label className="grid gap-1.5 text-sm">
-                <span className="font-medium">
-                  Owner first name<span className="font-normal text-muted-foreground"> (optional)</span>
-                </span>
-                <input
-                  pattern={NAME_PATTERN}
-                  title={NAME_HINT}
-                  maxLength={255}
-                  value={form.ownerFirstName}
-                  className={FIELD_CLASS}
-                  onChange={(e) => setForm((prev) => ({ ...prev, ownerFirstName: e.target.value }))}
-                />
-              </label>
-              <label className="grid gap-1.5 text-sm">
-                <span className="font-medium">
-                  Owner last name<span className="font-normal text-muted-foreground"> (optional)</span>
-                </span>
-                <input
-                  pattern={NAME_PATTERN}
-                  title={NAME_HINT}
-                  maxLength={255}
-                  value={form.ownerLastName}
-                  className={FIELD_CLASS}
-                  onChange={(e) => setForm((prev) => ({ ...prev, ownerLastName: e.target.value }))}
-                />
-              </label>
-            </>
-          )}
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-medium">
+              Owner first name<span className="font-normal text-muted-foreground"> (optional)</span>
+            </span>
+            <input
+              pattern={NAME_PATTERN}
+              title={NAME_HINT}
+              maxLength={255}
+              value={form.ownerFirstName}
+              className={FIELD_CLASS}
+              onChange={(e) => setForm((prev) => ({ ...prev, ownerFirstName: e.target.value }))}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-medium">
+              Owner last name<span className="font-normal text-muted-foreground"> (optional)</span>
+            </span>
+            <input
+              pattern={NAME_PATTERN}
+              title={NAME_HINT}
+              maxLength={255}
+              value={form.ownerLastName}
+              className={FIELD_CLASS}
+              onChange={(e) => setForm((prev) => ({ ...prev, ownerLastName: e.target.value }))}
+            />
+          </label>
           <label className="grid gap-1.5 text-sm sm:col-span-2">
             <span className="font-medium">
               About<span className="font-normal text-muted-foreground"> (optional)</span>
@@ -419,7 +387,7 @@ export default function PlatformTenantsPage() {
           </div>
           <div className="flex flex-wrap gap-2 sm:col-span-2">
             <Button type="submit" disabled={saving}>
-              {saving ? "Saving…" : editingId ? "Save tenant" : "Invite organisation"}
+              {saving ? "Saving…" : "Invite organisation"}
             </Button>
             <Button type="button" variant="ghost" onClick={closeForm}>
               Cancel
@@ -516,7 +484,7 @@ export default function PlatformTenantsPage() {
                   <td className="px-4 py-3">
                     <RowActions
                       actions={[
-                        { label: "Edit", disabled: actingId === tenant.id, onClick: () => openEdit(tenant) },
+                        { label: "View", disabled: actingId === tenant.id, onClick: () => router.push(`/platform/tenants/${tenant.id}`) },
                         tenant.status === "disabled"
                           ? {
                               label: "Activate",

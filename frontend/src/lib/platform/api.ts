@@ -18,6 +18,10 @@ export type PlatformTenant = {
   addressPin: string | null;
 };
 
+export type PlatformTenantDetail = PlatformTenant & {
+  temporaryPassword: string | null;
+};
+
 export type Industry = {
   id: string;
   name: string;
@@ -89,6 +93,7 @@ export const accessRequestsApi = {
 
 export const platformTenantsApi = {
   list: () => fetchApi<PlatformTenant[]>("/platform/tenants"),
+  get: (id: string) => fetchApi<PlatformTenantDetail>(`/platform/tenants/${id}`),
   create: (payload: TenantProfile & {
     ownerEmail: string;
     ownerFirstName?: string;
@@ -103,6 +108,8 @@ export const platformTenantsApi = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
+  resetOwnerPassword: (id: string) =>
+    fetchApi<PlatformTenantDetail>(`/platform/tenants/${id}/reset-password`, { method: "POST" }),
   getInvite: (token: string) =>
     fetchApi<PublicTenantInvite>(`/platform/tenant-invites/${token}`, { skipAuth: true }),
   acceptInvite: (token: string) =>

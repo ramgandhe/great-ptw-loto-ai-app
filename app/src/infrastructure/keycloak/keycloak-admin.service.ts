@@ -283,6 +283,22 @@ export class KeycloakAdminService implements OnApplicationBootstrap {
     }
   }
 
+  async updateUserName(userId: string, firstName: string, lastName: string): Promise<void> {
+    const token = await this.adminToken();
+    const user = await this.getUser(token, userId);
+    const response = await fetch(`${this.realmUrl()}/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ...user, firstName, lastName }),
+    });
+    if (!response.ok) {
+      throw this.unavailable('Failed to update user name', await response.text());
+    }
+  }
+
   private async deleteUser(token: string, userId: string): Promise<void> {
     const response = await fetch(`${this.realmUrl()}/users/${userId}`, {
       method: 'DELETE',

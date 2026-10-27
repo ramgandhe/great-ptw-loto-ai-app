@@ -375,17 +375,35 @@ export class TenantUsersService implements OnApplicationBootstrap {
   async updateProfile(userId: string, dto: UpdateTenantUserDto, actor: AuthenticatedUser) {
     const row = await this.loadManageableUser(userId, actor, { allowDisabled: true });
     const actorId = optionalUuid(actor.id);
+    const named = dto.name !== undefined ? splitPersonName(dto.name) : null;
+    if (named) {
+      await this.keycloakAdmin.updateUserName(userId, named.firstName, named.lastName ?? '');
+    }
+    const firstName = named ? named.firstName : row.firstName;
+    const lastName = named ? named.lastName ?? null : row.lastName;
+    const departmentId = dto.departmentId === undefined ? row.departmentId : optionalUuid(dto.departmentId) ?? null;
     await this.db
       .update(tenantUsers)
       .set({
-        departmentId: dto.departmentId === undefined ? row.departmentId : optionalUuid(dto.departmentId) ?? null,
+        firstName,
+        lastName,
+        departmentId,
         updatedBy: actorId,
         updatedAt: new Date(),
       })
       .where(eq(tenantUsers.id, row.id));
+    await this.auditService.log({
+      action: 'tenant.user.updated',
+      entityType: 'user',
+      entityId: userId,
+      userId: actorId,
+      tenantId: row.tenantId,
+    });
     return this.toListItem({
       ...row,
-      departmentId: dto.departmentId === undefined ? row.departmentId : optionalUuid(dto.departmentId) ?? null,
+      firstName,
+      lastName,
+      departmentId,
     });
   }
 

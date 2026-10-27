@@ -8,7 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { throwInUse } from '../../common/http/in-use';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
@@ -249,6 +249,7 @@ export class PlatformTenantsService {
           lastName: dto.ownerLastName?.trim(),
           role: 'tenant-owner',
           roles: ['tenant-owner'],
+          temporaryPassword,
           createdBy: actorId,
           updatedBy: actorId,
         });
@@ -321,6 +322,49 @@ export class PlatformTenantsService {
 
     const [row] = (await this.listTenants()).filter((tenant) => tenant.id === updated.id);
     return row;
+  }
+
+  async getTenant(id: string) {
+    const [row] = (await this.listTenants()).filter((tenant) => tenant.id === id);
+    if (!row) {
+      throw new NotFoundException('Organisation not found');
+    }
+    const owner = await this.findOwner(row.tenantId, row.ownerEmail);
+    return { ...row, temporaryPassword: owner?.temporaryPassword ?? null };
+  }
+
+  async resetOwnerPassword(id: string, actor: AuthenticatedUser) {
+    const org = await this.getManagedOrganisation(id);
+    const owner = await this.findOwner(org.tenantId, org.ownerEmail);
+    if (!owner) {
+      throw new NotFoundException('Tenant owner was not found');
+    }
+    const temporaryPassword = randomBytes(12).toString('base64url');
+    const actorId = optionalUuid(actor.id);
+    await this.keycloakAdmin.resetTemporaryPassword(owner.keycloakUserId, temporaryPassword);
+    await this.db
+      .update(tenantUsers)
+      .set({ temporaryPassword, updatedBy: actorId, updatedAt: new Date() })
+      .where(eq(tenantUsers.id, owner.id));
+    await this.auditService.log({
+      action: 'tenant.owner.password.reset',
+      entityType: 'user',
+      entityId: owner.keycloakUserId,
+      userId: actorId,
+      tenantId: org.tenantId,
+    });
+    return this.getTenant(org.id);
+  }
+
+  private async findOwner(tenantId: string, ownerEmail: string | null) {
+    if (!ownerEmail) {
+      return null;
+    }
+    const [owner] = await this.db
+      .select()
+      .from(tenantUsers)
+      .where(and(eq(tenantUsers.tenantId, tenantId), sql`lower(${tenantUsers.email}) = ${ownerEmail.toLowerCase()}`));
+    return owner ?? null;
   }
 
   async listIndustries() {

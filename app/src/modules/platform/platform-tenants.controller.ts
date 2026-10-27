@@ -27,6 +27,18 @@ export class PlatformTenantsController {
   }
 
   @Roles(...PLATFORM_ADMIN_ROLES)
+  @Get(':id')
+  get(@Param('id', ParseUUIDPipe) id: string) {
+    return this.platformTenantsService.getTenant(id);
+  }
+
+  @Roles(...PLATFORM_ADMIN_ROLES)
+  @Post(':id/reset-password')
+  resetOwnerPassword(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.platformTenantsService.resetOwnerPassword(id, user);
+  }
+
+  @Roles(...PLATFORM_ADMIN_ROLES)
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,

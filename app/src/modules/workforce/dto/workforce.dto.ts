@@ -125,5 +125,12 @@ export class CreateTenantUserDto {
 export class UpdateTenantUserDto {
   @IsOptional()
   @IsString()
+  @MinLength(1)
+  @MaxLength(255)
+  @Matches(NAME_REGEX, { message: NAME_MESSAGE('name') })
+  name?: string;
+
+  @IsOptional()
+  @IsString()
   departmentId?: string;
 }

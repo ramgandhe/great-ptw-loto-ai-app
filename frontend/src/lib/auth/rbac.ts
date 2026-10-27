@@ -45,7 +45,7 @@ const ROUTE_RULES: RouteRule[] = [
   { test: (p) => p === "/billing", roles: BILLING_READ_ROLES },
   { test: (p) => p === "/analytics", roles: DASHBOARD_ANALYTICS_ROLES },
   { test: (p) => p === "/reports", roles: DASHBOARD_REPORT_ROLES },
-  { test: (p) => p === "/workforce/roles", roles: WORKFORCE_WRITE_ROLES },
+  { test: (p) => p === "/workforce/roles" || p.startsWith("/workforce/roles/"), roles: WORKFORCE_WRITE_ROLES },
   { test: (p) => p.startsWith("/workforce"), roles: NAV_WORKFORCE_ROLES },
   {
     test: (p) => ORGANISATION_ADMIN_PATHS.some((prefix) => p === prefix || p.startsWith(`${prefix}/`)),
