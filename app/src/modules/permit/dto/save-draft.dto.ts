@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsInt, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsInt, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator';
 import { PermitFormResponseDto } from './permit-relations.dto';
 import { UpdatePermitDto } from './update-permit.dto';
 
@@ -15,6 +15,12 @@ export class SubmitPermitDto {
   @IsInt({ message: REVISION_MESSAGE })
   @Min(0, { message: REVISION_MESSAGE })
   expectedRevision!: number;
+
+  /** Typed name recorded as the initiator signature. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  signedName?: string;
 }
 
 /** Template answers required at approval or closure, recorded with that decision. */

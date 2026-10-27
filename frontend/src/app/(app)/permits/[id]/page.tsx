@@ -12,7 +12,6 @@ import { isEditablePermitStatus } from "@/lib/permit/status";
 import { toast } from "@/components/ui/toast";
 import { PermitApprovalStatus } from "@/components/permit/permit-approval-status";
 import { PermitJourney } from "@/components/permit/permit-journey";
-import { PermitLototoExecution } from "@/components/permit/lototo-execution";
 import { PermitPeopleReassign } from "@/components/permit/permit-people-reassign";
 import { identityFromPermit, PermitSummary } from "@/components/permit/permit-summary";
 import { PermitFormResponses } from "@/components/permit/permit-form-responses";
@@ -243,10 +242,6 @@ function PermitWorkspace() {
             ) : null}
             {permit.status === "pending_closure" ? (
               <p className="text-sm text-muted-foreground">Verification is done and sent for sign-off.</p>
-            ) : null}
-            {detail.permit.lototoRequired &&
-            ["approved", "active", "execution_completed", "pending_closure"].includes(detail.permit.status) ? (
-              <PermitLototoExecution permitId={detail.permit.id} />
             ) : null}
             <PermitPeopleReassign detail={detail} onSaved={setDetail} />
             <section aria-label="Permit actions" className="flex flex-wrap gap-2 empty:hidden">

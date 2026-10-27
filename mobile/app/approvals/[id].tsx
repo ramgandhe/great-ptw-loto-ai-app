@@ -31,6 +31,7 @@ export default function PermitApprovalReviewScreen() {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [stageEdits, setStageEdits] = useState<StageAnswerEdits>({});
+  const [approverSignedName, setApproverSignedName] = useState<string | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const signerName = useSignerName();
@@ -49,7 +50,8 @@ export default function PermitApprovalReviewScreen() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const canAct = review?.permit.status === "pending_approval" && review.activeAssignment !== null;
+  const canAct = review?.permit.status === "pending_approval" && review.activeAssignment !== null && review.mayDecide !== false;
+  const approvalName = approverSignedName ?? signerName;
   const activeStep = review?.activeAssignment?.step;
 
   function commentRequired(mode: ActionMode): boolean {
@@ -70,6 +72,10 @@ export default function PermitApprovalReviewScreen() {
       return;
     }
     setActionError(null);
+    if (mode === "approve" && !approvalName.trim()) {
+      setActionError("Type your name before approving.");
+      return;
+    }
     if (commentRequired(mode) && !comment.trim()) {
       setCommentError("A comment is required for this decision.");
       return;
@@ -80,7 +86,7 @@ export default function PermitApprovalReviewScreen() {
     try {
       let updated: ApprovalReview;
       if (mode === "approve") {
-        updated = await approvePermit(id, comment, review ? stageAnswersPayload(stageEdits, review.permit.draftRevision) : undefined);
+        updated = await approvePermit(id, comment, review ? stageAnswersPayload(stageEdits, review.permit.draftRevision) : undefined, approvalName.trim());
       } else if (mode === "reject") {
         updated = await rejectPermit(id, comment);
       } else {
@@ -138,7 +144,7 @@ export default function PermitApprovalReviewScreen() {
                 setCommentError(null);
               }}
             />
-            <Button label={chosen.label} color={chosen.color} loading={submitting} onPress={() => void submitAction(actionMode)} />
+            <Button label={chosen.label} color={chosen.color} loading={submitting} disabled={actionMode === "approve" && !approvalName.trim()} onPress={() => void submitAction(actionMode)} />
           </ActionBar>
         ) : undefined
       }
@@ -203,6 +209,7 @@ export default function PermitApprovalReviewScreen() {
             />
             {actionMode === "approve" ? (
               <>
+                <TextField label="Typed name" value={approvalName} onChangeText={setApproverSignedName} />
                 <StageAnswers
                   responses={review.permit.formResponses ?? []}
                   stage="approval"
@@ -233,6 +240,8 @@ export default function PermitApprovalReviewScreen() {
             {actionError ? <Banner tone="danger">{actionError}</Banner> : null}
           </Card>
         </View>
+      ) : review.permit.status === "pending_approval" && review.activeAssignment ? (
+        <Banner>Another approver must decide this permit.</Banner>
       ) : null}
     </Screen>
   );

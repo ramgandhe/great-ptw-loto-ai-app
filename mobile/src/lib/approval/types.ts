@@ -57,4 +57,6 @@ export type ApprovalReview = PermitDetail & {
   workflow: WorkflowAssignmentRow[];
   activeAssignment: WorkflowAssignmentRow | null;
   decisions: PermitApprovalDecision[];
+  /** False when this person cannot approve, defer or reject the current step. */
+  mayDecide?: boolean;
 };

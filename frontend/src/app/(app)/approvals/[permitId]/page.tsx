@@ -65,6 +65,7 @@ export default function PermitReviewPage() {
   const [review, setReview] = useState<ApprovalReview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
+  const [approverSignedName, setApproverSignedName] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [siteVisited, setSiteVisited] = useState(false);
   const [locationAck, setLocationAck] = useState(false);
@@ -103,7 +104,9 @@ export default function PermitReviewPage() {
   const form = permitDetailToForm(review);
   const gaps = permitGaps(form);
   const step = review.activeAssignment?.step;
-  const canAct = review.permit.status === "pending_approval" && review.activeAssignment !== null;
+  const mayDecide = review.mayDecide !== false;
+  const canAct = review.permit.status === "pending_approval" && review.activeAssignment !== null && mayDecide;
+  const approvalName = approverSignedName ?? signerName;
   const commentRequired =
     decision === "approve"
       ? Boolean(step?.commentRequiredOnApprove)
@@ -121,6 +124,10 @@ export default function PermitReviewPage() {
       setActionError("Add a comment before confirming. The issuer needs to know what to change.");
       return;
     }
+    if (decision === "approve" && !approvalName.trim()) {
+      setActionError("Type your name before approving.");
+      return;
+    }
     if (decision === "approve" && locationWarning && !locationAck) {
       setActionError("Acknowledge the nearby work location warning before approving.");
       return;
@@ -136,6 +143,7 @@ export default function PermitReviewPage() {
               stageAnswersPayload(stageEdits, review!.permit.draftRevision),
               siteVisited,
               locationAck,
+              approvalName.trim(),
             )
           : await (decision === "reject" ? rejectPermit : deferPermit)(permitId, comment.trim());
       setReview(updated);
@@ -215,7 +223,13 @@ export default function PermitReviewPage() {
 
             {!canAct ? (
               <p className="mt-3 text-sm text-muted-foreground">
-                Nothing to decide here. The permit is {formatStatus(review.permit.status).toLowerCase()}.
+                {review.permit.status === "pending_approval" && review.activeAssignment
+                  ? review.permit.submittedBy === profile?.id
+                    ? "You submitted this permit, so another approver must approve it."
+                    : review.executors.some((executor) => executor.workforceUserId === profile?.id)
+                      ? "You are a permit operator on this permit, so another person must approve it."
+                      : "Another approver must decide this permit."
+                  : `Nothing to decide here. The permit is ${formatStatus(review.permit.status).toLowerCase()}.`}
               </p>
             ) : (
               <>
@@ -264,6 +278,16 @@ export default function PermitReviewPage() {
                           </p>
                         ) : null}
                       </div>
+                    ) : null}
+                    {decision === "approve" ? (
+                      <label className="grid gap-1 text-sm font-medium">
+                        Typed name
+                        <input
+                          value={approvalName}
+                          onChange={(event) => setApproverSignedName(event.target.value)}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                        />
+                      </label>
                     ) : null}
                     {decision === "approve" ? (
                       <label className="flex items-center gap-2 text-sm">
@@ -321,7 +345,7 @@ export default function PermitReviewPage() {
                       type="button"
                       variant={decision === "reject" ? "destructive" : "default"}
                       className="h-10"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || (decision === "approve" && !approvalName.trim())}
                       onClick={submit}
                     >
                       {isSubmitting ? "Saving…" : `${DECISIONS[decision].label}${nextReview ? " and open next" : ""}`}

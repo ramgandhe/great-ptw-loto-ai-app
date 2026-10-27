@@ -220,6 +220,19 @@ function schedulePresets(now = new Date()): { label: string; start: string; end:
   ];
 }
 
+function duplicateGasName(items: { parameter?: string | null; removedReason?: string | null }[]): string | null {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (item.removedReason?.trim()) continue;
+    const name = item.parameter?.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) return name;
+    seen.add(key);
+  }
+  return null;
+}
+
 const SITE_SAFETY_STEPS = [
   { id: "place", label: "Location & assets" },
   { id: "hazards", label: "Hazards & controls" },
@@ -871,6 +884,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const forms = applicableTemplates(templates, form.permitTypeId);
   const signerName =
     [authProfile?.firstName, authProfile?.lastName].filter(Boolean).join(" ") || authProfile?.displayName || "";
+  const [initiatorSignedName, setInitiatorSignedName] = useState<string | null>(null);
+  const initiatorName = initiatorSignedName ?? signerName;
 
   const recentPermits = [...visiblePermits]
     // Drafts, cancelled and rejected permits make poor templates.
@@ -1008,8 +1023,22 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       const template = id === "forms" ? forms.find((t) => message.startsWith(`${t.name}:`)) : undefined;
       return { message, section: id, href: `#${template ? `form-${template.id}` : (ERROR_FIELDS[message] ?? `section-${id}`)}` };
     });
+  useEffect(() => {
+    if (!apiError?.includes("listed more than once")) return;
+    if (!duplicateGasName(form.gasTesting)) {
+      setApiError(null);
+    }
+  }, [apiError, form.gasTesting]);
   /** Next checks only this step, and only when this person fills it in. */
   const handleNext = () => {
+    if (active === "site" && siteSafetyStep === "gas") {
+      const duplicate = duplicateGasName(form.gasTesting);
+      if (duplicate) {
+        setApiError(`Gas test ${duplicate} is listed more than once`);
+        return;
+      }
+      setApiError((current) => (current?.includes("listed more than once") ? null : current));
+    }
     if (active === "site") {
       const safetyIndex = SITE_SAFETY_STEPS.findIndex((step) => step.id === siteSafetyStep);
       if (safetyIndex < SITE_SAFETY_STEPS.length - 1) {
@@ -1151,6 +1180,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       requestAnimationFrame(() => document.getElementById("validation-summary")?.focus());
       return;
     }
+    if (!initiatorName.trim()) {
+      setApiError("Type your name before submitting.");
+      return;
+    }
     if (!(await confirmAction(isResubmit ? "Resubmit this permit for approval?" : "Submit this permit for approval?"))) {
       return;
     }
@@ -1161,7 +1194,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       // Always save the current edits first; submit only after that save succeeded, at its revision.
       const saved = await persistDraft();
       setDirty(false);
-      const result = await submitPermit(saved.id, saved.revision);
+      const result = await submitPermit(saved.id, saved.revision, initiatorName.trim());
       setStatus(result.permit.status);
       router.push(`/permits/${saved.id}`);
     } catch (error) {
@@ -2131,12 +2164,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 <p className="font-medium">{item.parameter || "Gas test"}{item.sourceName ? ` — ${item.sourceName}` : ""}</p>
                 {item.removedReason ? (
                   <p>Removed for this permit: {item.removedReason}</p>
-                ) : (
+                ) : item.gasTestingCatalogueId ? (
                   <div className="grid gap-2 sm:grid-cols-3">
                     <label className="grid gap-1">Minimum
                       <input className={fieldClassName} type="number" value={item.minimum ?? ""} disabled={!siteEditable} onChange={(e) => {
                         const next = Number(e.target.value);
-                        const baseline = item.gasTestingCatalogueId ? gasBaselines.get(item.gasTestingCatalogueId) : undefined;
+                        const baseline = gasBaselines.get(item.gasTestingCatalogueId!);
                         if (baseline && e.target.value !== "" && Number.isFinite(next) && next < baseline.minimum) {
                           setGasLimitError("A limit cannot be loosened.");
                           return;
@@ -2148,7 +2181,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     <label className="grid gap-1">Maximum
                       <input className={fieldClassName} type="number" value={item.maximum ?? ""} disabled={!siteEditable} onChange={(e) => {
                         const next = Number(e.target.value);
-                        const baseline = item.gasTestingCatalogueId ? gasBaselines.get(item.gasTestingCatalogueId) : undefined;
+                        const baseline = gasBaselines.get(item.gasTestingCatalogueId!);
                         if (baseline && e.target.value !== "" && Number.isFinite(next) && next > baseline.maximum) {
                           setGasLimitError("A limit cannot be loosened.");
                           return;
@@ -2158,6 +2191,29 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                       }} />
                     </label>
                     <p className="self-end text-muted-foreground">{item.unit}</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="grid gap-1">Parameter
+                      <input className={fieldClassName} value={item.parameter} disabled={!siteEditable} onChange={(e) => {
+                        edit((current) => ({ ...current, gasReady: true, gasTesting: current.gasTesting.map((row, i) => i === index ? { ...row, parameter: e.target.value } : row) }));
+                      }} />
+                    </label>
+                    <label className="grid gap-1">Unit
+                      <input className={fieldClassName} value={item.unit} disabled={!siteEditable} onChange={(e) => {
+                        edit((current) => ({ ...current, gasReady: true, gasTesting: current.gasTesting.map((row, i) => i === index ? { ...row, unit: e.target.value } : row) }));
+                      }} />
+                    </label>
+                    <label className="grid gap-1">Minimum
+                      <input className={fieldClassName} type="number" value={item.minimum ?? ""} disabled={!siteEditable} onChange={(e) => {
+                        edit((current) => ({ ...current, gasReady: true, gasTesting: current.gasTesting.map((row, i) => i === index ? { ...row, minimum: Number(e.target.value) } : row) }));
+                      }} />
+                    </label>
+                    <label className="grid gap-1">Maximum
+                      <input className={fieldClassName} type="number" value={item.maximum ?? ""} disabled={!siteEditable} onChange={(e) => {
+                        edit((current) => ({ ...current, gasReady: true, gasTesting: current.gasTesting.map((row, i) => i === index ? { ...row, maximum: Number(e.target.value) } : row) }));
+                      }} />
+                    </label>
                   </div>
                 )}
                 {siteEditable && !item.gasTestingCatalogueId ? (
@@ -2215,6 +2271,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     const minimum = Number(extraGas.minimum);
                     const maximum = Number(extraGas.maximum);
                     if (!extraGas.parameter.trim() || !extraGas.unit.trim() || !(minimum < maximum)) return;
+                    const duplicate = duplicateGasName([...form.gasTesting, { parameter: extraGas.parameter }]);
+                    if (duplicate) {
+                      setApiError(`Gas test ${duplicate} is listed more than once`);
+                      return;
+                    }
+                    setApiError((current) => (current?.includes("listed more than once") ? null : current));
                     edit((current) => ({
                       ...current,
                       gasReady: true,
@@ -2540,6 +2602,21 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             </Button>
           ))}
         </div>
+        {draftHolder === "ready_for_review" && canSubmit ? (
+          <FormField label="Typed name" htmlFor="initiatorSignedName">
+            <div className="flex gap-2">
+              <input
+                id="initiatorSignedName"
+                className={fieldClassName}
+                value={initiatorName}
+                onChange={(event) => setInitiatorSignedName(event.target.value)}
+              />
+              <Button type="button" variant="outline" onClick={() => setInitiatorSignedName(initiatorName.trim() || signerName)}>
+                Me
+              </Button>
+            </div>
+          </FormField>
+        ) : null}
         <section aria-labelledby="submission-readiness-title" className="overflow-hidden rounded-xl border border-border">
           <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/40 px-4 py-3">
             <div>
@@ -2680,7 +2757,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             <ChevronRight aria-hidden />
           </Button>
         ) : canSubmit && draftHolder === "ready_for_review" ? (
-          <Button type="button" size="lg" className="min-h-11 px-4" onClick={() => void handleSubmit()} disabled={isSubmitting || isSaving || isReadOnly || conflict}>
+          <Button type="button" size="lg" className="min-h-11 px-4" onClick={() => void handleSubmit()} disabled={isSubmitting || isSaving || isReadOnly || conflict || !initiatorName.trim()}>
             {isSubmitting ? "Submitting…" : isResubmit ? "Resubmit permit" : "Submit permit"}
           </Button>
         ) : null}

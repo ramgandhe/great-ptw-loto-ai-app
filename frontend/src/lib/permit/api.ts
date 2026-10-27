@@ -24,10 +24,10 @@ export function savePermitDraft(id: string, payload: SaveDraftPayload) {
   });
 }
 
-export function submitPermit(id: string, expectedRevision: number) {
+export function submitPermit(id: string, expectedRevision: number, signedName?: string) {
   return fetchApi<PermitDetail>(`/permits/${id}/submit`, {
     method: "POST",
-    body: JSON.stringify({ expectedRevision }),
+    body: JSON.stringify({ expectedRevision, signedName: signedName?.trim() || undefined }),
   });
 }
 

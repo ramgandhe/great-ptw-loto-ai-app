@@ -58,6 +58,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
   const [currentPermitId, setCurrentPermitId] = useState<string | undefined>(permitId);
   const [errors, setErrors] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
+  const [signedName, setSignedName] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [queuedOffline, setQueuedOffline] = useState(false);
   // The revision this form was loaded or last saved at; the server refuses saves made against an older one.
@@ -383,6 +384,11 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     if (allErrors.length > 0) {
       return;
     }
+    const initiatorName = (signedName ?? formOptions?.userName ?? "").trim();
+    if (!initiatorName) {
+      setMessage("Type your name before submitting.");
+      return;
+    }
 
     setIsBusy(true);
     setMessage(null);
@@ -390,13 +396,13 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
       // Always save the current edits first; submit only after that save, at its revision.
       const { id, revision: savedRevision, queued } = await persistDraft();
       if (queued) {
-        await queuePermitMutation({ method: "POST", path: `/permits/${id}/submit`, payload: { expectedRevision: savedRevision } });
+        await queuePermitMutation({ method: "POST", path: `/permits/${id}/submit`, payload: { expectedRevision: savedRevision, signedName: initiatorName } });
         setMessage("Submission is waiting for the server. It is not submitted until it syncs.");
         router.replace("/permits");
         return;
       }
 
-      await submitPermit(id, savedRevision);
+      await submitPermit(id, savedRevision, initiatorName);
       router.replace(`/permits/${id}`);
     } catch (error) {
       if (error instanceof ApiError && Array.isArray(error.details)) {
@@ -483,7 +489,7 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
           {step < last ? (
             <Button label="Next" icon={ChevronRight} onPress={handleNext} />
           ) : !isReadOnly ? (
-            <Button label="Submit" icon={Send} disabled={isBusy} onPress={() => void handleSubmit()} />
+            <Button label="Submit" icon={Send} disabled={isBusy || !(signedName ?? formOptions?.userName ?? "").trim()} onPress={() => void handleSubmit()} />
           ) : null}
         </ActionBar>
       }
@@ -894,6 +900,13 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
 
       {step === last && !optionsLoading ? (
         <>
+          {!isReadOnly ? (
+            <TextField
+              label="Typed name"
+              value={signedName ?? formOptions?.userName ?? ""}
+              onChangeText={setSignedName}
+            />
+          ) : null}
           {reviewSections.map((section) => (
             <StepCard
               key={section.step}

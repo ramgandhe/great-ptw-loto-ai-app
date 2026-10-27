@@ -412,6 +412,7 @@ export function formToSavePayload(
     lototoRequired: payload.lototoRequired,
     lototo: payload.lototo,
     gasTestingRequired: payload.gasTestingRequired,
+    siteNotes: payload.siteNotes,
     executors: payload.executors,
     safetyOfficers: payload.safetyOfficers,
     formResponses: payload.formResponses,

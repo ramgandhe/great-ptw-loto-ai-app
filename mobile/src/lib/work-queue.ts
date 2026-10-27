@@ -23,7 +23,7 @@ export type ActionKind = "decide" | "fix" | "do";
 
 export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string; kind: ActionKind }> = {
   review: { group: "Waiting for your approval", verb: "Review", kind: "decide" },
-  "safety-check": { group: "Safety Approval", verb: "Sign off", kind: "decide" },
+  "safety-check": { group: "Safety Approval", verb: "Safety approval", kind: "decide" },
   "final-approval": { group: "Waiting for final sign-off", verb: "Sign off", kind: "decide" },
   "approve-completion": { group: "Work finished, confirm completion", verb: "Confirm", kind: "decide" },
   revalidate: { group: "Suspended, needs revalidation", verb: "Revalidate", kind: "fix" },

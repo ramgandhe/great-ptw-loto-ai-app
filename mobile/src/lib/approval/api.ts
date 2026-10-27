@@ -14,10 +14,10 @@ export function getApprovalReview(permitId: string) {
   return fetchApi<ApprovalReview>(`/approvals/${permitId}`);
 }
 
-export function approvePermit(permitId: string, comment?: string, stageAnswers?: StageAnswersPayload) {
+export function approvePermit(permitId: string, comment?: string, stageAnswers?: StageAnswersPayload, signedName?: string) {
   return fetchApi<ApprovalReview>(`/approvals/${permitId}/approve`, {
     method: "POST",
-    body: JSON.stringify({ comment: comment?.trim() || undefined, stageAnswers }),
+    body: JSON.stringify({ comment: comment?.trim() || undefined, stageAnswers, signedName: signedName?.trim() || undefined }),
   });
 }
 

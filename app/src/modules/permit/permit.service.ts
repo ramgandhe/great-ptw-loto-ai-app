@@ -902,6 +902,9 @@ export class PermitService {
 
   async submit(id: string, dto: SubmitPermitDto, user: AuthenticatedUser): Promise<PermitDetail> {
     assertPermitSubmitAllowed(user);
+    if (dto.signedName !== undefined && !dto.signedName.trim()) {
+      throw new BadRequestException('A typed name is required');
+    }
     const tenantId = this.requireTenant(user);
 
     // One transaction on the locked row: a competing save or a second submit waits, then sees
@@ -960,7 +963,7 @@ export class PermitService {
           reference,
           submittedAt,
           submittedBy: user.id,
-          submittedSignedName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.username,
+          submittedSignedName: dto.signedName?.trim() || [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.username,
           permitVersion: isResubmit ? detail.permit.permitVersion + 1 : 1,
           permitVersionAt: submittedAt,
           approvedAt: null,

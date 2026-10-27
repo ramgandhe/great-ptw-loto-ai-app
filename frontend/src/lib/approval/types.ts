@@ -65,4 +65,6 @@ export type ApprovalReview = PermitDetail & {
   activeAssignment: WorkflowAssignmentRow | null;
   decisions: PermitApprovalDecision[];
   simopsCase?: { id: string; summary: string; severity: string } | null;
+  /** False when this person cannot approve, defer or reject the current step. */
+  mayDecide?: boolean;
 };

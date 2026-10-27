@@ -156,16 +156,22 @@ export class ApprovalService {
     const tenantId = this.requireTenant(user);
     const simopsCase = await this.simopsService.findOpenCaseForPermit(permitId, tenantId);
 
+    const mayDecide = await this.viewerMayDecide(detail, user, active);
+
     return {
       ...(await this.permitService.findOne(permitId, user)),
       workflow,
       activeAssignment: active,
       decisions,
       simopsCase,
+      mayDecide,
     };
   }
 
   async approve(permitId: string, dto: ApprovePermitDto, user: AuthenticatedUser) {
+    if (dto.signedName !== undefined && !dto.signedName.trim()) {
+      throw new BadRequestException('A typed name is required');
+    }
     const context = await this.prepareDecision(permitId, user, 'approve');
     const { permit, assignment, step, onBehalfOf } = context;
 
@@ -252,7 +258,7 @@ export class ApprovalService {
             status: 'approved',
             approvedAt: new Date(),
             approvedBy: user.id,
-            approvedSignedName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.username,
+            approvedSignedName: dto.signedName?.trim() || [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.username,
             approverSiteVisited: dto.siteVisited === true,
             updatedBy: user.id,
           })
@@ -502,6 +508,27 @@ export class ApprovalService {
     }
 
     return { permit, assignment, step, onBehalfOf };
+  }
+
+  private async viewerMayDecide(
+    detail: Awaited<ReturnType<PermitService['findOne']>>,
+    user: AuthenticatedUser,
+    active: Awaited<ReturnType<WorkflowEngineService['getActiveAssignmentWithStep']>>,
+  ): Promise<boolean> {
+    if (!active || detail.permit.status !== PENDING_APPROVAL_STATUS) {
+      return false;
+    }
+    if (detail.permit.submittedBy === user.id || isAssignedExecutor(detail, user.id)) {
+      return false;
+    }
+    const allowed = await this.canUserActOnAssignment(
+      user,
+      detail.permit.tenantId,
+      active.step,
+      active.assignment.assignmentSlot ?? 'default',
+      detail.permit.workLocationId,
+    );
+    return allowed.allowed;
   }
 
   private async canUserActOnAssignment(
