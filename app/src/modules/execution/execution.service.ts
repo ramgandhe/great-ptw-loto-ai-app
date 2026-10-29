@@ -36,6 +36,7 @@ import { isPrimaryExecutor, isPermitIssuer, isPrivilegedPermitViewer, visiblePer
 import { SuspendPermitDto } from './dto/suspend-permit.dto';
 import { ExecutionCacheService } from './execution-cache.service';
 import { ExecutionLogService } from './execution-log.service';
+import { IsolationCertificateService } from '../lototo/isolation-certificate.service';
 import { NotificationsService as InboxNotificationsService } from '../notifications/notifications.service';
 import { NotificationService } from './notification.service';
 import { StatusTransitionService } from './status-transition.service';
@@ -58,6 +59,8 @@ export class ExecutionService {
     @Optional()
     @Inject(InboxNotificationsService)
     private readonly inbox?: InboxNotificationsService,
+    @Optional()
+    private readonly isolationCertificates?: IsolationCertificateService,
   ) {}
 
   async activate(permitId: string, dto: ActivatePermitDto, user: AuthenticatedUser) {
@@ -549,6 +552,7 @@ export class ExecutionService {
 
     await this.permitCacheService.invalidatePermit(tenantId, permitId);
     await this.executionCacheService.invalidatePermit(tenantId, permitId);
+    await this.isolationCertificates?.notifyReadyForPermit(permitId, user.id);
     return this.permitService.findOne(permitId, user);
   }
 

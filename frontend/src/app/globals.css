@@ -573,6 +573,11 @@ textarea::placeholder {
   .permit-hazard-details > summary {
     display: none;
   }
+
+  html[data-print="sheet"] .danger-tags,
+  html[data-print="tags"] .isolation-sheet {
+    display: none !important;
+  }
 }
 
 .ptw-app :focus-visible {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { ChevronRight, NotebookPen, Paperclip, TriangleAlert, type LucideIcon } from "lucide-react";
 import { DOMAIN_ICONS } from "@/lib/domain-icons";
 import { PermitTypeChip } from "./permit-type-chip";
@@ -13,6 +14,7 @@ import { formatDateTime, formatWindow } from "@/lib/format";
 import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
 import { PermitStatusBadge } from "./permit-status-badge";
 import { cn } from "@/lib/utils";
+import { certificateStatusLabel } from "@/lib/lototo/certificates";
 
 type Catalogues = {
   hazards: Map<string, HazardRecord>;
@@ -188,6 +190,7 @@ export function PermitSummary({
   showSectionNavigation = false,
   singleColumn = false,
   additionalSections = [],
+  certificates = [],
 }: {
   form: PermitFormState;
   status?: string;
@@ -198,6 +201,7 @@ export function PermitSummary({
   showSectionNavigation?: boolean;
   singleColumn?: boolean;
   additionalSections?: { id: string; label: string }[];
+  certificates?: Array<{ id: string; certificateNumber: string; title: string; status: string }>;
   /** Pages that already show the title, reference and status pass false to avoid repeating them. */
   showHeader?: boolean;
 }) {
@@ -492,6 +496,23 @@ export function PermitSummary({
         )}
       </Section>
       <Section kind="lototo" title="LOTOTO" wide>
+        {certificates.length > 0 ? (
+          <ul className="mb-4 grid gap-2">
+            {certificates.map((certificate) => (
+              <li key={certificate.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3">
+                <div>
+                  <p className="font-semibold">{certificate.certificateNumber}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {certificate.title} · {certificateStatusLabel(certificate.status)}
+                  </p>
+                </div>
+                <Link href={`/lototo/certificates/${certificate.id}`} className="text-sm font-semibold text-(--act-do) underline underline-offset-2">
+                  Isolate
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         {form.lototoRequired ? (
           form.lototo.filter((item) => item.procedureId).length === 0 ? (
             <span className="font-semibold text-(--status-danger)">Required, no procedure attached</span>

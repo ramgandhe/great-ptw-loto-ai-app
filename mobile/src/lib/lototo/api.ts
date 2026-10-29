@@ -10,6 +10,21 @@ import type {
   LototoProcedureListItem,
 } from "./types";
 
+export type IsolationCertificateListRow = {
+  certificate: {
+    id: string;
+    certificateNumber: string;
+    title: string;
+    status: string;
+  };
+  assetName: string | null;
+  locationName: string | null;
+};
+
+export function listIsolationCertificates() {
+  return fetchApi<IsolationCertificateListRow[]>("/lototo/certificates");
+}
+
 export function listLototoPlans(filters?: { permitId?: string; machineryId?: string }) {
   const params = new URLSearchParams();
   if (filters?.permitId) params.set("permitId", filters.permitId);

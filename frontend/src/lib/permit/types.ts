@@ -115,6 +115,7 @@ export type PermitLototoStepNaInput = {
 export type PermitLototoInput = {
   procedureId: string;
   procedureVersionId?: string;
+  certificateId?: string;
   frozenAt?: string | null;
   extraPoints: PermitLototoExtraInput[];
   stepNa: PermitLototoStepNaInput[];
@@ -222,6 +223,12 @@ export type PermitDetail = {
   }>;
   ppe: Array<{ ppeCatalogueId: string; quantity: number | null }>;
   lototo: PermitLototoInput[];
+  isolationCertificates?: Array<{
+    id: string;
+    certificateNumber: string;
+    title: string;
+    status: string;
+  }>;
   gasTesting: Array<{
     id: string;
     gasTestingCatalogueId: string | null;

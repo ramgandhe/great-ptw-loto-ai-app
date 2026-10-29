@@ -106,7 +106,7 @@ export default function PermitDetailScreen() {
                 label="LOTOTO"
                 variant="outline"
                 icon={Lock}
-                onPress={() => router.push(`/lototo/new?assetId=${detail!.assets?.[0]?.assetId ?? permit.machineryId}`)}
+                onPress={() => router.push("/lototo")}
               />
             ) : null}
             {canEdit ? (
@@ -142,8 +142,8 @@ export default function PermitDetailScreen() {
       {status === "execution_completed" ? (
         <Banner tone={permit.lototoRequired && permit.lototoRestored !== true ? "warning" : "success"}>
           {permit.lototoRequired && permit.lototoRestored !== true
-            ? "Work is complete. Energy restoration still has to be verified before this is sent for review."
-            : "Work is complete and sent for review and closure."}
+            ? "Work is complete. A personal lock is still on. Take it off before this permit can close."
+            : "Work is complete and sent for review and closure. The plant can stay isolated until it is restored in LOTOTO."}
         </Banner>
       ) : null}
       {status === "pending_closure" ? (

@@ -153,7 +153,44 @@ describe('CanonicalNotificationService (FR-NOT-002–008)', () => {
     expect(notificationsService.generateSystem).toHaveBeenCalledWith(
       'tenant-1',
       'officer-1',
-      expect.objectContaining({ eventType: 'lototo_verification' }),
+      expect.objectContaining({ eventType: 'lototo_verification', entityType: 'lototo_plan' }),
+    );
+  });
+
+  it('tells the receiver an isolation is proved and the authority when it can be restored', async () => {
+    await service.fromLototoPayload({
+      planId: 'cert-1',
+      tenantId: 'tenant-1',
+      action: 'isolation_isolated',
+      actorId: 'authority-1',
+      metadata: { recipientIds: ['receiver-1'], certificateNumber: 'EIC-2026-00001' },
+    });
+    await service.fromLototoPayload({
+      planId: 'cert-1',
+      tenantId: 'tenant-1',
+      action: 'ready_to_restore',
+      actorId: 'receiver-1',
+      metadata: { recipientIds: ['authority-1'], certificateNumber: 'EIC-2026-00001' },
+    });
+
+    expect(notificationsService.generateSystem).toHaveBeenCalledWith(
+      'tenant-1',
+      'authority-1',
+      expect.objectContaining({
+        title: 'EIC-2026-00001 is isolated',
+        recipientUserIds: ['receiver-1'],
+        entityType: 'isolation_certificate',
+        entityId: 'cert-1',
+      }),
+    );
+    expect(notificationsService.generateSystem).toHaveBeenCalledWith(
+      'tenant-1',
+      'receiver-1',
+      expect.objectContaining({
+        title: 'EIC-2026-00001 is ready to restore',
+        recipientUserIds: ['authority-1'],
+        entityType: 'isolation_certificate',
+      }),
     );
   });
 

@@ -142,6 +142,10 @@ export class PermitLototoDto {
   procedureId!: string;
 
   @IsOptional()
+  @IsUUID()
+  certificateId?: string;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PermitLototoExtraPointDto)

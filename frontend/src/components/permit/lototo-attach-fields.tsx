@@ -1,13 +1,17 @@
 "use client";
-import { AppSelect } from "@/components/ui/select";
 
+import { useEffect, useState } from "react";
+import { AppSelect } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { FormField, fieldClassName } from "./form-field";
 import { MasterDataSelect } from "./master-data-select";
 import { formatWorkforceOptionLabel } from "@/components/lototo/select-field";
-import type { LototoProcedure, LototoProcedureListItem } from "@/lib/lototo/types";
-import { emptyLototoExtraPoint } from "@/lib/permit/form";
-import { energySourceChoices, useEnergySourceOptions } from "@/lib/lototo/energy-sources";
+import type { LototoProcedureListItem } from "@/lib/lototo/types";
+import {
+  certificateStatusLabel,
+  listIsolationCertificates,
+  type IsolationCertificateListRow,
+} from "@/lib/lototo/certificates";
 import type { PermitLototoInput } from "@/lib/permit/types";
 import type { WorkforceRecord } from "@/lib/workforce/types";
 import { X } from "lucide-react";
@@ -49,9 +53,7 @@ export function LototoAttachFields({
   item,
   index,
   procedures,
-  detail,
   people,
-  verifierPeople,
   disabled,
   onChange,
   onRemove,
@@ -59,20 +61,28 @@ export function LototoAttachFields({
   item: PermitLototoInput;
   index: number;
   procedures: LototoProcedureListItem[];
-  detail: LototoProcedure | undefined;
   people: WorkforceRecord[];
-  verifierPeople?: WorkforceRecord[];
   disabled: boolean;
   onChange: (next: PermitLototoInput) => void;
   onRemove: () => void;
 }) {
-  const energyOptions = useEnergySourceOptions();
-  const basePoints = detail?.publishedVersion?.lockoutPoints ?? [];
-  const naBase = new Map(
-    item.stepNa.filter((row) => row.basePointId).map((row) => [row.basePointId, row]),
-  );
-  const naExtra = new Map(
-    item.stepNa.filter((row) => row.extraPointCode).map((row) => [row.extraPointCode, row]),
+  const [certificates, setCertificates] = useState<IsolationCertificateListRow[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void listIsolationCertificates()
+      .then((rows) => {
+        if (!cancelled) setCertificates(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setCertificates([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const matches = certificates.filter(
+    (row) => row.certificate.procedureId === item.procedureId && row.certificate.status !== "closed",
   );
 
   return (
@@ -93,8 +103,7 @@ export function LototoAttachFields({
               onChange({
                 ...item,
                 procedureId,
-                extraPoints: [],
-                stepNa: [],
+                certificateId: "",
               })
             }
           />
@@ -112,220 +121,27 @@ export function LototoAttachFields({
         </Button>
       </div>
 
-      {item.procedureId && basePoints.length > 0 ? (
-        <div className="grid gap-2">
-          <p className="text-sm font-medium">Base isolation points</p>
-          <p className="text-xs text-muted-foreground">Procedure text cannot be changed. Mark N/A only with a reason.</p>
-          {basePoints.map((point) => {
-            const na = naBase.get(point.id ?? "");
-            return (
-              <div key={point.id ?? point.pointCode} className="grid gap-2 rounded-lg border border-border p-3">
-                <label className="flex items-start gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="mt-1"
-                    disabled={disabled}
-                    checked={Boolean(na)}
-                    onChange={(event) => {
-                      const next = item.stepNa.filter((row) => row.basePointId !== point.id);
-                      if (event.target.checked && point.id) {
-                        next.push({ basePointId: point.id, extraPointCode: "", reason: "" });
-                      }
-                      onChange({ ...item, stepNa: next });
-                    }}
-                  />
-                  <span>
-                    <span className="font-medium">{point.pointCode}</span>
-                    {point.action ? ` — ${point.action}` : ""}
-                    <span className="block text-muted-foreground">{point.energyType}</span>
-                  </span>
-                </label>
-                {na ? (
-                  <FormField label="N/A reason" htmlFor={`na-${index}-${point.id}`}>
-                    <input
-                      id={`na-${index}-${point.id}`}
-                      className={fieldClassName}
-                      disabled={disabled}
-                      value={na.reason}
-                      onChange={(event) =>
-                        onChange({
-                          ...item,
-                          stepNa: item.stepNa.map((row) =>
-                            row.basePointId === point.id ? { ...row, reason: event.target.value } : row,
-                          ),
-                        })
-                      }
-                    />
-                  </FormField>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-
-      <div className="grid gap-2">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-medium">Extra isolation points</p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={disabled || !item.procedureId}
-            onClick={() =>
-              onChange({
-                ...item,
-                extraPoints: [
-                  ...item.extraPoints,
-                  {
-                    ...emptyLototoExtraPoint(),
-                    pointCode: `EXTRA-${item.extraPoints.length + 1}`,
-                  },
-                ],
-              })
-            }
+      {item.procedureId ? (
+        <FormField label="Existing isolation" htmlFor={`lototo-certificate-${index}`}>
+          <AppSelect
+            id={`lototo-certificate-${index}`}
+            className={fieldClassName}
+            value={item.certificateId ?? ""}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...item, certificateId: event.target.value })}
           >
-            Add extra point
-          </Button>
-        </div>
-        {item.extraPoints.map((point, extraIndex) => {
-          const na = naExtra.get(point.pointCode);
-          return (
-            <div key={`extra-${index}-${extraIndex}`} className="grid gap-2 rounded-lg border border-border p-3 md:grid-cols-2">
-              <FormField label="Point code" htmlFor={`extra-code-${index}-${extraIndex}`}>
-                <input
-                  id={`extra-code-${index}-${extraIndex}`}
-                  className={fieldClassName}
-                  disabled={disabled}
-                  value={point.pointCode}
-                  onChange={(event) => {
-                    const extraPoints = [...item.extraPoints];
-                    extraPoints[extraIndex] = { ...point, pointCode: event.target.value };
-                    onChange({
-                      ...item,
-                      extraPoints,
-                      stepNa: item.stepNa.map((row) =>
-                        row.extraPointCode === point.pointCode
-                          ? { ...row, extraPointCode: event.target.value }
-                          : row,
-                      ),
-                    });
-                  }}
-                />
-              </FormField>
-              <FormField label="Energy type" htmlFor={`extra-energy-${index}-${extraIndex}`}>
-                <AppSelect
-                  id={`extra-energy-${index}-${extraIndex}`}
-                  className={fieldClassName}
-                  disabled={disabled}
-                  value={point.energyType}
-                  onChange={(event) => {
-                    const extraPoints = [...item.extraPoints];
-                    extraPoints[extraIndex] = { ...point, energyType: event.target.value };
-                    onChange({ ...item, extraPoints });
-                  }}
-                >
-                  {energySourceChoices(energyOptions, point.energyType).map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </AppSelect>
-              </FormField>
-              {point.energyType === "other" ? (
-                <FormField label="Other energy" htmlFor={`extra-energy-other-${index}-${extraIndex}`} className="md:col-span-2">
-                  <input
-                    id={`extra-energy-other-${index}-${extraIndex}`}
-                    className={fieldClassName}
-                    disabled={disabled}
-                    value={point.energyOtherText ?? ""}
-                    onChange={(event) => {
-                      const extraPoints = [...item.extraPoints];
-                      extraPoints[extraIndex] = { ...point, energyOtherText: event.target.value };
-                      onChange({ ...item, extraPoints });
-                    }}
-                  />
-                </FormField>
-              ) : null}
-              <FormField label="Location" htmlFor={`extra-loc-${index}-${extraIndex}`} className="md:col-span-2">
-                <input
-                  id={`extra-loc-${index}-${extraIndex}`}
-                  className={fieldClassName}
-                  disabled={disabled}
-                  value={point.locationText}
-                  onChange={(event) => {
-                    const extraPoints = [...item.extraPoints];
-                    extraPoints[extraIndex] = { ...point, locationText: event.target.value };
-                    onChange({ ...item, extraPoints });
-                  }}
-                />
-              </FormField>
-              <FormField label="Action" htmlFor={`extra-action-${index}-${extraIndex}`} className="md:col-span-2">
-                <input
-                  id={`extra-action-${index}-${extraIndex}`}
-                  className={fieldClassName}
-                  disabled={disabled}
-                  value={point.action}
-                  onChange={(event) => {
-                    const extraPoints = [...item.extraPoints];
-                    extraPoints[extraIndex] = { ...point, action: event.target.value };
-                    onChange({ ...item, extraPoints });
-                  }}
-                />
-              </FormField>
-              <label className="flex items-center gap-2 text-sm md:col-span-2">
-                <input
-                  type="checkbox"
-                  disabled={disabled || !point.pointCode}
-                  checked={Boolean(na)}
-                  onChange={(event) => {
-                    const next = item.stepNa.filter((row) => row.extraPointCode !== point.pointCode);
-                    if (event.target.checked) {
-                      next.push({ basePointId: "", extraPointCode: point.pointCode, reason: "" });
-                    }
-                    onChange({ ...item, stepNa: next });
-                  }}
-                />
-                N/A
-              </label>
-              {na ? (
-                <FormField label="N/A reason" htmlFor={`extra-na-${index}-${extraIndex}`} className="md:col-span-2">
-                  <input
-                    id={`extra-na-${index}-${extraIndex}`}
-                    className={fieldClassName}
-                    disabled={disabled}
-                    value={na.reason}
-                    onChange={(event) =>
-                      onChange({
-                        ...item,
-                        stepNa: item.stepNa.map((row) =>
-                          row.extraPointCode === point.pointCode ? { ...row, reason: event.target.value } : row,
-                        ),
-                      })
-                    }
-                  />
-                </FormField>
-              ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={disabled}
-                className="justify-self-start text-destructive"
-                onClick={() =>
-                  onChange({
-                    ...item,
-                    extraPoints: item.extraPoints.filter((_, i) => i !== extraIndex),
-                    stepNa: item.stepNa.filter((row) => row.extraPointCode !== point.pointCode),
-                  })
-                }
-              >
-                Remove extra point
-              </Button>
-            </div>
-          );
-        })}
-      </div>
+            <option value="">Create a new isolation when this permit is approved</option>
+            {matches.map((row) => (
+              <option key={row.certificate.id} value={row.certificate.id}>
+                {row.certificate.certificateNumber} · {certificateStatusLabel(row.certificate.status)} · {row.certificate.title}
+              </option>
+            ))}
+          </AppSelect>
+          <p className="text-xs text-muted-foreground">
+            Extra points are recorded on the isolation by the isolator.
+          </p>
+        </FormField>
+      ) : null}
 
       <div className="grid gap-3">
         <div className="flex items-center justify-between">
@@ -363,52 +179,6 @@ export function LototoAttachFields({
               disabled={disabled || item.crew.length === 1}
               aria-label="Remove crew member"
               onClick={() => onChange({ ...item, crew: item.crew.filter((_, i) => i !== crewIndex) })}
-              className="shrink-0 text-muted-foreground hover:text-destructive"
-            >
-              <X aria-hidden />
-            </Button>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid gap-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-medium">Verifiers <span className="font-normal text-muted-foreground">(defaults to the permit operator)</span></p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={disabled}
-            onClick={() => onChange({ ...item, verifiers: [...item.verifiers, { workforceUserId: "" }] })}
-          >
-            Add verifier
-          </Button>
-        </div>
-        {item.verifiers.map((row, verifierIndex) => (
-          <div key={`verifier-${index}-${verifierIndex}`} className="flex items-end gap-2">
-            <FormField label="Verifier" htmlFor={`verifier-${index}-${verifierIndex}`} className="flex-1">
-              <PersonSelect
-                id={`verifier-${index}-${verifierIndex}`}
-                value={row.workforceUserId}
-                disabled={disabled}
-                options={verifierPeople ?? people}
-                placeholder="Select verifier"
-                onChange={(workforceUserId) => {
-                  const verifiers = [...item.verifiers];
-                  verifiers[verifierIndex] = { workforceUserId };
-                  onChange({ ...item, verifiers });
-                }}
-              />
-            </FormField>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled={disabled || item.verifiers.length === 1}
-              aria-label="Remove verifier"
-              onClick={() =>
-                onChange({ ...item, verifiers: item.verifiers.filter((_, i) => i !== verifierIndex) })
-              }
               className="shrink-0 text-muted-foreground hover:text-destructive"
             >
               <X aria-hidden />

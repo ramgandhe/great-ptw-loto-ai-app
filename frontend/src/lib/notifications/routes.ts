@@ -18,6 +18,8 @@ export function notificationTarget(notification: Notification): { href: string; 
       return { href: `/incidents/${id}`, label: "Open incident" };
     case "lototo_plan":
       return { href: `/lototo/plans/${id}`, label: "Open LOTOTO plan" };
+    case "isolation_certificate":
+      return { href: `/lototo/certificates/${id}`, label: "Open isolation" };
     case "simops_conflict":
     case "conflict":
       return { href: `/simops/conflicts/${id}`, label: "Open clash" };

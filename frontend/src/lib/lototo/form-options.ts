@@ -16,7 +16,6 @@ export const ENERGY_SOURCE_OPTIONS = [
   { value: "thermal", label: "Thermal" },
   { value: "pressure", label: "Pressure" },
   { value: "gravity", label: "Gravity" },
-  { value: "gravitational", label: "Gravity" },
   { value: "stored_energy", label: "Stored Energy" },
   { value: "radiation", label: "Radiation" },
   { value: "other", label: "Other" },

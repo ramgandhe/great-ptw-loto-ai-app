@@ -638,6 +638,83 @@
       "when": 1794500000000,
       "tag": "0088_permit_custom_hazards",
       "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1794600000000,
+      "tag": "0094_lototo_point_method",
+      "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1794700000000,
+      "tag": "0089_isolation_certificates",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1794800000000,
+      "tag": "0090_isolation_certificate_permits",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1794900000000,
+      "tag": "0091_structured_zero_energy_verifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1795000000000,
+      "tag": "0092_isolation_lockboxes",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1795100000000,
+      "tag": "0093_isolation_blinds",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1795200000000,
+      "tag": "0095_isolation_certificate_points",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1795300000000,
+      "tag": "0096_permit_lototo_certificate",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1795400000000,
+      "tag": "0097_isolation_point_restored",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1795500000000,
+      "tag": "0098_isolation_sanction_tests",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1795600000000,
+      "tag": "0099_isolation_custody",
+      "breakpoints": true
     }
   ]
 }

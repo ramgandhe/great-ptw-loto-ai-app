@@ -55,6 +55,7 @@ export default function PermitClosurePage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [closeError, setCloseError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [closeWhileIsolated, setCloseWhileIsolated] = useState(false);
   const [downloadingEvidenceId, setDownloadingEvidenceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -97,6 +98,13 @@ export default function PermitClosurePage() {
     }
     if (!isChecklistComplete(checklist)) {
       setActionError("Complete all verification checklist items before submitting.");
+      return;
+    }
+    const stillIsolated = (detail?.isolationCertificates ?? []).filter(
+      (certificate) => certificate.status !== "restored_verified" && certificate.status !== "closed",
+    );
+    if (stillIsolated.length > 0 && !closeWhileIsolated) {
+      setActionError("Confirm that this permit can close while the isolation stays in place.");
       return;
     }
 
@@ -205,6 +213,9 @@ export default function PermitClosurePage() {
   }
 
   const restorationPending = detail.permit.lototoRequired === true && detail.permit.lototoRestored !== true;
+  const stillIsolated = (detail.isolationCertificates ?? []).filter(
+    (certificate) => certificate.status !== "restored_verified" && certificate.status !== "closed",
+  );
   const canVerify = detail.permit.status === "execution_completed" && !restorationPending && hasAnyRole(roles, ["permit-receiver", "tenant-owner", "tenant-admin", "platform-admin"]);
   const canSendBackToExecutor = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["permit-receiver", "tenant-owner", "tenant-admin", "platform-admin"]);
   const canClose = Boolean(verification) && detail.permit.status === "pending_closure" && hasAnyRole(roles, ["permit-approver", "tenant-owner", "tenant-admin", "platform-admin"]);
@@ -237,7 +248,7 @@ export default function PermitClosurePage() {
       </div>
 
       <ReadonlyPermitViewer detail={detail} verification={verification} />
-      {detail.permit.lototoRequired ? <PermitLototoExecution permitId={detail.permit.id} /> : null}
+      {detail.permit.lototoRequired && (detail.isolationCertificates ?? []).length === 0 ? <PermitLototoExecution permitId={detail.permit.id} /> : null}
       </>
       )}
 
@@ -275,13 +286,39 @@ export default function PermitClosurePage() {
 
       {detail.permit.status === "execution_completed" && restorationPending ? (
         <p className="text-sm text-muted-foreground">
-          Energy restoration still has to be verified. The receiver is asked to confirm completion after that passes.
+          A personal lock is still on. Take it off before this permit can close.
         </p>
       ) : null}
 
       {canVerify ? (
         <section className="grid gap-3 rounded-lg border border-border p-4">
           <h2 className="text-sm font-semibold">Issuer verification</h2>
+          {stillIsolated.length > 0 ? (
+            <div className="grid gap-2 rounded-md border border-border p-3 text-sm">
+              <p>This permit can close while the isolation stays in place. The device lock comes off when the isolation is restored.</p>
+              <ul className="grid gap-1">
+                {stillIsolated.map((certificate) => (
+                    <li key={certificate.id}>
+                      <Link href={`/lototo/certificates/${certificate.id}`} className="underline">
+                        Restore now · {certificate.certificateNumber}
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={closeWhileIsolated}
+                  disabled={isSubmitting}
+                  onChange={(event) => setCloseWhileIsolated(event.target.checked)}
+                />
+                <span>
+                  Close this permit while {stillIsolated.map((certificate) => certificate.certificateNumber).join(", ")} stay isolated
+                </span>
+              </label>
+            </div>
+          ) : null}
           <VerificationChecklistPanel
             value={checklist}
             disabled={isSubmitting}
@@ -301,7 +338,7 @@ export default function PermitClosurePage() {
               {actionError}
             </p>
           ) : null}
-          <Button onClick={handleVerify} disabled={isSubmitting || !isChecklistComplete(checklist) || !comment.trim()}>
+          <Button onClick={handleVerify} disabled={isSubmitting || !isChecklistComplete(checklist) || !comment.trim() || (stillIsolated.length > 0 && !closeWhileIsolated)}>
             {isSubmitting ? "Submitting..." : "Submit verification"}
           </Button>
         </section>

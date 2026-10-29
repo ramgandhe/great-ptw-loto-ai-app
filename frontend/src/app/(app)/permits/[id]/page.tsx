@@ -23,6 +23,9 @@ import { hasAnyRole } from "@/lib/auth/rbac";
 import { revalidatePermitAfterSuspension, suspendPermit } from "@/lib/execution/api";
 import { SuspensionDialog } from "@/components/execution/suspension-dialog";
 import { CalendarClock, LockKeyhole, Pencil, Printer } from "lucide-react";
+import { PersonalLocks } from "@/components/lototo/personal-locks";
+import { certificateStatusLabel } from "@/lib/lototo/certificates";
+import { CERTIFICATE_WRITE_ROLES } from "@/lib/auth/roles";
 import { cn } from "@/lib/utils";
 import { formatRelative, formatWindow } from "@/lib/format";
 import { safetyVetoPermit } from "@/lib/approval/api";
@@ -238,11 +241,39 @@ function PermitWorkspace() {
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="grid min-w-0 gap-5">
             <PermitJourney id={permit.id} part="now" />
+            {(detail.isolationCertificates ?? []).length > 0 ? (
+              <section aria-label="Isolations" className="grid gap-3 rounded-[10px] border border-border bg-card p-5">
+                <h2 className="text-sm font-semibold">Isolations</h2>
+                {(detail.isolationCertificates ?? []).map((certificate) => (
+                  <div key={certificate.id} className="grid gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="font-medium">{certificate.certificateNumber}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {certificate.title} · {certificateStatusLabel(certificate.status)}
+                        </p>
+                      </div>
+                      <Link href={`/lototo/certificates/${certificate.id}`} className={buttonVariants({ size: "lg" })}>
+                        {(permit.status === "execution_completed" || permit.status === "pending_closure" || permit.status === "closed") &&
+                        (certificate.status === "isolated_verified" || certificate.status === "sanction_for_test" || certificate.status === "restoration_in_progress")
+                          ? "Restore now"
+                          : "Isolate"}
+                      </Link>
+                    </div>
+                    <PersonalLocks
+                      certificateId={certificate.id}
+                      status={certificate.status}
+                      canOpen={hasAnyRole(roles, CERTIFICATE_WRITE_ROLES)}
+                    />
+                  </div>
+                ))}
+              </section>
+            ) : null}
             {permit.status === "execution_completed" ? (
               <p className="text-sm text-muted-foreground">
                 {restorationPending
-                  ? "Work is complete. Energy restoration still has to be verified before this is sent for review."
-                  : "Work is complete and sent for review and closure."}
+                  ? "Work is complete. A personal lock is still on. Take it off before this permit can close."
+                  : "Work is complete and sent for review and closure. The plant can stay isolated until it is restored in LOTOTO."}
               </p>
             ) : null}
             {permit.status === "pending_closure" ? (
@@ -348,6 +379,7 @@ function PermitWorkspace() {
             showHeader={false}
             identity={identityFromPermit(permit)}
             showSectionNavigation
+            certificates={detail.isolationCertificates ?? []}
             additionalSections={[{ id: "permit-form-responses", label: "Forms & evidence" }]}
           />
           <section id="permit-form-responses" className="scroll-mt-20">

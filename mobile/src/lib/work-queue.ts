@@ -26,7 +26,7 @@ export const WORK_ACTIONS: Record<WorkAction, { group: string; verb: string; kin
   review: { group: "Waiting for your approval", verb: "Review", kind: "decide" },
   "safety-check": { group: "Safety Approval", verb: "Safety approval", kind: "decide" },
   "final-approval": { group: "Waiting for final sign-off", verb: "Sign off", kind: "decide" },
-  "restore-energy": { group: "Energy restoration to verify", verb: "Verify restoration", kind: "do" },
+  "restore-energy": { group: "Personal locks still on", verb: "Remove locks", kind: "do" },
   "approve-completion": { group: "Work finished, confirm completion", verb: "Confirm", kind: "decide" },
   revalidate: { group: "Suspended, needs revalidation", verb: "Revalidate", kind: "fix" },
   "release-execution": { group: "Approved, release for execution", verb: "Release for execution", kind: "do" },

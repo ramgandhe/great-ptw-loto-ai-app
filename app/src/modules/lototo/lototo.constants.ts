@@ -15,7 +15,6 @@ export const LOTOTO_ENERGY_TYPES = [
   'thermal',
   'pressure',
   'gravity',
-  'gravitational',
   'stored_energy',
   'radiation',
   'other',

@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PermitLototoExecution } from "@/components/permit/lototo-execution";
+import { certificateStatusLabel } from "@/lib/lototo/certificates";
 import type { PermitDetail } from "@/lib/permit/types";
 import type { HazardRecord } from "@/lib/master-data/api";
 import type { PermitFormState } from "@/lib/permit/types";
@@ -78,7 +80,9 @@ export function StartExecutionSteps({
   const ppeItems = form.ppe.filter((row) => row.ppeCatalogueId);
   const locationDone = locationItems.every((item) => start.hazardControls.includes(item.key));
   const ppeDone = ppeItems.every((item) => start.ppeIds.includes(item.ppeCatalogueId));
-  const lototoDone = !lototoRequired || lototoIsolated || start.lototoVerified;
+  const certificates = detail.isolationCertificates ?? [];
+  const certificatesDone = certificates.length > 0 && certificates.every((certificate) => certificate.status === "isolated_verified");
+  const lototoDone = !lototoRequired || (certificates.length > 0 ? certificatesDone : lototoIsolated || start.lototoVerified);
   const gasItems = detail.gasTesting.filter((row) => !row.removedReason?.trim());
   function gasOutOfRange(row: (typeof gasItems)[number], value: number) {
     return (row.minimum != null && value < row.minimum) || (row.maximum != null && value > row.maximum);
@@ -183,10 +187,31 @@ export function StartExecutionSteps({
 
       {step === 3 ? (
         lototoRequired ? (
+          certificates.length > 0 ? (
+            <div className="grid gap-2 text-sm">
+              <ul className="grid gap-1">
+                {certificates.map((certificate) => (
+                  <li key={certificate.id}>
+                    <Link href={`/lototo/certificates/${certificate.id}`} className="underline">
+                      {certificate.certificateNumber}
+                    </Link>
+                    {" · "}
+                    {certificateStatusLabel(certificate.status)}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-muted-foreground">
+                {certificatesDone
+                  ? "Every isolation is proved. Work can start."
+                  : "Work starts when every isolation is Isolated."}
+              </p>
+            </div>
+          ) : (
           <PermitLototoExecution
             permitId={permitId}
             onBoardChange={(board) => onChange({ ...start, lototoVerified: board.isolated })}
           />
+          )
         ) : (
           <p className="text-sm text-muted-foreground">LOTOTO is not required for this permit (N/A).</p>
         )

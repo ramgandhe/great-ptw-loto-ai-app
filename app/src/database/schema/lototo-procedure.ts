@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  date,
   integer,
   pgTable,
   text,
@@ -34,6 +35,7 @@ export const lototoProcedures = pgTable(
     }),
     code: varchar('code', { length: 64 }).notNull(),
     title: varchar('title', { length: 255 }).notNull(),
+    reviewDueOn: date('review_due_on'),
     status: varchar('status', { length: 32 }).notNull().default('draft'),
     publishedVersionId: uuid('published_version_id'),
     legacyPlanId: uuid('legacy_plan_id').references(() => lototoPlans.id, {
@@ -90,8 +92,15 @@ export const lototoProcedureLockoutPoints = pgTable(
     energyOtherText: varchar('energy_other_text', { length: 255 }),
     magnitude: varchar('magnitude', { length: 128 }),
     locationText: text('location_text'),
+    method: varchar('method', { length: 64 }),
+    normalPosition: varchar('normal_position', { length: 128 }),
+    isolatedPosition: varchar('isolated_position', { length: 128 }),
     action: text('action'),
+    restoreAction: text('restore_action'),
     device: varchar('device', { length: 128 }),
+    proof: varchar('proof', { length: 64 }),
+    drawingReference: varchar('drawing_reference', { length: 255 }),
+    removeOrder: integer('remove_order'),
     verificationMethod: text('verification_method'),
   },
   (table) => [
@@ -184,6 +193,7 @@ export const permitLototoInstances = pgTable(
     procedureVersionId: uuid('procedure_version_id')
       .notNull()
       .references(() => lototoProcedureVersions.id, { onDelete: 'restrict' }),
+    certificateId: uuid('certificate_id'),
     frozenAt: timestamp('frozen_at', { withTimezone: true }),
     startedAt: timestamp('started_at', { withTimezone: true }),
     startedBy: uuid('started_by'),
@@ -191,6 +201,7 @@ export const permitLototoInstances = pgTable(
     crewCompletedBy: uuid('crew_completed_by'),
   },
   (table) => [
+    index('permit_lototo_instances_certificate_id_idx').on(table.certificateId),
     uniqueIndex('permit_lototo_instances_permit_procedure_unique').on(
       table.permitId,
       table.procedureId,

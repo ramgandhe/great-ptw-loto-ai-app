@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Isolation tracking lives on the permit. This route kept for old bookmarks. */
+/** Old bookmark. The isolation board lives at /lototo. */
 export default function LototoActiveRedirect() {
   redirect("/lototo");
 }

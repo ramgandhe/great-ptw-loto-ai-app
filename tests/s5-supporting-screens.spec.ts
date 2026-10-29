@@ -52,6 +52,7 @@ describe('messages and clashes (S5)', () => {
     expect(notificationTarget(n('approval'))?.href).toBe('/permits/x?tab=review');
     expect(notificationTarget(n('simops_conflict'))?.href).toBe('/simops/conflicts/x');
     expect(notificationTarget(n('lototo_plan'))?.href).toBe('/lototo/plans/x');
+    expect(notificationTarget(n('isolation_certificate'))?.href).toBe('/lototo/certificates/x');
     expect(notificationTarget(n('notification'))).toBeNull();
     expect(notificationTarget(n('permit', null))).toBeNull();
   });

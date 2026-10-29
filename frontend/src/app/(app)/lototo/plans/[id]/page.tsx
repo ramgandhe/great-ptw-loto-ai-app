@@ -213,7 +213,7 @@ export default function LototoPlanDetailPage() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
-        <BackLink href="/lototo" label="LOTOTO" />
+        <BackLink href="/lototo/procedures" label="LOTOTO procedures" />
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="font-heading text-3xl font-bold tracking-tight">{plan.title}</h1>
           <PlanStatusBadge status={plan.status} />

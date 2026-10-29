@@ -7,10 +7,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
+  isolationCertificatePermits,
+  isolationCertificatePoints,
+  isolationCertificates,
+  isolationPointProofs,
   lototoProcedureLockoutPoints,
   lototoProcedureSequenceSteps,
   lototoProcedures,
@@ -93,6 +97,43 @@ export class PermitLototoExecutionService {
     if (!detail.permit.lototoRequired) {
       return;
     }
+
+    // Check if permit is attached to standalone Energy Isolation Certificate(s)
+    const linkedCerts = await this.db
+      .select({
+        id: isolationCertificates.id,
+        certificateNumber: isolationCertificates.certificateNumber,
+        status: isolationCertificates.status,
+      })
+      .from(isolationCertificatePermits)
+      .innerJoin(
+        isolationCertificates,
+        eq(isolationCertificatePermits.certificateId, isolationCertificates.id),
+      )
+      .where(
+        and(
+          eq(isolationCertificatePermits.permitId, permitId),
+          ne(isolationCertificatePermits.attachmentStatus, 'detached'),
+        ),
+      );
+
+    if (linkedCerts.length > 0) {
+      const isolated = new Set([
+        'isolated_verified',
+        'sanction_for_test',
+        'restoration_in_progress',
+        'restored_verified',
+        'closed',
+      ]);
+      const waiting = linkedCerts.filter((row) => !isolated.has(row.status));
+      if (waiting.length > 0) {
+        throw new ConflictException(
+          `Isolation is not finished: ${waiting.map((row) => row.certificateNumber).join(', ')}`,
+        );
+      }
+      return;
+    }
+
     const board = await this.getBoard(permitId, user);
     if (!board.restored) {
       throw new ConflictException('Energy restoration must be verified before the permit can close');
@@ -104,6 +145,68 @@ export class PermitLototoExecutionService {
     if (!detail.permit.lototoRequired) {
       return;
     }
+
+    // Check if permit is attached to standalone Energy Isolation Certificate(s)
+    const linkedCerts = await this.db
+      .select({
+        id: isolationCertificates.id,
+        certificateNumber: isolationCertificates.certificateNumber,
+        status: isolationCertificates.status,
+      })
+      .from(isolationCertificatePermits)
+      .innerJoin(
+        isolationCertificates,
+        eq(isolationCertificatePermits.certificateId, isolationCertificates.id),
+      )
+      .where(
+        and(
+          eq(isolationCertificatePermits.permitId, permitId),
+          ne(isolationCertificatePermits.attachmentStatus, 'detached'),
+        ),
+      );
+
+    if (linkedCerts.length > 0) {
+      const unverified = linkedCerts.filter((c) => c.status !== 'isolated_verified');
+      if (unverified.length > 0) {
+        const numbers = unverified.map((c) => c.certificateNumber).join(', ');
+        throw new ConflictException(
+          `Work cannot start until ${numbers} is isolated`,
+        );
+      }
+      const certificateIds = linkedCerts.map((row) => row.id);
+      const points = await this.db
+        .select({
+          id: isolationCertificatePoints.id,
+          certificateId: isolationCertificatePoints.certificateId,
+          pointCode: isolationCertificatePoints.pointCode,
+        })
+        .from(isolationCertificatePoints)
+        .where(inArray(isolationCertificatePoints.certificateId, certificateIds));
+      const proofs = await this.db
+        .select({ pointId: isolationPointProofs.pointId })
+        .from(isolationPointProofs)
+        .where(
+          and(
+            inArray(isolationPointProofs.certificateId, certificateIds),
+            eq(isolationPointProofs.result, 'pass'),
+          ),
+        );
+      const passed = new Set(proofs.map((row) => row.pointId));
+      const problems = linkedCerts.flatMap((certificate) => {
+        const mine = points.filter((point) => point.certificateId === certificate.id);
+        const waiting = mine.filter((point) => !passed.has(point.id));
+        if (mine.length === 0) return [`${certificate.certificateNumber} has no points`];
+        if (waiting.length > 0) {
+          return [`${certificate.certificateNumber} (${waiting.map((point) => point.pointCode).join(', ')})`];
+        }
+        return [];
+      });
+      if (problems.length > 0) {
+        throw new ConflictException(`Work cannot start until every point is proved: ${problems.join('; ')}`);
+      }
+      return;
+    }
+
     const board = await this.getBoard(permitId, user);
     if (!board.isolated) {
       throw new ConflictException('Work cannot start until isolation and try-out are verified');

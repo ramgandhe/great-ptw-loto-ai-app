@@ -48,6 +48,7 @@ export function titleFromScope(scope: string): string {
 export function emptyPermitLototo(procedureId: string, operatorId?: string): PermitLototoInput {
   return {
     procedureId,
+    certificateId: "",
     extraPoints: [],
     stepNa: [],
     crew: [],
@@ -240,6 +241,7 @@ export function permitDetailToForm(detail: PermitDetail): PermitFormState {
         ? lototo.map((item) => ({
             ...emptyPermitLototo(item.procedureId),
             frozenAt: item.frozenAt ?? null,
+            certificateId: item.certificateId ?? "",
             extraPoints: item.extraPoints ?? [],
             stepNa: item.stepNa ?? [],
             crew: item.crew ?? [],
@@ -347,6 +349,7 @@ export function formToSavePayload(
       .filter((item) => item.procedureId.trim())
       .map((item) => ({
         procedureId: item.procedureId,
+        ...(item.certificateId ? { certificateId: item.certificateId } : {}),
         extraPoints: (item.extraPoints ?? [])
           .filter((point) => point.pointCode.trim())
           .map((point) => ({

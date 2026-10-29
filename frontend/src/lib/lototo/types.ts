@@ -105,8 +105,15 @@ export type LototoLockoutPoint = {
   energyOtherText?: string | null;
   magnitude?: string | null;
   locationText?: string | null;
+  method?: string | null;
+  normalPosition?: string | null;
+  isolatedPosition?: string | null;
   action?: string | null;
+  restoreAction?: string | null;
   device?: string | null;
+  proof?: string | null;
+  drawingReference?: string | null;
+  removeOrder?: number | null;
   verificationMethod?: string | null;
   photo?: { id: string; fileName: string; url: string } | null;
 };
@@ -149,6 +156,7 @@ export type LototoProcedure = {
   workstationId: string | null;
   code: string;
   title: string;
+  reviewDueOn?: string | null;
   status: "draft" | "published" | "inactive";
   publishedVersionId: string | null;
   versions: { id: string; versionNumber: number; publishedAt: string | null }[];
@@ -164,6 +172,7 @@ export type LototoProcedureListItem = {
   workstationId: string | null;
   code: string;
   title: string;
+  reviewDueOn?: string | null;
   status: "draft" | "published" | "inactive";
   publishedVersionId: string | null;
 };
@@ -175,16 +184,9 @@ export type LototoProcedurePayload = {
   workstationId?: string;
   code: string;
   title: string;
-  facility?: string;
-  locationText?: string;
-  purpose?: string;
-  scope?: string;
-  authorization?: string;
-  enforcement?: string;
-  description?: string;
+  reviewDueOn?: string | null;
   note?: string;
   lockoutPoints?: LototoLockoutPoint[];
-  sequenceSteps?: LototoSequenceStep[];
   authorizedRoles?: string[];
 };
 

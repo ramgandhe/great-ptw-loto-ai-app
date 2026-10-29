@@ -100,14 +100,16 @@ export class CanonicalNotificationService {
   }
 
   async fromLototoPayload(payload: LototoNotificationPayload): Promise<void> {
+    const notice = this.lototoNotice(payload.action, payload.metadata);
+    const recipients = notice.recipients.length > 0 ? notice.recipients : [payload.actorId];
     await this.notificationsService.generateSystem(payload.tenantId, payload.actorId, {
       eventType: 'lototo_verification',
-      category: 'workflow',
+      category: notice.category,
       priority: 'medium',
-      title: `LOTOTO activity: ${payload.action.replace(/_/g, ' ')}`,
-      body: `LOTOTO plan requires attention for permit-linked isolation work.`,
-      recipientUserIds: [payload.actorId],
-      entityType: 'lototo_plan',
+      title: notice.title,
+      body: notice.body,
+      recipientUserIds: recipients,
+      entityType: notice.entityType,
       entityId: payload.planId,
       dedupeKey: `${payload.tenantId}:lototo:${payload.planId}:${payload.action}`,
       sourceModule: 'lototo',
@@ -184,6 +186,53 @@ export class CanonicalNotificationService {
       dedupeKey: `${params.tenantId}:incident:${params.incidentId}:reported`,
       sourceModule: 'incidents',
     });
+  }
+
+  private lototoNotice(action: string, metadata?: Record<string, unknown>): {
+    title: string;
+    body: string;
+    entityType: string;
+    category: 'workflow' | 'reminder';
+    recipients: string[];
+  } {
+    const listed = Array.isArray(metadata?.recipientIds)
+      ? metadata.recipientIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+      : [];
+    const number = typeof metadata?.certificateNumber === 'string' ? metadata.certificateNumber : 'This isolation';
+    if (action === 'isolation_isolated') {
+      return {
+        title: `${number} is isolated`,
+        body: `${number} is proved. The linked permit can start.`,
+        entityType: 'isolation_certificate',
+        category: 'workflow',
+        recipients: listed,
+      };
+    }
+    if (action === 'ready_to_restore') {
+      return {
+        title: `${number} is ready to restore`,
+        body: `${number} can be restored. Attached work is finished.`,
+        entityType: 'isolation_certificate',
+        category: 'workflow',
+        recipients: listed,
+      };
+    }
+    if (action === 'long_term_walk_due') {
+      return {
+        title: `Walk due for ${number}`,
+        body: `${number} is due for its long-term walk. The isolation status is unchanged.`,
+        entityType: 'isolation_certificate',
+        category: 'reminder',
+        recipients: listed,
+      };
+    }
+    return {
+      title: `LOTOTO activity: ${action.replace(/_/g, ' ')}`,
+      body: 'LOTOTO plan requires attention for permit-linked isolation work.',
+      entityType: 'lototo_plan',
+      category: 'workflow',
+      recipients: listed,
+    };
   }
 
   private mapApprovalEvent(action: string): NotificationEventType | null {

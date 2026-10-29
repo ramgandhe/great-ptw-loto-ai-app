@@ -1,9 +1,9 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { eq } from 'drizzle-orm';
+import { and, eq, lte } from 'drizzle-orm';
 import { Job } from 'bullmq';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
-import { lototoPlans } from '../../database/schema';
+import { isolationCertificates, lototoPlans } from '../../database/schema';
 import { QueueService } from '../../infrastructure/queue/queue.service';
 import {
   LOTOTO_NOTIFICATION_JOB,
@@ -34,6 +34,7 @@ export class LototoJobsService implements OnModuleInit {
 
     this.queueService.registerHandler(LOTOTO_PLANNING_REMINDER_JOB, async () => {
       await this.sendPlanningReminders();
+      await this.remindLongTermWalks();
     });
 
     const cron = this.configService.get<string>('lototo.planningReminderCron') ?? '0 8 * * *';
@@ -104,5 +105,36 @@ export class LototoJobsService implements OnModuleInit {
 
     this.logger.log(`Enqueued ${rows.length} LOTOTO planning reminder notifications`);
     return rows.length;
+  }
+
+  /** A missed walk is a reminder. It does not change the isolation status. */
+  async remindLongTermWalks(): Promise<number> {
+    const due = await this.db
+      .select({
+        id: isolationCertificates.id,
+        tenantId: isolationCertificates.tenantId,
+        certificateNumber: isolationCertificates.certificateNumber,
+        authorityId: isolationCertificates.isolationAuthorityId,
+        createdBy: isolationCertificates.createdBy,
+      })
+      .from(isolationCertificates)
+      .where(and(eq(isolationCertificates.isLongTerm, true), lte(isolationCertificates.nextAuditDueDate, new Date())));
+
+    const queue = this.queueService.getQueue();
+    let sent = 0;
+    for (const row of due) {
+      const actorId = row.authorityId ?? row.createdBy;
+      if (!actorId) continue;
+      await queue.add(LOTOTO_NOTIFICATION_JOB, {
+        planId: row.id,
+        tenantId: row.tenantId,
+        action: 'long_term_walk_due',
+        actorId,
+        metadata: { certificateNumber: row.certificateNumber },
+      } satisfies LototoNotificationPayload);
+      sent += 1;
+    }
+    if (sent > 0) this.logger.log(`Enqueued ${sent} long-term isolation walk reminders`);
+    return sent;
   }
 }

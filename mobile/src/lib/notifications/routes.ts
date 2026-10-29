@@ -16,6 +16,8 @@ export function getNotificationEntityRoute(notification: Notification): string |
       return `/execution/${notification.entityId}`;
     case "lototo_plan":
       return `/lototo/${notification.entityId}`;
+    case "isolation_certificate":
+      return "/lototo";
     case "simops_conflict":
       return `/simops/${notification.entityId}`;
     case "closure":

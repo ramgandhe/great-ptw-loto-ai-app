@@ -13,6 +13,19 @@ import * as schema from '../app/src/database/schema';
 import { migrationsFolder, testDatabaseUrl } from './helpers/db';
 import { insertAssetTarget } from './helpers/place-fixture';
 
+function isolationPoint(overrides: Record<string, unknown> = {}) {
+  return {
+    sortOrder: 1,
+    pointCode: 'E-1',
+    energyType: 'electrical',
+    method: 'lock_closed',
+    action: 'Turn the isolator off and lock it',
+    restoreAction: 'Remove the lock and turn the isolator on',
+    proof: 'meter',
+    ...overrides,
+  };
+}
+
 function authGuardAs(user: AuthenticatedUser) {
   return {
     canActivate: (context: ExecutionContext) => {
@@ -149,15 +162,13 @@ describe('LOTOTO procedure library HTTP', () => {
         title: 'Bucket Elevator lockout',
         purpose: 'Isolate energy before servicing',
         lockoutPoints: [
-          {
-            sortOrder: 1,
+          isolationPoint({
             pointCode: 'E-1',
-            energyType: 'electrical',
-            magnitude: '415 Volts',
+            magnitude: '415 V',
             action: 'Turn isolator off and lock',
             device: 'Lock device',
             verificationMethod: 'Verify zero voltage',
-          },
+          }),
         ],
         sequenceSteps: [
           { phase: 'apply', sequenceOrder: 1, title: 'Notify employees' },
@@ -185,6 +196,30 @@ describe('LOTOTO procedure library HTTP', () => {
       .get(`/api/v1/lototo/procedure-versions/${published.body.data.publishedVersion.id}`)
       .expect(200);
     expect(snapshot.body.data.lockoutPoints[0].pointCode).toBe('E-1');
+    expect(snapshot.body.data.lockoutPoints[0].proof).toBe('meter');
+  });
+
+  httpTest('refuses to publish a point that has no proof', async () => {
+    const machinery = await seedMachinery();
+    const created = await request(adminApp.getHttpServer())
+      .post('/api/v1/lototo/procedures')
+      .send({
+        machineryId: machinery.id,
+        code: `BARE-${randomUUID().slice(0, 8)}`,
+        title: 'Incomplete lockout',
+        lockoutPoints: [
+          isolationPoint({
+            pointCode: 'E-9',
+            proof: undefined,
+            restoreAction: 'Remove the lock',
+          }),
+        ],
+      })
+      .expect(201);
+
+    await request(adminApp.getHttpServer())
+      .post(`/api/v1/lototo/procedures/${created.body.data.id}/publish`)
+      .expect(400);
   });
 
   httpTest('creates a revision instead of mutating the published snapshot', async () => {
@@ -195,7 +230,7 @@ describe('LOTOTO procedure library HTTP', () => {
         machineryId: machinery.id,
         code: `REV-${randomUUID().slice(0, 8)}`,
         title: 'Compressor LOTO',
-        lockoutPoints: [{ sortOrder: 1, pointCode: 'EMP-1', energyType: 'electrical' }],
+        lockoutPoints: [isolationPoint({ pointCode: 'EMP-1' })],
       })
       .expect(201);
 
@@ -206,7 +241,7 @@ describe('LOTOTO procedure library HTTP', () => {
     await request(adminApp.getHttpServer())
       .patch(`/api/v1/lototo/procedures/${created.body.data.id}`)
       .send({
-        lockoutPoints: [{ sortOrder: 1, pointCode: 'EMP-2', energyType: 'electrical' }],
+        lockoutPoints: [isolationPoint({ pointCode: 'EMP-2' })],
       })
       .expect(409);
 
@@ -219,7 +254,7 @@ describe('LOTOTO procedure library HTTP', () => {
     await request(adminApp.getHttpServer())
       .patch(`/api/v1/lototo/procedures/${created.body.data.id}`)
       .send({
-        lockoutPoints: [{ sortOrder: 1, pointCode: 'EMP-2', energyType: 'electrical' }],
+        lockoutPoints: [isolationPoint({ pointCode: 'EMP-2' })],
       })
       .expect(200);
 
@@ -238,7 +273,7 @@ describe('LOTOTO procedure library HTTP', () => {
         machineryId: machinery.id,
         code: `OFF-${randomUUID().slice(0, 8)}`,
         title: 'Idle lockout',
-        lockoutPoints: [{ sortOrder: 1, pointCode: 'OFF-1', energyType: 'electrical' }],
+        lockoutPoints: [isolationPoint({ pointCode: 'OFF-1' })],
       })
       .expect(201);
 

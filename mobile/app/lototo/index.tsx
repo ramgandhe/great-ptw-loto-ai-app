@@ -1,72 +1,60 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { router } from "expo-router";
-import { AppText, Banner, Button, Card, ChipRow, EmptyState, PageHeader, RefChip, SafetyStatusChip, Screen, SectionTitle } from "@/components/ui";
-import { Lock, Plus, Unlock } from "@/components/ui/icons";
+import { AppText, Banner, Card, ChipRow, EmptyState, PageHeader, RefChip, Screen, SectionTitle } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { listLototoPlans } from "@/lib/lototo/api";
-import type { LototoPlan } from "@/lib/lototo/types";
-import { LOTOTO_PLAN_STATUS, toneOf } from "@/lib/safety-status";
+import { listIsolationCertificates, type IsolationCertificateListRow } from "@/lib/lototo/api";
 import { useTheme } from "@/providers/theme-provider";
-import { tint } from "@/theme/tokens";
 
-export default function LototoPlansScreen() {
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  pending_approval: "Waiting for approval",
+  approved: "Ready",
+  isolation_in_progress: "Isolating",
+  isolated_verified: "Isolated",
+  sanction_for_test: "Isolated",
+  restoration_in_progress: "Restoring",
+  restored_verified: "Restored",
+  closed: "Closed",
+};
+
+export default function LototoScreen() {
   const { tokens } = useTheme();
-  const [plans, setPlans] = useState<LototoPlan[]>([]);
+  const [rows, setRows] = useState<IsolationCertificateListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    listLototoPlans()
-      .then(setPlans)
+    listIsolationCertificates()
+      .then(setRows)
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : "The LOTOTO plans could not be loaded.");
+        setError(err instanceof ApiError ? err.message : "Isolations could not be loaded.");
       })
       .finally(() => setLoading(false));
   }, []);
-
-  const shortcuts = [
-    { title: "Isolate", body: "Lock out a ready plan, point by point", href: "/lototo/active", Icon: Lock, color: tokens.action.do },
-    { title: "Restore", body: "Remove locks and return equipment", href: "/lototo/restoration", Icon: Unlock, color: tokens.action.decide },
-  ] as const;
 
   return (
     <Screen>
       <PageHeader
         title="LOTOTO"
-        description="Isolation plans: set up the sequence, lock out in the field, then restore."
+        description="Each certificate is one isolation. It can stand on its own, and a permit can use it later."
         back={{ label: "Home", href: "/" }}
-        actions={<Button label="New plan" icon={Plus} onPress={() => router.push("/lototo/new")} />}
       />
-
-      <View style={{ flexDirection: "row", gap: tokens.space[3] }}>
-        {shortcuts.map(({ title, body, href, Icon, color }) => (
-          <Card key={href} onPress={() => router.push(href)} accessibilityLabel={title} style={{ flex: 1 }}>
-            <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: tint(color, 0.14) }}>
-              <Icon size={18} color={color} />
-            </View>
-            <AppText variant="subheading">{title}</AppText>
-            <AppText variant="caption">{body}</AppText>
-          </Card>
-        ))}
-      </View>
-
       <View style={{ gap: tokens.space[3] }}>
-        <SectionTitle title="Plans" count={loading ? undefined : plans.length} />
+        <SectionTitle title="Isolations" count={loading ? undefined : rows.length} />
         {error ? <Banner tone="danger">{error}</Banner> : null}
         {loading ? (
           <ActivityIndicator color={tokens.colors.primary} />
-        ) : error ? null : plans.length === 0 ? (
-          <EmptyState title="No plans yet" body="A plan lists the isolation points of a machine, in order." action={<Button label="New plan" variant="outline" onPress={() => router.push("/lototo/new")} />} />
+        ) : error ? null : rows.length === 0 ? (
+          <EmptyState title="No isolations yet" body="Start an isolation from a published procedure." />
         ) : (
-          plans.map((plan) => (
-            <Card key={plan.id} accent={tokens.status[toneOf(LOTOTO_PLAN_STATUS, plan.status).key]} onPress={() => router.push(`/lototo/${plan.id}`)} accessibilityLabel={plan.title}>
-              <AppText variant="subheading">{plan.title}</AppText>
+          rows.map((row) => (
+            <Card key={row.certificate.id} accessibilityLabel={row.certificate.title}>
+              <AppText variant="subheading">{row.certificate.title}</AppText>
               <ChipRow>
-                <SafetyStatusChip map={LOTOTO_PLAN_STATUS} status={plan.status} />
-                <RefChip reference={plan.reference} />
+                <RefChip reference={row.certificate.certificateNumber} />
+                <AppText variant="caption">{STATUS_LABELS[row.certificate.status] ?? row.certificate.status}</AppText>
               </ChipRow>
-              {plan.description ? <AppText variant="caption" numberOfLines={2}>{plan.description}</AppText> : null}
+              <AppText variant="caption">{row.assetName || row.locationName || "Location"}</AppText>
             </Card>
           ))
         )}

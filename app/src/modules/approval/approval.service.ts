@@ -21,6 +21,7 @@ import { AuditService } from '../logging/audit.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
 import { assertStageAnswered, PermitService } from '../permit/permit.service';
 import { freezePermitLototo } from '../permit/permit-lototo-freeze';
+import { issueCertificatesForApprovedPermit, cancelDraftCertificatesForPermit } from '../lototo/issue-permit-certificates';
 import { ApprovalCacheService } from './approval-cache.service';
 import { ApprovalLogService } from './approval-log.service';
 import { PENDING_APPROVAL_STATUS, SAFETY_VETO_ELIGIBLE_STATUSES } from './approval.constants';
@@ -265,6 +266,7 @@ export class ApprovalService {
           .where(and(eq(permits.id, permitId), eq(permits.tenantId, permit.tenantId)));
 
         await freezePermitLototo(tx, permitId, user.id);
+        await issueCertificatesForApprovedPermit(tx, permit, user.id);
 
         await this.approvalHistoryService.record(
           {
@@ -393,6 +395,8 @@ export class ApprovalService {
         .update(permits)
         .set({ status: 'rejected', updatedBy: user.id })
         .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
+
+      await cancelDraftCertificatesForPermit(tx, permitId, user.id);
 
       await this.approvalHistoryService.record(
         {

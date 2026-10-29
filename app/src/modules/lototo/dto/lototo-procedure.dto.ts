@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsDateString,
   IsIn,
   IsInt,
   IsOptional,
@@ -10,9 +11,11 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { LOTOTO_SEQUENCE_PHASES } from '../../../database/schema/lototo-procedure';
+import { LOTOTO_ISOLATION_METHODS, LOTOTO_PROOFS } from '../lototo-point';
 
 export class LototoLockoutPointDto {
   @IsInt()
@@ -44,13 +47,46 @@ export class LototoLockoutPointDto {
   locationText?: string;
 
   @IsOptional()
+  @IsIn([...LOTOTO_ISOLATION_METHODS])
+  method?: (typeof LOTOTO_ISOLATION_METHODS)[number];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  normalPosition?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  isolatedPosition?: string;
+
+  @IsOptional()
   @IsString()
   action?: string;
 
   @IsOptional()
   @IsString()
+  restoreAction?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(128)
   device?: string;
+
+  @IsOptional()
+  @IsIn([...LOTOTO_PROOFS])
+  proof?: (typeof LOTOTO_PROOFS)[number];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  drawingReference?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  removeOrder?: number;
 
   @IsOptional()
   @IsString()
@@ -150,6 +186,11 @@ export class LototoProcedureContentDto {
 
 export class CreateLototoProcedureDto extends LototoProcedureContentDto {
   @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsDateString()
+  reviewDueOn?: string | null;
+
+  @IsOptional()
   @IsUUID()
   machineryId?: string;
 
@@ -177,6 +218,10 @@ export class CreateLototoProcedureDto extends LototoProcedureContentDto {
 }
 
 export class UpdateLototoProcedureDto extends LototoProcedureContentDto {
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsDateString()
+  reviewDueOn?: string | null;
   @IsOptional()
   @IsUUID()
   machineryId?: string;

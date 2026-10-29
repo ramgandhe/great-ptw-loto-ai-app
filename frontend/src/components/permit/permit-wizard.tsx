@@ -25,8 +25,8 @@ import { listTenantUsers } from "@/lib/workforce/api";
 import type { TenantUser } from "@/lib/workforce/types";
 import type { MachineryRecord, OrgRecord } from "@/lib/organisation/types";
 import { permitTemplatesApi, type PermitTemplate, type TemplatePrefillSource } from "@/lib/organisation/templates";
-import { getLototoProcedure, listLototoProcedures } from "@/lib/lototo/api";
-import type { LototoProcedure, LototoProcedureListItem } from "@/lib/lototo/types";
+import { listLototoProcedures } from "@/lib/lototo/api";
+import type { LototoProcedureListItem } from "@/lib/lototo/types";
 import { gasTestingApi } from "@/lib/master-data/api";
 import {
   createPermit,
@@ -312,7 +312,6 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const [locationQuery, setLocationQuery] = useState("");
   const [siteSafetyStep, setSiteSafetyStep] = useState<SiteSafetyStep>("place");
   const [hazards, setHazards] = useState<HazardRecord[]>([]);
-  const [lototoDetails, setLototoDetails] = useState<Record<string, LototoProcedure>>({});
   const [ppeItems, setPpeItems] = useState<MasterDataRecord[]>([]);
   const [machineryLototo, setMachineryLototo] = useState<LototoProcedureListItem[]>([]);
   const [extraGas, setExtraGas] = useState({ parameter: "", unit: "", minimum: "", maximum: "" });
@@ -691,18 +690,6 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       cancelled = true;
     };
   }, [form.workLocationId, form.assetIds]);
-
-  useEffect(() => {
-    const ids = [...new Set(form.lototo.map((item) => item.procedureId).filter(Boolean))];
-    ids.forEach((id) => {
-      if (lototoDetails[id]) {
-        return;
-      }
-      void getLototoProcedure(id)
-        .then((detail) => setLototoDetails((prev) => ({ ...prev, [id]: detail })))
-        .catch(() => undefined);
-    });
-  }, [form.lototo, lototoDetails]);
 
   useEffect(() => {
     if (initialDetail) {
@@ -2199,7 +2186,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 {form.assetIds.length > 0
                   ? "This location and the selected assets have no LOTOTO plan yet."
                   : "This location has no LOTOTO plan yet."}{" "}
-                <a href="/lototo" target="_blank" rel="noreferrer" className="font-medium text-(--act-do) underline underline-offset-2">
+                <a href="/lototo/procedures" target="_blank" rel="noreferrer" className="font-medium text-(--act-do) underline underline-offset-2">
                   Create one in a new tab
                 </a>
                 , then{" "}
@@ -2229,12 +2216,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                     item={item}
                     index={index}
                     procedures={machineryLototo}
-                    detail={lototoDetails[item.procedureId]}
                     people={sodExecutorOptions}
-                    verifierPeople={[
-                      ...sodExecutorOptions,
-                      ...safetyOfficerOptions.filter((person) => !sodExecutorOptions.some((row) => row.id === person.id)),
-                    ]}
                     disabled={!siteEditable || Boolean(item.frozenAt)}
                     onChange={(next) =>
                       edit((current) => ({

@@ -13,6 +13,7 @@ import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { LOTOTO_LIBRARY_WRITE_ROLES } from "@/lib/auth/roles";
 import { energySourceChoices, useEnergySourceOptions } from "@/lib/lototo/energy-sources";
+import { energyLevelHint, ISOLATION_METHODS, proofsForEnergy } from "@/lib/lototo/point-fields";
 import {
   createLototoProcedure,
   deactivateLototoProcedure,
@@ -21,18 +22,11 @@ import {
   publishLototoProcedure,
   reactivateLototoProcedure,
   removeLototoPointPhoto,
-  removeLototoStepPhoto,
   reviseLototoProcedure,
   updateLototoProcedure,
   uploadLototoPointPhoto,
-  uploadLototoStepPhoto,
 } from "@/lib/lototo/api";
-import type {
-  LototoLockoutPoint,
-  LototoProcedure,
-  LototoProcedurePayload,
-  LototoSequenceStep,
-} from "@/lib/lototo/types";
+import type { LototoLockoutPoint, LototoProcedure, LototoProcedurePayload } from "@/lib/lototo/types";
 import { sitesApi } from "@/lib/organisation/api";
 import { placeApi, type AssetRecord, type WorkLocationRecord } from "@/lib/place/api";
 
@@ -54,16 +48,16 @@ function emptyPoint(order: number): LototoLockoutPoint {
     energyOtherText: "",
     magnitude: "",
     locationText: "",
+    method: "lock_closed",
+    normalPosition: "",
+    isolatedPosition: "",
     action: "",
+    restoreAction: "",
     device: "",
-    verificationMethod: "",
+    proof: "meter",
+    drawingReference: "",
+    removeOrder: null,
   };
-}
-
-type EditorStep = LototoSequenceStep & { pendingFile?: File; previewUrl?: string };
-
-function emptyStep(phase: "apply" | "remove", order: number): EditorStep {
-  return { phase, sequenceOrder: order, title: "", action: "", infoText: "", verification: "", note: "", description: "" };
 }
 
 type FormState = {
@@ -73,19 +67,15 @@ type FormState = {
   workstationId: string;
   code: string;
   title: string;
-  facility: string;
-  locationText: string;
-  purpose: string;
-  scope: string;
-  authorization: string;
-  enforcement: string;
-  description: string;
+  reviewDueOn: string;
   note: string;
   lockoutPoints: LototoLockoutPoint[];
-  applySteps: EditorStep[];
-  removeSteps: EditorStep[];
   authorizedRoles: string[];
 };
+
+function dateInput(value: string | null | undefined) {
+  return value ? value.slice(0, 10) : "";
+}
 
 function fromProcedure(detail: LototoProcedure): FormState {
   const version = detail.draftVersion ?? detail.publishedVersion;
@@ -96,21 +86,15 @@ function fromProcedure(detail: LototoProcedure): FormState {
     workstationId: detail.workstationId ?? "",
     code: detail.code,
     title: detail.title,
-    facility: version?.facility ?? "",
-    locationText: version?.locationText ?? "",
-    purpose: version?.purpose ?? "",
-    scope: version?.scope ?? "",
-    authorization: version?.authorization ?? "",
-    enforcement: version?.enforcement ?? "",
-    description: version?.description ?? "",
+    reviewDueOn: dateInput(detail.reviewDueOn),
     note: version?.note ?? "",
-    lockoutPoints: version?.lockoutPoints.length ? version.lockoutPoints : [emptyPoint(1)],
-    applySteps: (version?.sequenceSteps.filter((s) => s.phase === "apply").length
-      ? version.sequenceSteps.filter((s) => s.phase === "apply")
-      : [emptyStep("apply", 1)]),
-    removeSteps: (version?.sequenceSteps.filter((s) => s.phase === "remove").length
-      ? version.sequenceSteps.filter((s) => s.phase === "remove")
-      : [emptyStep("remove", 1)]),
+    lockoutPoints: version?.lockoutPoints.length
+      ? version.lockoutPoints.map((point) => ({
+          ...point,
+          proof: point.proof || proofsForEnergy(point.energyType)[0]?.value || "visual",
+          method: point.method || "lock_closed",
+        }))
+      : [emptyPoint(1)],
     authorizedRoles: version?.authorizedRoles ?? [],
   };
 }
@@ -123,75 +107,29 @@ function payloadOf(form: FormState): LototoProcedurePayload {
     workstationId: form.workstationId || undefined,
     code: form.code.trim(),
     title: form.title.trim(),
-    facility: form.facility.trim() || undefined,
-    locationText: form.locationText.trim() || undefined,
-    purpose: form.purpose.trim() || undefined,
-    scope: form.scope.trim() || undefined,
-    authorization: form.authorization.trim() || undefined,
-    enforcement: form.enforcement.trim() || undefined,
-    description: form.description.trim() || undefined,
+    reviewDueOn: form.reviewDueOn || null,
     note: form.note.trim() || undefined,
     lockoutPoints: form.lockoutPoints
-      .filter((p) => p.pointCode.trim())
-      .map((p, i) => ({
-        sortOrder: i + 1,
-        pointCode: p.pointCode.trim(),
-        energyType: p.energyType,
-        energyOtherText: p.energyType === "other" ? p.energyOtherText?.trim() || undefined : undefined,
-        magnitude: p.magnitude?.trim() || undefined,
-        locationText: p.locationText?.trim() || undefined,
-        action: p.action?.trim() || undefined,
-        device: p.device?.trim() || undefined,
-        verificationMethod: p.verificationMethod?.trim() || undefined,
+      .filter((point) => point.pointCode.trim())
+      .map((point, index) => ({
+        sortOrder: index + 1,
+        pointCode: point.pointCode.trim(),
+        energyType: point.energyType,
+        energyOtherText: point.energyType === "other" ? point.energyOtherText?.trim() || undefined : undefined,
+        magnitude: point.magnitude?.trim() || undefined,
+        locationText: point.locationText?.trim() || undefined,
+        method: point.method || undefined,
+        normalPosition: point.normalPosition?.trim() || undefined,
+        isolatedPosition: point.isolatedPosition?.trim() || undefined,
+        action: point.action?.trim() || undefined,
+        restoreAction: point.restoreAction?.trim() || undefined,
+        device: point.device?.trim() || undefined,
+        proof: point.proof || undefined,
+        drawingReference: point.drawingReference?.trim() || undefined,
+        removeOrder: point.removeOrder || undefined,
       })),
-    sequenceSteps: [
-      ...form.applySteps
-        .filter((s) => s.title.trim())
-        .map((s, i) => ({
-          phase: "apply" as const,
-          sequenceOrder: i + 1,
-          title: s.title.trim(),
-          action: s.action?.trim() || undefined,
-          infoText: s.infoText?.trim() || undefined,
-          verification: s.verification?.trim() || undefined,
-          note: s.note?.trim() || undefined,
-          description: s.description?.trim() || undefined,
-        })),
-      ...form.removeSteps
-        .filter((s) => s.title.trim())
-        .map((s, i) => ({
-          phase: "remove" as const,
-          sequenceOrder: i + 1,
-          title: s.title.trim(),
-          action: s.action?.trim() || undefined,
-          infoText: s.infoText?.trim() || undefined,
-          verification: s.verification?.trim() || undefined,
-          note: s.note?.trim() || undefined,
-          description: s.description?.trim() || undefined,
-        })),
-    ],
     authorizedRoles: form.authorizedRoles,
   };
-}
-
-async function uploadPendingStepImages(saved: LototoProcedure, snapshot: FormState): Promise<LototoProcedure> {
-  let latest = saved;
-  for (const phase of ["apply", "remove"] as const) {
-    const local = (phase === "apply" ? snapshot.applySteps : snapshot.removeSteps).filter((step) => step.title.trim());
-    for (let index = 0; index < local.length; index += 1) {
-      const file = local[index].pendingFile;
-      if (!file) continue;
-      const version = latest.draftVersion ?? latest.publishedVersion;
-      const remote = (version?.sequenceSteps ?? [])
-        .filter((step) => step.phase === phase)
-        .sort((a, b) => a.sequenceOrder - b.sequenceOrder);
-      const stepId = remote[index]?.id;
-      if (!stepId) continue;
-      latest = await uploadLototoStepPhoto(latest.id, stepId, file);
-      if (local[index].previewUrl?.startsWith("blob:")) URL.revokeObjectURL(local[index].previewUrl!);
-    }
-  }
-  return latest;
 }
 
 export function LototoProcedureEditor({
@@ -215,17 +153,9 @@ export function LototoProcedureEditor({
     workstationId: "",
     code: "",
     title: "",
-    facility: "",
-    locationText: "",
-    purpose: "",
-    scope: "",
-    authorization: "",
-    enforcement: "",
-    description: "",
+    reviewDueOn: "",
     note: "",
     lockoutPoints: [emptyPoint(1)],
-    applySteps: [emptyStep("apply", 1)],
-    removeSteps: [emptyStep("remove", 1)],
     authorizedRoles: [],
   });
   const [error, setError] = useState<string | null>(null);
@@ -258,9 +188,7 @@ export function LototoProcedureEditor({
   }, [assets, form.assetId, form.workLocationId]);
 
   useEffect(() => {
-    if (!procedureId) {
-      return;
-    }
+    if (!procedureId) return;
     getLototoProcedure(procedureId)
       .then((row) => {
         setDetail(row);
@@ -274,15 +202,21 @@ export function LototoProcedureEditor({
     () => assets.find((item) => item.id === form.assetId),
     [assets, form.assetId],
   );
+  const locationAssets = assets.filter((item) => item.workLocationId === form.workLocationId);
 
   function setPoint(index: number, patch: Partial<LototoLockoutPoint>) {
     setForm((current) => ({
       ...current,
-      lockoutPoints: current.lockoutPoints.map((point, i) => (i === index ? { ...point, ...patch } : point)),
+      lockoutPoints: current.lockoutPoints.map((point, i) => {
+        if (i !== index) return point;
+        const next = { ...point, ...patch };
+        if (patch.energyType && !proofsForEnergy(next.energyType).some((item) => item.value === next.proof)) {
+          next.proof = proofsForEnergy(next.energyType)[0]?.value ?? "visual";
+        }
+        return next;
+      }),
     }));
   }
-
-  const locationAssets = assets.filter((item) => item.workLocationId === form.workLocationId);
 
   async function save() {
     setSaving(true);
@@ -293,16 +227,12 @@ export function LototoProcedureEditor({
       return;
     }
     try {
-      const body = payloadOf(form);
       const saved = procedureId
-        ? await updateLototoProcedure(procedureId, body)
-        : await createLototoProcedure(body);
-      const withPhotos = await uploadPendingStepImages(saved, form);
-      setDetail(withPhotos);
-      setForm(fromProcedure(withPhotos));
-      if (!procedureId) {
-        router.replace(`/lototo/procedures/${withPhotos.id}`);
-      }
+        ? await updateLototoProcedure(procedureId, payloadOf(form))
+        : await createLototoProcedure(payloadOf(form));
+      setDetail(saved);
+      setForm(fromProcedure(saved));
+      if (!procedureId) router.replace(`/lototo/procedures/${saved.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not save the procedure.");
     } finally {
@@ -318,8 +248,7 @@ export function LototoProcedureEditor({
     setSaving(true);
     setError(null);
     try {
-      const updated = await updateLototoProcedure(procedureId, payloadOf(form));
-      await uploadPendingStepImages(updated, form);
+      await updateLototoProcedure(procedureId, payloadOf(form));
       const published = await publishLototoProcedure(procedureId);
       setDetail(published);
       setForm(fromProcedure(published));
@@ -331,9 +260,7 @@ export function LototoProcedureEditor({
   }
 
   async function revise() {
-    if (!procedureId) {
-      return;
-    }
+    if (!procedureId) return;
     setSaving(true);
     setError(null);
     try {
@@ -348,9 +275,7 @@ export function LototoProcedureEditor({
   }
 
   async function deactivate() {
-    if (!procedureId || !(await confirmAction("Deactivate this procedure? It will no longer be offered on new permits."))) {
-      return;
-    }
+    if (!procedureId || !(await confirmAction("Deactivate this procedure? It will no longer be offered on new permits."))) return;
     setSaving(true);
     setError(null);
     try {
@@ -365,9 +290,7 @@ export function LototoProcedureEditor({
   }
 
   async function reactivate() {
-    if (!procedureId) {
-      return;
-    }
+    if (!procedureId) return;
     setSaving(true);
     setError(null);
     try {
@@ -388,7 +311,7 @@ export function LototoProcedureEditor({
         deleteLototoProcedure(procedureId, force).then(() => undefined),
       );
       if (!ok) return;
-      router.push("/lototo");
+      router.push("/lototo/procedures");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not delete.");
     }
@@ -402,66 +325,51 @@ export function LototoProcedureEditor({
     <main className="flex flex-1 flex-col gap-6 px-4 pb-8 sm:px-8">
       <PageHeader
         title={procedureId ? form.title || "LOTOTO procedure" : "New LOTOTO procedure"}
-        description="Reusable lockout procedure for one work location, or for one asset at that location. Permits snapshot the published version."
-        back={{ href: "/lototo", label: "LOTOTO procedures" }}
+        description="The method for one work location, or for one asset. Publishing freezes this version for jobs that use it."
+        back={{ href: "/lototo/procedures", label: "LOTOTO procedures" }}
         actions={
           canWrite ? (
             <div className="flex flex-wrap gap-2">
               {detail?.status === "published" && locked ? (
-                <Button type="button" onClick={() => void revise()} disabled={saving}>
-                  New revision
-                </Button>
+                <Button type="button" onClick={() => void revise()} disabled={saving}>New revision</Button>
               ) : detail?.status !== "inactive" ? (
                 <>
-                  <Button type="button" variant="outline" onClick={() => void save()} disabled={saving}>
-                    Save draft
-                  </Button>
-                  <Button type="button" onClick={() => void publish()} disabled={saving}>
-                    Publish
-                  </Button>
+                  <Button type="button" variant="outline" onClick={() => void save()} disabled={saving}>Save draft</Button>
+                  <Button type="button" onClick={() => void publish()} disabled={saving}>Publish</Button>
                 </>
               ) : null}
               {locked && detail?.status === "published" ? (
-                <Button type="button" variant="outline" onClick={() => void deactivate()} disabled={saving}>
-                  Deactivate
-                </Button>
+                <Button type="button" variant="outline" onClick={() => void deactivate()} disabled={saving}>Deactivate</Button>
               ) : null}
               {detail?.status === "inactive" ? (
-                <Button type="button" onClick={() => void reactivate()} disabled={saving}>
-                  Reactivate
-                </Button>
+                <Button type="button" onClick={() => void reactivate()} disabled={saving}>Reactivate</Button>
               ) : null}
               {procedureId && (detail?.status === "draft" || detail?.status === "inactive") ? (
-                <Button type="button" variant="outline" onClick={() => void remove()}>
-                  Delete
-                </Button>
+                <Button type="button" variant="outline" onClick={() => void remove()}>Delete</Button>
               ) : null}
             </div>
           ) : null
         }
       />
 
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       {detail?.publishedVersion ? (
         <p className="text-sm text-muted-foreground">
           Published v{detail.publishedVersion.versionNumber}
           {detail.draftVersion ? ` · editing draft v${detail.draftVersion.versionNumber}` : ""}
+          {detail.reviewDueOn ? ` · review ${dateInput(detail.reviewDueOn)}` : ""}
         </p>
       ) : null}
 
       <section className="grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
-        <h2 className="text-sm font-semibold sm:col-span-2">Header</h2>
+        <h2 className="text-sm font-semibold sm:col-span-2">Procedure</h2>
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Procedure ID</span>
           <input className={FIELD} value={form.code} disabled={readOnly} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="A-1107-MXZ01" />
         </label>
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Title</span>
-          <input className={FIELD} value={form.title} disabled={readOnly} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Bucket Elevator lockout" />
+          <input className={FIELD} value={form.title} disabled={readOnly} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Bucket elevator lockout" />
         </label>
         <label className="grid gap-1 text-sm">
           <span className="font-medium">Work location</span>
@@ -477,9 +385,7 @@ export function LototoProcedureEditor({
           >
             <option value="">Select a work location</option>
             {locations.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.pathText || item.name}
-              </option>
+              <option key={item.id} value={item.id}>{item.pathText || item.name}</option>
             ))}
           </AppSelect>
         </label>
@@ -493,336 +399,172 @@ export function LototoProcedureEditor({
           >
             <option value="">{form.workLocationId ? "None — this procedure is for the location" : "Select a work location first"}</option>
             {locationAssets.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.tag} — {item.name}
-              </option>
+              <option key={item.id} value={item.id}>{item.tag} — {item.name}</option>
             ))}
           </AppSelect>
         </label>
         <label className="grid gap-1 text-sm">
-          <span className="font-medium">Facility</span>
-          <input className={FIELD} value={form.facility} disabled={readOnly} onChange={(e) => setForm({ ...form, facility: e.target.value })} />
+          <span className="font-medium">Review due</span>
+          <input className={FIELD} type="date" value={form.reviewDueOn} disabled={readOnly} onChange={(e) => setForm({ ...form, reviewDueOn: e.target.value })} />
         </label>
         <label className="grid gap-1 text-sm sm:col-span-2">
-          <span className="font-medium">Location note</span>
-          <input className={FIELD} value={form.locationText} disabled={readOnly} onChange={(e) => setForm({ ...form, locationText: e.target.value })} placeholder={selectedAsset ? `${selectedAsset.tag} ${selectedAsset.name}` : undefined} />
+          <span className="font-medium">Note</span>
+          <textarea className={`${FIELD} min-h-20`} disabled={readOnly} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder={selectedAsset ? `${selectedAsset.tag} ${selectedAsset.name}` : "Anything the isolator should know before starting"} />
         </label>
-      </section>
-
-      <section className="grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
-        <h2 className="text-sm font-semibold sm:col-span-2">Purpose and rules</h2>
-        {(
-          [
-            ["purpose", "Purpose"],
-            ["scope", "Scope"],
-            ["authorization", "Authorization"],
-            ["enforcement", "Enforcement"],
-            ["description", "Description"],
-            ["note", "Note"],
-          ] as const
-        ).map(([key, label]) => (
-          <label key={key} className="grid gap-1 text-sm sm:col-span-2">
-            <span className="font-medium">{label}</span>
-            <textarea
-              className={`${FIELD} min-h-20`}
-              disabled={readOnly}
-              value={form[key]}
-              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-            />
-          </label>
-        ))}
       </section>
 
       <section className="grid gap-3 rounded-xl border border-border bg-card p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Lockout points</h2>
+          <h2 className="text-sm font-semibold">Isolation points</h2>
           {readOnly ? null : (
-            <Button type="button" variant="outline" size="sm" onClick={() => setForm((c) => ({ ...c, lockoutPoints: [...c.lockoutPoints, emptyPoint(c.lockoutPoints.length + 1)] }))}>
+            <Button type="button" variant="outline" size="sm" onClick={() => setForm((current) => ({ ...current, lockoutPoints: [...current.lockoutPoints, emptyPoint(current.lockoutPoints.length + 1)] }))}>
               <Plus className="size-4" /> Add point
             </Button>
           )}
         </div>
-        {form.lockoutPoints.map((point, index) => (
-          <div key={index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-2">
-            <div className="flex items-center justify-between sm:col-span-2">
-              <span className="text-xs font-medium text-muted-foreground">Step {index + 1}</span>
-              {readOnly ? null : (
-                <button type="button" className="text-muted-foreground" aria-label="Remove point" onClick={() => setForm((c) => ({ ...c, lockoutPoints: c.lockoutPoints.filter((_, i) => i !== index) }))}>
-                  <Trash2 className="size-4" />
-                </button>
-              )}
-            </div>
-            <input className={FIELD} placeholder="Point ID (E-1)" disabled={readOnly} value={point.pointCode} onChange={(e) => setPoint(index, { pointCode: e.target.value })} />
-            <AppSelect className={FIELD} disabled={readOnly} value={point.energyType} onChange={(e) => setPoint(index, { energyType: e.target.value })}>
-              {energySourceChoices(energyOptions, point.energyType).map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </AppSelect>
-            {point.energyType === "other" ? (
-              <input
-                className={`${FIELD} sm:col-span-2`}
-                placeholder="Describe other energy source"
-                disabled={readOnly}
-                value={point.energyOtherText ?? ""}
-                onChange={(e) => setPoint(index, { energyOtherText: e.target.value })}
-              />
-            ) : null}
-            <input className={FIELD} placeholder="Magnitude (415 Volts)" disabled={readOnly} value={point.magnitude ?? ""} onChange={(e) => setPoint(index, { magnitude: e.target.value })} />
-            <input className={FIELD} placeholder="Device" disabled={readOnly} value={point.device ?? ""} onChange={(e) => setPoint(index, { device: e.target.value })} />
-            <input className={`${FIELD} sm:col-span-2`} placeholder="Location" disabled={readOnly} value={point.locationText ?? ""} onChange={(e) => setPoint(index, { locationText: e.target.value })} />
-            <textarea className={`${FIELD} min-h-16 sm:col-span-2`} placeholder="Action" disabled={readOnly} value={point.action ?? ""} onChange={(e) => setPoint(index, { action: e.target.value })} />
-            <input className={`${FIELD} sm:col-span-2`} placeholder="Verification method" disabled={readOnly} value={point.verificationMethod ?? ""} onChange={(e) => setPoint(index, { verificationMethod: e.target.value })} />
-            <div className="grid gap-2 sm:col-span-2">
-              <span className="text-xs text-muted-foreground">Photo (optional)</span>
-              {point.photo?.url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={point.photo.url} alt="" className="max-h-40 w-fit rounded-md border border-border object-contain" />
+        <p className="text-sm text-muted-foreground">Each device is isolated and restored from this card. Leave restore order blank to restore in reverse.</p>
+        {form.lockoutPoints.map((point, index) => {
+          const proofs = proofsForEnergy(point.energyType);
+          return (
+            <div key={point.id ?? index} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2">
+              <div className="flex items-center justify-between sm:col-span-2">
+                <span className="text-xs font-medium text-muted-foreground">Point {index + 1}</span>
+                {readOnly ? null : (
+                  <button type="button" className="text-muted-foreground" aria-label="Remove point" onClick={() => setForm((current) => ({ ...current, lockoutPoints: current.lockoutPoints.filter((_, i) => i !== index) }))}>
+                    <Trash2 className="size-4" />
+                  </button>
+                )}
+              </div>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Point code</span>
+                <input className={FIELD} disabled={readOnly} value={point.pointCode} onChange={(e) => setPoint(index, { pointCode: e.target.value })} placeholder="E-1" />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Device</span>
+                <input className={FIELD} disabled={readOnly} value={point.device ?? ""} onChange={(e) => setPoint(index, { device: e.target.value })} placeholder="Breaker, valve, or flange" />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Energy</span>
+                <AppSelect className={FIELD} disabled={readOnly} value={point.energyType} onChange={(e) => setPoint(index, { energyType: e.target.value })}>
+                  {energySourceChoices(energyOptions, point.energyType).map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </AppSelect>
+              </label>
+              {point.energyType === "other" ? (
+                <label className="grid gap-1 text-sm">
+                  <span className="font-medium">Other energy</span>
+                  <input className={FIELD} disabled={readOnly} value={point.energyOtherText ?? ""} onChange={(e) => setPoint(index, { energyOtherText: e.target.value })} />
+                </label>
               ) : null}
-              {readOnly ? null : point.id && procedureId ? (
-                <div className="flex flex-wrap gap-2">
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      event.target.value = "";
-                      if (!file) {
-                        return;
-                      }
-                      void uploadLototoPointPhoto(procedureId, point.id!, file)
-                        .then((saved) => {
-                          setDetail(saved);
-                          setForm(fromProcedure(saved));
-                        })
-                        .catch((err) => setError(err instanceof ApiError ? err.message : "Photo could not be saved."));
-                    }}
-                  />
-                  {point.photo ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        void removeLototoPointPhoto(procedureId, point.id!)
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Energy level</span>
+                <input className={FIELD} disabled={readOnly} value={point.magnitude ?? ""} placeholder={energyLevelHint(point.energyType)} onChange={(e) => setPoint(index, { magnitude: e.target.value })} />
+              </label>
+              <label className="grid gap-1 text-sm sm:col-span-2">
+                <span className="font-medium">Place</span>
+                <input className={FIELD} disabled={readOnly} value={point.locationText ?? ""} onChange={(e) => setPoint(index, { locationText: e.target.value })} placeholder="MCC-2, panel A, or the local isolator" />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Method</span>
+                <AppSelect className={FIELD} disabled={readOnly} value={point.method ?? ""} onChange={(e) => setPoint(index, { method: e.target.value })}>
+                  {ISOLATION_METHODS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </AppSelect>
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Proof</span>
+                <AppSelect className={FIELD} disabled={readOnly} value={point.proof ?? ""} onChange={(e) => setPoint(index, { proof: e.target.value })}>
+                  {proofs.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </AppSelect>
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Normal position</span>
+                <input className={FIELD} disabled={readOnly} value={point.normalPosition ?? ""} onChange={(e) => setPoint(index, { normalPosition: e.target.value })} placeholder="On, open, or running" />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Isolated position</span>
+                <input className={FIELD} disabled={readOnly} value={point.isolatedPosition ?? ""} onChange={(e) => setPoint(index, { isolatedPosition: e.target.value })} placeholder="Off, closed, or removed" />
+              </label>
+              <label className="grid gap-1 text-sm sm:col-span-2">
+                <span className="font-medium">How to isolate</span>
+                <textarea className={`${FIELD} min-h-16`} disabled={readOnly} value={point.action ?? ""} onChange={(e) => setPoint(index, { action: e.target.value })} />
+              </label>
+              <label className="grid gap-1 text-sm sm:col-span-2">
+                <span className="font-medium">How to restore</span>
+                <textarea className={`${FIELD} min-h-16`} disabled={readOnly} value={point.restoreAction ?? ""} onChange={(e) => setPoint(index, { restoreAction: e.target.value })} />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Drawing reference</span>
+                <input className={FIELD} disabled={readOnly} value={point.drawingReference ?? ""} onChange={(e) => setPoint(index, { drawingReference: e.target.value })} />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Restore order</span>
+                <input
+                  className={FIELD}
+                  type="number"
+                  min={1}
+                  disabled={readOnly}
+                  value={point.removeOrder ?? ""}
+                  placeholder="Blank restores in reverse"
+                  onChange={(e) => setPoint(index, { removeOrder: e.target.value ? Number(e.target.value) : null })}
+                />
+              </label>
+              <div className="grid gap-2 sm:col-span-2">
+                <span className="text-xs text-muted-foreground">Photo (optional)</span>
+                {point.photo?.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={point.photo.url} alt="" className="max-h-40 w-fit rounded-md border border-border object-contain" />
+                ) : null}
+                {readOnly ? null : point.id && procedureId ? (
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        event.target.value = "";
+                        if (!file) return;
+                        void uploadLototoPointPhoto(procedureId, point.id!, file)
                           .then((saved) => {
                             setDetail(saved);
                             setForm(fromProcedure(saved));
                           })
-                          .catch((err) => setError(err instanceof ApiError ? err.message : "Photo could not be removed."))
-                      }
-                    >
-                      Remove photo
-                    </Button>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">Save the procedure first to attach a photo.</p>
-              )}
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {(["apply", "remove"] as const).map((phase) => {
-        const key = phase === "apply" ? "applySteps" : "removeSteps";
-        const steps = form[key];
-        const title = phase === "apply" ? "Lockout application sequence" : "Lockout removal sequence";
-        return (
-          <section key={phase} className="grid gap-3 rounded-xl border border-border bg-card p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">{title}</h2>
-              {readOnly ? null : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setForm((c) => ({
-                      ...c,
-                      [key]: [...c[key], emptyStep(phase, c[key].length + 1)],
-                    }))
-                  }
-                >
-                  <Plus className="size-4" /> Add step
-                </Button>
-              )}
-            </div>
-            {steps.map((step, index) => (
-              <div key={index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[auto_1fr_auto]">
-                <span className="pt-2 text-sm text-muted-foreground">{index + 1}</span>
-                <input
-                  className={FIELD}
-                  placeholder="Title"
-                  disabled={readOnly}
-                  value={step.title}
-                  onChange={(e) =>
-                    setForm((c) => ({
-                      ...c,
-                      [key]: c[key].map((row, i) => (i === index ? { ...row, title: e.target.value } : row)),
-                    }))
-                  }
-                />
-                {readOnly ? (
-                  <span />
-                ) : (
-                  <button
-                    type="button"
-                    className="text-muted-foreground"
-                    aria-label="Remove step"
-                    onClick={() =>
-                      setForm((c) => {
-                        const removed = c[key][index];
-                        if (removed?.previewUrl?.startsWith("blob:")) URL.revokeObjectURL(removed.previewUrl);
-                        return { ...c, [key]: c[key].filter((_, i) => i !== index) };
-                      })
-                    }
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
-                )}
-                <textarea
-                  className={`${FIELD} min-h-16 sm:col-span-3`}
-                  placeholder="Action"
-                  disabled={readOnly}
-                  value={step.action ?? ""}
-                  onChange={(e) =>
-                    setForm((c) => ({
-                      ...c,
-                      [key]: c[key].map((row, i) => (i === index ? { ...row, action: e.target.value } : row)),
-                    }))
-                  }
-                />
-                <textarea
-                  className={`${FIELD} min-h-16 sm:col-span-3`}
-                  placeholder="Info (text)"
-                  disabled={readOnly}
-                  value={step.infoText ?? step.description ?? ""}
-                  onChange={(e) =>
-                    setForm((c) => ({
-                      ...c,
-                      [key]: c[key].map((row, i) => (i === index ? { ...row, infoText: e.target.value } : row)),
-                    }))
-                  }
-                />
-                <input
-                  className={`${FIELD} sm:col-span-3`}
-                  placeholder="Verification"
-                  disabled={readOnly}
-                  value={step.verification ?? ""}
-                  onChange={(e) =>
-                    setForm((c) => ({
-                      ...c,
-                      [key]: c[key].map((row, i) => (i === index ? { ...row, verification: e.target.value } : row)),
-                    }))
-                  }
-                />
-                <input
-                  className={`${FIELD} sm:col-span-3`}
-                  placeholder="Note (optional)"
-                  disabled={readOnly}
-                  value={step.note ?? ""}
-                  onChange={(e) =>
-                    setForm((c) => ({
-                      ...c,
-                      [key]: c[key].map((row, i) => (i === index ? { ...row, note: e.target.value } : row)),
-                    }))
-                  }
-                />
-                <div className="grid gap-2 sm:col-span-3">
-                  <span className="text-xs text-muted-foreground">Info image (optional)</span>
-                  {step.previewUrl || step.photo?.url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={step.previewUrl || step.photo?.url} alt="" className="max-h-40 w-fit rounded-md border border-border object-contain" />
-                  ) : null}
-                  {readOnly ? null : step.id && procedureId && !step.pendingFile ? (
-                    <div className="flex flex-wrap gap-2">
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          event.target.value = "";
-                          if (!file) {
-                            return;
-                          }
-                          void uploadLototoStepPhoto(procedureId, step.id!, file)
+                          .catch((err) => setError(err instanceof ApiError ? err.message : "Photo could not be saved."));
+                      }}
+                    />
+                    {point.photo ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          void removeLototoPointPhoto(procedureId, point.id!)
                             .then((saved) => {
                               setDetail(saved);
                               setForm(fromProcedure(saved));
                             })
-                            .catch((err) => setError(err instanceof ApiError ? err.message : "Photo could not be saved."));
-                        }}
-                      />
-                      {step.photo ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            void removeLototoStepPhoto(procedureId, step.id!)
-                              .then((saved) => {
-                                setDetail(saved);
-                                setForm(fromProcedure(saved));
-                              })
-                              .catch((err) => setError(err instanceof ApiError ? err.message : "Photo could not be removed."))
-                          }
-                        >
-                          Remove image
-                        </Button>
-                      ) : null}
-                    </div>
-                  ) : readOnly ? null : (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          event.target.value = "";
-                          if (!file) return;
-                          const previewUrl = URL.createObjectURL(file);
-                          setForm((c) => ({
-                            ...c,
-                            [key]: c[key].map((row, i) => {
-                              if (i !== index) return row;
-                              if (row.previewUrl?.startsWith("blob:")) URL.revokeObjectURL(row.previewUrl);
-                              return { ...row, pendingFile: file, previewUrl };
-                            }),
-                          }));
-                        }}
-                      />
-                      {step.pendingFile ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setForm((c) => ({
-                              ...c,
-                              [key]: c[key].map((row, i) => {
-                                if (i !== index) return row;
-                                if (row.previewUrl?.startsWith("blob:")) URL.revokeObjectURL(row.previewUrl);
-                                return { ...row, pendingFile: undefined, previewUrl: undefined };
-                              }),
-                            }))
-                          }
-                        >
-                          Remove image
-                        </Button>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
+                            .catch((err) => setError(err instanceof ApiError ? err.message : "Photo could not be removed."))
+                        }
+                      >
+                        Remove photo
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Save the procedure first to attach a photo.</p>
+                )}
               </div>
-            ))}
-          </section>
-        );
-      })}
+            </div>
+          );
+        })}
+      </section>
 
       <section className="grid gap-3 rounded-xl border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold">Authorized roles</h2>
+        <h2 className="text-sm font-semibold">Who may do this</h2>
         <div className="flex flex-wrap gap-3">
           {ROLE_OPTIONS.map((opt) => (
             <label key={opt.value} className="flex items-center gap-2 text-sm">
@@ -831,11 +573,11 @@ export function LototoProcedureEditor({
                 disabled={readOnly}
                 checked={form.authorizedRoles.includes(opt.value)}
                 onChange={(e) =>
-                  setForm((c) => ({
-                    ...c,
+                  setForm((current) => ({
+                    ...current,
                     authorizedRoles: e.target.checked
-                      ? [...c.authorizedRoles, opt.value]
-                      : c.authorizedRoles.filter((role) => role !== opt.value),
+                      ? [...current.authorizedRoles, opt.value]
+                      : current.authorizedRoles.filter((role) => role !== opt.value),
                   }))
                 }
               />

@@ -1,6 +1,7 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { ApprovalModule } from '../approval/approval.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { LototoModule } from '../lototo/lototo.module';
 import { PermitModule } from '../permit/permit.module';
 import { EvidenceController } from './evidence.controller';
 import { EvidenceService } from './evidence.service';
@@ -16,7 +17,7 @@ import { ProgressService } from './progress.service';
 import { StatusTransitionService } from './status-transition.service';
 
 @Module({
-  imports: [PermitModule, NotificationsModule, forwardRef(() => ApprovalModule)],
+  imports: [PermitModule, NotificationsModule, LototoModule, forwardRef(() => ApprovalModule)],
   controllers: [ExecutionController, ProgressController, EvidenceController],
   providers: [
     ExecutionService,

@@ -16,7 +16,6 @@ import {
 import { initExecutionOfflineStorage, queueOfflineEvidence, queueOfflineProgress } from "@/lib/execution/offline";
 import { getProfile } from "@/lib/auth/api";
 import { formatDateTime } from "@/lib/format";
-import { LototoRestoration } from "@/components/permit/lototo-restoration";
 import { getPermit } from "@/lib/permit/api";
 import type { PermitDetail } from "@/lib/permit/types";
 import { useTheme } from "@/providers/theme-provider";
@@ -255,13 +254,10 @@ export default function ExecutePermitScreen() {
         <Banner tone="success">Released for execution{permit.executionReleasedAt ? ` ${formatDateTime(permit.executionReleasedAt)}` : ""}.</Banner>
       ) : null}
       {permit.status === "execution_completed" && permit.lototoRequired && !lototoRestored ? (
-        <>
-          <Banner tone="warning">Work is complete. Verify energy restoration. The receiver is asked to check the work after restoration passes.</Banner>
-          <LototoRestoration permitId={permit.id} onRestored={() => setLototoRestored(true)} />
-        </>
+        <Banner tone="warning">Work is complete. A personal lock is still on. Take it off before this permit can close.</Banner>
       ) : null}
       {permit.status === "execution_completed" && (!permit.lototoRequired || lototoRestored) ? (
-        <Banner tone="success">Work is complete and sent for review and closure.</Banner>
+        <Banner tone="success">Work is complete and sent for review and closure. The plant can stay isolated until it is restored in LOTOTO.</Banner>
       ) : null}
 
       {isActive ? (

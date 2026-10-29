@@ -100,9 +100,15 @@ export default function PermitExecutionPage() {
     setStart(parseExecutionStart(permitDetail.permit.executionStart));
 
     if (permitDetail.permit.lototoRequired) {
-      const board = await getPermitLototoExecution(permitId);
-      setLototoIsolated(board.isolated);
-      setLototoRestored(board.restored);
+      const certificates = permitDetail.isolationCertificates ?? [];
+      if (certificates.length > 0) {
+        setLototoIsolated(certificates.every((certificate) => certificate.status === "isolated_verified"));
+        setLototoRestored(permitDetail.permit.lototoRestored === true);
+      } else {
+        const board = await getPermitLototoExecution(permitId);
+        setLototoIsolated(board.isolated);
+        setLototoRestored(permitDetail.permit.lototoRestored === true);
+      }
     } else {
       setLototoIsolated(true);
       setLototoRestored(true);
@@ -372,18 +378,17 @@ export default function PermitExecutionPage() {
       {permit.status === "execution_completed" ? (
         <p className="text-sm text-muted-foreground">
           {permit.lototoRequired && lototoRestored !== true
-            ? "Work is complete. Verify energy restoration. The receiver is asked to check the work after restoration passes."
-            : "Work is complete and sent for review and closure."}
+            ? "Work is complete. A personal lock is still on. Take it off before this permit can close."
+            : "Work is complete and sent for review and closure. The plant can stay isolated until it is restored in LOTOTO."}
         </p>
       ) : null}
 
-      {permit.lototoRequired && (isActive || permit.status === "execution_completed") ? (
+      {permit.lototoRequired && (detail?.isolationCertificates ?? []).length === 0 && (isActive || permit.status === "execution_completed") ? (
         <PermitLototoExecution
           permitId={permit.id}
           reloadKey={permit.status}
           onBoardChange={(board) => {
             setLototoIsolated(board.isolated);
-            setLototoRestored(board.restored);
           }}
         />
       ) : null}

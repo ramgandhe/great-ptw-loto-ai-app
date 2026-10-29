@@ -10,7 +10,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, arrayContains, desc, eq, inArray, ne, or } from 'drizzle-orm';
+import { and, arrayContains, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { generatePermitReference } from '../../database/permit-reference';
@@ -37,6 +37,9 @@ import {
   permitTemplates,
   lototoProcedureLockoutPoints,
   lototoProcedures,
+  isolationCertificates,
+  isolationCertificatePermits,
+  lockboxCrewLocks,
   gasTestingCatalogue,
   assets,
   siteMembers,
@@ -58,6 +61,7 @@ import {
   tenantUsers,
 } from '../../database/schema';
 import { allowedEnergyCodes } from '../lototo/energy-source-codes';
+import { cancelDraftCertificatesForPermit } from '../lototo/issue-permit-certificates';
 import { hazardFitsPermitType } from '../master-data/default-hazards';
 import { limitIsLooser } from '../master-data/gas-test-defaults';
 import { GasTestingService } from '../master-data/gas-testing.service';
@@ -160,6 +164,7 @@ export type PermitLototoDetail = {
   }>;
   crew: Array<{ workforceUserId: string }>;
   verifiers: Array<{ workforceUserId: string }>;
+  certificateId: string | null;
   verification: Array<{
     phase: string;
     result: string | null;
@@ -174,6 +179,12 @@ export interface PermitDetail {
   hazards: (typeof permitHazards.$inferSelect)[];
   ppe: (typeof permitPpe.$inferSelect)[];
   lototo: PermitLototoDetail[];
+  isolationCertificates: Array<{
+    id: string;
+    certificateNumber: string;
+    title: string;
+    status: string;
+  }>;
   gasTesting: (typeof permitGasTesting.$inferSelect)[];
   assets: (typeof permitAssets.$inferSelect)[];
   executors: (typeof permitExecutors.$inferSelect)[];
@@ -405,56 +416,24 @@ export class PermitService {
     return this.attachLototoRestored(withExecutors);
   }
 
-  /** True when LOTOTO is not required, or every attached procedure has a passing remove sequence. */
+  /** True when LOTOTO is not required, or this permit has no personal lock still on. */
   private async attachLototoRestored<T extends { id: string; lototoRequired: boolean }>(
     rows: T[],
   ): Promise<Array<T & { lototoRestored: boolean }>> {
     const needed = rows.filter((row) => row.lototoRequired).map((row) => row.id);
-    const passed = new Set<string>();
+    const locked = new Set<string>();
     if (needed.length > 0) {
-      const instances = await this.db
-        .select({ id: permitLototoInstances.id, permitId: permitLototoInstances.permitId })
-        .from(permitLototoInstances)
-        .where(inArray(permitLototoInstances.permitId, needed));
-      const byPermit = new Map<string, string[]>();
-      for (const instance of instances) {
-        const list = byPermit.get(instance.permitId) ?? [];
-        list.push(instance.id);
-        byPermit.set(instance.permitId, list);
-      }
-      const instanceIds = instances.map((row) => row.id);
-      const latest = new Map<string, { runNumber: number; result: string | null }>();
-      if (instanceIds.length > 0) {
-        const runs = await this.db
-          .select({
-            instanceId: permitLototoVerificationRuns.instanceId,
-            runNumber: permitLototoVerificationRuns.runNumber,
-            result: permitLototoVerificationRuns.result,
-          })
-          .from(permitLototoVerificationRuns)
-          .where(
-            and(
-              inArray(permitLototoVerificationRuns.instanceId, instanceIds),
-              eq(permitLototoVerificationRuns.phase, 'remove'),
-            ),
-          );
-        for (const run of runs) {
-          const current = latest.get(run.instanceId);
-          if (!current || run.runNumber > current.runNumber) {
-            latest.set(run.instanceId, { runNumber: run.runNumber, result: run.result });
-          }
-        }
-      }
-      for (const permitId of needed) {
-        const ids = byPermit.get(permitId) ?? [];
-        if (ids.length > 0 && ids.every((id) => latest.get(id)?.result === 'pass')) {
-          passed.add(permitId);
-        }
+      const locks = await this.db
+        .select({ permitId: lockboxCrewLocks.permitId })
+        .from(lockboxCrewLocks)
+        .where(and(inArray(lockboxCrewLocks.permitId, needed), isNull(lockboxCrewLocks.removedAt)));
+      for (const lock of locks) {
+        if (lock.permitId) locked.add(lock.permitId);
       }
     }
     return rows.map((row) => ({
       ...row,
-      lototoRestored: !row.lototoRequired || passed.has(row.id),
+      lototoRestored: !row.lototoRequired || !locked.has(row.id),
     }));
   }
 
@@ -487,6 +466,7 @@ export class PermitService {
       if (locked.permit.status !== 'draft') {
         throw new ConflictException('Only draft permits can be deleted');
       }
+      await cancelDraftCertificatesForPermit(tx, id, user.id);
       await tx.delete(permits).where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
       return locked;
     });
@@ -545,6 +525,7 @@ export class PermitService {
         await tx.delete(investigations).where(inArray(investigations.incidentId, incidentIds));
         await tx.delete(incidents).where(and(eq(incidents.tenantId, tenantId), inArray(incidents.id, incidentIds)));
       }
+      await cancelDraftCertificatesForPermit(tx, id, user.id);
       await tx.delete(permits).where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
       return { detail: locked, incidentIds, evidenceKeys: evidence.map((row) => row.storageKey) };
     });
@@ -1429,6 +1410,24 @@ export class PermitService {
 
     const ppe = await db.select().from(permitPpe).where(eq(permitPpe.permitId, id));
     const lototo = await this.loadLototoAttachments(db, id);
+    const isolationCertificatesOnPermit = await db
+      .select({
+        id: isolationCertificates.id,
+        certificateNumber: isolationCertificates.certificateNumber,
+        title: isolationCertificates.title,
+        status: isolationCertificates.status,
+      })
+      .from(isolationCertificatePermits)
+      .innerJoin(
+        isolationCertificates,
+        eq(isolationCertificatePermits.certificateId, isolationCertificates.id),
+      )
+      .where(
+        and(
+          eq(isolationCertificatePermits.permitId, id),
+          ne(isolationCertificatePermits.attachmentStatus, 'detached'),
+        ),
+      );
     const gasTesting = await db
       .select()
       .from(permitGasTesting)
@@ -1458,6 +1457,7 @@ export class PermitService {
       hazards,
       ppe,
       lototo,
+      isolationCertificates: isolationCertificatesOnPermit,
       gasTesting,
       assets: assetsOnPermit,
       executors,
@@ -1910,6 +1910,7 @@ export class PermitService {
       verifiers: verifiers
         .filter((row) => row.instanceId === instance.id)
         .map((row) => ({ workforceUserId: row.workforceUserId })),
+      certificateId: instance.certificateId,
       verification: verificationRuns
         .filter((row) => row.instanceId === instance.id && row.signedName)
         .map((row) => ({
@@ -1991,6 +1992,35 @@ export class PermitService {
       .from(lototoProcedureLockoutPoints)
       .where(inArray(lototoProcedureLockoutPoints.versionId, versionIds));
     const basePointIds = new Set(basePoints.map((point) => point.id));
+    const chosenIds = [...new Set(lototoItems.flatMap((item) => (item.certificateId ? [item.certificateId] : [])))];
+    const chosenCertificates =
+      chosenIds.length === 0
+        ? []
+        : await db
+            .select({
+              id: isolationCertificates.id,
+              certificateNumber: isolationCertificates.certificateNumber,
+              procedureId: isolationCertificates.procedureId,
+              status: isolationCertificates.status,
+            })
+            .from(isolationCertificates)
+            .where(
+              and(eq(isolationCertificates.tenantId, tenantId), inArray(isolationCertificates.id, chosenIds)),
+            );
+    const certificateById = new Map(chosenCertificates.map((row) => [row.id, row]));
+    for (const item of lototoItems) {
+      if (!item.certificateId) continue;
+      const certificate = certificateById.get(item.certificateId);
+      if (!certificate) {
+        throw new BadRequestException('Selected isolation was not found');
+      }
+      if (certificate.status === 'closed') {
+        throw new BadRequestException(`${certificate.certificateNumber} is closed`);
+      }
+      if (certificate.procedureId !== item.procedureId) {
+        throw new BadRequestException(`${certificate.certificateNumber} belongs to a different procedure`);
+      }
+    }
 
     for (const item of lototoItems) {
       const procedure = byId.get(item.procedureId)!;
@@ -2000,6 +2030,7 @@ export class PermitService {
           permitId,
           procedureId: procedure.id,
           procedureVersionId: procedure.publishedVersionId!,
+          certificateId: item.certificateId ?? null,
           createdBy: userId,
           updatedBy: userId,
         })

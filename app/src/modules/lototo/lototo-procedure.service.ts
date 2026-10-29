@@ -32,6 +32,7 @@ import {
 } from './dto/lototo-procedure.dto';
 import { assertAllowedEnergyType } from './energy-source-codes';
 import { LototoValidationService } from './lototo-validation.service';
+import { LOTOTO_ISOLATION_METHODS, proofsForEnergy } from './lototo-point';
 
 @Injectable()
 export class LototoProcedureService {
@@ -78,6 +79,7 @@ export class LototoProcedureService {
             workstationId: dto.workstationId,
             code: dto.code.trim(),
             title: dto.title.trim(),
+            reviewDueOn: dto.reviewDueOn ?? null,
             status: 'draft',
             createdBy: optionalUuid(user.id),
             updatedBy: optionalUuid(user.id),
@@ -203,6 +205,7 @@ export class LototoProcedureService {
             workstationId: dto.workstationId ?? procedure.workstationId,
             code: dto.code?.trim() ?? procedure.code,
             title: dto.title?.trim() ?? procedure.title,
+            reviewDueOn: dto.reviewDueOn === undefined ? procedure.reviewDueOn : dto.reviewDueOn,
             updatedBy: optionalUuid(user.id),
             updatedAt: new Date(),
           })
@@ -253,6 +256,8 @@ export class LototoProcedureService {
     if (!draft) {
       throw new ConflictException('No unpublished version to publish');
     }
+    const content = await this.loadVersionContent(this.db, draft.id);
+    this.assertReadyToPublish(content.lockoutPoints);
 
     await this.db
       .update(lototoProcedureVersions)
@@ -334,8 +339,15 @@ export class LototoProcedureService {
             energyOtherText: point.energyOtherText ?? undefined,
             magnitude: point.magnitude ?? undefined,
             locationText: point.locationText ?? undefined,
+            method: (point.method ?? undefined) as LototoLockoutPointDto['method'],
+            normalPosition: point.normalPosition ?? undefined,
+            isolatedPosition: point.isolatedPosition ?? undefined,
             action: point.action ?? undefined,
+            restoreAction: point.restoreAction ?? undefined,
             device: point.device ?? undefined,
+            proof: (point.proof ?? undefined) as LototoLockoutPointDto['proof'],
+            drawingReference: point.drawingReference ?? undefined,
+            removeOrder: point.removeOrder ?? undefined,
             verificationMethod: point.verificationMethod ?? undefined,
           })),
           sequenceSteps: published.sequenceSteps.map((step) => ({
@@ -720,6 +732,77 @@ export class LototoProcedureService {
     return row;
   }
 
+  private assertReadyToPublish(
+    points: Array<{
+      pointCode: string;
+      energyType: string;
+      method: string | null;
+      action: string | null;
+      restoreAction: string | null;
+      proof: string | null;
+    }>,
+  ) {
+    if (points.length === 0) {
+      throw new BadRequestException('Add at least one isolation point before publishing');
+    }
+    for (const point of points) {
+      const missing: string[] = [];
+      if (!point.method || !LOTOTO_ISOLATION_METHODS.includes(point.method as (typeof LOTOTO_ISOLATION_METHODS)[number])) {
+        missing.push('a method');
+      }
+      if (!point.action?.trim()) missing.push('how to isolate it');
+      if (!point.restoreAction?.trim()) missing.push('how to restore it');
+      if (!point.proof) missing.push('a proof');
+      if (missing.length > 0) {
+        throw new BadRequestException(`Point ${point.pointCode} needs ${missing.join(', ')}`);
+      }
+      const allowed = proofsForEnergy(point.energyType);
+      if (!point.proof || !allowed.some((item) => item === point.proof)) {
+        throw new BadRequestException(`Point ${point.pointCode} uses a proof that does not match its energy`);
+      }
+    }
+  }
+
+  private stepsFromPoints(
+    points: Array<{
+      sortOrder: number;
+      removeOrder: number | null;
+      pointCode: string;
+      device: string | null;
+      action: string | null;
+      restoreAction: string | null;
+      proof: string | null;
+    }>,
+  ) {
+    const apply = [...points].sort((a, b) => a.sortOrder - b.sortOrder);
+    const remove = points.every((point) => point.removeOrder == null)
+      ? [...apply].reverse()
+      : [...points].sort((a, b) => {
+          if (a.removeOrder == null && b.removeOrder == null) return a.sortOrder - b.sortOrder;
+          if (a.removeOrder == null) return 1;
+          if (b.removeOrder == null) return -1;
+          return a.removeOrder - b.removeOrder || a.sortOrder - b.sortOrder;
+        });
+    const titleOf = (point: { pointCode: string; device: string | null }) =>
+      [point.pointCode, point.device].filter(Boolean).join(' ').slice(0, 255);
+    return [
+      ...apply.map((point, index) => ({
+        phase: 'apply' as const,
+        sequenceOrder: index + 1,
+        title: titleOf(point),
+        action: point.action,
+        verification: point.proof,
+      })),
+      ...remove.map((point, index) => ({
+        phase: 'remove' as const,
+        sequenceOrder: index + 1,
+        title: titleOf(point),
+        action: point.restoreAction,
+        verification: point.proof,
+      })),
+    ];
+  }
+
   private async assertEnergyTypes(tenantId: string, points: { energyType: string }[] | undefined) {
     if (!points?.length) return;
     for (const point of points) {
@@ -778,8 +861,15 @@ export class LototoProcedureService {
             energyOtherText: point.energyOtherText,
             magnitude: point.magnitude,
             locationText: point.locationText,
+            method: point.method,
+            normalPosition: point.normalPosition,
+            isolatedPosition: point.isolatedPosition,
             action: point.action,
+            restoreAction: point.restoreAction,
             device: point.device,
+            proof: point.proof,
+            drawingReference: point.drawingReference,
+            removeOrder: point.removeOrder,
             verificationMethod: point.verificationMethod,
             createdBy: optionalUuid(userId),
             updatedBy: optionalUuid(userId),
@@ -799,6 +889,22 @@ export class LototoProcedureService {
           .update(lototoProcedurePhotos)
           .set({ lockoutPointId: point.id, updatedBy: optionalUuid(userId) })
           .where(eq(lototoProcedurePhotos.id, photo.id));
+      }
+      if (dto.sequenceSteps === undefined) {
+        await tx
+          .delete(lototoProcedureSequenceSteps)
+          .where(eq(lototoProcedureSequenceSteps.versionId, versionId));
+        const generated = this.stepsFromPoints(newPoints);
+        if (generated.length > 0) {
+          await tx.insert(lototoProcedureSequenceSteps).values(
+            generated.map((step) => ({
+              versionId,
+              ...step,
+              createdBy: optionalUuid(userId),
+              updatedBy: optionalUuid(userId),
+            })),
+          );
+        }
       }
     }
 
