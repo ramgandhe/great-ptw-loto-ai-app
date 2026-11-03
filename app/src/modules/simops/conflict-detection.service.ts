@@ -16,6 +16,11 @@ export type PermitForAnalysis = {
   plannedStartAt: Date | null;
   plannedEndAt: Date | null;
   status: string;
+  /**
+   * True when an attached isolation is under sanctioned test / temporarily open.
+   * A tight locked isolation alone does not set this.
+   */
+  openIsolationRisk?: boolean;
 };
 
 export type LocationWarning = {
@@ -98,22 +103,26 @@ export function detectPairConflict(
 
   const equipmentConflict = sharesEquipment(a, b);
   const locationConflict = sharesLocation(a, b);
+  const openIsolation =
+    Boolean(a.openIsolationRisk || b.openIsolationRisk) && (equipmentConflict || locationConflict);
 
   if (!equipmentConflict && !locationConflict) {
     return null;
   }
 
   const conflictType: ConflictType = equipmentConflict ? 'equipment' : 'location';
-  const severity: ConflictSeverity = equipmentConflict ? 'high' : 'medium';
+  const severity: ConflictSeverity = openIsolation || equipmentConflict ? 'high' : 'medium';
 
   const overlapStart = new Date(
     Math.max(a.plannedStartAt!.getTime(), b.plannedStartAt!.getTime()),
   );
   const overlapEnd = new Date(Math.min(a.plannedEndAt!.getTime(), b.plannedEndAt!.getTime()));
 
-  const summary = equipmentConflict
-    ? 'Overlapping permits share equipment during the same schedule window.'
-    : 'Overlapping permits share a work location during the same schedule window.';
+  const summary = openIsolation
+    ? 'Nearby work overlaps an isolation that is under test or temporarily open.'
+    : equipmentConflict
+      ? 'Overlapping permits share equipment during the same schedule window.'
+      : 'Overlapping permits share a work location during the same schedule window.';
 
   const fingerprint = buildFingerprint(a.id, b.id, conflictType);
 
@@ -130,6 +139,7 @@ export function detectPairConflict(
         'schedule',
         ...(equipmentConflict ? ['equipment'] : []),
         ...(locationConflict ? ['location'] : []),
+        ...(openIsolation ? ['open_isolation'] : []),
       ],
       permits: [
         { id: a.id, reference: a.reference, title: a.title },

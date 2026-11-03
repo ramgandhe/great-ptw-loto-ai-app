@@ -142,3 +142,18 @@ export function removeLototoPointPhoto(procedureId: string, pointId: string) {
     method: "DELETE",
   });
 }
+
+export function recordLototoProcedureInspection(
+  procedureId: string,
+  payload: {
+    result: "pass" | "needs_revision";
+    employeesObserved?: string;
+    notes?: string;
+    nextDueOn?: string;
+  },
+) {
+  return fetchApi<LototoProcedure>(`/lototo/procedures/${procedureId}/inspections`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

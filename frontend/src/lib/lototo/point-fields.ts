@@ -7,6 +7,7 @@ export const ISOLATION_METHODS = [
   { value: "vent", label: "Vent" },
   { value: "drain", label: "Drain" },
   { value: "blind", label: "Blind" },
+  { value: "tag_only", label: "Tag only (not lockable)" },
 ] as const;
 
 export const PROOF_LABELS: Record<string, string> = {

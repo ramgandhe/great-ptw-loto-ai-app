@@ -121,6 +121,10 @@ export class TransitionIsolationCertificateDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsUUID()
+  secondApproverId?: string;
 }
 
 export class ApplyCertificatePointDto {
@@ -129,10 +133,10 @@ export class ApplyCertificatePointDto {
   @MaxLength(128)
   positionConfirmed!: string;
 
+  @IsOptional()
   @IsString()
-  @MinLength(1)
   @MaxLength(64)
-  lockNumber!: string;
+  lockNumber?: string;
 
   @IsString()
   @MinLength(1)

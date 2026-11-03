@@ -6,11 +6,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   approvalHistory,
+  isolationCertificatePermits,
+  isolationCertificates,
+  isolationSanctionTests,
   permitAssets,
   permitHazards,
   permitLototo,
@@ -661,10 +664,50 @@ export class SimopsService {
       }
       return chain;
     };
+    const links = await this.db
+      .select({
+        permitId: isolationCertificatePermits.permitId,
+        status: isolationCertificates.status,
+        certificateId: isolationCertificates.id,
+      })
+      .from(isolationCertificatePermits)
+      .innerJoin(
+        isolationCertificates,
+        eq(isolationCertificatePermits.certificateId, isolationCertificates.id),
+      )
+      .where(
+        and(
+          inArray(isolationCertificatePermits.permitId, ids),
+          ne(isolationCertificatePermits.attachmentStatus, 'detached'),
+        ),
+      );
+    const openTests = links.length
+      ? await this.db
+          .select({ certificateId: isolationSanctionTests.certificateId })
+          .from(isolationSanctionTests)
+          .where(
+            and(
+              inArray(
+                isolationSanctionTests.certificateId,
+                [...new Set(links.map((row) => row.certificateId))],
+              ),
+              eq(isolationSanctionTests.status, 'in_test'),
+            ),
+          )
+      : [];
+    const underTest = new Set(openTests.map((row) => row.certificateId));
+    const openRiskByPermit = new Set<string>();
+    for (const link of links) {
+      if (link.status === 'sanction_for_test' || underTest.has(link.certificateId)) {
+        openRiskByPermit.add(link.permitId);
+      }
+    }
+
     return rows.map((row) => ({
       ...row,
       assetIds: assetsOf.get(row.id) ?? [],
       locationChain: chainOf(row.workLocationId ?? row.workstationId ?? row.locationId),
+      openIsolationRisk: openRiskByPermit.has(row.id),
     }));
   }
 

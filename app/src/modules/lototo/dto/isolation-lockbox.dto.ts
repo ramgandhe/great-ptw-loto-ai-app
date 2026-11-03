@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsOptional,
   IsString,
   IsUUID,
@@ -57,4 +58,23 @@ export class ReleaseLockboxDto {
   @IsOptional()
   @IsString()
   notes?: string;
+}
+
+export class RemoveAbsentLockDto {
+  @IsString()
+  @MinLength(1)
+  contactAttempts!: string;
+
+  @IsBoolean()
+  clearOfPlantConfirmed!: boolean;
+
+  @IsUUID()
+  authoriserOneId!: string;
+
+  @IsUUID()
+  authoriserTwoId!: string;
+
+  @IsString()
+  @MinLength(1)
+  reason!: string;
 }

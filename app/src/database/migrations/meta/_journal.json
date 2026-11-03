@@ -715,6 +715,20 @@
       "when": 1795600000000,
       "tag": "0099_isolation_custody",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1795700000000,
+      "tag": "0100_lototo_evidence_and_options",
+      "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1795800000000,
+      "tag": "0101_lototo_procedure_inspections",
+      "breakpoints": true
     }
   ]
 }

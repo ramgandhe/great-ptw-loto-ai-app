@@ -226,6 +226,35 @@ export class CanonicalNotificationService {
         recipients: listed,
       };
     }
+    if (action === 'absent_lock_removed') {
+      const lockNo =
+        typeof metadata?.personalLockNumber === 'string' ? metadata.personalLockNumber : 'your personal lock';
+      return {
+        title: `${lockNo} was removed while you were absent`,
+        body: `Your personal lock (${lockNo}) was removed under the absent-owner exception. Check with the isolation authority before your next job.`,
+        entityType: 'isolation_certificate',
+        category: 'workflow',
+        recipients: listed,
+      };
+    }
+    if (action === 'isolation_restored') {
+      return {
+        title: `${number} has been restored`,
+        body: `${number} is restored. Energy may return to the plant.`,
+        entityType: 'isolation_certificate',
+        category: 'workflow',
+        recipients: listed,
+      };
+    }
+    if (action === 'isolation_under_test') {
+      return {
+        title: `${number} is under test`,
+        body: `${number} has opened points for a sanctioned test. Stay clear unless you are on that test.`,
+        entityType: 'isolation_certificate',
+        category: 'workflow',
+        recipients: listed,
+      };
+    }
     return {
       title: `LOTOTO activity: ${action.replace(/_/g, ' ')}`,
       body: 'LOTOTO plan requires attention for permit-linked isolation work.',

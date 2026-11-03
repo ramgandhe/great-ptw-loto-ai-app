@@ -244,7 +244,23 @@ function PermitWorkspace() {
             {(detail.isolationCertificates ?? []).length > 0 ? (
               <section aria-label="Isolations" className="grid gap-3 rounded-[10px] border border-border bg-card p-5">
                 <h2 className="text-sm font-semibold">Isolations</h2>
-                {(detail.isolationCertificates ?? []).map((certificate) => (
+                {(detail.isolationCertificates ?? []).map((certificate) => {
+                  const verified =
+                    certificate.status === "isolated_verified" || certificate.status === "sanction_for_test";
+                  const restoring =
+                    certificate.status === "restoration_in_progress" || certificate.status === "restored_verified";
+                  const workDone =
+                    permit.status === "execution_completed" ||
+                    permit.status === "pending_closure" ||
+                    permit.status === "closed";
+                  const actionLabel = workDone && (verified || restoring)
+                    ? "Open restoration"
+                    : verified
+                      ? "Apply my personal lock"
+                      : certificate.status === "isolation_in_progress"
+                        ? "Continue isolation"
+                        : "Isolate";
+                  return (
                   <div key={certificate.id} className="grid gap-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
@@ -252,12 +268,14 @@ function PermitWorkspace() {
                         <p className="text-sm text-muted-foreground">
                           {certificate.title} · {certificateStatusLabel(certificate.status)}
                         </p>
+                        {verified ? (
+                          <p className="mt-1 text-sm">
+                            Apply steps are already passed on this isolation. Add your personal lock before you work, and take it off when you are clear.
+                          </p>
+                        ) : null}
                       </div>
                       <Link href={`/lototo/certificates/${certificate.id}`} className={buttonVariants({ size: "lg" })}>
-                        {(permit.status === "execution_completed" || permit.status === "pending_closure" || permit.status === "closed") &&
-                        (certificate.status === "isolated_verified" || certificate.status === "sanction_for_test" || certificate.status === "restoration_in_progress")
-                          ? "Restore now"
-                          : "Isolate"}
+                        {actionLabel}
                       </Link>
                     </div>
                     <PersonalLocks
@@ -266,7 +284,8 @@ function PermitWorkspace() {
                       canOpen={hasAnyRole(roles, CERTIFICATE_WRITE_ROLES)}
                     />
                   </div>
-                ))}
+                  );
+                })}
               </section>
             ) : null}
             {permit.status === "execution_completed" ? (
@@ -310,10 +329,10 @@ function PermitWorkspace() {
                   Delete draft
                 </Button>
               ) : null}
-              {permit.machineryId && tabs.includes("work") ? (
-                <Link href={`/lototo?new=1&machineryId=${permit.machineryId}`} className={buttonVariants({ variant: "ghost", size: "lg" })}>
+              {tabs.includes("work") ? (
+                <Link href="/lototo/procedures" className={buttonVariants({ variant: "ghost", size: "lg" })}>
                   <LockKeyhole aria-hidden />
-                  Configure LOTOTO
+                  LOTOTO procedures
                 </Link>
               ) : null}
             </section>

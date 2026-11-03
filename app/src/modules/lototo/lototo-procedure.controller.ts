@@ -127,6 +127,28 @@ export class LototoProcedureController {
     return this.procedureService.removeStepPhoto(id, stepId, user);
   }
 
+  @Roles(...LOTOTO_LIBRARY_READ_ROLES)
+  @Get(':id/inspections')
+  listInspections(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.procedureService.listInspections(id, user);
+  }
+
+  @Roles(...LOTOTO_LIBRARY_WRITE_ROLES, 'safety-officer')
+  @Post(':id/inspections')
+  recordInspection(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body()
+    body: {
+      result: 'pass' | 'needs_revision';
+      employeesObserved?: string;
+      notes?: string;
+      nextDueOn?: string;
+    },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.procedureService.recordInspection(id, body, user);
+  }
+
   @Roles(...LOTOTO_LIBRARY_WRITE_ROLES)
   @Delete(':id')
   remove(

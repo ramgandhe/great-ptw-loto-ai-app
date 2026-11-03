@@ -165,12 +165,45 @@ export function CertificateCustody({
                 }}
               >
                 <p>{openTest.testReason}</p>
+                {(() => {
+                  const started = openTest.startedAt ? new Date(openTest.startedAt).getTime() : 0;
+                  const opened = openTest.pointsTemporarilyDeisolated ?? [];
+                  const waiting = points.filter((point) => {
+                    if (!opened.includes(point.id)) return false;
+                    return !point.proofs.some(
+                      (proof) => proof.result === "pass" && new Date(proof.verifiedAt).getTime() >= started,
+                    );
+                  });
+                  return waiting.length > 0 ? (
+                    <p className="text-sm">
+                      Re-prove these opened points on the isolation job before finishing:{" "}
+                      {waiting.map((point) => point.pointCode).join(", ")}.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Opened points have a new passing proof.</p>
+                  );
+                })()}
                 <label className="flex items-start gap-2">
                   <input type="checkbox" className="mt-1" checked={provedAgain} onChange={(event) => setProvedAgain(event.target.checked)} />
                   <span>Zero energy is proved again on the opened points</span>
                 </label>
                 <div>
-                  <Button type="submit" disabled={busy || !provedAgain}>{busy ? "Saving…" : "Finish the test"}</Button>
+                  <Button
+                    type="submit"
+                    disabled={
+                      busy ||
+                      !provedAgain ||
+                      (openTest.pointsTemporarilyDeisolated ?? []).some((pointId) => {
+                        const point = points.find((row) => row.id === pointId);
+                        const started = openTest.startedAt ? new Date(openTest.startedAt).getTime() : 0;
+                        return !point?.proofs.some(
+                          (proof) => proof.result === "pass" && new Date(proof.verifiedAt).getTime() >= started,
+                        );
+                      })
+                    }
+                  >
+                    {busy ? "Saving…" : "Finish the test"}
+                  </Button>
                 </div>
               </form>
             ) : (

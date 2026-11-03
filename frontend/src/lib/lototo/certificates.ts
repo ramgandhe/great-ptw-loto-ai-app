@@ -16,6 +16,12 @@ export type IsolationPointProof = {
   verifiedAt: string;
 };
 
+export type IsolationInfoPhoto = {
+  id: string;
+  fileName: string;
+  url: string;
+};
+
 export type IsolationCertificatePoint = {
   id: string;
   sortOrder: number;
@@ -39,6 +45,27 @@ export type IsolationCertificatePoint = {
   appliedAt: string | null;
   restoredAt: string | null;
   proofs: IsolationPointProof[];
+  infoPhoto?: IsolationInfoPhoto | null;
+  evidence?: Array<{
+    id: string;
+    kind: string;
+    proofId: string | null;
+    fileName: string;
+    url: string;
+    uploadedAt: string;
+  }>;
+};
+
+export type IsolationCertificateSequenceStep = {
+  id: string;
+  phase: string;
+  sequenceOrder: number;
+  title: string;
+  action: string | null;
+  infoText: string | null;
+  verification: string | null;
+  note: string | null;
+  infoPhoto?: IsolationInfoPhoto | null;
 };
 
 export type IsolationCertificate = {
@@ -50,6 +77,12 @@ export type IsolationCertificate = {
   asset: { name: string; tag?: string | null } | null;
   workLocation: { name: string; pathText?: string | null } | null;
   points: IsolationCertificatePoint[];
+  sequenceSteps?: IsolationCertificateSequenceStep[];
+  options?: {
+    requireEvidencePhoto: boolean;
+    requireDistinctProver: boolean;
+    requireSecondApprovalBeforeIsolate: boolean;
+  };
 };
 
 export type IsolationCertificateListRow = {
@@ -59,10 +92,15 @@ export type IsolationCertificateListRow = {
     title: string;
     status: string;
     procedureId: string | null;
+    isLongTerm?: boolean;
+    nextAuditDueDate?: string | null;
   };
   assetName: string | null;
   assetTag: string | null;
   locationName: string | null;
+  attachedPermitCount?: number;
+  underTest?: boolean;
+  walkOverdue?: boolean;
 };
 
 export type CreateIsolationCertificatePayload = {
@@ -101,8 +139,25 @@ export function pointPassed(point: IsolationCertificatePoint) {
   return point.proofs.some((proof) => proof.result === "pass");
 }
 
+export type LototoTenantOptions = {
+  requireEvidencePhoto: boolean;
+  requireDistinctProver: boolean;
+  requireSecondApprovalBeforeIsolate: boolean;
+};
+
 export function listIsolationCertificates() {
   return fetchApi<IsolationCertificateListRow[]>("/lototo/certificates");
+}
+
+export function getLototoOptions() {
+  return fetchApi<LototoTenantOptions>("/lototo/certificates/options");
+}
+
+export function saveLototoOptions(payload: Partial<LototoTenantOptions>) {
+  return fetchApi<LototoTenantOptions>("/lototo/certificates/options", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function getIsolationCertificate(id: string) {
@@ -116,17 +171,21 @@ export function createIsolationCertificate(payload: CreateIsolationCertificatePa
   });
 }
 
-export function transitionIsolationCertificate(id: string, status: string) {
+export function transitionIsolationCertificate(
+  id: string,
+  status: string,
+  extra?: { secondApproverId?: string; notes?: string },
+) {
   return fetchApi<IsolationCertificate>(`/lototo/certificates/${id}/transition`, {
     method: "PATCH",
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, ...extra }),
   });
 }
 
 export function applyCertificatePoint(
   certificateId: string,
   pointId: string,
-  payload: { positionConfirmed: string; lockNumber: string; tagNumber: string },
+  payload: { positionConfirmed: string; lockNumber?: string; tagNumber: string },
 ) {
   return fetchApi<IsolationCertificate>(`/lototo/certificates/${certificateId}/points/${pointId}/apply`, {
     method: "POST",
@@ -157,4 +216,18 @@ export function restoreCertificatePoint(certificateId: string, pointId: string) 
     method: "POST",
     body: JSON.stringify({}),
   });
+}
+
+export function uploadCertificateEvidence(
+  certificateId: string,
+  pointId: string,
+  kind: "apply" | "proof" | "restore",
+  file: File,
+) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return fetchApi<{ id: string; kind: string; fileName: string; url: string }>(
+    `/lototo/certificates/${certificateId}/points/${pointId}/evidence?kind=${kind}`,
+    { method: "POST", body: formData },
+  );
 }

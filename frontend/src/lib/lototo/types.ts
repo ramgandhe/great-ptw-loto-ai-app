@@ -148,6 +148,16 @@ export type LototoProcedureVersion = {
   authorizedRoles: string[];
 };
 
+export type LototoProcedureInspection = {
+  id: string;
+  inspectedAt: string;
+  inspectorId: string;
+  result: string;
+  employeesObserved: string | null;
+  notes: string | null;
+  nextDueOn: string | null;
+};
+
 export type LototoProcedure = {
   id: string;
   machineryId: string | null;
@@ -162,6 +172,7 @@ export type LototoProcedure = {
   versions: { id: string; versionNumber: number; publishedAt: string | null }[];
   publishedVersion: LototoProcedureVersion | null;
   draftVersion: LototoProcedureVersion | null;
+  inspections?: LototoProcedureInspection[];
 };
 
 export type LototoProcedureListItem = {
@@ -185,8 +196,12 @@ export type LototoProcedurePayload = {
   code: string;
   title: string;
   reviewDueOn?: string | null;
+  purpose?: string;
+  scope?: string;
+  authorization?: string;
   note?: string;
   lockoutPoints?: LototoLockoutPoint[];
+  sequenceSteps?: LototoSequenceStep[];
   authorizedRoles?: string[];
 };
 

@@ -9,8 +9,10 @@ import {
   getPersonalLocks,
   openLockbox,
   releaseLockbox,
+  removeAbsentPersonalLock,
   removePersonalLock,
   sealLockbox,
+  type PersonalLock,
   type PersonalLocks,
 } from "@/lib/lototo/personal-locks";
 
@@ -40,6 +42,12 @@ export function PersonalLocks({
   const [place, setPlace] = useState("");
   const [lockNumber, setLockNumber] = useState("");
   const [permitId, setPermitId] = useState("");
+  const [absentLock, setAbsentLock] = useState<PersonalLock | null>(null);
+  const [contactAttempts, setContactAttempts] = useState("");
+  const [authoriserOneId, setAuthoriserOneId] = useState("");
+  const [authoriserTwoId, setAuthoriserTwoId] = useState("");
+  const [absentReason, setAbsentReason] = useState("");
+  const [clearOfPlant, setClearOfPlant] = useState(false);
 
   function load() {
     return getPersonalLocks(certificateId).then(setDetail);
@@ -73,7 +81,9 @@ export function PersonalLocks({
   }
 
   if (!detail) return error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null;
-  if (detail.personCount < 2 && !detail.lockbox) return null;
+  const shared =
+    detail.personCount >= 2 || (detail.attachedPermitCount ?? 0) >= 2 || Boolean(detail.lockbox);
+  if (!shared) return null;
 
   const mine = detail.locks.find((lock) => lock.workforceUserId === profile?.id && !lock.removedAt);
   const stillOn = detail.locks.filter((lock) => !lock.removedAt);
@@ -141,13 +151,71 @@ export function PersonalLocks({
             <p className="text-muted-foreground">Waiting for the device keys to be sealed in the box.</p>
           ) : null}
           {stillOn.length > 0 ? (
-            <ul className="grid gap-1">
+            <ul className="grid gap-2">
               {stillOn.map((lock) => (
-                <li key={lock.id}>{lock.workerName} · {lock.personalLockNumber}</li>
+                <li key={lock.id} className="flex flex-wrap items-center justify-between gap-2">
+                  <span>{lock.workerName} · {lock.personalLockNumber}</span>
+                  {canOpen && lock.workforceUserId !== profile?.id ? (
+                    <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setAbsentLock(lock)}>
+                      Absent-owner removal
+                    </Button>
+                  ) : null}
+                </li>
               ))}
             </ul>
           ) : sealed ? (
             <p className="text-muted-foreground">No personal lock is on the box.</p>
+          ) : null}
+          {absentLock && detail.lockbox ? (
+            <form
+              className="grid gap-3 rounded-lg border border-border p-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void run(async () => {
+                  await removeAbsentPersonalLock(detail.lockbox!.id, absentLock.id, {
+                    contactAttempts: contactAttempts.trim(),
+                    clearOfPlantConfirmed: clearOfPlant,
+                    authoriserOneId: authoriserOneId.trim(),
+                    authoriserTwoId: authoriserTwoId.trim(),
+                    reason: absentReason.trim(),
+                  });
+                  setAbsentLock(null);
+                  setContactAttempts("");
+                  setAuthoriserOneId("");
+                  setAuthoriserTwoId("");
+                  setAbsentReason("");
+                  setClearOfPlant(false);
+                });
+              }}
+            >
+              <p className="text-sm font-medium">
+                Remove {absentLock.workerName}&apos;s lock #{absentLock.personalLockNumber} (exception record)
+              </p>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Attempts to reach the owner</span>
+                <textarea className={`${FIELD} min-h-16`} value={contactAttempts} onChange={(event) => setContactAttempts(event.target.value)} required />
+              </label>
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" className="mt-1" checked={clearOfPlant} onChange={(event) => setClearOfPlant(event.target.checked)} />
+                <span>Owner is confirmed clear of the plant</span>
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Authoriser one (user id)</span>
+                <input className={FIELD} value={authoriserOneId} onChange={(event) => setAuthoriserOneId(event.target.value)} required />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Authoriser two (user id)</span>
+                <input className={FIELD} value={authoriserTwoId} onChange={(event) => setAuthoriserTwoId(event.target.value)} required />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Reason</span>
+                <input className={FIELD} value={absentReason} onChange={(event) => setAbsentReason(event.target.value)} required />
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" disabled={busy || !clearOfPlant}>{busy ? "Saving…" : "Record exception and remove"}</Button>
+                <Button type="button" variant="outline" disabled={busy} onClick={() => setAbsentLock(null)}>Cancel</Button>
+              </div>
+            </form>
           ) : null}
           {sealed && mine ? (
             <div>

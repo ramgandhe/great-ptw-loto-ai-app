@@ -138,7 +138,7 @@ export function LototoAttachFields({
             ))}
           </AppSelect>
           <p className="text-xs text-muted-foreground">
-            Extra points are recorded on the isolation by the isolator.
+            Pick an existing isolation to share it. Apply steps already passed stay passed; this permit adds its own personal lock. Extra points are recorded on the isolation by the isolator.
           </p>
         </FormField>
       ) : null}

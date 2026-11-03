@@ -14,6 +14,7 @@ import {
   isolationCertificatePoints,
   isolationCertificates,
   isolationLtiWalks,
+  isolationPointProofs,
   isolationSanctionTests,
   isolationShiftHandovers,
 } from '../../database/schema';
@@ -121,6 +122,7 @@ export class IsolationCustodyService {
       tenantId,
       metadata: { certificateId, pointIds: dto.pointIds },
     });
+    await this.certificates?.notifyAffected(certificate, user.id, 'isolation_under_test');
     return test;
   }
 
@@ -136,6 +138,41 @@ export class IsolationCustodyService {
       .where(and(eq(isolationSanctionTests.id, testId), eq(isolationSanctionTests.certificateId, certificateId)));
     if (!test) throw new NotFoundException('Test not found');
     if (test.status !== 'in_test') throw new ConflictException('This test is already finished');
+
+    const openedIds = (test.pointsTemporarilyDeisolated ?? []) as string[];
+    if (openedIds.length > 0) {
+      const proofs = await this.db
+        .select({
+          pointId: isolationPointProofs.pointId,
+          result: isolationPointProofs.result,
+          verifiedAt: isolationPointProofs.verifiedAt,
+        })
+        .from(isolationPointProofs)
+        .where(
+          and(
+            eq(isolationPointProofs.certificateId, certificateId),
+            inArray(isolationPointProofs.pointId, openedIds),
+          ),
+        );
+      const missing = openedIds.filter((pointId) => {
+        return !proofs.some(
+          (proof) =>
+            proof.pointId === pointId &&
+            proof.result === 'pass' &&
+            proof.verifiedAt.getTime() >= test.startedAt.getTime(),
+        );
+      });
+      if (missing.length > 0) {
+        const points = await this.db
+          .select({ id: isolationCertificatePoints.id, pointCode: isolationCertificatePoints.pointCode })
+          .from(isolationCertificatePoints)
+          .where(inArray(isolationCertificatePoints.id, missing));
+        const codes = points.map((point) => point.pointCode).join(', ');
+        throw new ConflictException(
+          `Record a new passing proof on the opened points before finishing the test: ${codes || missing.join(', ')}`,
+        );
+      }
+    }
 
     const now = new Date();
     const [updated] = await this.db

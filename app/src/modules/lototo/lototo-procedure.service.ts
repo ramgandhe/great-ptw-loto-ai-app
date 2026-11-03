@@ -13,6 +13,7 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   lototoProcedureAuthorizedRoles,
+  lototoProcedureInspections,
   lototoProcedureLockoutPoints,
   lototoProcedurePhotos,
   lototoProcedureSequenceSteps,
@@ -1033,6 +1034,75 @@ export class LototoProcedureService {
     };
   }
 
+  async listInspections(procedureId: string, user: AuthenticatedUser) {
+    const tenantId = this.validationService.requireTenant(user);
+    await this.requireProcedure(procedureId, tenantId);
+    return this.db
+      .select()
+      .from(lototoProcedureInspections)
+      .where(
+        and(
+          eq(lototoProcedureInspections.procedureId, procedureId),
+          eq(lototoProcedureInspections.tenantId, tenantId),
+        ),
+      )
+      .orderBy(desc(lototoProcedureInspections.inspectedAt));
+  }
+
+  async recordInspection(
+    procedureId: string,
+    dto: {
+      result: 'pass' | 'needs_revision';
+      employeesObserved?: string;
+      notes?: string;
+      nextDueOn?: string;
+    },
+    user: AuthenticatedUser,
+  ) {
+    const tenantId = this.validationService.requireTenant(user);
+    const procedure = await this.requireProcedure(procedureId, tenantId);
+    if (!['pass', 'needs_revision'].includes(dto.result)) {
+      throw new BadRequestException('Inspection result must be pass or needs_revision');
+    }
+    const [row] = await this.db
+      .insert(lototoProcedureInspections)
+      .values({
+        tenantId,
+        procedureId,
+        procedureVersionId: procedure.publishedVersionId,
+        inspectorId: user.id,
+        result: dto.result,
+        employeesObserved: dto.employeesObserved?.trim() || null,
+        notes: dto.notes?.trim() || null,
+        nextDueOn: dto.nextDueOn?.slice(0, 10) || null,
+        createdBy: optionalUuid(user.id),
+        updatedBy: optionalUuid(user.id),
+      })
+      .returning();
+
+    if (dto.nextDueOn) {
+      await this.db
+        .update(lototoProcedures)
+        .set({
+          reviewDueOn: dto.nextDueOn.slice(0, 10),
+          updatedBy: optionalUuid(user.id),
+          updatedAt: new Date(),
+        })
+        .where(eq(lototoProcedures.id, procedureId));
+    }
+
+    await this.auditService.log({
+      action: 'lototo.procedure.inspected',
+      entityType: 'lototo_procedure_inspection',
+      entityId: row.id,
+      userId: optionalUuid(user.id),
+      tenantId,
+      metadata: { procedureId, result: dto.result },
+    });
+
+    return this.assemble(this.db, procedureId, tenantId);
+  }
+
   private async assemble(
     db: Pick<Database, 'select'>,
     procedureId: string,
@@ -1062,6 +1132,16 @@ export class LototoProcedureService {
     const draftContent = draft
       ? await this.loadVersionContent(db, draft.id)
       : { lockoutPoints: [], sequenceSteps: [], authorizedRoles: [] };
+    const inspections = await db
+      .select()
+      .from(lototoProcedureInspections)
+      .where(
+        and(
+          eq(lototoProcedureInspections.procedureId, procedureId),
+          eq(lototoProcedureInspections.tenantId, tenantId),
+        ),
+      )
+      .orderBy(desc(lototoProcedureInspections.inspectedAt));
 
     return {
       ...procedure,
@@ -1072,6 +1152,7 @@ export class LototoProcedureService {
       })),
       publishedVersion: published ? { ...published, ...publishedContent } : null,
       draftVersion: draft ? { ...draft, ...draftContent } : null,
+      inspections,
     };
   }
 }

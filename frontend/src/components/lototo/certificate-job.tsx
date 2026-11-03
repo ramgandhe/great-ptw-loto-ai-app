@@ -21,8 +21,10 @@ import {
   recordCertificateProof,
   restoreCertificatePoint,
   transitionIsolationCertificate,
+  uploadCertificateEvidence,
   type IsolationCertificate,
   type IsolationCertificatePoint,
+  type IsolationCertificateSequenceStep,
 } from "@/lib/lototo/certificates";
 
 const FIELD =
@@ -58,46 +60,82 @@ function PointFacts({ point }: { point: IsolationCertificatePoint }) {
     ? point.energyOtherText
     : energyLabel(point.energyType);
   return (
-    <dl className="grid gap-2 text-sm sm:grid-cols-2">
-      <div>
-        <dt className="text-muted-foreground">Energy</dt>
-        <dd>{energy}{point.magnitude ? ` · ${point.magnitude}` : ""}</dd>
-      </div>
-      <div>
-        <dt className="text-muted-foreground">Method</dt>
-        <dd>{methodLabel(point.method)} · {PROOF_LABELS[point.proof] ?? point.proof}</dd>
-      </div>
-      {point.locationText ? (
+    <div className="grid gap-3">
+      <dl className="grid gap-2 text-sm sm:grid-cols-2">
         <div>
-          <dt className="text-muted-foreground">Where</dt>
-          <dd>{point.locationText}</dd>
+          <dt className="text-muted-foreground">Energy</dt>
+          <dd>{energy}{point.magnitude ? ` · ${point.magnitude}` : ""}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Method</dt>
+          <dd>{methodLabel(point.method)} · {PROOF_LABELS[point.proof] ?? point.proof}</dd>
+        </div>
+        {point.locationText ? (
+          <div>
+            <dt className="text-muted-foreground">Where</dt>
+            <dd>{point.locationText}</dd>
+          </div>
+        ) : null}
+        {point.device ? (
+          <div>
+            <dt className="text-muted-foreground">Device</dt>
+            <dd>{point.device}</dd>
+          </div>
+        ) : null}
+        <div className="sm:col-span-2">
+          <dt className="text-muted-foreground">Isolate</dt>
+          <dd>{point.action || "No instruction recorded"}</dd>
+        </div>
+        {point.restoreAction ? (
+          <div className="sm:col-span-2">
+            <dt className="text-muted-foreground">Restore</dt>
+            <dd>{point.restoreAction}</dd>
+          </div>
+        ) : null}
+        <div>
+          <dt className="text-muted-foreground">Normal position</dt>
+          <dd>{point.normalPosition || "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Isolated position</dt>
+          <dd>{point.isolatedPosition || "—"}</dd>
+        </div>
+        {point.drawingReference ? (
+          <div>
+            <dt className="text-muted-foreground">Drawing</dt>
+            <dd>{point.drawingReference}</dd>
+          </div>
+        ) : null}
+      </dl>
+      {point.infoPhoto?.url ? (
+        <figure className="grid gap-1">
+          <figcaption className="text-xs text-muted-foreground">Procedure info photo</figcaption>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={point.infoPhoto.url}
+            alt={point.infoPhoto.fileName || `Info for ${point.pointCode}`}
+            className="max-h-48 w-fit rounded-md border border-border object-contain"
+          />
+        </figure>
+      ) : null}
+      {(point.evidence?.length ?? 0) > 0 ? (
+        <div className="grid gap-2">
+          <p className="text-xs text-muted-foreground">Evidence photos</p>
+          <div className="flex flex-wrap gap-2">
+            {point.evidence!.map((item) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={item.id}
+                src={item.url}
+                alt={`${item.kind} evidence`}
+                title={`${item.kind} · ${item.fileName}`}
+                className="max-h-24 w-fit rounded-md border border-border object-contain"
+              />
+            ))}
+          </div>
         </div>
       ) : null}
-      {point.device ? (
-        <div>
-          <dt className="text-muted-foreground">Device</dt>
-          <dd>{point.device}</dd>
-        </div>
-      ) : null}
-      <div className="sm:col-span-2">
-        <dt className="text-muted-foreground">Isolate</dt>
-        <dd>{point.action || "No instruction recorded"}</dd>
-      </div>
-      <div>
-        <dt className="text-muted-foreground">Normal position</dt>
-        <dd>{point.normalPosition || "—"}</dd>
-      </div>
-      <div>
-        <dt className="text-muted-foreground">Isolated position</dt>
-        <dd>{point.isolatedPosition || "—"}</dd>
-      </div>
-      {point.drawingReference ? (
-        <div>
-          <dt className="text-muted-foreground">Drawing</dt>
-          <dd>{point.drawingReference}</dd>
-        </div>
-      ) : null}
-    </dl>
+    </div>
   );
 }
 
@@ -124,39 +162,140 @@ function PointSummary({ points }: { points: IsolationCertificatePoint[] }) {
   );
 }
 
+function SequenceGuidance({
+  steps,
+  phase,
+}: {
+  steps: IsolationCertificateSequenceStep[];
+  phase: "apply" | "remove";
+}) {
+  const rows = steps
+    .filter((step) => step.phase === phase)
+    .sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+  if (rows.length === 0) return null;
+  return (
+    <section className="grid gap-3 rounded-xl border border-border bg-card p-4">
+      <h2 className="text-sm font-semibold">{phase === "apply" ? "Apply sequence (info)" : "Remove sequence (info)"}</h2>
+      <ol className="grid gap-3">
+        {rows.map((step) => (
+          <li key={step.id} className="grid gap-2 text-sm">
+            <p className="font-medium">
+              {step.sequenceOrder}. {step.title}
+            </p>
+            {step.infoText ? <p className="text-muted-foreground">{step.infoText}</p> : null}
+            {step.action ? <p>{step.action}</p> : null}
+            {step.note ? <p className="text-muted-foreground">{step.note}</p> : null}
+            {step.infoPhoto?.url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={step.infoPhoto.url}
+                alt={step.infoPhoto.fileName || step.title}
+                className="max-h-40 w-fit rounded-md border border-border object-contain"
+              />
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function EvidenceField({
+  required,
+  file,
+  onChange,
+}: {
+  required: boolean;
+  file: File | null;
+  onChange: (file: File | null) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-sm">
+      <span className="font-medium">Evidence photo{required ? "" : " (optional)"}</span>
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        required={required}
+        onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+      />
+      {file ? <span className="text-xs text-muted-foreground">{file.name}</span> : null}
+    </label>
+  );
+}
+
+function RestoreForm({
+  busy,
+  requireEvidence,
+  onRestore,
+}: {
+  busy: boolean;
+  requireEvidence: boolean;
+  onRestore: (evidence: File | null) => void;
+}) {
+  const [evidence, setEvidence] = useState<File | null>(null);
+  return (
+    <form
+      className="grid gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onRestore(evidence);
+      }}
+    >
+      <EvidenceField required={requireEvidence} file={evidence} onChange={setEvidence} />
+      <div>
+        <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Restore this point"}</Button>
+      </div>
+    </form>
+  );
+}
+
 function ApplyForm({
   point,
   busy,
+  requireEvidence,
   onApply,
 }: {
   point: IsolationCertificatePoint;
   busy: boolean;
-  onApply: (payload: { positionConfirmed: string; lockNumber: string; tagNumber: string }) => void;
+  requireEvidence: boolean;
+  onApply: (payload: { positionConfirmed: string; lockNumber: string; tagNumber: string; evidence?: File | null }) => void;
 }) {
   const [positionConfirmed, setPositionConfirmed] = useState(point.isolatedPosition ?? "");
   const [lockNumber, setLockNumber] = useState("");
   const [tagNumber, setTagNumber] = useState("");
+  const [evidence, setEvidence] = useState<File | null>(null);
+  const tagOnly = point.method === "tag_only";
 
   return (
     <form
       className="grid gap-3"
       onSubmit={(event) => {
         event.preventDefault();
-        onApply({ positionConfirmed: positionConfirmed.trim(), lockNumber: lockNumber.trim(), tagNumber: tagNumber.trim() });
+        onApply({
+          positionConfirmed: positionConfirmed.trim(),
+          lockNumber: lockNumber.trim(),
+          tagNumber: tagNumber.trim(),
+          evidence,
+        });
       }}
     >
       <label className="grid gap-1 text-sm">
         <span className="font-medium">Position confirmed</span>
         <input className={FIELD} value={positionConfirmed} onChange={(event) => setPositionConfirmed(event.target.value)} required />
       </label>
-      <label className="grid gap-1 text-sm">
-        <span className="font-medium">Lock number</span>
-        <input className={FIELD} value={lockNumber} onChange={(event) => setLockNumber(event.target.value)} required />
-      </label>
+      {tagOnly ? (
+        <p className="text-sm text-muted-foreground">Tag-only point. A lock number is not required.</p>
+      ) : (
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium">Lock number</span>
+          <input className={FIELD} value={lockNumber} onChange={(event) => setLockNumber(event.target.value)} required />
+        </label>
+      )}
       <label className="grid gap-1 text-sm">
         <span className="font-medium">Tag number</span>
         <input className={FIELD} value={tagNumber} onChange={(event) => setTagNumber(event.target.value)} required />
       </label>
+      <EvidenceField required={requireEvidence} file={evidence} onChange={setEvidence} />
       <div>
         <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Apply this point"}</Button>
       </div>
@@ -193,23 +332,30 @@ function proofGap(proof: string, readings: Record<string, unknown>, instrument: 
 function ProofForm({
   point,
   busy,
+  requireEvidence,
   onRecord,
 }: {
   point: IsolationCertificatePoint;
   busy: boolean;
-  onRecord: (result: "pass" | "fail", body: {
-    readings: Record<string, unknown>;
-    instrumentMakeModel?: string;
-    instrumentSerialNo?: string;
-    calibrationExpiryDate?: string;
-    comment?: string;
-  }) => void;
+  requireEvidence: boolean;
+  onRecord: (
+    result: "pass" | "fail",
+    body: {
+      readings: Record<string, unknown>;
+      instrumentMakeModel?: string;
+      instrumentSerialNo?: string;
+      calibrationExpiryDate?: string;
+      comment?: string;
+      evidence?: File | null;
+    },
+  ) => void;
 }) {
   const [readings, setReadings] = useState<Record<string, unknown>>({});
   const [instrument, setInstrument] = useState("");
   const [serial, setSerial] = useState("");
   const [calibration, setCalibration] = useState("");
   const [comment, setComment] = useState("");
+  const [evidence, setEvidence] = useState<File | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const flag = (key: string) => readings[key] === true;
 
@@ -220,6 +366,7 @@ function ProofForm({
       instrumentSerialNo: serial.trim() || undefined,
       calibrationExpiryDate: calibration || undefined,
       comment: comment.trim() || undefined,
+      evidence,
     };
   }
 
@@ -231,6 +378,10 @@ function ProofForm({
         const gap = proofGap(point.proof, readings, instrument, serial, calibration);
         if (gap) {
           setLocalError(gap);
+          return;
+        }
+        if (requireEvidence && !evidence) {
+          setLocalError("Upload an evidence photo before this proof can pass.");
           return;
         }
         setLocalError(null);
@@ -297,6 +448,7 @@ function ProofForm({
         <span className="font-medium">Comment</span>
         <input className={FIELD} value={comment} onChange={(event) => setComment(event.target.value)} />
       </label>
+      <EvidenceField required={requireEvidence} file={evidence} onChange={setEvidence} />
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Pass"}</Button>
         <Button
@@ -319,6 +471,7 @@ export function CertificateJob({ id }: { id: string }) {
   const [certificate, setCertificate] = useState<IsolationCertificate | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [secondApproverId, setSecondApproverId] = useState("");
 
   useEffect(() => {
     getIsolationCertificate(id)
@@ -349,7 +502,13 @@ export function CertificateJob({ id }: { id: string }) {
         status = "approved";
       }
       if (status === "approved") {
-        await transitionIsolationCertificate(id, "isolation_in_progress");
+        const needSecond = certificate.options?.requireSecondApprovalBeforeIsolate;
+        if (needSecond && !secondApproverId.trim()) {
+          throw new ApiError("Enter the second approver user id before starting isolation.");
+        }
+        await transitionIsolationCertificate(id, "isolation_in_progress", {
+          secondApproverId: needSecond ? secondApproverId.trim() : undefined,
+        });
       }
       setCertificate(await getIsolationCertificate(id));
     } catch (err) {
@@ -382,6 +541,7 @@ export function CertificateJob({ id }: { id: string }) {
   const place = certificate.asset?.name || certificate.workLocation?.pathText || certificate.workLocation?.name || "";
   const proved = points.filter(pointPassed).length;
   const latestFail = current?.proofs[current.proofs.length - 1]?.result === "fail";
+  const requireEvidence = Boolean(certificate.options?.requireEvidencePhoto);
 
   return (
     <main className="flex flex-1 flex-col gap-6 px-4 pb-8 sm:px-8">
@@ -401,7 +561,19 @@ export function CertificateJob({ id }: { id: string }) {
       {beforeStart && points.length > 0 ? (
         <section className="grid max-w-3xl gap-4">
           <p className="text-sm text-muted-foreground">{points.length} points copied from the procedure. Apply them in order, then prove each one.</p>
+          <SequenceGuidance steps={certificate.sequenceSteps ?? []} phase="apply" />
           <PointSummary points={points} />
+          {canProve && certificate.options?.requireSecondApprovalBeforeIsolate ? (
+            <label className="grid max-w-md gap-1 text-sm">
+              <span className="font-medium">Second approver (user id)</span>
+              <input
+                className={FIELD}
+                value={secondApproverId}
+                onChange={(event) => setSecondApproverId(event.target.value)}
+                placeholder="Required by site rule before isolation starts"
+              />
+            </label>
+          ) : null}
           {canProve ? (
             <div>
               <Button type="button" disabled={busy} onClick={() => void startIsolation()}>
@@ -418,6 +590,7 @@ export function CertificateJob({ id }: { id: string }) {
             <p className="text-sm text-muted-foreground">{proved} proved · {current.pointCode}</p>
           </div>
           {latestFail ? <p className="text-sm">The last proof on this point failed. Record a passing proof to move on.</p> : null}
+          <SequenceGuidance steps={certificate.sequenceSteps ?? []} phase="apply" />
           <div className="rounded-xl border border-border bg-card p-4">
             <PointFacts point={current} />
           </div>
@@ -427,7 +600,14 @@ export function CertificateJob({ id }: { id: string }) {
                 key={current.id}
                 point={current}
                 busy={busy}
-                onRecord={(result, body) => void run(() => recordCertificateProof(id, current.id, { result, ...body }))}
+                requireEvidence={requireEvidence}
+                onRecord={(result, body) =>
+                  void run(async () => {
+                    const { evidence, ...payload } = body;
+                    if (evidence) await uploadCertificateEvidence(id, current.id, "proof", evidence);
+                    return recordCertificateProof(id, current.id, { result, ...payload });
+                  })
+                }
               />
             ) : (
               <p className="text-sm text-muted-foreground">Applied. A prover records the result.</p>
@@ -437,7 +617,14 @@ export function CertificateJob({ id }: { id: string }) {
               key={current.id}
               point={current}
               busy={busy}
-              onApply={(payload) => void run(() => applyCertificatePoint(id, current.id, payload))}
+              requireEvidence={requireEvidence}
+              onApply={(payload) =>
+                void run(async () => {
+                  const { evidence, ...body } = payload;
+                  if (evidence) await uploadCertificateEvidence(id, current.id, "apply", evidence);
+                  return applyCertificatePoint(id, current.id, body);
+                })
+              }
             />
           ) : (
             <p className="text-sm text-muted-foreground">Waiting for this point to be applied.</p>
@@ -460,6 +647,7 @@ export function CertificateJob({ id }: { id: string }) {
       {readyToRestore && points.length > 0 ? (
         <section className="grid max-w-3xl gap-4">
           <p className="text-sm">Every point is proved. The plant stays isolated until restoration, and restoration waits until every attached permit has finished.</p>
+          <SequenceGuidance steps={certificate.sequenceSteps ?? []} phase="remove" />
           <PointSummary points={points} />
           {canApply ? (
             <div>
@@ -476,15 +664,21 @@ export function CertificateJob({ id }: { id: string }) {
             <p className="text-lg font-semibold">Restore {nextRestore.pointCode}</p>
             <p className="text-sm text-muted-foreground">{nextRestore.restoreAction || "Return this device to its normal position and remove the lock."}</p>
           </div>
+          <SequenceGuidance steps={certificate.sequenceSteps ?? []} phase="remove" />
           <div className="rounded-xl border border-border bg-card p-4">
             <PointFacts point={nextRestore} />
           </div>
           {canApply ? (
-            <div>
-              <Button type="button" disabled={busy} onClick={() => void run(() => restoreCertificatePoint(id, nextRestore.id))}>
-                {busy ? "Saving…" : "Restore this point"}
-              </Button>
-            </div>
+            <RestoreForm
+              busy={busy}
+              requireEvidence={requireEvidence}
+              onRestore={(evidence) =>
+                void run(async () => {
+                  if (evidence) await uploadCertificateEvidence(id, nextRestore.id, "restore", evidence);
+                  return restoreCertificatePoint(id, nextRestore.id);
+                })
+              }
+            />
           ) : (
             <p className="text-sm text-muted-foreground">Waiting for the isolation authority to restore this point.</p>
           )}

@@ -464,3 +464,28 @@ export const permitLototoRestorationVerifications = pgTable(
   },
   (table) => [index('permit_lototo_restoration_verifications_instance_id_idx').on(table.instanceId)],
 );
+
+/** OSHA periodic / annual inspection of an energy-control procedure. */
+export const lototoProcedureInspections = pgTable(
+  'lototo_procedure_inspections',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    procedureId: uuid('procedure_id')
+      .notNull()
+      .references(() => lototoProcedures.id, { onDelete: 'cascade' }),
+    procedureVersionId: uuid('procedure_version_id').references(() => lototoProcedureVersions.id, {
+      onDelete: 'set null',
+    }),
+    inspectedAt: timestamp('inspected_at', { withTimezone: true }).notNull().defaultNow(),
+    inspectorId: uuid('inspector_id').notNull(),
+    result: varchar('result', { length: 32 }).notNull(),
+    employeesObserved: text('employees_observed'),
+    notes: text('notes'),
+    nextDueOn: varchar('next_due_on', { length: 10 }),
+  },
+  (table) => [
+    index('lototo_procedure_inspections_procedure_id_idx').on(table.procedureId),
+    index('lototo_procedure_inspections_tenant_id_idx').on(table.tenantId),
+  ],
+);

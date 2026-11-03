@@ -24,6 +24,7 @@ export * from './isolation-lockbox';
 export * from './isolation-blinds';
 export * from './isolation-sanction-test';
 export * from './isolation-custody';
+export * from './isolation-evidence';
 export * from './simops';
 export * from './multi-day';
 export * from './multi-day-revalidation';

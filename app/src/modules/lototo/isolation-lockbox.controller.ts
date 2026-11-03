@@ -14,6 +14,7 @@ import {
   ApplyPersonalLockDto,
   CreateLockboxDto,
   ReleaseLockboxDto,
+  RemoveAbsentLockDto,
   SealLockboxDto,
 } from './dto/isolation-lockbox.dto';
 import { LOTOTO_LIBRARY_READ_ROLES, LOTOTO_WRITE_ROLES } from './lototo.constants';
@@ -98,6 +99,17 @@ export class IsolationLockboxController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.lockboxService.removePersonalLock(lockboxId, lockId, user);
+  }
+
+  @Roles(...LOTOTO_WRITE_ROLES, 'safety-officer')
+  @Post('lockboxes/:lockboxId/crew-locks/:lockId/absent-removal')
+  removeAbsentPersonalLock(
+    @Param('lockboxId', ParseUUIDPipe) lockboxId: string,
+    @Param('lockId', ParseUUIDPipe) lockId: string,
+    @Body() dto: RemoveAbsentLockDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.lockboxService.removeAbsentPersonalLock(lockboxId, lockId, dto, user);
   }
 
   @Roles(...LOTOTO_LIBRARY_READ_ROLES)

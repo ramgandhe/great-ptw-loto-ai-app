@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -11,6 +12,7 @@ import { optionalUuid } from '../../common/helpers/optional-uuid';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
+  isolationAbsentLockRemovals,
   isolationCertificatePermits,
   isolationCertificates,
   isolationLockboxes,
@@ -25,10 +27,12 @@ import {
   ApplyPersonalLockDto,
   CreateLockboxDto,
   ReleaseLockboxDto,
+  RemoveAbsentLockDto,
   SealLockboxDto,
 } from './dto/isolation-lockbox.dto';
 import { IsolationCertificateService } from './isolation-certificate.service';
 import { LototoValidationService } from './lototo-validation.service';
+import { NotificationService } from './notification.service';
 
 @Injectable()
 export class IsolationLockboxService {
@@ -37,6 +41,7 @@ export class IsolationLockboxService {
     private readonly validationService: LototoValidationService,
     private readonly auditService: AuditService,
     @Optional() private readonly certificates?: IsolationCertificateService,
+    @Optional() private readonly notifications?: NotificationService,
   ) {}
 
   async createLockbox(
@@ -393,6 +398,107 @@ export class IsolationLockboxService {
     return removed;
   }
 
+  /** OSHA exception: remove another person's lock when they are absent. Never a silent delete. */
+  async removeAbsentPersonalLock(
+    lockboxId: string,
+    lockId: string,
+    dto: RemoveAbsentLockDto,
+    user: AuthenticatedUser,
+  ) {
+    const tenantId = this.validationService.requireTenant(user);
+    const lockbox = await this.requireLockbox(lockboxId, tenantId);
+    if (!dto.clearOfPlantConfirmed) {
+      throw new BadRequestException('Confirm the owner is clear of the plant');
+    }
+    if (!dto.authoriserOneId || !dto.authoriserTwoId || dto.authoriserOneId === dto.authoriserTwoId) {
+      throw new BadRequestException('Two different authorisers are required');
+    }
+
+    const [lock] = await this.db
+      .select()
+      .from(lockboxCrewLocks)
+      .where(
+        and(
+          eq(lockboxCrewLocks.id, lockId),
+          eq(lockboxCrewLocks.lockboxId, lockboxId),
+          eq(lockboxCrewLocks.tenantId, tenantId),
+        ),
+      );
+    if (!lock) throw new NotFoundException('Personal lock record not found on this lockbox');
+    if (lock.removedAt) throw new ConflictException('Personal lock has already been removed');
+    if (lock.workforceUserId === user.id) {
+      throw new ConflictException('Use the normal remove for your own lock');
+    }
+
+    const now = new Date();
+    const [removed] = await this.db
+      .update(lockboxCrewLocks)
+      .set({
+        removedAt: now,
+        removedBy: optionalUuid(user.id),
+        updatedBy: optionalUuid(user.id),
+        updatedAt: now,
+      })
+      .where(eq(lockboxCrewLocks.id, lockId))
+      .returning();
+
+    const [exception] = await this.db
+      .insert(isolationAbsentLockRemovals)
+      .values({
+        tenantId,
+        certificateId: lockbox.certificateId,
+        lockboxId,
+        crewLockId: lock.id,
+        ownerUserId: lock.workforceUserId,
+        ownerName: lock.workerName,
+        personalLockNumber: lock.personalLockNumber,
+        contactAttempts: dto.contactAttempts.trim(),
+        clearOfPlantConfirmed: true,
+        authoriserOneId: dto.authoriserOneId,
+        authoriserTwoId: dto.authoriserTwoId,
+        reason: dto.reason.trim(),
+        removedAt: now,
+        removedBy: user.id,
+        ownerNotifiedAt: now,
+        createdBy: optionalUuid(user.id),
+        updatedBy: optionalUuid(user.id),
+      })
+      .returning();
+
+    await this.auditService.log({
+      action: 'lototo.lockbox.absent_lock_removed',
+      entityType: 'isolation_absent_lock_removal',
+      entityId: exception.id,
+      userId: optionalUuid(user.id),
+      tenantId,
+      metadata: {
+        lockboxId,
+        lockId,
+        ownerUserId: lock.workforceUserId,
+        personalLockNumber: lock.personalLockNumber,
+      },
+    });
+
+    try {
+      await this.notifications?.enqueuePlanningNotification({
+        planId: lockbox.certificateId,
+        tenantId,
+        action: 'absent_lock_removed',
+        actorId: user.id,
+        metadata: {
+          recipientIds: [lock.workforceUserId],
+          personalLockNumber: lock.personalLockNumber,
+          certificateId: lockbox.certificateId,
+        },
+      });
+    } catch {
+      // Exception record stays even if the notice fails.
+    }
+
+    await this.certificates?.notifyReady(lockbox.certificateId, user.id);
+    return { lock: removed, exception };
+  }
+
   async getLockboxRoster(lockboxId: string, user: AuthenticatedUser) {
     const tenantId = this.validationService.requireTenant(user);
     await this.requireLockbox(lockboxId, tenantId);
@@ -489,7 +595,13 @@ export class IsolationLockboxService {
           .orderBy(desc(lockboxCrewLocks.appliedAt))
       : [];
 
-    return { personCount: people.size, myPermits, lockbox, locks };
+    return {
+      personCount: people.size,
+      attachedPermitCount: permitIds.length,
+      myPermits,
+      lockbox,
+      locks,
+    };
   }
 
   private async assertPermitOnCertificate(certificateId: string, permitId: string, tenantId: string) {

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
+import { router } from "expo-router";
 import { AppText, Banner, Card, ChipRow, EmptyState, PageHeader, RefChip, Screen, SectionTitle } from "@/components/ui";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
 import { listIsolationCertificates, type IsolationCertificateListRow } from "@/lib/lototo/api";
 import { useTheme } from "@/providers/theme-provider";
 
@@ -48,7 +49,11 @@ export default function LototoScreen() {
           <EmptyState title="No isolations yet" body="Start an isolation from a published procedure." />
         ) : (
           rows.map((row) => (
-            <Card key={row.certificate.id} accessibilityLabel={row.certificate.title}>
+            <Card
+              key={row.certificate.id}
+              accessibilityLabel={row.certificate.title}
+              onPress={() => router.push(`/lototo/${row.certificate.id}`)}
+            >
               <AppText variant="subheading">{row.certificate.title}</AppText>
               <ChipRow>
                 <RefChip reference={row.certificate.certificateNumber} />

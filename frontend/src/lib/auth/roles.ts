@@ -136,6 +136,9 @@ export const LOTOTO_READ_ROLES = [
 
 export const LOTOTO_WRITE_ROLES = ["permit-approver", "tenant-owner", "tenant-admin", "platform-admin"] as const;
 
+/** Site LOTOTO rule switches — tenant admins only. */
+export const LOTOTO_OPTIONS_WRITE_ROLES = ORGANISATION_WRITE_ROLES;
+
 export const CERTIFICATE_WRITE_ROLES = [...LOTOTO_WRITE_ROLES, "permit-operator"] as const;
 
 export const ISOLATION_READ_ROLES = [

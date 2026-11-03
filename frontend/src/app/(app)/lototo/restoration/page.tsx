@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
-export default function LototoRestorationIndexRedirect() {
+/** Legacy restoration list. Use the isolation board instead. */
+export default function LegacyLototoRestorationRedirect() {
   redirect("/lototo");
 }

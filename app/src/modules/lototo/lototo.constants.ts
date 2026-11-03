@@ -1,3 +1,9 @@
+export const LOTOTO_OPTIONS_WRITE_ROLES = [
+  'tenant-owner',
+  'tenant-admin',
+  'platform-admin',
+] as const;
+
 export const LOTOTO_WRITE_ROLES = [
   'permit-approver',
   'tenant-owner', 'tenant-admin',

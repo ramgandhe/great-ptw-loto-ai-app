@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
-export default function LototoHistoryRedirect() {
+/** Legacy history screen. Use the isolation certificate job instead. */
+export default function LegacyLototoHistoryRedirect() {
   redirect("/lototo");
 }

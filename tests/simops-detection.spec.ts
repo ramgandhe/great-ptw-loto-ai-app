@@ -8,10 +8,9 @@ import {
   excludeResolvedOverlaps,
   isParentChildLocation,
   schedulesOverlap,
-  type PermitForAnalysis,
 } from '../app/src/modules/simops/conflict-detection.service';
 
-function permit(overrides: Partial<PermitForAnalysis> = {}): PermitForAnalysis {
+function permit(overrides = {}) {
   const start = new Date('2026-08-01T08:00:00.000Z');
   const end = new Date('2026-08-01T16:00:00.000Z');
 
@@ -163,6 +162,33 @@ describe('SIMOPS conflict detection (PUS-166)', () => {
     const clusters = clusterConflicts(conflicts);
     expect(clusters).toHaveLength(1);
     expect(clusters[0].permitIds).toHaveLength(3);
+  });
+
+  it('raises high severity when nearby work overlaps an open isolation under test', () => {
+    const workstationId = randomUUID();
+    const a = permit({ workstationId, machineryId: randomUUID(), openIsolationRisk: true });
+    const b = permit({
+      id: randomUUID(),
+      workstationId,
+      machineryId: randomUUID(),
+    });
+    const conflict = detectPairConflict(a, b);
+    expect(conflict?.severity).toBe('high');
+    expect(conflict?.details.reasons).toContain('open_isolation');
+    expect(conflict?.summary).toMatch(/under test|temporarily open/i);
+  });
+
+  it('does not flag open isolation when only a tight locked isolation is present', () => {
+    const workstationId = randomUUID();
+    const a = permit({ workstationId, machineryId: randomUUID(), openIsolationRisk: false });
+    const b = permit({
+      id: randomUUID(),
+      workstationId,
+      machineryId: randomUUID(),
+    });
+    const conflict = detectPairConflict(a, b);
+    expect(conflict?.severity).toBe('medium');
+    expect(conflict?.details.reasons).not.toContain('open_isolation');
   });
 
   it('does not reopen a pair already on a resolved case', () => {

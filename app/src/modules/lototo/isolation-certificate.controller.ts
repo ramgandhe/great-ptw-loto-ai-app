@@ -8,10 +8,14 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
+import { UploadedFilePayload } from '../permit/uploaded-file.interface';
 import {
   ApplyCertificatePointDto,
   CreateIsolationCertificateDto,
@@ -19,7 +23,11 @@ import {
   TransitionIsolationCertificateDto,
   UpdateIsolationCertificateDto,
 } from './dto/isolation-certificate.dto';
-import { LOTOTO_LIBRARY_READ_ROLES, LOTOTO_WRITE_ROLES } from './lototo.constants';
+import {
+  LOTOTO_LIBRARY_READ_ROLES,
+  LOTOTO_OPTIONS_WRITE_ROLES,
+  LOTOTO_WRITE_ROLES,
+} from './lototo.constants';
 import { IsolationCertificateService } from './isolation-certificate.service';
 
 @Controller('lototo/certificates')
@@ -30,6 +38,26 @@ export class IsolationCertificateController {
   @Post()
   create(@Body() dto: CreateIsolationCertificateDto, @CurrentUser() user: AuthenticatedUser) {
     return this.certificateService.create(dto, user);
+  }
+
+  @Roles(...LOTOTO_LIBRARY_READ_ROLES)
+  @Get('options')
+  getOptions(@CurrentUser() user: AuthenticatedUser) {
+    return this.certificateService.getOptions(user);
+  }
+
+  @Roles(...LOTOTO_OPTIONS_WRITE_ROLES)
+  @Patch('options')
+  saveOptions(
+    @Body()
+    body: {
+      requireEvidencePhoto?: boolean;
+      requireDistinctProver?: boolean;
+      requireSecondApprovalBeforeIsolate?: boolean;
+    },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.certificateService.saveOptions(body, user);
   }
 
   @Roles(...LOTOTO_LIBRARY_READ_ROLES)
@@ -107,6 +135,20 @@ export class IsolationCertificateController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.certificateService.restorePoint(id, pointId, user);
+  }
+
+  @Roles(...LOTOTO_WRITE_ROLES, 'permit-operator', 'safety-officer')
+  @Post(':id/points/:pointId/evidence')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  uploadEvidence(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('pointId', ParseUUIDPipe) pointId: string,
+    @Query('kind') kind: string,
+    @UploadedFile() file: UploadedFilePayload,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const evidenceKind = kind === 'restore' || kind === 'proof' ? kind : 'apply';
+    return this.certificateService.uploadPointEvidence(id, pointId, evidenceKind, file, user);
   }
 
   @Roles(...LOTOTO_LIBRARY_READ_ROLES)

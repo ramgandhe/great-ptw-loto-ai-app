@@ -19,6 +19,7 @@ export type PersonalLockBox = {
 
 export type PersonalLocks = {
   personCount: number;
+  attachedPermitCount?: number;
   myPermits: Array<{ id: string; reference: string | null; title: string }>;
   lockbox: PersonalLockBox | null;
   locks: PersonalLock[];
@@ -65,5 +66,22 @@ export function applyPersonalLock(
 export function removePersonalLock(lockboxId: string, lockId: string) {
   return fetchApi<PersonalLock>(`/lototo/lockboxes/${lockboxId}/crew-locks/${lockId}`, {
     method: "DELETE",
+  });
+}
+
+export function removeAbsentPersonalLock(
+  lockboxId: string,
+  lockId: string,
+  payload: {
+    contactAttempts: string;
+    clearOfPlantConfirmed: boolean;
+    authoriserOneId: string;
+    authoriserTwoId: string;
+    reason: string;
+  },
+) {
+  return fetchApi(`/lototo/lockboxes/${lockboxId}/crew-locks/${lockId}/absent-removal`, {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }

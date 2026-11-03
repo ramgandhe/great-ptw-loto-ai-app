@@ -13,6 +13,7 @@ export type IsolationTest = {
   id: string;
   testReason: string;
   status: string;
+  startedAt?: string;
   pointsTemporarilyDeisolated: string[];
 };
 

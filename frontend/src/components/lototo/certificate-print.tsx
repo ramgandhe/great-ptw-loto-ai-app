@@ -96,6 +96,9 @@ export function IsolationPrint({
             <p className="mt-2 text-sm">Lock {point.lockNumber || "—"}</p>
             <p className="text-sm">Tag {point.tagNumber || "—"}</p>
             <p className="mt-3 text-sm">{certificate.certificateNumber}</p>
+            <p className="mt-2 text-xs break-all">
+              Signed-in link: /lototo/certificates/{certificate.id}
+            </p>
           </article>
         ))}
       </div>

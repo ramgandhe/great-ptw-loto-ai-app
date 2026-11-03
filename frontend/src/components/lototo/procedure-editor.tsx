@@ -21,12 +21,20 @@ import {
   getLototoProcedure,
   publishLototoProcedure,
   reactivateLototoProcedure,
+  recordLototoProcedureInspection,
   removeLototoPointPhoto,
+  removeLototoStepPhoto,
   reviseLototoProcedure,
   updateLototoProcedure,
   uploadLototoPointPhoto,
+  uploadLototoStepPhoto,
 } from "@/lib/lototo/api";
-import type { LototoLockoutPoint, LototoProcedure, LototoProcedurePayload } from "@/lib/lototo/types";
+import type {
+  LototoLockoutPoint,
+  LototoProcedure,
+  LototoProcedurePayload,
+  LototoSequenceStep,
+} from "@/lib/lototo/types";
 import { sitesApi } from "@/lib/organisation/api";
 import { placeApi, type AssetRecord, type WorkLocationRecord } from "@/lib/place/api";
 
@@ -60,6 +68,18 @@ function emptyPoint(order: number): LototoLockoutPoint {
   };
 }
 
+function emptyStep(phase: "apply" | "remove", order: number): LototoSequenceStep {
+  return {
+    phase,
+    sequenceOrder: order,
+    title: "",
+    action: "",
+    infoText: "",
+    verification: "",
+    note: "",
+  };
+}
+
 type FormState = {
   machineryId: string;
   workLocationId: string;
@@ -68,8 +88,12 @@ type FormState = {
   code: string;
   title: string;
   reviewDueOn: string;
+  purpose: string;
+  scope: string;
+  authorization: string;
   note: string;
   lockoutPoints: LototoLockoutPoint[];
+  sequenceSteps: LototoSequenceStep[];
   authorizedRoles: string[];
 };
 
@@ -87,6 +111,9 @@ function fromProcedure(detail: LototoProcedure): FormState {
     code: detail.code,
     title: detail.title,
     reviewDueOn: dateInput(detail.reviewDueOn),
+    purpose: version?.purpose ?? "",
+    scope: version?.scope ?? "",
+    authorization: version?.authorization ?? "",
     note: version?.note ?? "",
     lockoutPoints: version?.lockoutPoints.length
       ? version.lockoutPoints.map((point) => ({
@@ -95,6 +122,7 @@ function fromProcedure(detail: LototoProcedure): FormState {
           method: point.method || "lock_closed",
         }))
       : [emptyPoint(1)],
+    sequenceSteps: version?.sequenceSteps?.length ? version.sequenceSteps : [],
     authorizedRoles: version?.authorizedRoles ?? [],
   };
 }
@@ -108,6 +136,9 @@ function payloadOf(form: FormState): LototoProcedurePayload {
     code: form.code.trim(),
     title: form.title.trim(),
     reviewDueOn: form.reviewDueOn || null,
+    purpose: form.purpose.trim(),
+    scope: form.scope.trim(),
+    authorization: form.authorization.trim(),
     note: form.note.trim() || undefined,
     lockoutPoints: form.lockoutPoints
       .filter((point) => point.pointCode.trim())
@@ -128,6 +159,19 @@ function payloadOf(form: FormState): LototoProcedurePayload {
         drawingReference: point.drawingReference?.trim() || undefined,
         removeOrder: point.removeOrder || undefined,
       })),
+    sequenceSteps: (["apply", "remove"] as const).flatMap((phase) =>
+      form.sequenceSteps
+        .filter((step) => step.phase === phase && step.title.trim())
+        .map((step, index) => ({
+          phase,
+          sequenceOrder: index + 1,
+          title: step.title.trim(),
+          action: step.action?.trim() || undefined,
+          infoText: step.infoText?.trim() || undefined,
+          verification: step.verification?.trim() || undefined,
+          note: step.note?.trim() || undefined,
+        })),
+    ),
     authorizedRoles: form.authorizedRoles,
   };
 }
@@ -154,8 +198,12 @@ export function LototoProcedureEditor({
     code: "",
     title: "",
     reviewDueOn: "",
+    purpose: "",
+    scope: "",
+    authorization: "",
     note: "",
     lockoutPoints: [emptyPoint(1)],
+    sequenceSteps: [],
     authorizedRoles: [],
   });
   const [error, setError] = useState<string | null>(null);
@@ -215,6 +263,13 @@ export function LototoProcedureEditor({
         }
         return next;
       }),
+    }));
+  }
+
+  function setStep(index: number, patch: Partial<LototoSequenceStep>) {
+    setForm((current) => ({
+      ...current,
+      sequenceSteps: current.sequenceSteps.map((step, i) => (i === index ? { ...step, ...patch } : step)),
     }));
   }
 
@@ -408,6 +463,36 @@ export function LototoProcedureEditor({
           <input className={FIELD} type="date" value={form.reviewDueOn} disabled={readOnly} onChange={(e) => setForm({ ...form, reviewDueOn: e.target.value })} />
         </label>
         <label className="grid gap-1 text-sm sm:col-span-2">
+          <span className="font-medium">Purpose</span>
+          <textarea
+            className={`${FIELD} min-h-20`}
+            disabled={readOnly}
+            value={form.purpose}
+            onChange={(e) => setForm({ ...form, purpose: e.target.value })}
+            placeholder="Why this isolation method exists (e.g. safe maintenance on this equipment)"
+          />
+        </label>
+        <label className="grid gap-1 text-sm sm:col-span-2">
+          <span className="font-medium">Scope</span>
+          <textarea
+            className={`${FIELD} min-h-20`}
+            disabled={readOnly}
+            value={form.scope}
+            onChange={(e) => setForm({ ...form, scope: e.target.value })}
+            placeholder="What this procedure covers and what it does not (equipment, area, work types)"
+          />
+        </label>
+        <label className="grid gap-1 text-sm sm:col-span-2">
+          <span className="font-medium">Authorization</span>
+          <textarea
+            className={`${FIELD} min-h-20`}
+            disabled={readOnly}
+            value={form.authorization}
+            onChange={(e) => setForm({ ...form, authorization: e.target.value })}
+            placeholder="Who may authorize and apply this isolation (roles, competence, site rules)"
+          />
+        </label>
+        <label className="grid gap-1 text-sm sm:col-span-2">
           <span className="font-medium">Note</span>
           <textarea className={`${FIELD} min-h-20`} disabled={readOnly} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder={selectedAsset ? `${selectedAsset.tag} ${selectedAsset.name}` : "Anything the isolator should know before starting"} />
         </label>
@@ -514,7 +599,7 @@ export function LototoProcedureEditor({
                 />
               </label>
               <div className="grid gap-2 sm:col-span-2">
-                <span className="text-xs text-muted-foreground">Photo (optional)</span>
+                <span className="text-xs text-muted-foreground">Info photo (optional)</span>
                 {point.photo?.url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={point.photo.url} alt="" className="max-h-40 w-fit rounded-md border border-border object-contain" />
@@ -564,6 +649,151 @@ export function LototoProcedureEditor({
       </section>
 
       <section className="grid gap-3 rounded-xl border border-border bg-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold">Sequence steps (info)</h2>
+            <p className="text-xs text-muted-foreground">Optional guidance shown on the isolation job. Text and/or image per step.</p>
+          </div>
+          {readOnly ? null : (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setForm((current) => ({
+                    ...current,
+                    sequenceSteps: [
+                      ...current.sequenceSteps,
+                      emptyStep(
+                        "apply",
+                        current.sequenceSteps.filter((step) => step.phase === "apply").length + 1,
+                      ),
+                    ],
+                  }))
+                }
+              >
+                <Plus className="size-4" /> Apply step
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setForm((current) => ({
+                    ...current,
+                    sequenceSteps: [
+                      ...current.sequenceSteps,
+                      emptyStep(
+                        "remove",
+                        current.sequenceSteps.filter((step) => step.phase === "remove").length + 1,
+                      ),
+                    ],
+                  }))
+                }
+              >
+                <Plus className="size-4" /> Remove step
+              </Button>
+            </div>
+          )}
+        </div>
+        {form.sequenceSteps.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No sequence steps yet. Points alone are enough; add steps when the crew needs ordered guidance.</p>
+        ) : null}
+        {form.sequenceSteps.map((step, index) => (
+          <div key={`${step.phase}-${step.id ?? index}`} className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2">
+            <div className="flex items-center justify-between gap-2 sm:col-span-2">
+              <p className="text-sm font-medium">
+                {step.phase === "apply" ? "Apply" : "Remove"} · step {step.sequenceOrder}
+              </p>
+              {readOnly ? null : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setForm((current) => ({
+                      ...current,
+                      sequenceSteps: current.sequenceSteps.filter((_, i) => i !== index),
+                    }))
+                  }
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              )}
+            </div>
+            <label className="grid gap-1 text-sm sm:col-span-2">
+              <span className="font-medium">Title</span>
+              <input className={FIELD} disabled={readOnly} value={step.title} onChange={(e) => setStep(index, { title: e.target.value })} />
+            </label>
+            <label className="grid gap-1 text-sm sm:col-span-2">
+              <span className="font-medium">Info text</span>
+              <textarea
+                className={`${FIELD} min-h-16`}
+                disabled={readOnly}
+                value={step.infoText ?? ""}
+                onChange={(e) => setStep(index, { infoText: e.target.value })}
+                placeholder="What the crew should know at this step"
+              />
+            </label>
+            <label className="grid gap-1 text-sm sm:col-span-2">
+              <span className="font-medium">Action</span>
+              <textarea className={`${FIELD} min-h-16`} disabled={readOnly} value={step.action ?? ""} onChange={(e) => setStep(index, { action: e.target.value })} />
+            </label>
+            <label className="grid gap-1 text-sm sm:col-span-2">
+              <span className="font-medium">Note</span>
+              <input className={FIELD} disabled={readOnly} value={step.note ?? ""} onChange={(e) => setStep(index, { note: e.target.value })} />
+            </label>
+            <div className="grid gap-2 sm:col-span-2">
+              <span className="text-xs text-muted-foreground">Info photo (optional)</span>
+              {step.photo?.url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={step.photo.url} alt="" className="max-h-40 w-fit rounded-md border border-border object-contain" />
+              ) : null}
+              {readOnly ? null : step.id && procedureId ? (
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = "";
+                      if (!file) return;
+                      void uploadLototoStepPhoto(procedureId, step.id!, file)
+                        .then((saved) => {
+                          setDetail(saved);
+                          setForm(fromProcedure(saved));
+                        })
+                        .catch((err) => setError(err instanceof ApiError ? err.message : "Photo could not be saved."));
+                    }}
+                  />
+                  {step.photo ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        void removeLototoStepPhoto(procedureId, step.id!)
+                          .then((saved) => {
+                            setDetail(saved);
+                            setForm(fromProcedure(saved));
+                          })
+                          .catch((err) => setError(err instanceof ApiError ? err.message : "Photo could not be removed."))
+                      }
+                    >
+                      Remove photo
+                    </Button>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Save the procedure first to attach a photo.</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="grid gap-3 rounded-xl border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Who may do this</h2>
         <div className="flex flex-wrap gap-3">
           {ROLE_OPTIONS.map((opt) => (
@@ -586,6 +816,108 @@ export function LototoProcedureEditor({
           ))}
         </div>
       </section>
+
+      {procedureId && detail?.status === "published" ? (
+        <ProcedureInspectionPanel
+          procedureId={procedureId}
+          reviewDueOn={detail.reviewDueOn}
+          inspections={detail.inspections ?? []}
+          canWrite={canWrite}
+          onSaved={(saved) => {
+            setDetail(saved);
+            setForm(fromProcedure(saved));
+          }}
+          onError={setError}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function ProcedureInspectionPanel({
+  procedureId,
+  reviewDueOn,
+  inspections,
+  canWrite,
+  onSaved,
+  onError,
+}: {
+  procedureId: string;
+  reviewDueOn?: string | null;
+  inspections: NonNullable<LototoProcedure["inspections"]>;
+  canWrite: boolean;
+  onSaved: (saved: LototoProcedure) => void;
+  onError: (message: string | null) => void;
+}) {
+  const [result, setResult] = useState<"pass" | "needs_revision">("pass");
+  const [employeesObserved, setEmployeesObserved] = useState("");
+  const [notes, setNotes] = useState("");
+  const [nextDueOn, setNextDueOn] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <section className="grid gap-3 rounded-xl border border-border bg-card p-5">
+      <div>
+        <h2 className="text-sm font-semibold">Periodic inspection</h2>
+        <p className="text-xs text-muted-foreground">
+          OSHA-style annual check of this energy-control procedure.
+          {reviewDueOn ? ` Review due ${reviewDueOn.slice(0, 10)}.` : ""}
+        </p>
+      </div>
+      {inspections.length > 0 ? (
+        <ul className="grid gap-1 text-sm">
+          {inspections.slice(0, 5).map((row) => (
+            <li key={row.id}>
+              {row.inspectedAt.slice(0, 10)} · {row.result}
+              {row.employeesObserved ? ` · ${row.employeesObserved}` : ""}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">No inspections recorded yet.</p>
+      )}
+      {canWrite ? (
+        <form
+          className="grid gap-3 sm:grid-cols-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setBusy(true);
+            onError(null);
+            void recordLototoProcedureInspection(procedureId, {
+              result,
+              employeesObserved: employeesObserved.trim() || undefined,
+              notes: notes.trim() || undefined,
+              nextDueOn: nextDueOn || undefined,
+            })
+              .then(onSaved)
+              .catch((err) => onError(err instanceof ApiError ? err.message : "Inspection could not be saved."))
+              .finally(() => setBusy(false));
+          }}
+        >
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium">Result</span>
+            <select className={FIELD} value={result} onChange={(e) => setResult(e.target.value as "pass" | "needs_revision")}>
+              <option value="pass">Pass / certify</option>
+              <option value="needs_revision">Needs revision</option>
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium">Next due</span>
+            <input className={FIELD} type="date" value={nextDueOn} onChange={(e) => setNextDueOn(e.target.value)} />
+          </label>
+          <label className="grid gap-1 text-sm sm:col-span-2">
+            <span className="font-medium">Employees observed</span>
+            <input className={FIELD} value={employeesObserved} onChange={(e) => setEmployeesObserved(e.target.value)} />
+          </label>
+          <label className="grid gap-1 text-sm sm:col-span-2">
+            <span className="font-medium">Notes</span>
+            <textarea className={`${FIELD} min-h-16`} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </label>
+          <div className="sm:col-span-2">
+            <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Record inspection"}</Button>
+          </div>
+        </form>
+      ) : null}
+    </section>
   );
 }
