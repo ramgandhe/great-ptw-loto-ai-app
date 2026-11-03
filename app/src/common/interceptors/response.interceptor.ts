@@ -3,6 +3,7 @@ import {
   NestInterceptor,
   ExecutionContext,
   CallHandler,
+  StreamableFile,
 } from '@nestjs/common';
 import { Observable, map } from 'rxjs';
 import { Request } from 'express';
@@ -14,14 +15,19 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, unknown> {
     const requestId = request.headers['x-request-id'] as string | undefined;
 
     return next.handle().pipe(
-      map((data) => ({
-        success: true,
-        data,
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      })),
+      map((data) => {
+        if (data instanceof StreamableFile) {
+          return data;
+        }
+        return {
+          success: true,
+          data,
+          meta: {
+            timestamp: new Date().toISOString(),
+            requestId,
+          },
+        };
+      }),
     );
   }
 }

@@ -37,6 +37,7 @@ async function bootstrap(): Promise<void> {
   app.enableCors({
     origin: process.env.CORS_ORIGIN?.split(',').map((o) => o.trim()).filter(Boolean) ?? ['http://localhost:3000'],
     credentials: true,
+    exposedHeaders: ['Content-Disposition', 'X-Template-Filename'],
   });
 
   app.setGlobalPrefix('api');

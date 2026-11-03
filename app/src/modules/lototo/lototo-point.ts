@@ -7,6 +7,7 @@ export const LOTOTO_ISOLATION_METHODS = [
   'vent',
   'drain',
   'blind',
+  'tag_only',
 ] as const;
 export type LototoIsolationMethod = (typeof LOTOTO_ISOLATION_METHODS)[number];
 

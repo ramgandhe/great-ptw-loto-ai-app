@@ -11,7 +11,8 @@ import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
-import { LOTOTO_LIBRARY_WRITE_ROLES } from "@/lib/auth/roles";
+import { LOTOTO_LIBRARY_WRITE_ROLES, LOTOTO_PROCEDURE_IMPORT_ROLES } from "@/lib/auth/roles";
+import { ProcedureExcelImport } from "@/components/lototo/procedure-excel-import";
 import { energySourceChoices, useEnergySourceOptions } from "@/lib/lototo/energy-sources";
 import { energyLevelHint, ISOLATION_METHODS, proofsForEnergy } from "@/lib/lototo/point-fields";
 import {
@@ -65,6 +66,7 @@ function emptyPoint(order: number): LototoLockoutPoint {
     proof: "meter",
     drawingReference: "",
     removeOrder: null,
+    verificationMethod: "",
   };
 }
 
@@ -77,6 +79,7 @@ function emptyStep(phase: "apply" | "remove", order: number): LototoSequenceStep
     infoText: "",
     verification: "",
     note: "",
+    description: "",
   };
 }
 
@@ -88,9 +91,13 @@ type FormState = {
   code: string;
   title: string;
   reviewDueOn: string;
+  facility: string;
+  locationText: string;
   purpose: string;
   scope: string;
   authorization: string;
+  enforcement: string;
+  description: string;
   note: string;
   lockoutPoints: LototoLockoutPoint[];
   sequenceSteps: LototoSequenceStep[];
@@ -111,15 +118,20 @@ function fromProcedure(detail: LototoProcedure): FormState {
     code: detail.code,
     title: detail.title,
     reviewDueOn: dateInput(detail.reviewDueOn),
+    facility: version?.facility ?? "",
+    locationText: version?.locationText ?? "",
     purpose: version?.purpose ?? "",
     scope: version?.scope ?? "",
     authorization: version?.authorization ?? "",
+    enforcement: version?.enforcement ?? "",
+    description: version?.description ?? "",
     note: version?.note ?? "",
     lockoutPoints: version?.lockoutPoints.length
       ? version.lockoutPoints.map((point) => ({
           ...point,
           proof: point.proof || proofsForEnergy(point.energyType)[0]?.value || "visual",
           method: point.method || "lock_closed",
+          verificationMethod: point.verificationMethod ?? "",
         }))
       : [emptyPoint(1)],
     sequenceSteps: version?.sequenceSteps?.length ? version.sequenceSteps : [],
@@ -136,9 +148,13 @@ function payloadOf(form: FormState): LototoProcedurePayload {
     code: form.code.trim(),
     title: form.title.trim(),
     reviewDueOn: form.reviewDueOn || null,
-    purpose: form.purpose.trim(),
-    scope: form.scope.trim(),
-    authorization: form.authorization.trim(),
+    facility: form.facility.trim() || undefined,
+    locationText: form.locationText.trim() || undefined,
+    purpose: form.purpose.trim() || undefined,
+    scope: form.scope.trim() || undefined,
+    authorization: form.authorization.trim() || undefined,
+    enforcement: form.enforcement.trim() || undefined,
+    description: form.description.trim() || undefined,
     note: form.note.trim() || undefined,
     lockoutPoints: form.lockoutPoints
       .filter((point) => point.pointCode.trim())
@@ -158,6 +174,7 @@ function payloadOf(form: FormState): LototoProcedurePayload {
         proof: point.proof || undefined,
         drawingReference: point.drawingReference?.trim() || undefined,
         removeOrder: point.removeOrder || undefined,
+        verificationMethod: point.verificationMethod?.trim() || undefined,
       })),
     sequenceSteps: (["apply", "remove"] as const).flatMap((phase) =>
       form.sequenceSteps
@@ -170,6 +187,7 @@ function payloadOf(form: FormState): LototoProcedurePayload {
           infoText: step.infoText?.trim() || undefined,
           verification: step.verification?.trim() || undefined,
           note: step.note?.trim() || undefined,
+          description: step.description?.trim() || undefined,
         })),
     ),
     authorizedRoles: form.authorizedRoles,
@@ -187,6 +205,7 @@ export function LototoProcedureEditor({
   const energyOptions = useEnergySourceOptions();
   const { roles } = useAuthProfile();
   const canWrite = hasAnyRole(roles, LOTOTO_LIBRARY_WRITE_ROLES);
+  const canImport = !procedureId && hasAnyRole(roles, LOTOTO_PROCEDURE_IMPORT_ROLES);
   const [assets, setAssets] = useState<AssetRecord[]>([]);
   const [locations, setLocations] = useState<WorkLocationRecord[]>([]);
   const [detail, setDetail] = useState<LototoProcedure | null>(null);
@@ -198,9 +217,13 @@ export function LototoProcedureEditor({
     code: "",
     title: "",
     reviewDueOn: "",
+    facility: "",
+    locationText: "",
     purpose: "",
     scope: "",
     authorization: "",
+    enforcement: "",
+    description: "",
     note: "",
     lockoutPoints: [emptyPoint(1)],
     sequenceSteps: [],
@@ -416,6 +439,8 @@ export function LototoProcedureEditor({
         </p>
       ) : null}
 
+      {canImport ? <ProcedureExcelImport /> : null}
+
       <section className="grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
         <h2 className="text-sm font-semibold sm:col-span-2">Procedure</h2>
         <label className="grid gap-1 text-sm">
@@ -462,6 +487,36 @@ export function LototoProcedureEditor({
           <span className="font-medium">Review due</span>
           <input className={FIELD} type="date" value={form.reviewDueOn} disabled={readOnly} onChange={(e) => setForm({ ...form, reviewDueOn: e.target.value })} />
         </label>
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium">Facility</span>
+          <input
+            className={FIELD}
+            disabled={readOnly}
+            value={form.facility}
+            onChange={(e) => setForm({ ...form, facility: e.target.value })}
+            placeholder="Plant / site / process line name"
+          />
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium">Location text</span>
+          <input
+            className={FIELD}
+            disabled={readOnly}
+            value={form.locationText}
+            onChange={(e) => setForm({ ...form, locationText: e.target.value })}
+            placeholder="Free-text location (e.g. Production Tower 8th Floor)"
+          />
+        </label>
+        <label className="grid gap-1 text-sm sm:col-span-2">
+          <span className="font-medium">Description</span>
+          <textarea
+            className={`${FIELD} min-h-16`}
+            disabled={readOnly}
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            placeholder="Short description of the equipment or isolation boundary"
+          />
+        </label>
         <label className="grid gap-1 text-sm sm:col-span-2">
           <span className="font-medium">Purpose</span>
           <textarea
@@ -493,8 +548,18 @@ export function LototoProcedureEditor({
           />
         </label>
         <label className="grid gap-1 text-sm sm:col-span-2">
+          <span className="font-medium">Enforcement</span>
+          <textarea
+            className={`${FIELD} min-h-16`}
+            disabled={readOnly}
+            value={form.enforcement}
+            onChange={(e) => setForm({ ...form, enforcement: e.target.value })}
+            placeholder="Consequences of not following this procedure"
+          />
+        </label>
+        <label className="grid gap-1 text-sm sm:col-span-2">
           <span className="font-medium">Note</span>
-          <textarea className={`${FIELD} min-h-20`} disabled={readOnly} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder={selectedAsset ? `${selectedAsset.tag} ${selectedAsset.name}` : "Anything the isolator should know before starting"} />
+          <textarea className={`${FIELD} min-h-20`} disabled={readOnly} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder={selectedAsset ? `${selectedAsset.tag} ${selectedAsset.name}` : "Prerequisites, warnings, or anything the isolator should know before starting"} />
         </label>
       </section>
 
@@ -565,6 +630,16 @@ export function LototoProcedureEditor({
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </AppSelect>
+              </label>
+              <label className="grid gap-1 text-sm sm:col-span-2">
+                <span className="font-medium">Verification method</span>
+                <textarea
+                  className={`${FIELD} min-h-16`}
+                  disabled={readOnly}
+                  value={point.verificationMethod ?? ""}
+                  onChange={(e) => setPoint(index, { verificationMethod: e.target.value })}
+                  placeholder="How to prove zero energy (e.g. meter Live-Dead-Live, then try-start)"
+                />
               </label>
               <label className="grid gap-1 text-sm">
                 <span className="font-medium">Normal position</span>
@@ -651,8 +726,10 @@ export function LototoProcedureEditor({
       <section className="grid gap-3 rounded-xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold">Sequence steps (info)</h2>
-            <p className="text-xs text-muted-foreground">Optional guidance shown on the isolation job. Text and/or image per step.</p>
+            <h2 className="text-sm font-semibold">Sequence steps</h2>
+            <p className="text-xs text-muted-foreground">
+              Ordered apply and remove guidance shown on the isolation job. Recommended: at least one apply and one remove step.
+            </p>
           </div>
           {readOnly ? null : (
             <div className="flex flex-wrap gap-2">
@@ -739,6 +816,26 @@ export function LototoProcedureEditor({
             <label className="grid gap-1 text-sm sm:col-span-2">
               <span className="font-medium">Action</span>
               <textarea className={`${FIELD} min-h-16`} disabled={readOnly} value={step.action ?? ""} onChange={(e) => setStep(index, { action: e.target.value })} />
+            </label>
+            <label className="grid gap-1 text-sm sm:col-span-2">
+              <span className="font-medium">Verification</span>
+              <textarea
+                className={`${FIELD} min-h-16`}
+                disabled={readOnly}
+                value={step.verification ?? ""}
+                onChange={(e) => setStep(index, { verification: e.target.value })}
+                placeholder="How the crew confirms this step is complete"
+              />
+            </label>
+            <label className="grid gap-1 text-sm sm:col-span-2">
+              <span className="font-medium">Description</span>
+              <textarea
+                className={`${FIELD} min-h-16`}
+                disabled={readOnly}
+                value={step.description ?? ""}
+                onChange={(e) => setStep(index, { description: e.target.value })}
+                placeholder="Longer step description if needed"
+              />
             </label>
             <label className="grid gap-1 text-sm sm:col-span-2">
               <span className="font-medium">Note</span>

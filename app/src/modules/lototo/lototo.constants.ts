@@ -4,6 +4,9 @@ export const LOTOTO_OPTIONS_WRITE_ROLES = [
   'platform-admin',
 ] as const;
 
+/** Procedure Excel template download + import (tenant configurers). */
+export const LOTOTO_PROCEDURE_IMPORT_ROLES = [...LOTOTO_OPTIONS_WRITE_ROLES] as const;
+
 export const LOTOTO_WRITE_ROLES = [
   'permit-approver',
   'tenant-owner', 'tenant-admin',

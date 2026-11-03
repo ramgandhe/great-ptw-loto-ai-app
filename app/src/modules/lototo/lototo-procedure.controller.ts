@@ -8,6 +8,8 @@ import {
   Patch,
   Post,
   Query,
+  Res,
+  StreamableFile,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -17,13 +19,24 @@ import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { CreateLototoProcedureDto, UpdateLototoProcedureDto } from './dto/lototo-procedure.dto';
-import { LOTOTO_LIBRARY_READ_ROLES, LOTOTO_LIBRARY_WRITE_ROLES } from './lototo.constants';
+import {
+  LOTOTO_LIBRARY_READ_ROLES,
+  LOTOTO_LIBRARY_WRITE_ROLES,
+  LOTOTO_PROCEDURE_IMPORT_ROLES,
+} from './lototo.constants';
+import { LototoProcedureImportService } from './lototo-procedure-import.service';
+import { LototoProcedureTemplateService } from './lototo-procedure-template.service';
 import { LototoProcedureService } from './lototo-procedure.service';
 import { UploadedFilePayload } from '../permit/uploaded-file.interface';
+import { LOTOTO_IMPORT_MAX_BYTES } from './lototo-procedure-excel.parser';
 
 @Controller('lototo/procedures')
 export class LototoProcedureController {
-  constructor(private readonly procedureService: LototoProcedureService) {}
+  constructor(
+    private readonly procedureService: LototoProcedureService,
+    private readonly templateService: LototoProcedureTemplateService,
+    private readonly importService: LototoProcedureImportService,
+  ) {}
 
   @Roles(...LOTOTO_LIBRARY_WRITE_ROLES)
   @Post()
@@ -41,6 +54,33 @@ export class LototoProcedureController {
     @Query('published') published?: string,
   ) {
     return this.procedureService.list(user, machineryId, published === 'true', assetId, workLocationId);
+  }
+
+  @Roles(...LOTOTO_PROCEDURE_IMPORT_ROLES)
+  @Get('import/template')
+  async downloadTemplate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Res({ passthrough: true }) res: import('express').Response,
+  ) {
+    const { buffer, fileName } = await this.templateService.buildTemplate(user);
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('X-Template-Filename', fileName);
+    return new StreamableFile(buffer);
+  }
+
+  @Roles(...LOTOTO_PROCEDURE_IMPORT_ROLES)
+  @Post('import')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: LOTOTO_IMPORT_MAX_BYTES } }))
+  importExcel(
+    @UploadedFile() file: UploadedFilePayload,
+    @Body('confirmOverride') confirmOverride: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.importService.import(file, confirmOverride === 'true' || confirmOverride === '1', user);
   }
 
   @Roles(...LOTOTO_LIBRARY_READ_ROLES)

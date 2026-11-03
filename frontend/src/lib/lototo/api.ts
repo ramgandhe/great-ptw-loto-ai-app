@@ -1,4 +1,6 @@
-import { fetchApi } from "@/lib/api";
+import { ApiError, fetchApi, getApiBaseUrl } from "@/lib/api";
+import { getAccessToken, clearTokens } from "@/lib/auth/token-storage";
+import { refreshAccessToken } from "@/lib/auth/session";
 import { forceQuery } from "@/lib/confirm-delete";
 import type {
   AddIsolationPointPayload,
@@ -81,6 +83,69 @@ export function createLototoProcedure(payload: LototoProcedurePayload) {
   return fetchApi<LototoProcedure>("/lototo/procedures", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export type LototoImportFieldError = {
+  sheet: string;
+  row?: number;
+  field: string;
+  message: string;
+  code: string;
+};
+
+export type LototoImportOverrideDetails = {
+  confirmOverrideRequired: true;
+  procedureId: string;
+  code: string;
+  status: string;
+  title: string;
+  hasDraft: boolean;
+};
+
+export async function downloadLototoProcedureTemplate() {
+  const token = getAccessToken();
+  const response = await fetch(`${getApiBaseUrl()}/lototo/procedures/import/template`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (response.status === 401 && typeof window !== "undefined") {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return downloadLototoProcedureTemplate();
+    }
+    clearTokens();
+    window.location.assign(`/login?next=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`);
+    throw new ApiError("Session expired. Redirecting to sign in…", "Unauthorized");
+  }
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new ApiError(body?.error?.message ?? "Template download failed", body?.error?.code, body?.error?.details);
+  }
+  const blob = await response.blob();
+  const fromCustom = response.headers.get("X-Template-Filename");
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const match = /filename\*?=(?:UTF-8''|")?([^\";]+)"?/i.exec(disposition);
+  const fileName =
+    fromCustom ||
+    (match?.[1] ? decodeURIComponent(match[1]) : null) ||
+    "permitwiseai_lototo_procedure_template.xlsx";
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+export function importLototoProcedure(file: File, options?: { confirmOverride?: boolean }) {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (options?.confirmOverride) {
+    formData.append("confirmOverride", "true");
+  }
+  return fetchApi<LototoProcedure>("/lototo/procedures/import", {
+    method: "POST",
+    body: formData,
   });
 }
 

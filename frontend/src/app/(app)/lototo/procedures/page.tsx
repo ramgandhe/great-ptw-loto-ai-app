@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Download, Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState, ErrorNote, RecordList, RecordRow } from "@/components/safety/record-list";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,14 @@ import { ApiError } from "@/lib/api";
 import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
-import { LOTOTO_LIBRARY_WRITE_ROLES } from "@/lib/auth/roles";
-import { listLototoProcedures, deactivateLototoProcedure, reactivateLototoProcedure, deleteLototoProcedure } from "@/lib/lototo/api";
+import { LOTOTO_LIBRARY_WRITE_ROLES, LOTOTO_PROCEDURE_IMPORT_ROLES } from "@/lib/auth/roles";
+import {
+  listLototoProcedures,
+  deactivateLototoProcedure,
+  reactivateLototoProcedure,
+  deleteLototoProcedure,
+  downloadLototoProcedureTemplate,
+} from "@/lib/lototo/api";
 import type { LototoProcedureListItem } from "@/lib/lototo/types";
 import { sitesApi } from "@/lib/organisation/api";
 import { placeApi, type AssetRecord, type WorkLocationRecord } from "@/lib/place/api";
@@ -24,10 +30,12 @@ function ProcedureLibrary() {
   const assetId = params.get("assetId") ?? machineryId;
   const { roles } = useAuthProfile();
   const canWrite = hasAnyRole(roles, LOTOTO_LIBRARY_WRITE_ROLES);
+  const canImport = hasAnyRole(roles, LOTOTO_PROCEDURE_IMPORT_ROLES);
   const [rows, setRows] = useState<LototoProcedureListItem[] | null>(null);
   const [assets, setAssets] = useState<AssetRecord[]>([]);
   const [locations, setLocations] = useState<WorkLocationRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     sitesApi.list().then(async (sites) => {
@@ -82,12 +90,34 @@ function ProcedureLibrary() {
         description="Reusable methods for one asset or one work location. A live isolation is a certificate on the board."
         back={{ href: "/lototo", label: "Isolations" }}
         actions={
-          canWrite ? (
-            <Button type="button" size="lg" onClick={() => router.push(`/lototo/procedures/new${assetId ? `?assetId=${assetId}` : ""}`)}>
-              <Plus aria-hidden />
-              New procedure
-            </Button>
-          ) : null
+          <div className="flex flex-wrap gap-2">
+            {canImport ? (
+              <Button
+                type="button"
+                size="lg"
+                variant="outline"
+                disabled={downloading}
+                onClick={() => {
+                  setDownloading(true);
+                  setError(null);
+                  downloadLototoProcedureTemplate()
+                    .catch((err) =>
+                      setError(err instanceof ApiError ? err.message : "Template download failed."),
+                    )
+                    .finally(() => setDownloading(false));
+                }}
+              >
+                <Download aria-hidden />
+                {downloading ? "Downloading…" : "Download Excel template"}
+              </Button>
+            ) : null}
+            {canWrite ? (
+              <Button type="button" size="lg" onClick={() => router.push(`/lototo/procedures/new${assetId ? `?assetId=${assetId}` : ""}`)}>
+                <Plus aria-hidden />
+                New procedure
+              </Button>
+            ) : null}
+          </div>
         }
       />
       <ErrorNote message={error} />

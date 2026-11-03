@@ -53,6 +53,9 @@ export const LOTOTO_LIBRARY_WRITE_ROLES = [
   ...ORGANISATION_WRITE_ROLES,
 ] as const;
 
+/** Excel procedure template download + import (tenant configurers). */
+export const LOTOTO_PROCEDURE_IMPORT_ROLES = [...ORGANISATION_WRITE_ROLES] as const;
+
 export const MASTER_DATA_READ_ROLES = [
   "tenant-owner", "tenant-admin",
   "platform-admin",

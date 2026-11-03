@@ -196,9 +196,13 @@ export type LototoProcedurePayload = {
   code: string;
   title: string;
   reviewDueOn?: string | null;
+  facility?: string;
+  locationText?: string;
   purpose?: string;
   scope?: string;
   authorization?: string;
+  enforcement?: string;
+  description?: string;
   note?: string;
   lockoutPoints?: LototoLockoutPoint[];
   sequenceSteps?: LototoSequenceStep[];
