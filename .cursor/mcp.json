@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "openqodex": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "openqodex@0.16.0",
+        "mcp"
+      ]
+    }
+  }
+}
