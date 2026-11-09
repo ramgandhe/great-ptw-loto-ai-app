@@ -25,8 +25,10 @@ COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
 COPY frontend/package.json frontend/
 RUN npm ci --workspace=web --workspace=@ptw/shared --include-workspace-root --omit=dev
-COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
-COPY --from=builder /app/frontend/.next ./frontend/.next
-COPY --from=builder /app/frontend/public ./frontend/public
+COPY --from=builder --chown=node:node /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder --chown=node:node /app/frontend/.next ./frontend/.next
+COPY --from=builder --chown=node:node /app/frontend/public ./frontend/public
+RUN chown -R node:node /app
+USER node
 EXPOSE 3000
 CMD ["npm", "run", "start", "-w", "web"]

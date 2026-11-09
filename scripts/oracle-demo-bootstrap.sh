@@ -25,11 +25,11 @@ log() { echo "==> $*"; }
 log "Installing packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq ca-certificates curl git jq
+apt-get install -y -qq ca-certificates curl git gnupg jq
 
 if ! command -v docker >/dev/null 2>&1; then
-  log "Installing Docker"
-  curl -fsSL https://get.docker.com | sh
+  log "Installing Docker from Ubuntu packages"
+  apt-get install -y -qq docker.io docker-compose-v2
   systemctl enable --now docker
 fi
 
@@ -39,8 +39,13 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 if ! command -v node >/dev/null 2>&1; then
-  log "Installing Node.js 22"
-  curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+  log "Installing Node.js 22 from NodeSource apt repo"
+  install -d -m 0755 /usr/share/keyrings
+  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+    | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg
+  echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
+    > /etc/apt/sources.list.d/nodesource.list
+  apt-get update -qq
   apt-get install -y -qq nodejs
 fi
 

@@ -8,7 +8,6 @@ import { ApiError } from "@/lib/api";
 import { getProfile } from "@/lib/auth/api";
 import { getApprovalHistory, getApprovalReview } from "@/lib/approval/api";
 import type { ApprovalHistoryEntry, ApprovalReview } from "@/lib/approval/types";
-import { getProfile } from "@/lib/auth/api";
 import { getPermit } from "@/lib/permit/api";
 import { getLocalPermitDraft, resolvePermitId } from "@/lib/permit/offline";
 import { permitDetailToForm } from "@/lib/permit/form";

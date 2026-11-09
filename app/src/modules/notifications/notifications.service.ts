@@ -141,10 +141,14 @@ export class NotificationsService {
       user,
     );
 
-    const recipients = [];
-    for (const recipient of created.recipients) {
-      recipients.push(await this.deliveryService.markDelivered(recipient.id, user));
-    }
+    const settled = await Promise.allSettled(
+      created.recipients.map((recipient) =>
+        this.deliveryService.markDelivered(recipient.id, user),
+      ),
+    );
+    const recipients = settled.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value] : [],
+    );
 
     return { ...created, recipients };
   }
