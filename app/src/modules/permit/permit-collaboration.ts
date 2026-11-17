@@ -24,6 +24,7 @@ export const ISSUER_ONLY_FIELDS = [
   'exactSpot',
   'plannedStartAt',
   'plannedEndAt',
+  'isMultiDay',
   'viewers',
   'receiverSiteVisited',
 ] as const satisfies readonly (keyof UpdatePermitDto)[];

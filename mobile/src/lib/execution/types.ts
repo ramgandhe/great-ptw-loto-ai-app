@@ -1,11 +1,45 @@
 import type { PermitRecord } from "@/lib/permit/types";
 
+export type WorkUiState = "not_started" | "in_progress" | "paused" | "completed" | "suspended";
+
+export type WorkChecklistItem = {
+  key: string;
+  label: string;
+  required: boolean;
+};
+
+export type WorkCycleSnapshot = {
+  workUiState: WorkUiState;
+  canPause: boolean;
+  canResume: boolean;
+  canComplete: boolean;
+  canRecordProgress: boolean;
+  missingPriorSecureDates?: string[];
+  pastCutoff?: boolean;
+  crewRosterRequired?: boolean;
+  suggestedCrew?: Array<{ workforceUserId: string; role: "primary" | "substitute" }>;
+  handoverRequired?: boolean;
+  handoverAccepted?: boolean;
+  overnightIsolationPolicy: "hold" | "restore_allowed";
+  dailyRevalidationRequired: boolean;
+  pauseTemplate: { title: string; items: WorkChecklistItem[] };
+  resumeTemplate: {
+    title: string;
+    mode: string;
+    reisolateRequired: boolean;
+    simopsBlocked?: boolean;
+    simopsBlockReason?: string | null;
+    items: WorkChecklistItem[];
+  };
+};
+
 export type PermitExecution = {
   id: string;
   permitId: string;
   activatedAt: string;
   activatedBy: string;
   actualStartAt: string;
+  workState?: string | null;
   suspendedAt: string | null;
   suspendedBy: string | null;
   suspensionReason: string | null;

@@ -8,6 +8,7 @@ export type MasterDataRecord = {
   description?: string | null;
   color?: string | null;
   isActive?: boolean;
+  forceDailyRevalidation?: boolean;
 };
 
 export type HazardRecord = MasterDataRecord & {
@@ -28,6 +29,7 @@ export const masterDataApi = {
     description?: string;
     color?: string;
     isActive?: boolean;
+    forceDailyRevalidation?: boolean;
   }) =>
     fetchApi<MasterDataRecord>("/permit-types", {
       method: "POST",
@@ -35,7 +37,14 @@ export const masterDataApi = {
     }),
   updatePermitType: (
     id: string,
-    payload: { code?: string; name?: string; description?: string; color?: string; isActive?: boolean },
+    payload: {
+      code?: string;
+      name?: string;
+      description?: string;
+      color?: string;
+      isActive?: boolean;
+      forceDailyRevalidation?: boolean;
+    },
   ) =>
     fetchApi<MasterDataRecord>(`/permit-types/${id}`, {
       method: "PATCH",

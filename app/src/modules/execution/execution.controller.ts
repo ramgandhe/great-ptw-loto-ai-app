@@ -14,11 +14,17 @@ import { ReleaseExecutionDto } from './dto/release-execution.dto';
 import { ExecutionStartDto } from './dto/execution-start.dto';
 import { CompleteExecutionDto, SendBackDto } from './dto/complete-execution.dto';
 import { SuspendPermitDto } from './dto/suspend-permit.dto';
+import { PauseWorkDto } from './dto/work-pause.dto';
+import { ResumeWorkDto } from './dto/work-resume.dto';
 import { ExecutionService } from './execution.service';
+import { WorkCycleService } from './work-cycle.service';
 
 @Controller('permits')
 export class ExecutionController {
-  constructor(private readonly executionService: ExecutionService) {}
+  constructor(
+    private readonly executionService: ExecutionService,
+    private readonly workCycleService: WorkCycleService,
+  ) {}
 
   @Roles(...EXECUTION_READ_ROLES)
   @Get('active')
@@ -79,6 +85,32 @@ export class ExecutionController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.executionService.revalidateAfterSuspension(id, user);
+  }
+
+  @Roles(...EXECUTION_READ_ROLES)
+  @Get(':id/work')
+  getWorkCycle(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.workCycleService.getWorkCycle(id, user);
+  }
+
+  @Roles(...EXECUTION_ACTION_ROLES)
+  @Post(':id/work/pause')
+  pauseWork(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PauseWorkDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.workCycleService.pauseWork(id, dto, user);
+  }
+
+  @Roles(...EXECUTION_ACTION_ROLES)
+  @Post(':id/work/resume')
+  resumeWork(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ResumeWorkDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.workCycleService.resumeWork(id, dto, user);
   }
 
   @Roles(...EXECUTION_ACTION_ROLES)

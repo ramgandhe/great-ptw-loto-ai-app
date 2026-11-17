@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -53,6 +54,32 @@ export const organisations = pgTable(
     addressPin: varchar('address_pin', { length: 32 }),
     /** Organisation setup wizard: steps the admin skipped and where they left off. */
     setupProgress: jsonb('setup_progress').$type<OrganisationSetupProgress>().notNull().default({}),
+    /** Max multi-day permit validity in days from planned start (MDP refinement). */
+    maxMultiDayValidityDays: integer('max_multi_day_validity_days').notNull().default(7),
+    /** Operational-day cut-off HH:mm in organisation timezone (default 16:30). */
+    operationalDayCutoff: varchar('operational_day_cutoff', { length: 5 }).notNull().default('16:30'),
+    /**
+     * Who may approve same-day overtime:
+     * permit-approver | area-authority | shift-in-charge
+     */
+    overtimeApproverRole: varchar('overtime_approver_role', { length: 32 })
+      .notNull()
+      .default('permit-approver'),
+    /** Wave 2: require per-day toolbox talk before morning clear when true. */
+    dailyToolboxTalkRequired: boolean('daily_toolbox_talk_required').notNull().default(true),
+    /** Wave 2: require non-empty daily crew roster before morning clear when true. */
+    dailyCrewRosterRequired: boolean('daily_crew_roster_required').notNull().default(true),
+    /** Wave 2: require PPE/hazard reconfirm on reopen when true. */
+    dailyPpeHazardReconfirm: boolean('daily_ppe_hazard_reconfirm').notNull().default(true),
+    /** Wave 3: only custody holder (or supervisor roles) may mutate MDP work actions. */
+    hardMdpCustodyEnforced: boolean('hard_mdp_custody_enforced').notNull().default(true),
+    /**
+     * Overnight LOTOTO policy for Pause:
+     * hold = keep isolations on (default); restore_allowed = may restore overnight then re-isolate on Resume.
+     */
+    overnightIsolationPolicy: varchar('overnight_isolation_policy', { length: 32 })
+      .notNull()
+      .default('hold'),
   },
   (table) => [
     uniqueIndex('organisations_tenant_unique').on(table.tenantId),

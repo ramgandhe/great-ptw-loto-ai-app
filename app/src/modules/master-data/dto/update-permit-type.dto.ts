@@ -27,4 +27,8 @@ export class UpdatePermitTypeDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  forceDailyRevalidation?: boolean;
 }

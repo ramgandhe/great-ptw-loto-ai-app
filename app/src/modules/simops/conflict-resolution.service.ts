@@ -389,15 +389,14 @@ export class ConflictResolutionService {
         )
         .returning({ id: permits.id });
 
-      // Authoritative suspension row so MS-05 continue cannot silently clear SIMOPS holds.
-      // Uses source=manual until a dedicated simops_rejection source is added to the CHECK.
+      // Authoritative suspension row — source=simops blocks MDP reopen/clear (Slice C7/C10).
       if (updated) {
         await this.db.insert(permitSuspensions).values({
           tenantId,
           permitId: participant.permitId,
           reason: `SIMOPS conflict rejected:${conflictId}`,
           suspendedBy: userId,
-          source: 'manual',
+          source: 'simops',
           createdBy: userId,
           updatedBy: userId,
         });

@@ -3,7 +3,7 @@
 import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
 import { formatDateTime, formatWindow } from "@/lib/format";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PermitPageShell, useInPermitWorkspace, usePermitPageId } from "@/lib/permit/workspace";
 import { ApiError } from "@/lib/api";
@@ -12,14 +12,26 @@ import {
   releasePermitForExecution,
   addProgress,
   completeExecution,
+  getWorkCycle,
   listEvidence,
   listProgress,
+  pauseWork,
   resumePermit,
+  resumeWork,
   revalidatePermitAfterSuspension,
   saveExecutionStart,
   suspendPermit,
   uploadEvidence,
 } from "@/lib/execution/api";
+import { WorkPauseForm } from "@/components/execution/work-pause-form";
+import { WorkResumeForm } from "@/components/execution/work-resume-form";
+import { DayRecordHistory } from "@/components/multi-day/day-record-history";
+import { HandoverForm } from "@/components/multi-day/handover-form";
+import { HandoverList } from "@/components/multi-day/handover-list";
+import { TimeRequests } from "@/components/multi-day/time-requests";
+import { getDayCycle, listDaySecures, listHandovers, listRevalidationHistory } from "@/lib/multi-day/api";
+import type { DaySecureRecord, RevalidationHistoryEvent, ShiftHandoverRecord } from "@/lib/multi-day/types";
+import type { WorkCycleSnapshot } from "@/lib/execution/types";
 import { parseExecutionStart, type ExecutionStartState } from "@/lib/execution/start";
 import { StartExecutionSteps } from "@/components/execution/start-execution-steps";
 import { masterDataApi, type HazardRecord } from "@/lib/master-data/api";
@@ -35,8 +47,11 @@ import { StatusTimeline } from "@/components/execution/status-timeline";
 import { SuspensionDialog } from "@/components/execution/suspension-dialog";
 import { identityFromPermit, PermitSummary } from "@/components/permit/permit-summary";
 import { PermitFormResponses } from "@/components/permit/permit-form-responses";
+import { DayCycleBadge } from "@/components/multi-day/day-cycle-badge";
+import { MultiDayPolicySummary } from "@/components/multi-day/multi-day-policy-summary";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
+import type { DayCycleSnapshot } from "@/lib/multi-day/types";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
@@ -56,7 +71,7 @@ const PROGRESS_PHRASES = [
   "Work started",
   "Isolations verified before start",
   "Work progressing as planned",
-  "Paused for shift handover",
+  "Temporary stop — leaving area safe",
   "Area cleaned and tools removed",
 ];
 
@@ -66,9 +81,18 @@ export default function PermitExecutionPage() {
   const router = useRouter();
   const { roles, profile } = useAuthProfile();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
+  const [dayCycle, setDayCycle] = useState<DayCycleSnapshot | null>(null);
   const [progress, setProgress] = useState<ProgressRecord[]>([]);
   const [evidence, setEvidence] = useState<EvidenceRecord[]>([]);
   const [execution, setExecution] = useState<PermitExecution | null>(null);
+  const [workCycle, setWorkCycle] = useState<WorkCycleSnapshot | null>(null);
+  const [handovers, setHandovers] = useState<ShiftHandoverRecord[]>([]);
+  const [daySecures, setDaySecures] = useState<DaySecureRecord[]>([]);
+  const [reopenHistory, setReopenHistory] = useState<RevalidationHistoryEvent[]>([]);
+  const handoverExecutorIds = useMemo(
+    () => detail?.executors.map((row) => row.workforceUserId) ?? [],
+    [detail],
+  );
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [progressSummary, setProgressSummary] = useState("");
@@ -98,6 +122,11 @@ export default function PermitExecutionPage() {
     const permitDetail = await getPermit(permitId);
     setDetail(permitDetail);
     setStart(parseExecutionStart(permitDetail.permit.executionStart));
+    if (permitDetail.multiDay?.isMultiDay) {
+      setDayCycle(await getDayCycle(permitId).catch(() => null));
+    } else {
+      setDayCycle(null);
+    }
 
     if (permitDetail.permit.lototoRequired) {
       const certificates = permitDetail.isolationCertificates ?? [];
@@ -115,12 +144,53 @@ export default function PermitExecutionPage() {
     }
 
     if (permitDetail.permit.status === "active" || permitDetail.permit.status === "suspended") {
-      const [progressItems, evidenceItems] = await Promise.all([
+      const [progressItems, evidenceItems, workResult, handoverRows, secureRows, reopenRows] = await Promise.all([
         listProgress(permitId),
         listEvidence(permitId),
+        getWorkCycle(permitId)
+          .then((work) => ({ work, error: null as string | null }))
+          .catch((err) => ({
+            work: null,
+            error: err instanceof ApiError ? err.message : "Failed to load work cycle",
+          })),
+        listHandovers(permitId).catch(() => [] as ShiftHandoverRecord[]),
+        permitDetail.multiDay?.isMultiDay
+          ? listDaySecures(permitId).catch(() => [] as DaySecureRecord[])
+          : Promise.resolve([] as DaySecureRecord[]),
+        permitDetail.multiDay?.isMultiDay
+          ? listRevalidationHistory(permitId).catch(() => [] as RevalidationHistoryEvent[])
+          : Promise.resolve([] as RevalidationHistoryEvent[]),
       ]);
       setProgress(progressItems);
       setEvidence(evidenceItems);
+      setWorkCycle(workResult.work);
+      setActionError(workResult.error);
+      setHandovers(handoverRows);
+      setDaySecures(secureRows);
+      setReopenHistory(reopenRows);
+      const work = workResult.work;
+      if (work?.execution) {
+        setExecution((current) => ({
+          id: work.execution!.id,
+          permitId,
+          activatedAt: current?.activatedAt ?? work.execution!.actualStartAt,
+          activatedBy: current?.activatedBy ?? "",
+          actualStartAt: work.execution!.actualStartAt,
+          workState: work.execution!.workState,
+          workPausedAt: work.execution!.workPausedAt ?? null,
+          workResumedAt: work.execution!.workResumedAt ?? null,
+          suspendedAt: work.execution!.suspendedAt ?? current?.suspendedAt ?? null,
+          suspendedBy: current?.suspendedBy ?? null,
+          suspensionReason: current?.suspensionReason ?? null,
+          resumedAt: current?.resumedAt ?? null,
+          resumedBy: current?.resumedBy ?? null,
+        }));
+      }
+    } else {
+      setWorkCycle(null);
+      setHandovers([]);
+      setDaySecures([]);
+      setReopenHistory([]);
     }
   }
 
@@ -248,6 +318,45 @@ export default function PermitExecutionPage() {
     }
   }
 
+  async function handlePauseWork(payload: {
+    summary: string;
+    checklist: Record<string, boolean>;
+    notes?: string;
+    overnightRestoreChosen?: boolean;
+    lototoRemovals?: string[];
+    lateReason?: string;
+  }) {
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      const result = await pauseWork(permitId, payload);
+      setExecution(result.execution);
+      await loadData();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Pause failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleResumeWork(payload: {
+    checklist: Record<string, boolean>;
+    notes?: string;
+    crew?: Array<{ workforceUserId: string; role: "primary" | "substitute" }>;
+  }) {
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      const result = await resumeWork(permitId, payload);
+      setExecution(result.execution);
+      await loadData();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Resume work failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function handleCompleteExecution() {
     const lototoOk = !detail?.permit.lototoRequired || completeChecklist.lototoDone;
     const gasOk = !detail?.permit.gasTestingRequired || completeChecklist.gasTestingDone;
@@ -259,6 +368,13 @@ export default function PermitExecutionPage() {
       !gasOk
     ) {
       setActionError("Complete the checklist and add a comment before declaring execution complete.");
+      return;
+    }
+    const confirmed = await confirmAction(
+      "This ends the job for this permit. You cannot pause again after completion. Continue?",
+      { title: "Mark execution completed", confirmLabel: "Ends the job" },
+    );
+    if (!confirmed) {
       return;
     }
     setIsSubmitting(true);
@@ -344,6 +460,18 @@ export default function PermitExecutionPage() {
   const canWriteProgress = hasAnyRole(roles, START_RESUME_ROLES);
   const canComplete = privileged || (hasAnyRole(roles, ["permit-operator"]) && primaryExecutor);
   const completeOff = hasAnyRole(roles, ["permit-operator"]) && !canComplete;
+  const workUi = workCycle?.workUiState ?? (isActive ? "in_progress" : isSuspended ? "suspended" : null);
+  const workInProgress = workUi === "in_progress";
+  const workPaused = workUi === "paused";
+  const missedSecureDates = workCycle?.missingPriorSecureDates ?? [];
+  const lateSecureBlocked = workInProgress && missedSecureDates.length > 0;
+  const cutoffBlocked = workInProgress && workCycle?.pastCutoff === true && !lateSecureBlocked;
+  const workWriteBlocked = lateSecureBlocked || cutoffBlocked;
+  const pendingHandover = handovers.find((row) => row.status === "pending_acceptance");
+  const canCreateHandover =
+    !pendingHandover &&
+    Boolean(profile) &&
+    (!handovers[0]?.custodyHeldBy || handovers[0].custodyHeldBy === profile?.id);
 
   return (
     <PermitPageShell>
@@ -353,18 +481,23 @@ export default function PermitExecutionPage() {
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">{permit.title}</h1>
           <PermitStatusBadge status={permit.status} />
+          {dayCycle?.isMultiDay ? (
+            <DayCycleBadge permitId={permit.id} dayCycleState={dayCycle.dayCycleState} />
+          ) : null}
         </div>
         <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
           {permit.reference ? <span className="font-mono">{permit.reference}</span> : null}
           <span>{formatWindow(permit.plannedStartAt, permit.plannedEndAt)}</span>
         </p>
+        {detail?.multiDay?.isMultiDay ? (
+          <div className="mt-3">
+            <MultiDayPolicySummary multiDay={detail.multiDay} dayCycle={dayCycle} />
+          </div>
+        ) : null}
         <nav aria-label="Execution records" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
           <Link href={`/permits/${permit.id}`} className="text-primary hover:underline">Permit</Link>
           <Link href={`/execution/${permit.id}/progress`} className="text-primary hover:underline">Progress timeline</Link>
           <Link href={`/execution/${permit.id}/evidence`} className="text-primary hover:underline">Evidence photos</Link>
-          {isActive || isSuspended ? (
-            <Link href={`/permits/${permit.id}/multi-day`} className="text-primary hover:underline">Daily progress</Link>
-          ) : null}
         </nav>
       </div>
       )}
@@ -376,11 +509,14 @@ export default function PermitExecutionPage() {
       ) : null}
 
       {permit.status === "execution_completed" ? (
-        <p className="text-sm text-muted-foreground">
-          {permit.lototoRequired && lototoRestored !== true
-            ? "Work is complete. A personal lock is still on. Take it off before this permit can close."
-            : "Work is complete and sent for review and closure. The plant can stay isolated until it is restored in LOTOTO."}
-        </p>
+        <div className="grid gap-1 rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">Work complete — next steps</p>
+          <p>
+            {permit.lototoRequired && lototoRestored !== true
+              ? "1) Receiver verifies completion. 2) Restore energy / remove personal locks in LOTOTO. 3) Request close. 4) Approver closes."
+              : "1) Receiver verifies completion. 2) Request close (plant may stay isolated until restored in LOTOTO). 3) Approver closes."}
+          </p>
+        </div>
       ) : null}
 
       {permit.lototoRequired && (detail?.isolationCertificates ?? []).length === 0 && (isActive || permit.status === "execution_completed") ? (
@@ -470,13 +606,53 @@ export default function PermitExecutionPage() {
 
       {(isActive || isSuspended) && (
         <>
+          {dayCycle?.isMultiDay ? (
+            <section className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm">
+              <span className="font-medium">Day cycle</span>
+              <DayCycleBadge permitId={permit.id} dayCycleState={dayCycle.dayCycleState} />
+              {dayCycle.currentOperationalDate ? (
+                <span className="text-muted-foreground">{dayCycle.currentOperationalDate}</span>
+              ) : null}
+            </section>
+          ) : null}
+          {isActive && workUi ? (
+            <section className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm">
+              <span className="font-medium">Work state</span>
+              <span className="rounded-md border border-border px-2 py-0.5 text-xs uppercase tracking-wide">
+                {workPaused ? "Paused" : workInProgress ? "In progress" : workUi}
+              </span>
+              {workPaused ? (
+                <span className="text-muted-foreground">Resume before logging progress or completing.</span>
+              ) : null}
+            </section>
+          ) : null}
+
           <section className="grid gap-3">
             <h2 className="text-sm font-semibold">Execution timeline</h2>
-            <StatusTimeline execution={execution} />
+            <StatusTimeline execution={execution} history={workCycle?.history} />
           </section>
 
-          {isActive && canWriteProgress ? (
+          {isActive && workPaused && workCycle && canWriteProgress ? (
+            <WorkResumeForm
+              work={workCycle}
+              disabled={!canRunThisPermit}
+              isSubmitting={isSubmitting}
+              onSubmit={handleResumeWork}
+            />
+          ) : null}
+
+          {isActive && workInProgress && canWriteProgress ? (
             <>
+              {lateSecureBlocked ? (
+                <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+                  Progress, evidence, and complete are blocked until you pause. Missed days: {missedSecureDates.join(", ")}.
+                </p>
+              ) : null}
+              {cutoffBlocked ? (
+                <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+                  The operational day cut-off has passed. Pause and leave the area safe before logging more progress or completing. This pause does not close the day unless it is still open tomorrow.
+                </p>
+              ) : null}
               <section className="grid gap-3">
                 <h2 className="text-sm font-semibold">Add progress update</h2>
                 {!canRunThisPermit ? (
@@ -488,7 +664,7 @@ export default function PermitExecutionPage() {
                       <button
                         key={phrase}
                         type="button"
-                        disabled={isSubmitting || !canRunThisPermit}
+                        disabled={isSubmitting || !canRunThisPermit || workWriteBlocked}
                         onClick={() => setProgressSummary((c) => (c.trim() ? `${c.trim()}. ${phrase}` : phrase))}
                         className="rounded-full border border-border px-2.5 py-1 text-xs hover:bg-muted"
                       >
@@ -499,13 +675,13 @@ export default function PermitExecutionPage() {
                   <textarea
                     value={progressSummary}
                     required
-                    disabled={isSubmitting || !canRunThisPermit}
+                    disabled={isSubmitting || !canRunThisPermit || workWriteBlocked}
                     onChange={(event) => setProgressSummary(event.target.value)}
                     placeholder="Describe work completed or current status..."
                     rows={3}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   />
-                  <Button type="submit" disabled={isSubmitting || !canRunThisPermit || !progressSummary.trim()}>
+                  <Button type="submit" disabled={isSubmitting || !canRunThisPermit || workWriteBlocked || !progressSummary.trim()}>
                     {isSubmitting ? "Saving..." : "Save progress"}
                   </Button>
                 </form>
@@ -514,12 +690,28 @@ export default function PermitExecutionPage() {
               <section className="grid gap-3">
                 <h2 className="text-sm font-semibold">Upload evidence</h2>
                 <EvidenceUpload
-                  disabled={!isActive || !canRunThisPermit}
+                  disabled={!isActive || !canRunThisPermit || workWriteBlocked}
                   isUploading={isUploading}
                   error={uploadError}
                   onUpload={handleUploadEvidence}
                 />
               </section>
+
+              {workCycle ? (
+                <WorkPauseForm
+                  work={workCycle}
+                  disabled={!canRunThisPermit}
+                  isSubmitting={isSubmitting}
+                  onSubmit={handlePauseWork}
+                />
+              ) : (
+                <section className="rounded-lg border border-border p-4">
+                  <h2 className="text-sm font-semibold">Pause work</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Work cycle could not be loaded. Refresh the page before pausing.
+                  </p>
+                </section>
+              )}
 
               {canComplete || completeOff ? (
                 <section className="grid gap-3 rounded-lg border border-border p-4">
@@ -530,7 +722,7 @@ export default function PermitExecutionPage() {
                   <label className="flex items-start gap-2 text-sm">
                     <input
                       type="checkbox"
-                      disabled={completeOff}
+                      disabled={completeOff || workWriteBlocked}
                       checked={completeChecklist.workDescribedComplete}
                       onChange={(e) => setCompleteChecklist((current) => ({ ...current, workDescribedComplete: e.target.checked }))}
                     />
@@ -539,7 +731,7 @@ export default function PermitExecutionPage() {
                   <label className="flex items-start gap-2 text-sm">
                     <input
                       type="checkbox"
-                      disabled={completeOff}
+                      disabled={completeOff || workWriteBlocked}
                       checked={completeChecklist.procedureFollowed}
                       onChange={(e) => setCompleteChecklist((current) => ({ ...current, procedureFollowed: e.target.checked }))}
                     />
@@ -549,7 +741,7 @@ export default function PermitExecutionPage() {
                     <label className="flex items-start gap-2 text-sm">
                       <input
                       type="checkbox"
-                      disabled={completeOff}
+                      disabled={completeOff || workWriteBlocked}
                       checked={completeChecklist.lototoDone}
                         onChange={(e) => setCompleteChecklist((current) => ({ ...current, lototoDone: e.target.checked }))}
                       />
@@ -560,7 +752,7 @@ export default function PermitExecutionPage() {
                     <label className="flex items-start gap-2 text-sm">
                       <input
                       type="checkbox"
-                      disabled={completeOff}
+                      disabled={completeOff || workWriteBlocked}
                       checked={completeChecklist.gasTestingDone}
                         onChange={(e) => setCompleteChecklist((current) => ({ ...current, gasTestingDone: e.target.checked }))}
                       />
@@ -570,7 +762,7 @@ export default function PermitExecutionPage() {
                   <textarea
                     value={completeComment}
                     required
-                    disabled={isSubmitting || completeOff}
+                    disabled={isSubmitting || completeOff || workWriteBlocked}
                     onChange={(event) => setCompleteComment(event.target.value)}
                     placeholder="Completion comments (required)"
                     rows={3}
@@ -578,7 +770,7 @@ export default function PermitExecutionPage() {
                   />
                   <Button
                     onClick={() => void handleCompleteExecution()}
-                    disabled={isSubmitting || completeOff || !completeComment.trim()}
+                    disabled={isSubmitting || completeOff || workWriteBlocked || !completeComment.trim()}
                   >
                     {isSubmitting ? "Submitting..." : "Mark execution completed"}
                   </Button>
@@ -591,6 +783,45 @@ export default function PermitExecutionPage() {
             <h2 className="text-sm font-semibold">Recent progress</h2>
             <ProgressFeed items={progress.slice().reverse().slice(0, 5)} />
           </section>
+
+          {(isActive || isSuspended) ? (
+            <section className="grid gap-3">
+              <h2 className="text-sm font-semibold">Shift handover</h2>
+              <p className="text-xs text-muted-foreground">
+                Separate from Pause. Use Pause to leave the job safe; use handover to transfer shift custody.
+                Accepting may require LOTOTO custody acknowledgement when isolations remain open.
+              </p>
+              {canCreateHandover ? (
+                <HandoverForm
+                  permitId={permitId}
+                  progressRecords={[]}
+                  executorIds={handoverExecutorIds}
+                  currentUserId={profile?.id}
+                  hideTitle
+                  onSaved={() => void loadData()}
+                />
+              ) : null}
+              <HandoverList
+                permitId={permitId}
+                handovers={handovers}
+                currentUserId={profile?.id}
+                onChanged={() => void loadData()}
+              />
+            </section>
+          ) : null}
+
+          {(isActive || isSuspended) && detail?.multiDay?.isMultiDay ? (
+            <DayRecordHistory
+              pauses={(workCycle?.history ?? []).filter((row) => row.kind === "paused")}
+              secures={daySecures}
+              reopens={reopenHistory}
+              handovers={handovers}
+            />
+          ) : null}
+
+          {isActive || isSuspended ? (
+            <TimeRequests permitId={permitId} onUpdated={() => void loadData()} />
+          ) : null}
 
           <section className="grid gap-3">
             <h2 className="text-sm font-semibold">Activity log</h2>

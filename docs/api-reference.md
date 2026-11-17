@@ -35,13 +35,48 @@ PTW permit/approval/execution/closure/SIMOPS routes remain under their existing 
 
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
-| POST | `/permits/{id}/revalidate` | Required | Complete daily revalidation |
-| POST | `/permits/{id}/continue` | Required | Continue after passed revalidation |
+| POST | `/permits/{id}/reopen` | Required | Today-bound reopen; pass → cleared for work; fail → suspend |
+| POST | `/permits/{id}/revalidate` | Required | Legacy alias for reopen (still today-bound) |
+| POST | `/permits/{id}/continue` | Required | Deprecated shim — reopen already clears |
 | POST | `/permits/{id}/suspend` | Required | Suspend permit (reason required) |
 | POST | `/permits/{id}/extensions` | Required | Request permit extension |
 | GET | `/permits/{id}/revalidation-history` | Required | Revalidation/continuation history |
 | POST | `/extensions/{id}/approve` | Required | Approve extension |
 | POST | `/extensions/{id}/reject` | Required | Reject extension |
+
+## Multi-Day refinement (Slices B–H)
+
+Draft contract: `.planning/2026-11-10-multi-day-permit-refinement/api-rbac-draft.md`.  
+Audit action names: `app/src/modules/revalidation/mdp-audit-events.ts`.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| POST | `/permits/{id}/day-secures` | End-of-day / late secure (progress first; light/full checklist; late reason if prior day; final-day flags closed path) |
+| GET | `/permits/{id}/day-secures/checklist-template` | Secure checklist template for permit policy mode |
+| GET | `/permits/{id}/day-secures` | List day secures for permit |
+| GET | `/permits/{id}/day-cycle` | Day-cycle snapshot (late secure outstanding, final day, state) |
+| POST | `/permits/{id}/day-secures/{secureId}/countersign` | Area/issuer countersign when daily audit ON or open LOTOTO remains |
+| POST | `/permits/{id}/handovers/{handoverId}/accept` | Dual handover accept |
+| POST | `/permits/{id}/handovers/{handoverId}/reject` | Dual handover reject |
+| POST | `/permits/{id}/reopen` | Today-bound reopen → cleared for work (composed checks when daily audit ON) |
+| GET | `/permits/{id}/reopen-composition` | Composed reopen checklist (site security / gas / LOTOTO / SIMOPS) |
+| POST | `/permits/{id}/mdp-override` | Day-scoped emergency override (reason required; blocked if policy disabled) |
+| POST/GET | `/permits/{id}/overtime` | Same-day overtime requests (must end on today’s operational date) |
+| POST | `/overtime/{id}/approve` | Approve overtime (tenant overtimeApproverRole routing) |
+| POST | `/overtime/{id}/reject` | Reject overtime |
+| GET | `/mdp/pending-time-requests` | Approver inbox: pending overtime + extensions |
+| GET | `/mdp/morning-queue` | Morning ops queues: late secure / reopen / secure / overtime / extension / validity ending |
+| GET | `/mdp/checklist-library` | MDP checklist seeds + tenant safety checklist copies |
+| GET | `/mdp/analytics/kpis` | MDP KPIs (cleared today, late secure, overrides, extension vs renewal) |
+| POST | `/permits/{id}/mdp-evidence` | Upload MinIO evidence (`multipart file`; kind=`daily_progress`\|`day_secure`\|`reopen`) |
+| GET | `/permits/{id}/mdp-evidence` | List MDP evidence (optional `?kind=`) |
+| GET | `/permits/{id}/mdp-evidence/{evidenceId}/download-url` | Presigned download URL |
+
+Day-transition job enforces FR-MDP-009 (48h renewal warning + expiry) and tenant max-validity → renew notify.  
+Morning `mdp.daily-reminder` emits actionable secure / late-secure / reopen notifications (deduped per operational day).
+
+Organisation profile (`PATCH /organisations/{id}`) already accepts `maxMultiDayValidityDays`, `operationalDayCutoff`, `overtimeApproverRole`.  
+Final approve (`POST /approvals/{id}/approve`) accepts `dailyRevalidationRequired`, `emergencyOverrideAllowed` when multi-day.
 
 ## Incident Recording (MS-06 / SP-06.01)
 

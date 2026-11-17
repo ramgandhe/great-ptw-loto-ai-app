@@ -6,6 +6,7 @@ import {
   sanitizeDraftUpdateDto,
 } from '../app/src/modules/permit/permit-collaboration';
 import type { PermitDetail } from '../app/src/modules/permit/permit.service';
+import { EMPTY_MULTI_DAY_SUMMARY } from '../app/src/modules/revalidation/multi-day-summary';
 import type { AuthenticatedUser } from '../app/src/common/interfaces/authenticated-user.interface';
 
 function operator(id = 'executor-user'): AuthenticatedUser {
@@ -41,6 +42,8 @@ function detail(assignedUserId = 'executor-user', holder = 'operator'): PermitDe
     attachments: [],
     viewers: [],
     safetyOfficers: [],
+    isolationCertificates: [],
+    multiDay: EMPTY_MULTI_DAY_SUMMARY,
   };
 }
 

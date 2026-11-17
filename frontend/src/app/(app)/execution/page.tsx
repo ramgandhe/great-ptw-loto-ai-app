@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Clock3, HardHat, ShieldAlert } from "lucide-react";
+import { DayCycleBadge } from "@/components/multi-day/day-cycle-badge";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { PermitTypeChip } from "@/components/permit/permit-type-chip";
 import { buttonVariants } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { formatRelative, formatWindow } from "@/lib/format";
 import { loadLookups, placeOf, type Lookups } from "@/lib/lookups";
+import { getDayCycle } from "@/lib/multi-day/api";
+import type { DayCycleSnapshot } from "@/lib/multi-day/types";
 import { listPermits } from "@/lib/permit/api";
 import type { PermitRecord } from "@/lib/permit/types";
 import { cn } from "@/lib/utils";
@@ -29,6 +32,7 @@ export default function ActivePermitsPage() {
   const [permits, setPermits] = useState<PermitRecord[]>([]);
   const [filter, setFilter] = useState<WorkFilter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedDayCycle, setSelectedDayCycle] = useState<DayCycleSnapshot | null>(null);
   const [lookups, setLookups] = useState<Lookups | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
@@ -67,6 +71,24 @@ export default function ActivePermitsPage() {
   const selected = visible.find((permit) => permit.id === selectedId) ?? visible[0] ?? null;
   const selectedType = selected ? lookups?.permitTypes.get(selected.permitTypeId) : undefined;
   const selectedOverdue = Boolean(selected?.plannedEndAt && new Date(selected.plannedEndAt).getTime() < loadedAt);
+
+  useEffect(() => {
+    if (!selected?.id || !["active", "suspended"].includes(selected.status)) {
+      setSelectedDayCycle(null);
+      return;
+    }
+    let cancelled = false;
+    getDayCycle(selected.id)
+      .then((cycle) => {
+        if (!cancelled) setSelectedDayCycle(cycle.isMultiDay ? cycle : null);
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedDayCycle(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected?.id, selected?.status]);
 
   return (
     <main className="page-in mx-auto flex w-full max-w-370 flex-1 flex-col gap-6 px-4 pb-10 pt-6 sm:px-8 sm:pt-8">
@@ -185,7 +207,15 @@ export default function ActivePermitsPage() {
                   <h2 id="live-permit-title" className="font-heading text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">{selected.title}</h2>
                   <p className="mt-2 font-mono text-sm text-muted-foreground">{selected.reference ?? "No reference"}</p>
                 </div>
-                <PermitStatusBadge status={selected.status} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <PermitStatusBadge status={selected.status} />
+                  {selectedDayCycle?.isMultiDay ? (
+                    <DayCycleBadge
+                      permitId={selected.id}
+                      dayCycleState={selectedDayCycle.dayCycleState}
+                    />
+                  ) : null}
+                </div>
               </div>
 
               {selected.status === "suspended" ? (

@@ -1,19 +1,27 @@
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
 import { Alert, View } from "react-native";
-import { ActionBar, AppText, Banner, Button, Card, CheckRow, ChipRow, PageHeader, PermitStatusChip, RefChip, Screen, ScreenState, SectionTitle, TextField } from "@/components/ui";
-import { Camera, CalendarDays, CloudOff, Images, ListChecks, Pause, Play, Save } from "@/components/ui/icons";
+import { ActionBar, AppText, Banner, Button, Card, CheckRow, Chip, ChipRow, PageHeader, PermitStatusChip, RefChip, Screen, ScreenState, SectionTitle, TextField } from "@/components/ui";
+import { Camera, CloudOff, Images, ListChecks, Pause, Play, Save } from "@/components/ui/icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { ApiError } from "@/lib/api";
+import { getDayCycle } from "@/lib/multi-day/api";
+import { dayCycleLabel, dayCycleTone } from "@/lib/multi-day/day-cycle";
+import type { DayCycleSnapshot } from "@/lib/multi-day/types";
 import {
   activatePermit,
+  completeExecution,
+  getWorkCycle,
   releasePermitForExecution,
   addProgress,
+  pauseWork,
   resumePermit,
+  resumeWork,
   suspendPermit,
   uploadEvidence,
 } from "@/lib/execution/api";
 import { initExecutionOfflineStorage, queueOfflineEvidence, queueOfflineProgress } from "@/lib/execution/offline";
+import type { WorkCycleSnapshot } from "@/lib/execution/types";
 import { getProfile } from "@/lib/auth/api";
 import { formatDateTime } from "@/lib/format";
 import { getPermit } from "@/lib/permit/api";
@@ -26,6 +34,7 @@ export default function ExecutePermitScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const permitId = id ?? "";
   const [detail, setDetail] = useState<PermitDetail | null>(null);
+  const [dayCycle, setDayCycle] = useState<DayCycleSnapshot | null>(null);
   const [summary, setSummary] = useState("");
   const [suspendReason, setSuspendReason] = useState("");
   const [loading, setLoading] = useState(true);
@@ -37,6 +46,20 @@ export default function ExecutePermitScreen() {
   const [siteReady, setSiteReady] = useState(false);
   const [detailsCorrect, setDetailsCorrect] = useState(false);
   const [lototoRestored, setLototoRestored] = useState(false);
+  const [workCycle, setWorkCycle] = useState<WorkCycleSnapshot | null>(null);
+  const [pausing, setPausing] = useState(false);
+  const [pauseSummary, setPauseSummary] = useState("");
+  const [pauseChecks, setPauseChecks] = useState<Record<string, boolean>>({});
+  const [lateReason, setLateReason] = useState("");
+  const [resumeChecks, setResumeChecks] = useState<Record<string, boolean>>({});
+  const [crewUserIds, setCrewUserIds] = useState("");
+  const [completeComment, setCompleteComment] = useState("");
+  const [completeChecks, setCompleteChecks] = useState({
+    workDescribedComplete: false,
+    procedureFollowed: false,
+    lototoDone: false,
+    gasTestingDone: false,
+  });
 
   async function load() {
     setLoading(true);
@@ -51,6 +74,25 @@ export default function ExecutePermitScreen() {
       setLototoRestored(permitDetail.permit.lototoRestored === true);
       setUserId(profile?.id ?? null);
       setPrivileged(Boolean(profile?.roles.some((role) => role === "tenant-owner" || role === "tenant-admin" || role === "platform-admin")));
+      if (permitDetail.multiDay?.isMultiDay) {
+        setDayCycle(await getDayCycle(permitId).catch(() => null));
+      } else {
+        setDayCycle(null);
+      }
+      if (permitDetail.permit.status === "active" || permitDetail.permit.status === "suspended") {
+        const work = await getWorkCycle(permitId).catch(() => null);
+        setWorkCycle(work);
+        if (work) {
+          const nextPause: Record<string, boolean> = {};
+          for (const item of work.pauseTemplate.items) nextPause[item.key] = false;
+          setPauseChecks(nextPause);
+          const nextResume: Record<string, boolean> = {};
+          for (const item of work.resumeTemplate.items) nextResume[item.key] = false;
+          setResumeChecks(nextResume);
+        }
+      } else {
+        setWorkCycle(null);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "The permit could not be loaded.");
     } finally {
@@ -108,7 +150,105 @@ export default function ExecutePermitScreen() {
   }
 
   async function handleResume() {
-    await runAction(() => resumePermit(permitId), "Work resumed");
+    await runAction(() => resumePermit(permitId), "Resumed after suspension");
+  }
+
+  async function handlePauseWork() {
+    if (!pauseSummary.trim()) {
+      setError("Add a period summary before pausing.");
+      return;
+    }
+    const items = workCycle?.pauseTemplate.items ?? [];
+    if (items.some((item) => item.required && pauseChecks[item.key] !== true)) {
+      setError("Complete the leave-safe checklist before pausing.");
+      return;
+    }
+    const missed = workCycle?.missingPriorSecureDates ?? [];
+    if (missed.length > 0 && lateReason.trim().length < 3) {
+      setError("A late secure needs a reason of at least 3 characters.");
+      return;
+    }
+    await runAction(
+      () =>
+        pauseWork(permitId, {
+          summary: pauseSummary.trim(),
+          checklist: pauseChecks,
+          lateReason: missed.length > 0 ? lateReason.trim() : undefined,
+        }),
+      "Work paused",
+    );
+    setPausing(false);
+    setPauseSummary("");
+  }
+
+  async function handleResumeWork() {
+    const items = workCycle?.resumeTemplate.items ?? [];
+    if (items.some((item) => item.required && resumeChecks[item.key] !== true)) {
+      setError("Complete the resume checklist before continuing.");
+      return;
+    }
+    if (workCycle?.handoverRequired === true && workCycle.handoverAccepted !== true) {
+      setError("Accept the handover from the person who paused before resuming.");
+      return;
+    }
+    if (workCycle?.crewRosterRequired === true) {
+      const crewIds = crewUserIds.split(/[,\s]+/).map((value) => value.trim()).filter(Boolean);
+      if (crewIds.length < 1) {
+        setError("Add today's crew before resuming.");
+        return;
+      }
+    }
+    const suggestionById = new Map((workCycle?.suggestedCrew ?? []).map((row) => [row.workforceUserId, row.role]));
+    const crewIds = crewUserIds.split(/[,\s]+/).map((value) => value.trim()).filter(Boolean);
+    await runAction(
+      () =>
+        resumeWork(permitId, {
+          checklist: resumeChecks,
+          crew:
+            workCycle?.crewRosterRequired === true
+              ? crewIds.map((workforceUserId) => ({
+                  workforceUserId,
+                  role: suggestionById.get(workforceUserId) ?? "primary",
+                }))
+              : undefined,
+        }),
+      "Work resumed",
+    );
+  }
+
+  async function handleCompleteWork() {
+    const lototoOk = !detail?.permit.lototoRequired || completeChecks.lototoDone;
+    const gasOk = !detail?.permit.gasTestingRequired || completeChecks.gasTestingDone;
+    if (
+      !completeComment.trim() ||
+      !completeChecks.workDescribedComplete ||
+      !completeChecks.procedureFollowed ||
+      !lototoOk ||
+      !gasOk
+    ) {
+      setError("Complete the checklist and comment before ending the job.");
+      return;
+    }
+    Alert.alert("Ends the job", "This completes work for this permit. Continue?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Mark completed",
+        style: "destructive",
+        onPress: () =>
+          void runAction(
+            () =>
+              completeExecution(permitId, {
+                comment: completeComment.trim(),
+                checklist: {
+                  ...completeChecks,
+                  lototoDone: !detail?.permit.lototoRequired || completeChecks.lototoDone,
+                  gasTestingDone: !detail?.permit.gasTestingRequired || completeChecks.gasTestingDone,
+                },
+              }),
+            "Work completed",
+          ),
+      },
+    ]);
   }
 
   async function handleSuspend() {
@@ -211,6 +351,15 @@ export default function ExecutePermitScreen() {
   const canStart = assigned || privileged;
   const checksReady = siteReady && detailsCorrect;
   const releasesThenStarts = isApproved && !released && isReceiver && canStart;
+  const workPaused = workCycle?.workUiState === "paused";
+  const workInProgress = workCycle?.workUiState === "in_progress" || (isActive && !workPaused && workCycle == null);
+  const missedSecureDates = workCycle?.missingPriorSecureDates ?? [];
+  const lateSecureBlocked = workInProgress && missedSecureDates.length > 0;
+  const cutoffBlocked = workInProgress && workCycle?.pastCutoff === true && !lateSecureBlocked;
+  const workWriteBlocked = lateSecureBlocked || cutoffBlocked || workCycle?.canRecordProgress === false;
+  const handoverBlocked = workCycle?.handoverRequired === true && workCycle.handoverAccepted !== true;
+  const crewRequired = workCycle?.crewRosterRequired === true;
+  const suggestedCrew = workCycle?.suggestedCrew ?? [];
 
   return (
     <Screen
@@ -224,7 +373,7 @@ export default function ExecutePermitScreen() {
               <Button label="Start work" icon={Play} size="lg" loading={submitting} disabled={releasesThenStarts && !checksReady} onPress={() => void handleStart()} />
             ) : null}
             {isSuspended ? (
-              <Button label="Resume work" icon={Play} size="lg" loading={submitting} onPress={() => void handleResume()} />
+              <Button label="Resume after suspension" icon={Play} size="lg" loading={submitting} onPress={() => void handleResume()} />
             ) : null}
           </ActionBar>
         ) : undefined
@@ -233,6 +382,19 @@ export default function ExecutePermitScreen() {
       <PageHeader title={permit.title} back={back}>
         <ChipRow>
           <PermitStatusChip status={permit.status} />
+          {dayCycle?.isMultiDay ? (
+            <Chip
+              label={dayCycleLabel(dayCycle.dayCycleState)}
+              color={
+                dayCycleTone(dayCycle.dayCycleState) === "danger"
+                  ? tokens.colors.danger
+                  : dayCycleTone(dayCycle.dayCycleState) === "success"
+                    ? tokens.colors.success
+                    : tokens.colors.warning
+              }
+              dot
+            />
+          ) : null}
           <RefChip reference={permit.reference} />
         </ChipRow>
       </PageHeader>
@@ -240,6 +402,12 @@ export default function ExecutePermitScreen() {
       {error ? <Banner tone="danger">{error}</Banner> : null}
       {message ? <Banner tone="success">{message}</Banner> : null}
       {isSuspended ? <Banner tone="warning" title="Work is suspended">Resume only once the reason for stopping is dealt with.</Banner> : null}
+      {isActive && workPaused ? (
+        <Banner tone="warning" title="Work is paused">Resume before logging progress or completing.</Banner>
+      ) : null}
+      {isActive && workInProgress ? (
+        <Banner tone="success" title="Work in progress">Log progress, pause leave-safe, or complete when finished.</Banner>
+      ) : null}
       {isApproved && !released && isReceiver ? (
         <Card style={{ gap: tokens.space[2] }}>
           <SectionTitle title="Release for execution" />
@@ -260,15 +428,76 @@ export default function ExecutePermitScreen() {
         <Banner tone="success">Work is complete and sent for review and closure. The plant can stay isolated until it is restored in LOTOTO.</Banner>
       ) : null}
 
-      {isActive ? (
+      {isActive && workPaused && workCycle ? (
+        <View style={{ gap: tokens.space[3] }}>
+          <SectionTitle title={workCycle.resumeTemplate.title} />
+          <Card style={{ gap: tokens.space[2] }}>
+            {workCycle.resumeTemplate.reisolateRequired ? (
+              <AppText variant="caption">Full LOTOTO re-isolation is required before resume.</AppText>
+            ) : null}
+            {workCycle.resumeTemplate.simopsBlocked ? (
+              <AppText variant="caption">{workCycle.resumeTemplate.simopsBlockReason || "Resolve blocking SIMOPS before resume."}</AppText>
+            ) : null}
+            {handoverBlocked ? (
+              <AppText variant="caption">You did not pause this job. Resume stays blocked until the person who paused hands it to you and you accept that handover.</AppText>
+            ) : null}
+            {workCycle.resumeTemplate.items.map((item) => (
+              <CheckRow
+                key={item.key}
+                label={item.label}
+                value={resumeChecks[item.key] === true}
+                onChange={(value) => setResumeChecks((current) => ({ ...current, [item.key]: value }))}
+              />
+            ))}
+            {crewRequired ? (
+              <>
+                <TextField
+                  label="Today's crew (workforce user IDs, comma-separated)"
+                  required
+                  multiline
+                  value={crewUserIds}
+                  onChangeText={setCrewUserIds}
+                  placeholder="User ids"
+                />
+                {suggestedCrew.length > 0 ? (
+                  <Button
+                    label="Use permit executors"
+                    variant="secondary"
+                    onPress={() => setCrewUserIds(suggestedCrew.map((row) => row.workforceUserId).join(", "))}
+                  />
+                ) : null}
+              </>
+            ) : null}
+            <Button
+              label="Resume work"
+              icon={Play}
+              loading={submitting}
+              disabled={handoverBlocked || workCycle.resumeTemplate.simopsBlocked === true}
+              onPress={() => void handleResumeWork()}
+            />
+          </Card>
+        </View>
+      ) : null}
+
+      {isActive && workInProgress ? (
         <>
+          {lateSecureBlocked ? (
+            <Banner tone="danger" title="Late secure">
+              {`Progress, evidence, and complete are blocked until you pause. Missed days: ${missedSecureDates.join(", ")}.`}
+            </Banner>
+          ) : null}
+          {cutoffBlocked ? (
+            <Banner tone="danger" title="Cut-off passed">
+              The operational day cut-off has passed. Pause and leave the area safe before logging more progress or completing.
+            </Banner>
+          ) : null}
           <View style={{ gap: tokens.space[3] }}>
             <SectionTitle title="Progress update" />
             <Card style={{ gap: tokens.space[3] }}>
               <TextField label="What was done" multiline value={summary} onChangeText={setSummary} placeholder="Describe the work since the last update" />
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space[2] }}>
-                <Button label="Save progress" icon={Save} disabled={submitting || !summary.trim()} onPress={() => void handleProgress(false)} />
-                <Button label="Save offline" variant="secondary" icon={CloudOff} disabled={submitting || !summary.trim()} onPress={() => void handleProgress(true)} />
+                <Button label="Save progress" icon={Save} disabled={submitting || workWriteBlocked || !summary.trim()} onPress={() => void handleProgress(false)} />
+                <Button label="Save offline" variant="secondary" icon={CloudOff} disabled={submitting || workWriteBlocked || !summary.trim()} onPress={() => void handleProgress(true)} />
               </View>
             </Card>
           </View>
@@ -277,7 +506,83 @@ export default function ExecutePermitScreen() {
             <SectionTitle title="Evidence" />
             <Card>
               <AppText variant="caption">A photo of the work, the area or the isolation. It is attached to this permit.</AppText>
-              <Button label="Take photo" variant="outline" icon={Camera} disabled={submitting} onPress={() => void handleCameraCapture()} style={{ alignSelf: "flex-start" }} />
+              <Button label="Take photo" variant="outline" icon={Camera} disabled={submitting || workWriteBlocked} onPress={() => void handleCameraCapture()} style={{ alignSelf: "flex-start" }} />
+            </Card>
+          </View>
+
+          {pausing && workCycle ? (
+            <Card style={{ gap: tokens.space[2] }}>
+              <AppText variant="subheading">{workCycle.pauseTemplate.title}</AppText>
+              <TextField label="Period summary" required multiline value={pauseSummary} onChangeText={setPauseSummary} placeholder="What was done; what remains" />
+              {missedSecureDates.length > 0 ? (
+                <TextField
+                  label={`Late secure reason for ${missedSecureDates.join(", ")}`}
+                  required
+                  multiline
+                  value={lateReason}
+                  onChangeText={setLateReason}
+                  placeholder="Why the earlier day was not secured"
+                />
+              ) : null}
+              {workCycle.pauseTemplate.items.map((item) => (
+                <CheckRow
+                  key={item.key}
+                  label={item.label}
+                  value={pauseChecks[item.key] === true}
+                  onChange={(value) => setPauseChecks((current) => ({ ...current, [item.key]: value }))}
+                />
+              ))}
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space[2] }}>
+                <Button label="Pause work" icon={Pause} disabled={submitting || !pauseSummary.trim()} onPress={() => void handlePauseWork()} />
+                <Button label="Cancel" variant="ghost" onPress={() => setPausing(false)} />
+              </View>
+            </Card>
+          ) : (
+            <Button label="Pause work" variant="secondary" icon={Pause} onPress={() => setPausing(true)} style={{ alignSelf: "flex-start" }} />
+          )}
+
+          <View style={{ gap: tokens.space[3] }}>
+            <SectionTitle title="Complete work" />
+            <Card style={{ gap: tokens.space[2] }}>
+              <AppText variant="caption">Ends the job. Resume first if work is paused.</AppText>
+              <CheckRow
+                label="Work described in the permit is complete"
+                value={completeChecks.workDescribedComplete}
+                onChange={(value) => setCompleteChecks((c) => ({ ...c, workDescribedComplete: value }))}
+              />
+              <CheckRow
+                label="Procedure was followed"
+                value={completeChecks.procedureFollowed}
+                onChange={(value) => setCompleteChecks((c) => ({ ...c, procedureFollowed: value }))}
+              />
+              {permit.lototoRequired ? (
+                <CheckRow
+                  label="LOTOTO is done"
+                  value={completeChecks.lototoDone}
+                  onChange={(value) => setCompleteChecks((c) => ({ ...c, lototoDone: value }))}
+                />
+              ) : null}
+              {permit.gasTestingRequired ? (
+                <CheckRow
+                  label="Gas testing is done"
+                  value={completeChecks.gasTestingDone}
+                  onChange={(value) => setCompleteChecks((c) => ({ ...c, gasTestingDone: value }))}
+                />
+              ) : null}
+              <TextField
+                label="Completion comments"
+                required
+                multiline
+                value={completeComment}
+                onChangeText={setCompleteComment}
+                placeholder="Required comments"
+              />
+              <Button
+                label="Mark execution completed"
+                loading={submitting}
+                disabled={workWriteBlocked || !completeComment.trim()}
+                onPress={() => void handleCompleteWork()}
+              />
             </Card>
           </View>
         </>
@@ -288,9 +593,6 @@ export default function ExecutePermitScreen() {
         <Card style={{ gap: 0 }}>
           <Button label="Progress timeline" variant="ghost" icon={ListChecks} onPress={() => router.push(`/execution/${permitId}/progress`)} style={{ alignSelf: "flex-start" }} />
           <Button label="Evidence gallery" variant="ghost" icon={Images} onPress={() => router.push(`/execution/${permitId}/evidence`)} style={{ alignSelf: "flex-start" }} />
-          {isActive || isSuspended ? (
-            <Button label="Multi-day operations" variant="ghost" icon={CalendarDays} onPress={() => router.push(`/multi-day/${permitId}`)} style={{ alignSelf: "flex-start" }} />
-          ) : null}
         </Card>
       </View>
 

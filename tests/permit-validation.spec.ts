@@ -33,6 +33,8 @@ describe('PermitValidationService', () => {
       gasTestingRequired: false,
       plannedStartAt: new Date('2026-08-01T08:00:00Z'),
       plannedEndAt: new Date('2026-08-01T16:00:00Z'),
+      dailyRevalidationRequired: true,
+      emergencyOverrideAllowed: true,
       submittedAt: null,
       submittedBy: null,
       submittedSignedName: null,

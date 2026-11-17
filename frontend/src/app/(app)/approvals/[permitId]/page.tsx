@@ -70,6 +70,8 @@ export default function PermitReviewPage() {
   const [siteVisited, setSiteVisited] = useState(false);
   const [locationAck, setLocationAck] = useState(false);
   const [locationWarning, setLocationWarning] = useState<string | null>(null);
+  const [dailyRevalidationRequired, setDailyRevalidationRequired] = useState(true);
+  const [emergencyOverrideAllowed, setEmergencyOverrideAllowed] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -117,6 +119,14 @@ export default function PermitReviewPage() {
           : false;
   const stageLeft = stageAnswersLeft(review.permit.formResponses ?? [], "approval", stageEdits);
   const suggestions = decision && decision !== "approve" ? [...(gaps.length ? [`Missing: ${gaps.join(", ")}`] : []), ...COMMON_REASONS] : [];
+  const isMultiDay = review.multiDay?.isMultiDay === true;
+  const isFinalApprovalStep =
+    Boolean(review.activeAssignment) &&
+    !review.workflow.some(
+      (row) =>
+        row.step.stepSequence > (review.activeAssignment?.step.stepSequence ?? 0) &&
+        row.assignment.status !== "completed",
+    );
 
   async function submit() {
     if (!decision) return;
@@ -144,6 +154,9 @@ export default function PermitReviewPage() {
               siteVisited,
               locationAck,
               approvalName.trim(),
+              isMultiDay
+                ? { dailyRevalidationRequired, emergencyOverrideAllowed }
+                : undefined,
             )
           : await (decision === "reject" ? rejectPermit : deferPermit)(permitId, comment.trim());
       setReview(updated);
@@ -298,6 +311,31 @@ export default function PermitReviewPage() {
                         />
                         Site visited and verified
                       </label>
+                    ) : null}
+                    {decision === "approve" && isMultiDay ? (
+                      <div className="grid gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+                        <p className="text-xs font-medium text-muted-foreground">
+                          Multi-day controls{isFinalApprovalStep ? " (applied on final approval)" : ""}
+                        </p>
+                        <label className="flex items-start gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            className="mt-1"
+                            checked={dailyRevalidationRequired}
+                            onChange={(e) => setDailyRevalidationRequired(e.target.checked)}
+                          />
+                          <span>Require daily reopen before work each day (hard gate)</span>
+                        </label>
+                        <label className="flex items-start gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            className="mt-1"
+                            checked={emergencyOverrideAllowed}
+                            onChange={(e) => setEmergencyOverrideAllowed(e.target.checked)}
+                          />
+                          <span>Allow day-scoped emergency override</span>
+                        </label>
+                      </div>
                     ) : null}
                     {decision === "approve" && locationWarning ? (
                       <label className="flex items-start gap-2 text-sm">

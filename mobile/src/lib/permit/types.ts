@@ -24,6 +24,8 @@ export type PermitRecord = {
   gasTestingRequired?: boolean;
   plannedStartAt: string | null;
   plannedEndAt: string | null;
+  dailyRevalidationRequired?: boolean;
+  emergencyOverrideAllowed?: boolean;
   submittedAt: string | null;
   submittedSignedName?: string | null;
   permitVersion?: number;
@@ -125,8 +127,21 @@ export type PermitFormState = {
   currentStep: number;
 };
 
+export type MultiDaySummary = {
+  isMultiDay: boolean;
+  startOperationalDate: string | null;
+  endOperationalDate: string | null;
+  endPastCutoffSameDay: boolean;
+  dailyRevalidationRequired: boolean;
+  emergencyOverrideAllowed: boolean;
+  operationalDayCutoff: string;
+  timezone: string;
+  maxMultiDayValidityDays: number;
+};
+
 export type PermitDetail = {
   permit: PermitRecord;
+  multiDay?: MultiDaySummary;
   draft: {
     currentStep: number;
     formSnapshot: Record<string, unknown> | null;

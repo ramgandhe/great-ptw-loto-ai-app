@@ -12,10 +12,14 @@ import {
 } from '../../database/schema';
 import { QueueService } from '../../infrastructure/queue/queue.service';
 import {
+  classifyMaxValidity,
   classifyPermitValidity,
   hoursRemaining,
   operationalDateKey,
 } from './permit-validity.service';
+import { inclusiveOperationalDaySpan } from './multi-day-schedule-rules';
+import { DEFAULT_MAX_MULTI_DAY_VALIDITY_DAYS } from './multi-day.types';
+import { resolveMultiDayTenantSettings } from './multi-day-settings';
 import {
   MDP_DAY_TRANSITION_VALIDITY_JOB,
   MDP_EXTENSION_EXPIRY_JOB,
@@ -85,23 +89,39 @@ export class RevalidationJobsService implements OnModuleInit {
     }
   }
 
+  /**
+   * Morning reopen reminder (Slice I2). Day-cycle secure/late-secure reminders
+   * are owned by DailyProgressJobsService; this job focuses on reopen_due.
+   */
   async sendRevalidationReminders(): Promise<void> {
     const active = await this.db
-      .select({ id: permits.id, tenantId: permits.tenantId, reference: permits.reference })
+      .select({
+        id: permits.id,
+        tenantId: permits.tenantId,
+        reference: permits.reference,
+        submittedBy: permits.submittedBy,
+        dailyRevalidationRequired: permits.dailyRevalidationRequired,
+      })
       .from(permits)
       .where(eq(permits.status, 'active'));
 
+    let notified = 0;
     for (const permit of active) {
+      if (permit.dailyRevalidationRequired === false) {
+        continue;
+      }
+
       this.logService.logEvent({
         action: 'mdp.revalidation-reminder',
         permitId: permit.id,
         tenantId: permit.tenantId,
         metadata: { reference: permit.reference },
       });
+      notified += 1;
     }
 
-    if (active.length > 0) {
-      this.logger.log(`Revalidation reminders for ${active.length} active permit(s)`);
+    if (notified > 0) {
+      this.logger.log(`Revalidation reminders for ${notified} active permit(s)`);
     }
   }
 
@@ -124,7 +144,7 @@ export class RevalidationJobsService implements OnModuleInit {
     }
   }
 
-  /** FR-MDP-009: validity check against approved date range at each day-transition. */
+  /** FR-MDP-009 / Slice I1: validity + tenant max check at each day-transition. */
   async runDayTransitionValidityChecks(now = new Date()): Promise<void> {
     const candidates = await this.db
       .select({
@@ -132,6 +152,7 @@ export class RevalidationJobsService implements OnModuleInit {
         tenantId: permits.tenantId,
         reference: permits.reference,
         status: permits.status,
+        plannedStartAt: permits.plannedStartAt,
         plannedEndAt: permits.plannedEndAt,
         submittedBy: permits.submittedBy,
       })
@@ -144,24 +165,201 @@ export class RevalidationJobsService implements OnModuleInit {
 
     const tenantIds = [...new Set(candidates.map((row) => row.tenantId))];
     const orgRows = await this.db
-      .select({ tenantId: organisations.tenantId, timezone: organisations.timezone })
+      .select({
+        tenantId: organisations.tenantId,
+        timezone: organisations.timezone,
+        maxMultiDayValidityDays: organisations.maxMultiDayValidityDays,
+      })
       .from(organisations)
       .where(inArray(organisations.tenantId, tenantIds));
 
-    const timezoneByTenant = new Map(
-      orgRows.map((row) => [row.tenantId, row.timezone ?? 'UTC']),
+    const orgByTenant = new Map(
+      orgRows.map((row) => [
+        row.tenantId,
+        {
+          timezone: row.timezone ?? 'UTC',
+          maxDays: resolveMultiDayTenantSettings(row).maxMultiDayValidityDays,
+        },
+      ]),
     );
 
     let renewalDueCount = 0;
+    let maxValidityCount = 0;
     let expiredCount = 0;
 
     for (const permit of candidates) {
-      const timezone = timezoneByTenant.get(permit.tenantId) ?? 'UTC';
+      const org = orgByTenant.get(permit.tenantId) ?? {
+        timezone: 'UTC',
+        maxDays: DEFAULT_MAX_MULTI_DAY_VALIDITY_DAYS,
+      };
+      const timezone = org.timezone;
       const operationalDate = operationalDateKey(now, timezone);
       const validityState = classifyPermitValidity(permit.plannedEndAt, now);
       const remainingHours = hoursRemaining(permit.plannedEndAt, now);
+      const maxState = classifyMaxValidity({
+        plannedStartAt: permit.plannedStartAt,
+        plannedEndAt: permit.plannedEndAt,
+        now,
+        timezone,
+        maxMultiDayValidityDays: org.maxDays,
+      });
+      const elapsedDays = permit.plannedStartAt
+        ? inclusiveOperationalDaySpan(
+            operationalDateKey(permit.plannedStartAt, timezone),
+            operationalDate,
+          )
+        : null;
 
-      if (validityState === 'within_validity') {
+      // C8: clearance is day-scoped — record once per operational day that clear does not carry.
+      const expiredLogged = await this.hasValidityEvent(
+        permit.id,
+        'clear_day_expired',
+        operationalDate,
+      );
+      if (!expiredLogged) {
+        await this.db.insert(revalidationHistory).values({
+          tenantId: permit.tenantId,
+          permitId: permit.id,
+          eventType: 'clear_day_expired',
+          actorId: permit.submittedBy ?? permit.tenantId,
+          payload: {
+            operationalDate,
+            timezone,
+            note: 'Cleared-for-work does not survive into the next operational day',
+          },
+          createdBy: permit.submittedBy ?? permit.tenantId,
+        });
+        this.logService.logEvent({
+          action: 'mdp.clear_day_expired',
+          permitId: permit.id,
+          tenantId: permit.tenantId,
+          metadata: { operationalDate, timezone },
+        });
+      }
+
+      if (validityState === 'expired') {
+        const [updated] = await this.db
+          .update(permits)
+          .set({ status: 'expired', updatedBy: permit.submittedBy ?? permit.tenantId })
+          .where(
+            and(
+              eq(permits.id, permit.id),
+              eq(permits.tenantId, permit.tenantId),
+              inArray(permits.status, ['active', 'suspended']),
+            ),
+          )
+          .returning({ id: permits.id });
+
+        if (!updated) {
+          continue;
+        }
+
+        expiredCount += 1;
+
+        await this.db.insert(revalidationHistory).values({
+          tenantId: permit.tenantId,
+          permitId: permit.id,
+          eventType: 'validity_expired',
+          actorId: permit.submittedBy ?? permit.tenantId,
+          payload: {
+            reference: permit.reference,
+            plannedEndAt: permit.plannedEndAt?.toISOString(),
+            previousStatus: permit.status,
+            operationalDate,
+            timezone,
+          },
+          createdBy: permit.submittedBy ?? permit.tenantId,
+        });
+
+        await this.db.insert(permitStatusHistory).values({
+          permitId: permit.id,
+          action: 'expired',
+          fromStatus: permit.status,
+          toStatus: 'expired',
+          actorId: permit.submittedBy ?? permit.tenantId,
+          metadata: { system: true, operationalDate },
+          createdBy: permit.submittedBy ?? permit.tenantId,
+        });
+
+        this.logService.logEvent({
+          action: 'mdp.validity-expired',
+          permitId: permit.id,
+          tenantId: permit.tenantId,
+          metadata: {
+            reference: permit.reference,
+            plannedEndAt: permit.plannedEndAt?.toISOString(),
+            previousStatus: permit.status,
+            operationalDate,
+          },
+        });
+
+        await this.notificationService.enqueueValidityNotification({
+          permitId: permit.id,
+          tenantId: permit.tenantId,
+          reference: permit.reference,
+          issuerId: permit.submittedBy,
+          validityState: 'expired',
+          plannedEndAt: permit.plannedEndAt?.toISOString() ?? null,
+          hoursRemaining: remainingHours,
+          operationalDate,
+        });
+        continue;
+      }
+
+      // I1: tenant max reached → renew (prefer over 48h notice when both apply).
+      if (maxState === 'max_validity_due') {
+        const alreadyNotified = await this.hasValidityEvent(
+          permit.id,
+          'max_validity_due_notified',
+          operationalDate,
+        );
+        if (alreadyNotified) {
+          continue;
+        }
+
+        maxValidityCount += 1;
+
+        await this.db.insert(revalidationHistory).values({
+          tenantId: permit.tenantId,
+          permitId: permit.id,
+          eventType: 'max_validity_due_notified',
+          actorId: permit.submittedBy ?? permit.tenantId,
+          payload: {
+            reference: permit.reference,
+            plannedStartAt: permit.plannedStartAt?.toISOString(),
+            plannedEndAt: permit.plannedEndAt?.toISOString(),
+            maxMultiDayValidityDays: org.maxDays,
+            elapsedDays,
+            operationalDate,
+            timezone,
+          },
+          createdBy: permit.submittedBy ?? permit.tenantId,
+        });
+
+        this.logService.logEvent({
+          action: 'mdp.max_validity_due',
+          permitId: permit.id,
+          tenantId: permit.tenantId,
+          metadata: {
+            reference: permit.reference,
+            maxMultiDayValidityDays: org.maxDays,
+            elapsedDays,
+            operationalDate,
+          },
+        });
+
+        await this.notificationService.enqueueValidityNotification({
+          permitId: permit.id,
+          tenantId: permit.tenantId,
+          reference: permit.reference,
+          issuerId: permit.submittedBy,
+          validityState: 'max_validity',
+          plannedEndAt: permit.plannedEndAt?.toISOString() ?? null,
+          hoursRemaining: remainingHours,
+          operationalDate,
+          maxMultiDayValidityDays: org.maxDays,
+          elapsedDays,
+        });
         continue;
       }
 
@@ -214,86 +412,23 @@ export class RevalidationJobsService implements OnModuleInit {
           hoursRemaining: remainingHours,
           operationalDate,
         });
-        continue;
       }
-
-      const [updated] = await this.db
-        .update(permits)
-        .set({ status: 'expired', updatedBy: permit.submittedBy ?? permit.tenantId })
-        .where(
-          and(
-            eq(permits.id, permit.id),
-            eq(permits.tenantId, permit.tenantId),
-            inArray(permits.status, ['active', 'suspended']),
-          ),
-        )
-        .returning({ id: permits.id });
-
-      if (!updated) {
-        continue;
-      }
-
-      expiredCount += 1;
-
-      await this.db.insert(revalidationHistory).values({
-        tenantId: permit.tenantId,
-        permitId: permit.id,
-        eventType: 'validity_expired',
-        actorId: permit.submittedBy ?? permit.tenantId,
-        payload: {
-          reference: permit.reference,
-          plannedEndAt: permit.plannedEndAt?.toISOString(),
-          previousStatus: permit.status,
-          operationalDate,
-          timezone,
-        },
-        createdBy: permit.submittedBy ?? permit.tenantId,
-      });
-
-      await this.db.insert(permitStatusHistory).values({
-        permitId: permit.id,
-        action: 'expired',
-        fromStatus: permit.status,
-        toStatus: 'expired',
-        actorId: permit.submittedBy ?? permit.tenantId,
-        metadata: { system: true, operationalDate },
-        createdBy: permit.submittedBy ?? permit.tenantId,
-      });
-
-      this.logService.logEvent({
-        action: 'mdp.validity-expired',
-        permitId: permit.id,
-        tenantId: permit.tenantId,
-        metadata: {
-          reference: permit.reference,
-          plannedEndAt: permit.plannedEndAt?.toISOString(),
-          previousStatus: permit.status,
-          operationalDate,
-        },
-      });
-
-      await this.notificationService.enqueueValidityNotification({
-        permitId: permit.id,
-        tenantId: permit.tenantId,
-        reference: permit.reference,
-        issuerId: permit.submittedBy,
-        validityState: 'expired',
-        plannedEndAt: permit.plannedEndAt!.toISOString(),
-        hoursRemaining: remainingHours,
-        operationalDate,
-      });
     }
 
-    if (renewalDueCount > 0 || expiredCount > 0) {
+    if (renewalDueCount > 0 || maxValidityCount > 0 || expiredCount > 0) {
       this.logger.log(
-        `Day-transition validity: ${renewalDueCount} renewal due, ${expiredCount} expired`,
+        `Day-transition validity: ${renewalDueCount} renewal due, ${maxValidityCount} max validity, ${expiredCount} expired`,
       );
     }
   }
 
   private async hasValidityEvent(
     permitId: string,
-    eventType: 'renewal_due_notified' | 'validity_expired',
+    eventType:
+      | 'renewal_due_notified'
+      | 'max_validity_due_notified'
+      | 'validity_expired'
+      | 'clear_day_expired',
     operationalDate: string,
   ): Promise<boolean> {
     const [row] = await this.db

@@ -13,6 +13,7 @@ export const MDP_WRITE_ROLES = [
 export const MDP_READ_ROLES = [...MDP_WRITE_ROLES, 'viewer'] as const;
 
 export const MDP_HANDOVER_ROLES = [
+  'permit-operator',
   'permit-approver',
   'permit-receiver',
   'tenant-owner', 'tenant-admin',

@@ -36,6 +36,14 @@ type OrgStatusTable =
   | typeof approvalWorkflows
   | typeof permitTemplates;
 
+function normalizeCutoff(value: string): string {
+  const match = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(value.trim());
+  if (!match) {
+    return '16:30';
+  }
+  return `${match[1].padStart(2, '0')}:${match[2]}`;
+}
+
 @Injectable()
 export class OrganisationService {
   constructor(
@@ -104,6 +112,15 @@ export class OrganisationService {
           ? { registrationNumber: dto.registrationNumber.trim() }
           : {}),
         ...(dto.timezone !== undefined ? { timezone: dto.timezone.trim() || 'UTC' } : {}),
+        ...(dto.maxMultiDayValidityDays !== undefined
+          ? { maxMultiDayValidityDays: dto.maxMultiDayValidityDays }
+          : {}),
+        ...(dto.operationalDayCutoff !== undefined
+          ? { operationalDayCutoff: normalizeCutoff(dto.operationalDayCutoff) }
+          : {}),
+        ...(dto.overtimeApproverRole !== undefined
+          ? { overtimeApproverRole: dto.overtimeApproverRole }
+          : {}),
         ...(dto.setupProgress !== undefined
           ? {
               setupProgress: {

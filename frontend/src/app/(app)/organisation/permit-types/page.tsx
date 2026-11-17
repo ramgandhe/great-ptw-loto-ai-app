@@ -18,7 +18,14 @@ import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/adm
 
 const DEFAULT_COLOR = "#2563EB";
 const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
-const EMPTY_FORM = { code: "", name: "", description: "", color: DEFAULT_COLOR, isActive: true };
+const EMPTY_FORM = {
+  code: "",
+  name: "",
+  description: "",
+  color: DEFAULT_COLOR,
+  isActive: true,
+  forceDailyRevalidation: false,
+};
 
 export default function PermitTypesPage() {
   const [items, setItems] = useState<MasterDataRecord[]>([]);
@@ -56,6 +63,7 @@ export default function PermitTypesPage() {
             description: item.description ?? "",
             color: item.color && HEX_COLOR.test(item.color) ? item.color : DEFAULT_COLOR,
             isActive: item.isActive !== false,
+            forceDailyRevalidation: item.forceDailyRevalidation === true,
           }
         : EMPTY_FORM,
     );
@@ -103,6 +111,7 @@ export default function PermitTypesPage() {
       description: form.description.trim() || undefined,
       color: form.color.toUpperCase(),
       isActive: form.isActive,
+      forceDailyRevalidation: form.forceDailyRevalidation,
     };
     try {
       if (editingId) {
@@ -250,6 +259,16 @@ export default function PermitTypesPage() {
               onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))}
             />
             Active for new permits
+          </label>
+          <label className="flex items-center gap-2 self-center text-sm sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={form.forceDailyRevalidation}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, forceDailyRevalidation: e.target.checked }))
+              }
+            />
+            Force daily reopen ON for multi-day permits of this type
           </label>
           <div className="flex flex-wrap gap-2 sm:col-span-2">
             <Button type="submit" disabled={saving}>

@@ -30,6 +30,9 @@ export type Organisation = OrgRecord & {
   registrationNumber?: string | null;
   ownerEmail?: string | null;
   timezone?: string;
+  maxMultiDayValidityDays?: number;
+  operationalDayCutoff?: string;
+  overtimeApproverRole?: "permit-approver" | "area-authority" | "shift-in-charge";
   setupProgress?: OrganisationSetupProgress;
 };
 

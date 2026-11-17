@@ -59,7 +59,7 @@ const ROUTE_RULES: RouteRule[] = [
     roles: [...NAV_DRAFTS_ROLES, ...NAV_OPERATOR_DRAFTS_ROLES, ...NAV_SAFETY_DRAFTS_ROLES],
   },
   { test: (p) => /\/permits\/[^/]+\/execute$/.test(p), roles: NAV_EXECUTION_ROLES },
-  { test: (p) => /\/permits\/[^/]+\/multi-day$/.test(p), roles: MDP_READ_ROLES },
+  { test: (p) => p.startsWith("/mdp"), roles: MDP_READ_ROLES },
   {
     test: (p) => p === "/permits/drafts" || p.startsWith("/permits/drafts/"),
     roles: [...NAV_DRAFTS_ROLES, ...NAV_OPERATOR_DRAFTS_ROLES, ...NAV_SAFETY_DRAFTS_ROLES],

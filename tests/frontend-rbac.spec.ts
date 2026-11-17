@@ -10,4 +10,12 @@ describe('permit route access for assigned people', () => {
   it('lets a permit operator open a draft they were assigned to', () => {
     expect(canAccessPath('/permits/abc/edit', ['permit-operator'])).toBe(true);
   });
+
+  it('lets MDP roles open the morning queue', () => {
+    expect(canAccessPath('/mdp/morning-queue', ['tenant-owner'])).toBe(true);
+    expect(canAccessPath('/mdp/morning-queue', ['tenant-admin'])).toBe(true);
+    expect(canAccessPath('/mdp/morning-queue', ['permit-approver'])).toBe(true);
+    expect(canAccessPath('/mdp/morning-queue', ['permit-receiver'])).toBe(true);
+    expect(canAccessPath('/mdp/morning-queue', ['permit-operator'])).toBe(true);
+  });
 });

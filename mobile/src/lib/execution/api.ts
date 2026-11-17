@@ -4,6 +4,7 @@ import type {
   EvidenceRecord,
   ExecutionActionResult,
   ProgressRecord,
+  WorkCycleSnapshot,
 } from "./types";
 import {
   listPendingEvidence,
@@ -42,6 +43,59 @@ export function suspendPermit(permitId: string, reason: string) {
 export function resumePermit(permitId: string) {
   return fetchApi<ExecutionActionResult>(`/permits/${permitId}/resume`, {
     method: "POST",
+  });
+}
+
+export function getWorkCycle(permitId: string) {
+  return fetchApi<WorkCycleSnapshot>(`/permits/${permitId}/work`);
+}
+
+export function pauseWork(
+  permitId: string,
+  payload: {
+    summary: string;
+    checklist: Record<string, boolean>;
+    notes?: string;
+    overnightRestoreChosen?: boolean;
+    lototoRemovals?: string[];
+    lateReason?: string;
+  },
+) {
+  return fetchApi<ExecutionActionResult>(`/permits/${permitId}/work/pause`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function resumeWork(
+  permitId: string,
+  payload: {
+    checklist: Record<string, boolean>;
+    notes?: string;
+    crew?: Array<{ workforceUserId: string; role: "primary" | "substitute" }>;
+  },
+) {
+  return fetchApi<ExecutionActionResult>(`/permits/${permitId}/work/resume`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function completeExecution(
+  permitId: string,
+  payload: {
+    comment: string;
+    checklist: {
+      workDescribedComplete: boolean;
+      procedureFollowed: boolean;
+      lototoDone: boolean;
+      gasTestingDone: boolean;
+    };
+  },
+) {
+  return fetchApi<import("@/lib/permit/types").PermitDetail>(`/permits/${permitId}/complete-execution`, {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 

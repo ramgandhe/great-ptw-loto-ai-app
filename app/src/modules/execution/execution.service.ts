@@ -41,6 +41,8 @@ import { NotificationsService as InboxNotificationsService } from '../notificati
 import { NotificationService } from './notification.service';
 import { StatusTransitionService } from './status-transition.service';
 import { ReleaseExecutionDto } from './dto/release-execution.dto';
+import { RevalidationService } from '../revalidation/revalidation.service';
+import { WorkCycleService } from './work-cycle.service';
 
 @Injectable()
 export class ExecutionService {
@@ -54,8 +56,12 @@ export class ExecutionService {
     private readonly permitCacheService: PermitCacheService,
     private readonly executionCacheService: ExecutionCacheService,
     private readonly executionLogService: ExecutionLogService,
+    @Inject(forwardRef(() => WorkCycleService))
+    private readonly workCycleService: WorkCycleService,
     @Inject(forwardRef(() => WorkflowEngineService))
     private readonly workflowEngine: WorkflowEngineService,
+    @Inject(forwardRef(() => RevalidationService))
+    private readonly revalidationService: RevalidationService,
     @Optional()
     @Inject(InboxNotificationsService)
     private readonly inbox?: InboxNotificationsService,
@@ -74,6 +80,7 @@ export class ExecutionService {
 
     this.requireReleased(permit);
     await this.requireExecutor(permitId, user);
+    await this.revalidationService.assertClearedForWorkToday(permitId, tenantId);
     const start = await this.requireStartReady(detail, dto.start, user);
 
     const actualStartAt = dto.actualStartAt ? new Date(dto.actualStartAt) : new Date();
@@ -89,6 +96,11 @@ export class ExecutionService {
         const [updated] = await tx
           .update(permitExecution)
           .set({
+            workState: 'in_progress',
+            workPausedAt: null,
+            workPausedBy: null,
+            workResumedAt: null,
+            workResumedBy: null,
             suspendedAt: null,
             suspendedBy: null,
             suspensionReason: null,
@@ -106,6 +118,7 @@ export class ExecutionService {
             permitId,
             activatedBy: user.id,
             actualStartAt,
+            workState: 'in_progress',
             createdBy: user.id,
             updatedBy: user.id,
           })
@@ -344,6 +357,8 @@ export class ExecutionService {
       throw new ConflictException('Permit has no suspension record to resume from');
     }
 
+    await this.revalidationService.assertClearedForWorkToday(permitId, tenantId);
+
     const resumedAt = new Date();
 
     await this.db.transaction(async (tx) => {
@@ -476,8 +491,9 @@ export class ExecutionService {
       throw new ConflictException('Only active permits can be marked execution completed');
     }
 
-    const checklist = dto.checklist;
-    if (!checklist.workDescribedComplete || !checklist.procedureFollowed) {
+    await this.workCycleService.assertWorkWrite(permitId, user, 'complete work');
+
+    const checklist = dto.checklist;    if (!checklist.workDescribedComplete || !checklist.procedureFollowed) {
       throw new ConflictException('All execution completion checklist items must be completed');
     }
     if (detail.permit.lototoRequired && !checklist.lototoDone) {

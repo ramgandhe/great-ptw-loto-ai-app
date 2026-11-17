@@ -6,6 +6,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { and, asc, eq } from 'drizzle-orm';
@@ -32,6 +33,7 @@ import { UploadEvidenceDto } from './dto/upload-evidence.dto';
 import { ExecutionCacheService } from './execution-cache.service';
 import { ExecutionLogService } from './execution-log.service';
 import { NotificationService } from './notification.service';
+import { WorkCycleService } from './work-cycle.service';
 
 @Injectable()
 export class EvidenceService {
@@ -44,6 +46,8 @@ export class EvidenceService {
     private readonly permitCacheService: PermitCacheService,
     private readonly executionCacheService: ExecutionCacheService,
     private readonly executionLogService: ExecutionLogService,
+    @Inject(forwardRef(() => WorkCycleService))
+    private readonly workCycleService: WorkCycleService,
   ) {}
 
   async upload(
@@ -61,6 +65,7 @@ export class EvidenceService {
     }
 
     await this.requireExecutor(permitId, user);
+    await this.workCycleService.assertWorkWrite(permitId, user, 'upload evidence');
     this.validateFile(file);
 
     const execution = await this.getExecution(permitId);

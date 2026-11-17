@@ -85,6 +85,14 @@ export class CreatePermitDto extends PermitRelationsDto {
   @IsDate()
   plannedEndAt?: Date;
 
+  /**
+   * Read-only classification on the server. If sent, must match date-derived multi-day;
+   * cannot be false while the schedule spans multiple operational days.
+   */
+  @IsOptional()
+  @IsBoolean()
+  isMultiDay?: boolean;
+
   @IsOptional()
   @IsInt()
   @Min(0)

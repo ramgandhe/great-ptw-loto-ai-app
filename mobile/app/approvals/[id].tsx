@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { ActionBar, AppText, Banner, Button, Card, ChipRow, ChoiceGroup, InfoList, PageHeader, PermitStatusChip, PermitTypeChip, ProgressBar, RefChip, Screen, ScreenState, SectionTitle, TextField } from "@/components/ui";
+import { ActionBar, AppText, Banner, Button, Card, CheckRow, ChipRow, ChoiceGroup, InfoList, PageHeader, PermitStatusChip, PermitTypeChip, ProgressBar, RefChip, Screen, ScreenState, SectionTitle, TextField } from "@/components/ui";
 import { Check, History } from "@/components/ui/icons";
 import { formatWindow } from "@/lib/format";
 import { ApiError } from "@/lib/api";
@@ -32,6 +32,8 @@ export default function PermitApprovalReviewScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [stageEdits, setStageEdits] = useState<StageAnswerEdits>({});
   const [approverSignedName, setApproverSignedName] = useState<string | null>(null);
+  const [dailyRevalidationRequired, setDailyRevalidationRequired] = useState(true);
+  const [emergencyOverrideAllowed, setEmergencyOverrideAllowed] = useState(true);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const signerName = useSignerName();
@@ -86,7 +88,15 @@ export default function PermitApprovalReviewScreen() {
     try {
       let updated: ApprovalReview;
       if (mode === "approve") {
-        updated = await approvePermit(id, comment, review ? stageAnswersPayload(stageEdits, review.permit.draftRevision) : undefined, approvalName.trim());
+        updated = await approvePermit(
+          id,
+          comment,
+          review ? stageAnswersPayload(stageEdits, review.permit.draftRevision) : undefined,
+          approvalName.trim(),
+          review?.multiDay?.isMultiDay
+            ? { dailyRevalidationRequired, emergencyOverrideAllowed }
+            : undefined,
+        );
       } else if (mode === "reject") {
         updated = await rejectPermit(id, comment);
       } else {
@@ -219,6 +229,23 @@ export default function PermitApprovalReviewScreen() {
                   disabled={submitting}
                 />
                 {signaturesLeft > 0 ? <AppText variant="caption" tone="warning" weight="semibold">{`${signaturesLeft} left to sign. The final approval needs them.`}</AppText> : null}
+                {review.multiDay?.isMultiDay ? (
+                  <View style={{ gap: tokens.space[2] }}>
+                    <AppText variant="caption" weight="semibold">Multi-day controls</AppText>
+                    <CheckRow
+                      label="Require daily reopen before work each day"
+                      value={dailyRevalidationRequired}
+                      onChange={setDailyRevalidationRequired}
+                      disabled={submitting}
+                    />
+                    <CheckRow
+                      label="Allow day-scoped emergency override"
+                      value={emergencyOverrideAllowed}
+                      onChange={setEmergencyOverrideAllowed}
+                      disabled={submitting}
+                    />
+                  </View>
+                ) : null}
               </>
             ) : null}
             {actionMode ? (

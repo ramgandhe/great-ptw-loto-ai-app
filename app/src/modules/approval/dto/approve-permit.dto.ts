@@ -18,4 +18,20 @@ export class ApprovePermitDto extends ApprovalCommentDto {
   @ValidateNested()
   @Type(() => StageAnswersDto)
   stageAnswers?: StageAnswersDto;
+
+  /**
+   * Multi-day only (final approval). Default true = hard daily reopen gate.
+   * Ignored when the permit is not multi-day.
+   */
+  @IsOptional()
+  @IsBoolean()
+  dailyRevalidationRequired?: boolean;
+
+  /**
+   * Multi-day only (final approval). Default true = day-scoped override allowed.
+   * Ignored when the permit is not multi-day.
+   */
+  @IsOptional()
+  @IsBoolean()
+  emergencyOverrideAllowed?: boolean;
 }

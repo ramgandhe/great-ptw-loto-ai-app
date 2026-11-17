@@ -14,10 +14,27 @@ export function getApprovalReview(permitId: string) {
   return fetchApi<ApprovalReview>(`/approvals/${permitId}`);
 }
 
-export function approvePermit(permitId: string, comment?: string, stageAnswers?: StageAnswersPayload, signedName?: string) {
+export type ApproveMultiDayPolicy = {
+  dailyRevalidationRequired?: boolean;
+  emergencyOverrideAllowed?: boolean;
+};
+
+export function approvePermit(
+  permitId: string,
+  comment?: string,
+  stageAnswers?: StageAnswersPayload,
+  signedName?: string,
+  multiDayPolicy?: ApproveMultiDayPolicy,
+) {
   return fetchApi<ApprovalReview>(`/approvals/${permitId}/approve`, {
     method: "POST",
-    body: JSON.stringify({ comment: comment?.trim() || undefined, stageAnswers, signedName: signedName?.trim() || undefined }),
+    body: JSON.stringify({
+      comment: comment?.trim() || undefined,
+      stageAnswers,
+      signedName: signedName?.trim() || undefined,
+      dailyRevalidationRequired: multiDayPolicy?.dailyRevalidationRequired,
+      emergencyOverrideAllowed: multiDayPolicy?.emergencyOverrideAllowed,
+    }),
   });
 }
 

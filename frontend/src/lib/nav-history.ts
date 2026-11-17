@@ -69,7 +69,7 @@ export function usePreviousPage(pathname: string): string | null {
 const PATTERNS: [RegExp, string][] = [
   [/^\/settings$/, "Settings"],
   [/^\/permits\/new$/, "New permit"],
-  [/^\/permits\/[^/]+\/(edit|journey|execute|preview|multi-day)$/, "Permit"],
+  [/^\/permits\/[^/]+\/(edit|journey|execute|preview)$/, "Permit"],
   [/^\/permits\/[^/]+$/, "Permit"],
   [/^\/approvals\/[^/]+/, "Approval"],
   [/^\/execution\/[^/]+/, "Work in progress"],

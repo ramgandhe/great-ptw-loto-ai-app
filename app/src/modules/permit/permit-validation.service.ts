@@ -11,6 +11,10 @@ import {
   permitSafetyOfficers,
   permits,
 } from '../../database/schema';
+import {
+  multiDayScheduleErrors,
+  type ScheduleMultiDayValidation,
+} from '../revalidation/multi-day-schedule-rules';
 import type { PermitLototoDetail } from './permit.service';
 
 export interface PermitSubmissionRecord {
@@ -29,7 +33,11 @@ export interface PermitSubmissionRecord {
 @Injectable()
 export class PermitValidationService {
   /** `formErrors`: required answers missing from the permit templates that apply (see permit-forms.ts). */
-  validateForSubmit(record: PermitSubmissionRecord, formErrors: string[] = []): void {
+  validateForSubmit(
+    record: PermitSubmissionRecord,
+    formErrors: string[] = [],
+    scheduleOptions: ScheduleMultiDayValidation = {},
+  ): void {
     const errors: string[] = [...formErrors];
     const { permit, hazards, ppe, lototo, gasTesting, executors } = record;
 
@@ -53,6 +61,10 @@ export class PermitValidationService {
       errors.push('plannedStartAt and plannedEndAt are required');
     } else if (permit.plannedEndAt <= permit.plannedStartAt) {
       errors.push('plannedEndAt must be after plannedStartAt');
+    } else {
+      errors.push(
+        ...multiDayScheduleErrors(permit.plannedStartAt, permit.plannedEndAt, scheduleOptions),
+      );
     }
 
     if (executors.length === 0) {

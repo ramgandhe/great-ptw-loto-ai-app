@@ -1,8 +1,10 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { ApprovalModule } from '../approval/approval.module';
+import { DailyProgressModule } from '../daily-progress/daily-progress.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { LototoModule } from '../lototo/lototo.module';
 import { PermitModule } from '../permit/permit.module';
+import { RevalidationModule } from '../revalidation/revalidation.module';
 import { EvidenceController } from './evidence.controller';
 import { EvidenceService } from './evidence.service';
 import { ExecutionCacheService } from './execution-cache.service';
@@ -15,11 +17,20 @@ import { NotificationService } from './notification.service';
 import { ProgressController } from './progress.controller';
 import { ProgressService } from './progress.service';
 import { StatusTransitionService } from './status-transition.service';
+import { WorkCycleService } from './work-cycle.service';
 
 @Module({
-  imports: [PermitModule, NotificationsModule, LototoModule, forwardRef(() => ApprovalModule)],
+  imports: [
+    PermitModule,
+    NotificationsModule,
+    LototoModule,
+    DailyProgressModule,
+    forwardRef(() => ApprovalModule),
+    forwardRef(() => RevalidationModule),
+  ],
   controllers: [ExecutionController, ProgressController, EvidenceController],
   providers: [
+    WorkCycleService,
     ExecutionService,
     ProgressService,
     EvidenceService,
@@ -37,6 +48,7 @@ import { StatusTransitionService } from './status-transition.service';
     StatusTransitionService,
     ExecutionCacheService,
     ExecutionLogService,
+    WorkCycleService,
   ],
 })
 export class ExecutionModule {}

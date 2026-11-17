@@ -1,5 +1,7 @@
 import {
   bigint,
+  boolean,
+  date,
   index,
   jsonb,
   pgTable,
@@ -24,8 +26,17 @@ export const PERMIT_STATUS_HISTORY_ACTIONS = [
   'closed',
   'cancelled',
   'expired',
+  'work_paused',
+  'work_resumed',
 ] as const;
 export type PermitStatusHistoryAction = (typeof PERMIT_STATUS_HISTORY_ACTIONS)[number];
+
+/** Operator work loop (locked Start → Pause ⇄ Resume → Complete). Not suspension. */
+export const WORK_STATES = ['in_progress', 'paused'] as const;
+export type WorkState = (typeof WORK_STATES)[number];
+
+export const OVERNIGHT_ISOLATION_POLICIES = ['hold', 'restore_allowed'] as const;
+export type OvernightIsolationPolicy = (typeof OVERNIGHT_ISOLATION_POLICIES)[number];
 
 export const permitExecution = pgTable(
   'permit_execution',
@@ -37,6 +48,12 @@ export const permitExecution = pgTable(
     activatedAt: timestamp('activated_at', { withTimezone: true }).notNull().defaultNow(),
     activatedBy: uuid('activated_by').notNull(),
     actualStartAt: timestamp('actual_start_at', { withTimezone: true }).notNull(),
+    /** in_progress | paused — Complete uses permit status execution_completed. */
+    workState: varchar('work_state', { length: 32 }).notNull().default('in_progress'),
+    workPausedAt: timestamp('work_paused_at', { withTimezone: true }),
+    workPausedBy: uuid('work_paused_by'),
+    workResumedAt: timestamp('work_resumed_at', { withTimezone: true }),
+    workResumedBy: uuid('work_resumed_by'),
     suspendedAt: timestamp('suspended_at', { withTimezone: true }),
     suspendedBy: uuid('suspended_by'),
     suspensionReason: text('suspension_reason'),
@@ -46,6 +63,67 @@ export const permitExecution = pgTable(
   (table) => [
     uniqueIndex('permit_execution_permit_id_unique').on(table.permitId),
     index('permit_execution_activated_by_idx').on(table.activatedBy),
+    index('permit_execution_work_state_idx').on(table.workState),
+  ],
+);
+
+/** One Pause (daily leave-safe) record per work period. */
+export const permitWorkPauses = pgTable(
+  'permit_work_pauses',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    permitId: uuid('permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    executionId: uuid('execution_id')
+      .notNull()
+      .references(() => permitExecution.id, { onDelete: 'cascade' }),
+    summary: text('summary').notNull(),
+    checklist: jsonb('checklist').$type<Record<string, unknown>>().notNull().default({}),
+    notes: text('notes').notNull().default(''),
+    /** Live LOTOTO snapshot at pause (points/locks summary). */
+    lototoSnapshot: jsonb('lototo_snapshot').$type<Record<string, unknown>>().notNull().default({}),
+    /** Point/lock ids marked removed overnight (exception). */
+    lototoRemovals: jsonb('lototo_removals').$type<string[]>().notNull().default([]),
+    overnightRestoreChosen: boolean('overnight_restore_chosen').notNull().default(false),
+    reisolateRequiredOnResume: boolean('reisolate_required_on_resume').notNull().default(false),
+    pausedBy: uuid('paused_by').notNull(),
+    pausedAt: timestamp('paused_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Site calendar date of the pause. Cut-off does not roll this date. */
+    operationalDate: date('operational_date').notNull(),
+  },
+  (table) => [
+    index('permit_work_pauses_tenant_permit_idx').on(table.tenantId, table.permitId),
+    index('permit_work_pauses_execution_idx').on(table.executionId),
+    index('permit_work_pauses_permit_paused_at_idx').on(table.permitId, table.pausedAt),
+  ],
+);
+
+/** One Resume (re-clear) record after a Pause. */
+export const permitWorkResumes = pgTable(
+  'permit_work_resumes',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    permitId: uuid('permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    executionId: uuid('execution_id')
+      .notNull()
+      .references(() => permitExecution.id, { onDelete: 'cascade' }),
+    pauseId: uuid('pause_id')
+      .notNull()
+      .references(() => permitWorkPauses.id, { onDelete: 'cascade' }),
+    checklist: jsonb('checklist').$type<Record<string, unknown>>().notNull().default({}),
+    notes: text('notes').notNull().default(''),
+    resumedBy: uuid('resumed_by').notNull(),
+    resumedAt: timestamp('resumed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('permit_work_resumes_tenant_permit_idx').on(table.tenantId, table.permitId),
+    index('permit_work_resumes_pause_id_idx').on(table.pauseId),
+    uniqueIndex('permit_work_resumes_pause_id_unique').on(table.pauseId),
   ],
 );
 

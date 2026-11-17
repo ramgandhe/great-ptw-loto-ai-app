@@ -35,6 +35,7 @@ export class PermitTypeService {
           color: dto.color ? dto.color.toUpperCase() : null,
           defaultAttributes: dto.defaultAttributes ?? null,
           isActive: dto.isActive ?? true,
+          forceDailyRevalidation: dto.forceDailyRevalidation ?? false,
           createdBy: user.id,
           updatedBy: user.id,
         })
@@ -98,6 +99,9 @@ export class PermitTypeService {
           ...(dto.color !== undefined ? { color: dto.color ? dto.color.toUpperCase() : null } : {}),
           ...(dto.defaultAttributes !== undefined ? { defaultAttributes: dto.defaultAttributes } : {}),
           ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+          ...(dto.forceDailyRevalidation !== undefined
+            ? { forceDailyRevalidation: dto.forceDailyRevalidation }
+            : {}),
           updatedBy: user.id,
           updatedAt: new Date(),
         })

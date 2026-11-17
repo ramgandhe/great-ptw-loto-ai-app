@@ -14,6 +14,11 @@ export function getApprovalReview(permitId: string) {
   return fetchApi<ApprovalReview>(`/approvals/${permitId}`);
 }
 
+export type ApproveMultiDayPolicy = {
+  dailyRevalidationRequired?: boolean;
+  emergencyOverrideAllowed?: boolean;
+};
+
 export function approvePermit(
   permitId: string,
   comment?: string,
@@ -21,6 +26,7 @@ export function approvePermit(
   siteVisited?: boolean,
   acknowledgeLocationWarning?: boolean,
   signedName?: string,
+  multiDayPolicy?: ApproveMultiDayPolicy,
 ) {
   return fetchApi<ApprovalReview>(`/approvals/${permitId}/approve`, {
     method: "POST",
@@ -30,6 +36,8 @@ export function approvePermit(
       siteVisited: siteVisited || undefined,
       acknowledgeLocationWarning: acknowledgeLocationWarning || undefined,
       signedName: signedName?.trim() || undefined,
+      dailyRevalidationRequired: multiDayPolicy?.dailyRevalidationRequired,
+      emergencyOverrideAllowed: multiDayPolicy?.emergencyOverrideAllowed,
     }),
   });
 }

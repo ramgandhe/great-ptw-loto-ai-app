@@ -7,10 +7,12 @@ export interface ValidityNotificationPayload {
   tenantId: string;
   reference: string | null;
   issuerId: string | null;
-  validityState: 'renewal_due' | 'expired';
-  plannedEndAt: string;
+  validityState: 'renewal_due' | 'expired' | 'max_validity';
+  plannedEndAt: string | null;
   hoursRemaining: number | null;
   operationalDate: string;
+  maxMultiDayValidityDays?: number;
+  elapsedDays?: number | null;
 }
 
 @Injectable()

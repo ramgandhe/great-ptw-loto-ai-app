@@ -1,4 +1,5 @@
 import {
+  classifyMaxValidity,
   classifyPermitValidity,
   hoursRemaining,
   operationalDateKey,
@@ -35,5 +36,60 @@ describe('Permit validity classification (FR-MDP-009)', () => {
     const utcMidnight = new Date('2026-08-01T00:30:00.000Z');
     expect(operationalDateKey(utcMidnight, 'UTC')).toBe('2026-08-01');
     expect(operationalDateKey(utcMidnight, 'Asia/Kolkata')).toBe('2026-08-01');
+  });
+
+  it('accepts ISO strings from Redis-cached permits', () => {
+    expect(operationalDateKey('2026-08-01T00:30:00.000Z', 'UTC')).toBe('2026-08-01');
+    expect(operationalDateKey('2026-11-13T11:30:00.000Z', 'Asia/Kolkata')).toBe('2026-11-13');
+  });
+});
+
+describe('Max validity classification (Slice I1)', () => {
+  const start = new Date('2026-08-01T08:00:00.000Z');
+
+  it('stays within_max while elapsed days are at or under the tenant max', () => {
+    const day7 = new Date('2026-08-07T10:00:00.000Z');
+    expect(
+      classifyMaxValidity({
+        plannedStartAt: start,
+        now: day7,
+        timezone: 'UTC',
+        maxMultiDayValidityDays: 7,
+      }),
+    ).toBe('within_max');
+  });
+
+  it('flags max_validity_due when elapsed days exceed the tenant max', () => {
+    const day8 = new Date('2026-08-08T10:00:00.000Z');
+    expect(
+      classifyMaxValidity({
+        plannedStartAt: start,
+        now: day8,
+        timezone: 'UTC',
+        maxMultiDayValidityDays: 7,
+      }),
+    ).toBe('max_validity_due');
+  });
+
+  it('flags max_validity_due when the planned schedule itself exceeds max', () => {
+    const endBeyond = new Date('2026-08-12T16:00:00.000Z');
+    expect(
+      classifyMaxValidity({
+        plannedStartAt: start,
+        plannedEndAt: endBeyond,
+        now: new Date('2026-08-02T10:00:00.000Z'),
+        timezone: 'UTC',
+        maxMultiDayValidityDays: 7,
+      }),
+    ).toBe('max_validity_due');
+  });
+
+  it('treats missing start as within_max', () => {
+    expect(
+      classifyMaxValidity({
+        plannedStartAt: null,
+        maxMultiDayValidityDays: 7,
+      }),
+    ).toBe('within_max');
   });
 });

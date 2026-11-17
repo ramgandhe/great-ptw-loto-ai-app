@@ -66,6 +66,16 @@ export const permits = pgTable(
     gasTestingRequired: boolean('gas_testing_required').notNull().default(false),
     plannedStartAt: timestamp('planned_start_at', { withTimezone: true }),
     plannedEndAt: timestamp('planned_end_at', { withTimezone: true }),
+    /**
+     * Multi-day: require daily reopen before work each operational day.
+     * Default true (hard gate). Approver may set false at approval.
+     */
+    dailyRevalidationRequired: boolean('daily_revalidation_required').notNull().default(true),
+    /**
+     * Multi-day: allow day-scoped emergency override of the reopen gate.
+     * Default true. Approver may disable for a fully hard gate.
+     */
+    emergencyOverrideAllowed: boolean('emergency_override_allowed').notNull().default(true),
     renewedFromPermitId: uuid('renewed_from_permit_id'),
     submittedAt: timestamp('submitted_at', { withTimezone: true }),
     submittedBy: uuid('submitted_by'),

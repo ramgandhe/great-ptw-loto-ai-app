@@ -35,6 +35,7 @@ import {
   permitSafetyOfficers,
   permits,
   permitTemplates,
+  organisations,
   lototoProcedureLockoutPoints,
   lototoProcedures,
   isolationCertificates,
@@ -122,6 +123,12 @@ import { PermitCacheService } from './permit-cache.service';
 import { PermitLogService } from './permit-log.service';
 import { PermitValidationService } from './permit-validation.service';
 import { resetStageAnswers } from './stage-reset';
+import {
+  buildMultiDaySummary,
+  type MultiDaySummary,
+} from '../revalidation/multi-day-summary';
+import { multiDayScheduleErrors } from '../revalidation/multi-day-schedule-rules';
+import { resolveMultiDayTenantSettings } from '../revalidation/multi-day-settings';
 
 export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
@@ -191,6 +198,8 @@ export interface PermitDetail {
   viewers: (typeof permitViewers.$inferSelect)[];
   safetyOfficers: (typeof permitSafetyOfficers.$inferSelect)[];
   attachments: (typeof permitAttachments.$inferSelect)[];
+  /** Derived multi-day classification + policy (Slice A8). */
+  multiDay: MultiDaySummary;
 }
 
 @Injectable()
@@ -223,6 +232,12 @@ export class PermitService {
     assertPermitCreateAllowed(user);
     const dto = sanitizeCreatePermitDto(user, rawDto);
     const tenantId = this.requireTenant(user);
+    await this.assertMultiDayScheduleOrThrow(
+      tenantId,
+      dto.plannedStartAt,
+      dto.plannedEndAt,
+      dto.isMultiDay,
+    );
     // A new permit has no approval or closure signatures; only those decisions record them.
     const formResponses = dto.formResponses ? keepLaterStageAnswers([], await this.resolveFormResponses(tenantId, dto.formResponses)) : [];
 
@@ -576,6 +591,10 @@ export class PermitService {
         dto.formResponses !== undefined ? await this.resolveFormResponses(tenantId, dto.formResponses) : undefined;
       assertDraftUpdateAllowed(user, existing, dto);
       assertExpectedRevision(existing, expectedRevision);
+      const nextStart =
+        dto.plannedStartAt !== undefined ? dto.plannedStartAt : existing.permit.plannedStartAt;
+      const nextEnd = dto.plannedEndAt !== undefined ? dto.plannedEndAt : existing.permit.plannedEndAt;
+      await this.assertMultiDayScheduleOrThrow(tenantId, nextStart, nextEnd, dto.isMultiDay);
       if (
         isLototoFrozen(existing.lototo) &&
         (dto.lototo !== undefined ||
@@ -994,9 +1013,11 @@ export class PermitService {
           assetRows.push({ assetId: asset.id });
         }
       }
+      const scheduleOptions = await this.loadScheduleValidationOptions(tenantId);
       this.validationService.validateForSubmit(
         { ...detail, permit: placed, assetIds: assetRows.map((row) => row.assetId) },
         missingFormAnswers(applicable, placed.formResponses as PermitFormResponse[]),
+        scheduleOptions,
       );
       assertPermitSegregationOfDuties({
         receiverIds: [detail.permit.createdBy, user.id],
@@ -1090,7 +1111,10 @@ export class PermitService {
     return this.loadDetail(this.db, id, tenantId);
   }
 
-  /** FR-MDP-009: copy an expired permit into a new draft for issuer-led renewal. */
+  /**
+   * FR-MDP-009 / Slice H6: copy a permit into a new draft for issuer-led renewal.
+   * Triggers: expired (default), max_validity, or material_change.
+   */
   async renewFromExpired(
     sourceId: string,
     dto: RenewPermitDto,
@@ -1098,9 +1122,28 @@ export class PermitService {
   ): Promise<PermitDetail> {
     const tenantId = this.requireTenant(user);
     const source = await this.loadDetail(this.db, sourceId, tenantId);
+    const reason =
+      dto.reason ??
+      (dto.materialChange ? 'material_change' : 'expired');
 
-    if (source.permit.status !== 'expired') {
-      throw new ConflictException('Only expired permits can be renewed');
+    if (reason === 'expired' && source.permit.status !== 'expired') {
+      throw new ConflictException('Only expired permits can be renewed with reason=expired');
+    }
+    if (
+      reason === 'max_validity' &&
+      !['expired', 'active', 'suspended', 'closed'].includes(source.permit.status)
+    ) {
+      throw new ConflictException(
+        'Max-validity renewal requires an active, suspended, closed, or expired permit',
+      );
+    }
+    if (
+      reason === 'material_change' &&
+      !['expired', 'active', 'suspended', 'closed', 'execution_completed'].includes(
+        source.permit.status,
+      )
+    ) {
+      throw new ConflictException('Material-change renewal is not available for this permit status');
     }
 
     if (!user.roles.includes('permit-receiver') && source.permit.submittedBy !== user.id) {
@@ -1267,6 +1310,7 @@ export class PermitService {
         payload: {
           renewalPermitId: renewal.id,
           reference: source.permit.reference,
+          reason,
         },
         createdBy: user.id,
       });
@@ -1451,6 +1495,17 @@ export class PermitService {
       .from(permitAttachments)
       .where(eq(permitAttachments.permitId, id));
 
+    const [org] = await db
+      .select({
+        timezone: organisations.timezone,
+        maxMultiDayValidityDays: organisations.maxMultiDayValidityDays,
+        operationalDayCutoff: organisations.operationalDayCutoff,
+        overtimeApproverRole: organisations.overtimeApproverRole,
+      })
+      .from(organisations)
+      .where(eq(organisations.tenantId, tenantId))
+      .limit(1);
+
     return {
       permit,
       draft: draft ?? null,
@@ -1464,6 +1519,7 @@ export class PermitService {
       viewers,
       safetyOfficers,
       attachments,
+      multiDay: buildMultiDaySummary(permit, org ?? null),
     };
   }
 
@@ -2702,6 +2758,50 @@ export class PermitService {
         ),
       );
     return buildFormResponses(input, templates);
+  }
+
+  private async loadScheduleValidationOptions(tenantId: string) {
+    const [org] = await this.db
+      .select({
+        timezone: organisations.timezone,
+        maxMultiDayValidityDays: organisations.maxMultiDayValidityDays,
+        operationalDayCutoff: organisations.operationalDayCutoff,
+        overtimeApproverRole: organisations.overtimeApproverRole,
+      })
+      .from(organisations)
+      .where(eq(organisations.tenantId, tenantId))
+      .limit(1);
+
+    const settings = resolveMultiDayTenantSettings(org ?? null);
+    return {
+      timezone: org?.timezone?.trim() || 'UTC',
+      operationalDayCutoff: settings.operationalDayCutoff,
+      maxMultiDayValidityDays: settings.maxMultiDayValidityDays,
+    };
+  }
+
+  /** Multi-day is derived from dates; reject false claims and over-max spans. */
+  private async assertMultiDayScheduleOrThrow(
+    tenantId: string,
+    plannedStartAt: Date | null | undefined,
+    plannedEndAt: Date | null | undefined,
+    claimedIsMultiDay?: boolean,
+  ): Promise<void> {
+    if (!plannedStartAt || !plannedEndAt) {
+      return;
+    }
+    const options = await this.loadScheduleValidationOptions(tenantId);
+    const errors = multiDayScheduleErrors(plannedStartAt, plannedEndAt, {
+      ...options,
+      claimedIsMultiDay,
+    });
+    if (errors.length > 0) {
+      throw new BadRequestException({
+        message: 'Permit validation failed',
+        error: 'VALIDATION_ERROR',
+        details: errors,
+      });
+    }
   }
 
   private requireTenant(user: AuthenticatedUser): string {

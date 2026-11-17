@@ -25,4 +25,9 @@ export class CreatePermitTypeDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  /** When true, multi-day approval cannot disable daily revalidation. */
+  @IsOptional()
+  @IsBoolean()
+  forceDailyRevalidation?: boolean;
 }

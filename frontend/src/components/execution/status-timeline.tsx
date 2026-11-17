@@ -1,4 +1,4 @@
-import type { PermitExecution } from "@/lib/execution/types";
+import type { PermitExecution, WorkHistoryEvent } from "@/lib/execution/types";
 import { formatDateTime } from "@/lib/format";
 
 type StatusEvent = {
@@ -8,7 +8,10 @@ type StatusEvent = {
   detail?: string | null;
 };
 
-function buildEvents(execution: PermitExecution | null): StatusEvent[] {
+function buildEvents(
+  execution: PermitExecution | null,
+  history?: WorkHistoryEvent[] | null,
+): StatusEvent[] {
   if (!execution) {
     return [];
   }
@@ -21,10 +24,44 @@ function buildEvents(execution: PermitExecution | null): StatusEvent[] {
     },
   ];
 
+  if (history && history.length > 0) {
+    for (const row of history) {
+      if (row.kind === "paused") {
+        events.push({
+          id: `paused-${row.id}`,
+          label: "Work paused",
+          at: row.at,
+          detail: row.summary,
+        });
+      } else {
+        events.push({
+          id: `resumed-${row.id}`,
+          label: "Work resumed",
+          at: row.at,
+        });
+      }
+    }
+  } else {
+    if (execution.workPausedAt) {
+      events.push({
+        id: "work-paused",
+        label: "Work paused",
+        at: execution.workPausedAt,
+      });
+    }
+    if (execution.workResumedAt) {
+      events.push({
+        id: "work-resumed",
+        label: "Work resumed",
+        at: execution.workResumedAt,
+      });
+    }
+  }
+
   if (execution.suspendedAt) {
     events.push({
       id: "suspended",
-      label: "Work suspended",
+      label: "Permit suspended",
       at: execution.suspendedAt,
       detail: execution.suspensionReason,
     });
@@ -33,7 +70,7 @@ function buildEvents(execution: PermitExecution | null): StatusEvent[] {
   if (execution.resumedAt) {
     events.push({
       id: "resumed",
-      label: "Work resumed",
+      label: "Permit resumed from suspension",
       at: execution.resumedAt,
     });
   }
@@ -41,8 +78,14 @@ function buildEvents(execution: PermitExecution | null): StatusEvent[] {
   return events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 }
 
-export function StatusTimeline({ execution }: { execution: PermitExecution | null }) {
-  const events = buildEvents(execution);
+export function StatusTimeline({
+  execution,
+  history,
+}: {
+  execution: PermitExecution | null;
+  history?: WorkHistoryEvent[] | null;
+}) {
+  const events = buildEvents(execution, history);
 
   if (events.length === 0) {
     return <p className="text-sm text-muted-foreground">No execution activity yet.</p>;

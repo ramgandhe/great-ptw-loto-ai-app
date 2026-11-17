@@ -99,7 +99,19 @@ describe('ExecutionService integration (PUS-141)', () => {
           gasTesting: [],
           viewers: [],
           safetyOfficers: [],
+          isolationCertificates: [],
           attachments: [],
+          multiDay: {
+            isMultiDay: false,
+            startOperationalDate: null,
+            endOperationalDate: null,
+            endPastCutoffSameDay: false,
+            dailyRevalidationRequired: true,
+            emergencyOverrideAllowed: true,
+            operationalDayCutoff: '16:30',
+            timezone: 'UTC',
+            maxMultiDayValidityDays: 7,
+          },
         };
       }),
     } as unknown as PermitService;

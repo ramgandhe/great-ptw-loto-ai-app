@@ -22,15 +22,32 @@ export const REVALIDATION_HISTORY_EVENT_TYPES = [
   'revalidation_passed',
   'revalidation_failed',
   'permit_continued',
+  'permit_cleared',
   'permit_suspended',
   'extension_requested',
   'extension_approved',
   'extension_rejected',
+  'overtime_requested',
+  'overtime_approved',
+  'overtime_rejected',
+  'override_used',
+  'day_secured',
+  'late_secure_recorded',
   'validity_expired',
   'renewal_due_notified',
+  'max_validity_due_notified',
   'renewal_initiated',
+  'clear_day_expired',
+  'failed_reopen',
+  'secure_due_reminder',
+  'reopen_due_reminder',
+  'late_secure_reminder',
+  'evidence_uploaded',
 ] as const;
 export type RevalidationHistoryEventType = (typeof REVALIDATION_HISTORY_EVENT_TYPES)[number];
+
+export const OVERTIME_STATUSES = ['pending', 'approved', 'rejected'] as const;
+export type OvertimeStatus = (typeof OVERTIME_STATUSES)[number];
 
 export const permitRevalidations = pgTable(
   'permit_revalidations',
@@ -79,6 +96,56 @@ export const permitExtensions = pgTable(
   (table) => [
     index('permit_extensions_tenant_permit_idx').on(table.tenantId, table.permitId),
     index('permit_extensions_status_idx').on(table.status),
+  ],
+);
+
+/** Same-day overtime (past operational-day cut-off; not a multi-day duration extension). */
+export const permitOvertimeRequests = pgTable(
+  'permit_overtime_requests',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    permitId: uuid('permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    operationalDate: date('operational_date').notNull(),
+    requestedUntil: timestamp('requested_until', { withTimezone: true }).notNull(),
+    justification: text('justification').notNull(),
+    status: varchar('status', { length: 16 }).notNull().default('pending'),
+    requestedBy: uuid('requested_by').notNull(),
+    requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+    decidedBy: uuid('decided_by'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decisionComments: text('decision_comments'),
+  },
+  (table) => [
+    index('permit_overtime_requests_tenant_permit_idx').on(table.tenantId, table.permitId),
+    index('permit_overtime_requests_status_idx').on(table.status),
+    index('permit_overtime_requests_permit_day_idx').on(table.permitId, table.operationalDate),
+  ],
+);
+
+/** Day-scoped emergency override of the daily reopen hard gate. */
+export const permitMdpOverrides = pgTable(
+  'permit_mdp_overrides',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    permitId: uuid('permit_id')
+      .notNull()
+      .references(() => permits.id, { onDelete: 'cascade' }),
+    operationalDate: date('operational_date').notNull(),
+    reason: text('reason').notNull(),
+    overriddenBy: uuid('overridden_by').notNull(),
+    overriddenAt: timestamp('overridden_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('permit_mdp_overrides_tenant_permit_day_unique').on(
+      table.tenantId,
+      table.permitId,
+      table.operationalDate,
+    ),
+    index('permit_mdp_overrides_tenant_permit_idx').on(table.tenantId, table.permitId),
   ],
 );
 

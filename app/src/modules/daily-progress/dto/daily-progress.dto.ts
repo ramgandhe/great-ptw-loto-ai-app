@@ -60,3 +60,15 @@ export class CreateShiftHandoverDto {
   @IsUUID()
   dailyProgressId?: string;
 }
+
+export class DecideShiftHandoverDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  notes?: string;
+
+  /** Wave 3 E4: required on accept when open LOTOTO isolations remain. */
+  @IsOptional()
+  @IsBoolean()
+  lototoCustodyAcknowledged?: boolean;
+}

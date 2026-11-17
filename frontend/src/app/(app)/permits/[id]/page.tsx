@@ -15,8 +15,12 @@ import { PermitJourney } from "@/components/permit/permit-journey";
 import { PermitPeopleReassign } from "@/components/permit/permit-people-reassign";
 import { identityFromPermit, PermitSummary } from "@/components/permit/permit-summary";
 import { PermitFormResponses } from "@/components/permit/permit-form-responses";
+import { DayCycleBadge } from "@/components/multi-day/day-cycle-badge";
+import { MultiDayPolicySummary } from "@/components/multi-day/multi-day-policy-summary";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { getDayCycle } from "@/lib/multi-day/api";
+import type { DayCycleSnapshot } from "@/lib/multi-day/types";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
@@ -35,7 +39,6 @@ import { CLOSURE_REVIEW_STATUSES, WORKSPACE_TABS, workspaceHref, workspaceTabs, 
 import PermitReviewPage from "../../approvals/[permitId]/page";
 import PermitClosurePage from "../../closure/[permitId]/page";
 import PermitExecutionPage from "../../execution/[permitId]/page";
-import MultiDayPermitPage from "./multi-day/page";
 
 const VETO_STATUSES = ["pending_approval", "approved", "active", "suspended", "deferred", "pending_closure"];
 const VETO_REASONS = [
@@ -60,6 +63,7 @@ function PermitWorkspace() {
   const router = useRouter();
   const { roles } = useAuthProfile();
   const [detail, setDetail] = useState<PermitDetail | null>(null);
+  const [dayCycle, setDayCycle] = useState<DayCycleSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,7 +75,16 @@ function PermitWorkspace() {
 
   useEffect(() => {
     getPermit(params.id)
-      .then(setDetail)
+      .then((permitDetail) => {
+        setDetail(permitDetail);
+        if (permitDetail.multiDay?.isMultiDay) {
+          getDayCycle(params.id)
+            .then(setDayCycle)
+            .catch(() => setDayCycle(null));
+        } else {
+          setDayCycle(null);
+        }
+      })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load permit"));
   }, [params.id]);
 
@@ -189,10 +202,18 @@ function PermitWorkspace() {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <h1 className="min-w-0 font-heading text-2xl font-semibold tracking-tight sm:text-3xl">{permit.title}</h1>
               <PermitStatusBadge status={permit.status} />
+              {dayCycle?.isMultiDay ? (
+                <DayCycleBadge permitId={permit.id} dayCycleState={dayCycle.dayCycleState} />
+              ) : null}
             </div>
             <p className="mt-2 font-mono text-xs font-medium tracking-wide text-muted-foreground">
               {permit.reference ?? "No number until submitted"}
             </p>
+            {detail.multiDay?.isMultiDay ? (
+              <div className="mt-3">
+                <MultiDayPolicySummary multiDay={detail.multiDay} dayCycle={dayCycle} />
+              </div>
+            ) : null}
           </div>
           <div className="flex items-start gap-3 border-l-2 border-primary pl-4">
             <CalendarClock className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
@@ -289,11 +310,14 @@ function PermitWorkspace() {
               </section>
             ) : null}
             {permit.status === "execution_completed" ? (
-              <p className="text-sm text-muted-foreground">
-                {restorationPending
-                  ? "Work is complete. A personal lock is still on. Take it off before this permit can close."
-                  : "Work is complete and sent for review and closure. The plant can stay isolated until it is restored in LOTOTO."}
-              </p>
+              <div className="grid gap-1 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">Work complete — next steps</p>
+                <p>
+                  {restorationPending
+                    ? "1) Verify completion. 2) Restore energy / remove personal locks in LOTOTO. 3) Request close. 4) Approver closes."
+                    : "1) Verify completion. 2) Request close (plant may stay isolated until restored in LOTOTO). 3) Approver closes."}
+                </p>
+              </div>
             ) : null}
             {permit.status === "pending_closure" ? (
               <p className="text-sm text-muted-foreground">Verification is done and sent for sign-off.</p>
@@ -409,12 +433,9 @@ function PermitWorkspace() {
 
       <PermitWorkspaceContext.Provider value={permit.id}>
         {tab === "review" ? CLOSURE_REVIEW_STATUSES.includes(permit.status) ? <PermitClosurePage /> : <PermitReviewPage /> : null}
-        {tab === "work" ? (
-          <>
-            <PermitExecutionPage />
-            {permit.status === "approved" ? null : <MultiDayPermitPage />}
-          </>
-        ) : null}
+        {/* Work tab = one operator path (Pause / Resume / Progress / Complete / handover).
+            Work is the only operator path. Day records and time requests live on this tab. */}
+        {tab === "work" ? <PermitExecutionPage /> : null}
       </PermitWorkspaceContext.Provider>
 
       {tab === "history" ? <PermitJourney id={permit.id} part="history" /> : null}

@@ -17,9 +17,23 @@ const FIELDS = [
   { key: "registrationNumber", label: "Registration number", hint: "Company or factory licence number (e.g. CIN)." },
 ] as const;
 
+const OVERTIME_APPROVER_OPTIONS = [
+  { value: "permit-approver", label: "HOD / permit approver (default)" },
+  { value: "area-authority", label: "Area authority" },
+  { value: "shift-in-charge", label: "Shift in-charge" },
+] as const;
+
 export default function OrganisationProfilePage() {
   const [org, setOrg] = useState<Organisation | null>(null);
-  const [form, setForm] = useState({ name: "", legalName: "", registrationNumber: "", timezone: "UTC" });
+  const [form, setForm] = useState({
+    name: "",
+    legalName: "",
+    registrationNumber: "",
+    timezone: "UTC",
+    maxMultiDayValidityDays: "7",
+    operationalDayCutoff: "16:30",
+    overtimeApproverRole: "permit-approver" as Organisation["overtimeApproverRole"],
+  });
   const [error, setError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +51,9 @@ export default function OrganisationProfilePage() {
             legalName: first.legalName ?? "",
             registrationNumber: first.registrationNumber ?? "",
             timezone: first.timezone ?? "UTC",
+            maxMultiDayValidityDays: String(first.maxMultiDayValidityDays ?? 7),
+            operationalDayCutoff: first.operationalDayCutoff ?? "16:30",
+            overtimeApproverRole: first.overtimeApproverRole ?? "permit-approver",
           });
         }
       })
@@ -50,14 +67,29 @@ export default function OrganisationProfilePage() {
     setError(null);
     setSavedMessage(null);
     try {
+      const maxDays = Number.parseInt(form.maxMultiDayValidityDays, 10);
+      if (org && (!Number.isInteger(maxDays) || maxDays < 1 || maxDays > 365)) {
+        setError("Max multi-day validity must be a whole number from 1 to 365.");
+        return;
+      }
+      if (org && !/^([01]?\d|2[0-3]):([0-5]\d)$/.test(form.operationalDayCutoff.trim())) {
+        setError("Operational day cut-off must be HH:mm (24-hour), for example 16:30.");
+        return;
+      }
       const payload = {
         name: form.name.trim(),
         legalName: form.legalName.trim() || undefined,
         registrationNumber: form.registrationNumber.trim() || undefined,
       };
-      // Time zone can only be set once the organisation exists.
+      // Time zone and MDP settings can only be set once the organisation exists.
       const updated = org
-        ? await organisationsApi.update(org.id, { ...payload, timezone: form.timezone })
+        ? await organisationsApi.update(org.id, {
+            ...payload,
+            timezone: form.timezone,
+            maxMultiDayValidityDays: maxDays,
+            operationalDayCutoff: form.operationalDayCutoff.trim(),
+            overtimeApproverRole: form.overtimeApproverRole,
+          })
         : await organisationsApi.create(payload);
       setOrg(updated);
       setSavedMessage(org ? "Saved organisation details." : "Registered organisation.");
@@ -114,21 +146,70 @@ export default function OrganisationProfilePage() {
             </label>
           ))}
           {org ? (
-            <label className="grid content-start gap-1.5 text-sm">
-              <span className="font-medium">Time zone</span>
-              <AppSelect
-                value={form.timezone}
-                className={FIELD_CLASS}
-                onChange={(e) => setForm((prev) => ({ ...prev, timezone: e.target.value }))}
-              >
-                {TIME_ZONES.map((zone) => (
-                  <option key={zone} value={zone}>
-                    {zone}
-                  </option>
-                ))}
-              </AppSelect>
-              <span className="text-xs text-muted-foreground">Used for permit validity windows and reports.</span>
-            </label>
+            <>
+              <label className="grid content-start gap-1.5 text-sm">
+                <span className="font-medium">Time zone</span>
+                <AppSelect
+                  value={form.timezone}
+                  className={FIELD_CLASS}
+                  onChange={(e) => setForm((prev) => ({ ...prev, timezone: e.target.value }))}
+                >
+                  {TIME_ZONES.map((zone) => (
+                    <option key={zone} value={zone}>
+                      {zone}
+                    </option>
+                  ))}
+                </AppSelect>
+                <span className="text-xs text-muted-foreground">Used for permit validity windows, multi-day days and reports.</span>
+              </label>
+              <div className="sm:col-span-2 grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
+                <p className="sm:col-span-2 text-sm font-medium">Multi-day permit settings</p>
+                <label className="grid content-start gap-1.5 text-sm">
+                  <span className="font-medium">Max multi-day validity (days)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    required
+                    value={form.maxMultiDayValidityDays}
+                    className={FIELD_CLASS}
+                    onChange={(e) => setForm((prev) => ({ ...prev, maxMultiDayValidityDays: e.target.value }))}
+                  />
+                  <span className="text-xs text-muted-foreground">From planned start. Beyond this, use renewal instead of extension. Default 7.</span>
+                </label>
+                <label className="grid content-start gap-1.5 text-sm">
+                  <span className="font-medium">Operational day cut-off</span>
+                  <input
+                    type="time"
+                    required
+                    value={form.operationalDayCutoff}
+                    className={FIELD_CLASS}
+                    onChange={(e) => setForm((prev) => ({ ...prev, operationalDayCutoff: e.target.value }))}
+                  />
+                  <span className="text-xs text-muted-foreground">Same-day work past this time needs overtime approval. Default 16:30.</span>
+                </label>
+                <label className="grid content-start gap-1.5 text-sm sm:col-span-2">
+                  <span className="font-medium">Same-day overtime approver</span>
+                  <AppSelect
+                    value={form.overtimeApproverRole ?? "permit-approver"}
+                    className={FIELD_CLASS}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        overtimeApproverRole: e.target.value as Organisation["overtimeApproverRole"],
+                      }))
+                    }
+                  >
+                    {OVERTIME_APPROVER_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </AppSelect>
+                  <span className="text-xs text-muted-foreground">Default is HOD / permit approver. Can be routed to area or shift authority.</span>
+                </label>
+              </div>
+            </>
           ) : null}
           <div className="sm:col-span-2">
             <Button type="submit" disabled={saving}>

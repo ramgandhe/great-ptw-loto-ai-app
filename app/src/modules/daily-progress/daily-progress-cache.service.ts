@@ -22,6 +22,10 @@ export class DailyProgressCacheService {
     return `mdp:progress:${tenantId}:${permitId}`;
   }
 
+  daySecuresKey(tenantId: string, permitId: string): string {
+    return `mdp:day-secures:${tenantId}:${permitId}`;
+  }
+
   async getActiveList<T>(tenantId: string): Promise<T | null> {
     return this.cacheService.getJson<T>(this.activeListKey(tenantId));
   }
@@ -42,8 +46,21 @@ export class DailyProgressCacheService {
     );
   }
 
+  async getDaySecures<T>(tenantId: string, permitId: string): Promise<T | null> {
+    return this.cacheService.getJson<T>(this.daySecuresKey(tenantId, permitId));
+  }
+
+  async setDaySecures<T>(tenantId: string, permitId: string, value: T): Promise<void> {
+    await this.cacheService.setJson(
+      this.daySecuresKey(tenantId, permitId),
+      value,
+      this.ttlSeconds(),
+    );
+  }
+
   async invalidatePermit(tenantId: string, permitId: string): Promise<void> {
     await this.cacheService.del(this.permitProgressKey(tenantId, permitId));
+    await this.cacheService.del(this.daySecuresKey(tenantId, permitId));
     await this.cacheService.del(this.activeListKey(tenantId));
   }
 }

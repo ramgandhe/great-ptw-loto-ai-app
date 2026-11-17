@@ -13,6 +13,7 @@ import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   permitApprovals,
   permitExecutors,
+  permitTypes,
   permits,
   workflowAssignments,
   workflowSteps,
@@ -35,6 +36,7 @@ import { WorkflowEngineService } from './workflow-engine.service';
 import { SimopsService } from '../simops/simops.service';
 import { isAssignedExecutor } from '../permit/permit-collaboration';
 import { areaAuthorityIds, isAreaAuthorityRole } from '../permit/permit-access';
+import { resolveApprovalMultiDayPolicy } from './multi-day-approval-policy';
 
 @Injectable()
 export class ApprovalService {
@@ -174,7 +176,7 @@ export class ApprovalService {
       throw new BadRequestException('A typed name is required');
     }
     const context = await this.prepareDecision(permitId, user, 'approve');
-    const { permit, assignment, step, onBehalfOf } = context;
+    const { permit, detail, assignment, step, onBehalfOf } = context;
 
     if (step.commentRequiredOnApprove && !dto.comment?.trim()) {
       throw new BadRequestException('Approval comment is required for this workflow step');
@@ -253,6 +255,27 @@ export class ApprovalService {
           tx,
         );
       } else {
+        const [permitType] = permit.permitTypeId
+          ? await tx
+              .select({
+                forceDailyRevalidation: permitTypes.forceDailyRevalidation,
+              })
+              .from(permitTypes)
+              .where(
+                and(
+                  eq(permitTypes.id, permit.permitTypeId),
+                  eq(permitTypes.tenantId, permit.tenantId),
+                ),
+              )
+              .limit(1)
+          : [undefined];
+
+        const multiDayPolicy = resolveApprovalMultiDayPolicy(detail.multiDay.isMultiDay, {
+          dailyRevalidationRequired: dto.dailyRevalidationRequired,
+          emergencyOverrideAllowed: dto.emergencyOverrideAllowed,
+          forceDailyRevalidation: permitType?.forceDailyRevalidation === true,
+        });
+
         await tx
           .update(permits)
           .set({
@@ -261,6 +284,12 @@ export class ApprovalService {
             approvedBy: user.id,
             approvedSignedName: dto.signedName?.trim() || [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.username,
             approverSiteVisited: dto.siteVisited === true,
+            ...(multiDayPolicy
+              ? {
+                  dailyRevalidationRequired: multiDayPolicy.dailyRevalidationRequired,
+                  emergencyOverrideAllowed: multiDayPolicy.emergencyOverrideAllowed,
+                }
+              : {}),
             updatedBy: user.id,
           })
           .where(and(eq(permits.id, permitId), eq(permits.tenantId, permit.tenantId)));
@@ -279,6 +308,13 @@ export class ApprovalService {
             workflowStepId: step.id,
             permitApprovalId: approval.id,
             createdBy: user.id,
+            metadata: multiDayPolicy
+              ? {
+                  multiDay: true,
+                  dailyRevalidationRequired: multiDayPolicy.dailyRevalidationRequired,
+                  emergencyOverrideAllowed: multiDayPolicy.emergencyOverrideAllowed,
+                }
+              : undefined,
           },
           tx,
         );
@@ -511,7 +547,7 @@ export class ApprovalService {
       await this.simopsService.assertNoOpenCase(permitId, permit.tenantId);
     }
 
-    return { permit, assignment, step, onBehalfOf };
+    return { permit, detail, assignment, step, onBehalfOf };
   }
 
   private async viewerMayDecide(

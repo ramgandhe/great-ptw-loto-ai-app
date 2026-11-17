@@ -72,11 +72,16 @@ describe('DailyProgressService (PUS-176)', () => {
     };
     const logService = { logEvent: jest.fn() };
 
+    const canonicalNotifications = {
+      fromMdpHandoverPending: jest.fn().mockResolvedValue(undefined),
+    };
+
     const service = new DailyProgressService(
       db as never,
       auditService as never,
       cacheService as never,
       logService as never,
+      canonicalNotifications as never,
     );
 
     return { service, db, auditService, cacheService, logService, permit };

@@ -38,6 +38,8 @@ export const permitTypes = pgTable(
     color: varchar('color', { length: 7 }),
     defaultAttributes: jsonb('default_attributes').$type<Record<string, unknown>>(),
     isActive: boolean('is_active').notNull().default(true),
+    /** Slice J3: when true, multi-day approval cannot turn daily audit OFF. */
+    forceDailyRevalidation: boolean('force_daily_revalidation').notNull().default(false),
   },
   (table) => [
     uniqueIndex('permit_types_tenant_code_unique').on(table.tenantId, table.code),

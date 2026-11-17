@@ -3,6 +3,7 @@ import type {
   EvidenceRecord,
   ExecutionActionResult,
   ProgressRecord,
+  WorkCycleSnapshot,
 } from "./types";
 
 import type { ExecutionStartState } from "./start";
@@ -44,6 +45,49 @@ export function suspendPermit(permitId: string, reason: string) {
 export function resumePermit(permitId: string) {
   return fetchApi<ExecutionActionResult>(`/permits/${permitId}/resume`, {
     method: "POST",
+  });
+}
+
+export function getWorkCycle(permitId: string) {
+  return fetchApi<WorkCycleSnapshot>(`/permits/${permitId}/work`);
+}
+
+export function pauseWork(
+  permitId: string,
+  payload: {
+    summary: string;
+    checklist: Record<string, boolean>;
+    notes?: string;
+    lototoRemovals?: string[];
+    overnightRestoreChosen?: boolean;
+    lateReason?: string;
+  },
+) {
+  return fetchApi<{
+    workUiState: string;
+    execution: import("./types").PermitExecution;
+    permit: import("@/lib/permit/types").PermitRecord;
+  }>(`/permits/${permitId}/work/pause`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function resumeWork(
+  permitId: string,
+  payload: {
+    checklist: Record<string, boolean>;
+    notes?: string;
+    crew?: Array<{ workforceUserId: string; role: "primary" | "substitute" }>;
+  },
+) {
+  return fetchApi<{
+    workUiState: string;
+    execution: import("./types").PermitExecution;
+    permit: import("@/lib/permit/types").PermitRecord;
+  }>(`/permits/${permitId}/work/resume`, {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 

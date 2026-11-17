@@ -34,6 +34,8 @@ export type PermitRecord = {
   gasTestingRequired?: boolean;
   plannedStartAt: string | null;
   plannedEndAt: string | null;
+  dailyRevalidationRequired?: boolean;
+  emergencyOverrideAllowed?: boolean;
   submittedAt: string | null;
   submittedBy?: string | null;
   submittedSignedName?: string | null;
@@ -203,10 +205,24 @@ export type PermitAttachment = {
   storageKey: string;
 };
 
+export type MultiDaySummary = {
+  isMultiDay: boolean;
+  startOperationalDate: string | null;
+  endOperationalDate: string | null;
+  endPastCutoffSameDay: boolean;
+  dailyRevalidationRequired: boolean;
+  emergencyOverrideAllowed: boolean;
+  operationalDayCutoff: string;
+  timezone: string;
+  maxMultiDayValidityDays: number;
+};
+
 export type PermitDetail = {
   /** Set when a save recalculated gas defaults. */
   gasChanges?: string[];
   permit: PermitRecord;
+  /** Derived multi-day classification + policy. */
+  multiDay?: MultiDaySummary;
   draft: PermitDraft | null;
   hazards: Array<{
     hazardCategoryId: string | null;

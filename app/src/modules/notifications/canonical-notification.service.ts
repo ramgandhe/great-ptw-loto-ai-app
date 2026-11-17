@@ -75,20 +75,25 @@ export class CanonicalNotificationService {
       return;
     }
 
-    const title =
-      payload.validityState === 'expired'
-        ? `Permit ${payload.reference ?? payload.permitId} has expired`
-        : `Permit ${payload.reference ?? payload.permitId} renewal due`;
-
-    const body =
-      payload.validityState === 'expired'
-        ? 'The approved validity window has ended. Initiate renewal to continue work.'
-        : `Less than 48 hours remain before expiry (${payload.hoursRemaining?.toFixed(1) ?? '?'}h left).`;
+    const ref = payload.reference ?? payload.permitId;
+    let title: string;
+    let body: string;
+    if (payload.validityState === 'expired') {
+      title = `Permit ${ref} has expired`;
+      body = 'The approved validity window has ended. Initiate renewal to continue work.';
+    } else if (payload.validityState === 'max_validity') {
+      const maxDays = payload.maxMultiDayValidityDays ?? 7;
+      title = `Permit ${ref} reached tenant max validity`;
+      body = `This multi-day permit has reached or exceeded the tenant maximum of ${maxDays} operational days. Renew instead of extending.`;
+    } else {
+      title = `Permit ${ref} renewal due`;
+      body = `Less than 48 hours remain before expiry (${payload.hoursRemaining?.toFixed(1) ?? '?'}h left).`;
+    }
 
     await this.notificationsService.generateSystem(payload.tenantId, payload.issuerId, {
       eventType: 'permit_expiry',
       category: payload.validityState === 'expired' ? 'escalation' : 'reminder',
-      priority: payload.validityState === 'expired' ? 'high' : 'medium',
+      priority: payload.validityState === 'expired' || payload.validityState === 'max_validity' ? 'high' : 'medium',
       title,
       body,
       recipientUserIds: [payload.issuerId],
@@ -96,6 +101,61 @@ export class CanonicalNotificationService {
       entityId: payload.permitId,
       dedupeKey: `${payload.tenantId}:permit:${payload.permitId}:permit_expiry:${payload.validityState}:${payload.operationalDate}`,
       sourceModule: 'revalidation',
+    });
+  }
+
+  /** Slice I2: actionable morning reminders for secure / late secure / reopen. */
+  async fromMdpDayCycleReminder(params: {
+    tenantId: string;
+    permitId: string;
+    actorId: string;
+    reference: string | null;
+    operationalDate: string;
+    action: 'secure_due' | 'late_secure_required' | 'reopen_due';
+    recipientUserIds?: string[];
+  }): Promise<void> {
+    let recipientUserIds = [...new Set(params.recipientUserIds ?? [])].filter(Boolean);
+    if (recipientUserIds.length === 0) {
+      recipientUserIds = await this.resolvePermitRecipients(
+        params.permitId,
+        params.tenantId,
+        params.actorId,
+      );
+    }
+    if (recipientUserIds.length === 0) {
+      return;
+    }
+
+    const name = params.reference
+      ? `Permit ${params.reference}`
+      : `Permit ${params.permitId}`;
+    const copy =
+      params.action === 'late_secure_required'
+        ? {
+            title: `${name}: late secure required`,
+            body: `Prior operational day was not secured. Complete late secure before clear-for-work on ${params.operationalDate}.`,
+          }
+        : params.action === 'reopen_due'
+          ? {
+              title: `${name}: reopen due`,
+              body: `Daily reopen is required before work can continue on ${params.operationalDate}.`,
+            }
+          : {
+              title: `${name}: end-of-day secure due`,
+              body: `Submit daily progress (if needed) and complete end-of-day secure for ${params.operationalDate}.`,
+            };
+
+    await this.notificationsService.generateSystem(params.tenantId, params.actorId, {
+      eventType: 'task_reminder',
+      category: 'reminder',
+      priority: params.action === 'late_secure_required' ? 'high' : 'medium',
+      title: copy.title,
+      body: copy.body,
+      recipientUserIds,
+      entityType: 'execution',
+      entityId: params.permitId,
+      dedupeKey: `${params.tenantId}:permit:${params.permitId}:mdp_day_cycle:${params.action}:${params.operationalDate}`,
+      sourceModule: 'daily-progress',
     });
   }
 
@@ -185,6 +245,215 @@ export class CanonicalNotificationService {
       entityId: params.incidentId,
       dedupeKey: `${params.tenantId}:incident:${params.incidentId}:reported`,
       sourceModule: 'incidents',
+    });
+  }
+
+  /** Slice H: notify approvers (or requester) about overtime / extension decisions. */
+  async fromMdpTimeRequest(params: {
+    tenantId: string;
+    permitId: string;
+    actorId: string;
+    kind: 'overtime' | 'extension';
+    phase: 'requested' | 'approved' | 'rejected';
+    requestId: string;
+    recipientUserIds?: string[];
+  }): Promise<void> {
+    let recipientUserIds = [...new Set(params.recipientUserIds ?? [])].filter(
+      (id) => id && id !== params.actorId,
+    );
+    if (recipientUserIds.length === 0) {
+      recipientUserIds = await this.resolvePermitRecipients(
+        params.permitId,
+        params.tenantId,
+        params.actorId,
+      );
+    }
+    if (recipientUserIds.length === 0) {
+      return;
+    }
+
+    const [permit] = await this.db
+      .select({ reference: permits.reference, title: permits.title })
+      .from(permits)
+      .where(and(eq(permits.id, params.permitId), eq(permits.tenantId, params.tenantId)));
+    const name = permit ? `${permit.reference ?? 'Permit'}: ${permit.title}` : 'A permit';
+    const label = params.kind === 'overtime' ? 'Same-day overtime' : 'Duration extension';
+    const title =
+      params.phase === 'requested'
+        ? `${label} awaiting approval`
+        : params.phase === 'approved'
+          ? `${label} approved`
+          : `${label} rejected`;
+    const body =
+      params.phase === 'requested'
+        ? `${name} has a ${params.kind} request waiting for decision.`
+        : `${name} ${params.kind} was ${params.phase}.`;
+
+    await this.notificationsService.generateSystem(params.tenantId, params.actorId, {
+      eventType: 'task_reminder',
+      category: 'workflow',
+      priority: params.phase === 'requested' ? 'high' : 'medium',
+      title,
+      body,
+      recipientUserIds,
+      entityType: 'permit',
+      entityId: params.permitId,
+      dedupeKey: `${params.tenantId}:permit:${params.permitId}:mdp_${params.kind}:${params.requestId}:${params.phase}`,
+      sourceModule: 'revalidation',
+    });
+  }
+
+  /** Slice E1: notify incoming party that a shift handover awaits acceptance. */
+  async fromMdpHandoverPending(params: {
+    tenantId: string;
+    permitId: string;
+    actorId: string;
+    handoverId: string;
+    incomingUserId: string;
+  }): Promise<void> {
+    if (!params.incomingUserId || params.incomingUserId === params.actorId) {
+      return;
+    }
+
+    const [permit] = await this.db
+      .select({ reference: permits.reference, title: permits.title })
+      .from(permits)
+      .where(and(eq(permits.id, params.permitId), eq(permits.tenantId, params.tenantId)));
+    const name = permit ? `${permit.reference ?? 'Permit'}: ${permit.title}` : 'A permit';
+
+    await this.notificationsService.generateSystem(params.tenantId, params.actorId, {
+      eventType: 'task_reminder',
+      category: 'workflow',
+      priority: 'high',
+      title: 'Shift handover awaiting your acceptance',
+      body: `${name} was handed over to you. Accept or reject to take custody.`,
+      recipientUserIds: [params.incomingUserId],
+      entityType: 'execution',
+      entityId: params.permitId,
+      dedupeKey: `${params.tenantId}:permit:${params.permitId}:mdp_handover:${params.handoverId}:pending`,
+      sourceModule: 'daily-progress',
+    });
+  }
+
+  /** Notify outgoing party when dual handover is accepted or rejected. */
+  async fromMdpHandoverDecided(params: {
+    tenantId: string;
+    permitId: string;
+    actorId: string;
+    handoverId: string;
+    outgoingUserId: string;
+    decision: 'accepted' | 'rejected';
+  }): Promise<void> {
+    if (!params.outgoingUserId || params.outgoingUserId === params.actorId) {
+      return;
+    }
+
+    const [permit] = await this.db
+      .select({ reference: permits.reference, title: permits.title })
+      .from(permits)
+      .where(and(eq(permits.id, params.permitId), eq(permits.tenantId, params.tenantId)));
+    const name = permit ? `${permit.reference ?? 'Permit'}: ${permit.title}` : 'A permit';
+    const accepted = params.decision === 'accepted';
+
+    await this.notificationsService.generateSystem(params.tenantId, params.actorId, {
+      eventType: 'task_reminder',
+      category: 'workflow',
+      priority: accepted ? 'medium' : 'high',
+      title: accepted ? 'Shift handover accepted' : 'Shift handover rejected',
+      body: accepted
+        ? `${name}: incoming party accepted custody.`
+        : `${name}: incoming party rejected the handover. Custody remains with you.`,
+      recipientUserIds: [params.outgoingUserId],
+      entityType: 'permit',
+      entityId: params.permitId,
+      dedupeKey: `${params.tenantId}:permit:${params.permitId}:mdp_handover:${params.handoverId}:${params.decision}`,
+      sourceModule: 'daily-progress',
+    });
+  }
+
+  /** High-priority alert when daily reopen fails and the permit is suspended. */
+  async fromMdpFailedReopen(params: {
+    tenantId: string;
+    permitId: string;
+    actorId: string;
+    operationalDate: string;
+    findings?: string;
+  }): Promise<void> {
+    const recipientUserIds = await this.resolvePermitRecipients(
+      params.permitId,
+      params.tenantId,
+      params.actorId,
+    );
+    if (recipientUserIds.length === 0) {
+      return;
+    }
+
+    const [permit] = await this.db
+      .select({ reference: permits.reference, title: permits.title })
+      .from(permits)
+      .where(and(eq(permits.id, params.permitId), eq(permits.tenantId, params.tenantId)));
+    const name = permit ? `${permit.reference ?? 'Permit'}: ${permit.title}` : 'A permit';
+    const findings = params.findings?.trim();
+
+    await this.notificationsService.generateSystem(params.tenantId, params.actorId, {
+      eventType: 'escalation',
+      category: 'escalation',
+      priority: 'high',
+      title: `${name}: failed reopen`,
+      body: findings
+        ? `Daily reopen failed for ${params.operationalDate}. Permit suspended. Findings: ${findings}`
+        : `Daily reopen failed for ${params.operationalDate}. Permit suspended until reopen passes.`,
+      recipientUserIds,
+      entityType: 'permit',
+      entityId: params.permitId,
+      dedupeKey: `${params.tenantId}:permit:${params.permitId}:mdp_failed_reopen:${params.operationalDate}`,
+      sourceModule: 'revalidation',
+    });
+  }
+
+  /** Slice D3: notify issuer / HOD / tenant admins that emergency override was used today. */
+  async fromMdpOverride(params: {
+    tenantId: string;
+    permitId: string;
+    actorId: string;
+    operationalDate: string;
+    reason: string;
+  }): Promise<void> {
+    const recipients = await this.resolvePermitRecipients(
+      params.permitId,
+      params.tenantId,
+      params.actorId,
+    );
+    const people = await this.keycloakAdmin.listUsersForTenant(params.tenantId).catch(() => []);
+    const hodAndSafety = people
+      .filter(
+        (person) =>
+          person.enabled &&
+          person.id !== params.actorId &&
+          person.roles.some((role) =>
+            ['permit-approver', 'tenant-admin', 'tenant-owner', 'safety-officer'].includes(role),
+          ),
+      )
+      .map((person) => person.id);
+    const recipientUserIds = [...new Set([...recipients, ...hodAndSafety])];
+
+    const [permit] = await this.db
+      .select({ reference: permits.reference, title: permits.title })
+      .from(permits)
+      .where(and(eq(permits.id, params.permitId), eq(permits.tenantId, params.tenantId)));
+    const name = permit ? `${permit.reference ?? 'Permit'}: ${permit.title}` : 'A permit';
+
+    await this.notificationsService.generateSystem(params.tenantId, params.actorId, {
+      eventType: 'escalation',
+      category: 'escalation',
+      priority: 'high',
+      title: `MDP emergency override used (${params.operationalDate})`,
+      body: `${name} bypassed the daily reopen gate for ${params.operationalDate}. Reason: ${params.reason}`,
+      recipientUserIds,
+      entityType: 'permit',
+      entityId: params.permitId,
+      dedupeKey: `${params.tenantId}:permit:${params.permitId}:mdp_override:${params.operationalDate}`,
+      sourceModule: 'revalidation',
     });
   }
 

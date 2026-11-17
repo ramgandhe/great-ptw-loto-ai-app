@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { and, asc, eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -11,6 +12,7 @@ import { isTenantPrivileged } from '../../common/constants/tenant-roles';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { permitExecution, permitExecutors, permitProgress } from '../../database/schema';
 import { AuditService } from '../logging/audit.service';
+import { DailyProgressService } from '../daily-progress/daily-progress.service';
 import { PermitCacheService } from '../permit/permit-cache.service';
 import { PermitService } from '../permit/permit.service';
 import { ACTIVE_STATUS } from './execution.constants';
@@ -18,6 +20,7 @@ import { ProgressUpdateDto } from './dto/progress-update.dto';
 import { ExecutionCacheService } from './execution-cache.service';
 import { ExecutionLogService } from './execution-log.service';
 import { NotificationService } from './notification.service';
+import { WorkCycleService } from './work-cycle.service';
 
 @Injectable()
 export class ProgressService {
@@ -29,6 +32,9 @@ export class ProgressService {
     private readonly permitCacheService: PermitCacheService,
     private readonly executionCacheService: ExecutionCacheService,
     private readonly executionLogService: ExecutionLogService,
+    private readonly dailyProgressService: DailyProgressService,
+    @Inject(forwardRef(() => WorkCycleService))
+    private readonly workCycleService: WorkCycleService,
   ) {}
 
   async addProgress(permitId: string, dto: ProgressUpdateDto, user: AuthenticatedUser) {
@@ -41,6 +47,11 @@ export class ProgressService {
     }
 
     await this.requireExecutor(permitId, user);
+    await this.workCycleService.assertWorkWrite(permitId, user, 'record progress');
+    await this.dailyProgressService.noteFromWork(permitId, user, {
+      text: dto.summary,
+      kind: 'progress',
+    });
 
     const execution = await this.getExecution(permitId);
 
