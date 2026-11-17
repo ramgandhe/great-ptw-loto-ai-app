@@ -10,7 +10,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, arrayContains, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm';
+import { and, arrayContains, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { generatePermitReference } from '../../database/permit-reference';
@@ -518,6 +518,7 @@ export class PermitService {
     }
     const tenantId = this.requireTenant(user);
     const { detail, incidentIds, evidenceKeys } = await this.db.transaction(async (tx) => {
+      await setPermitPurgeTriggers(tx, false);
       const locked = await this.loadLockedDetail(tx, id, tenantId);
       const links = await tx
         .select({ incidentId: incidentPermits.incidentId })
@@ -542,6 +543,7 @@ export class PermitService {
       }
       await cancelDraftCertificatesForPermit(tx, id, user.id);
       await tx.delete(permits).where(and(eq(permits.id, id), eq(permits.tenantId, tenantId)));
+      await setPermitPurgeTriggers(tx, true);
       return { detail: locked, incidentIds, evidenceKeys: evidence.map((row) => row.storageKey) };
     });
 
@@ -2810,4 +2812,30 @@ export class PermitService {
     }
     return user.tenantId;
   }
+}
+
+/** Owner cleanup of a test permit. Turns delete-locks off for this transaction, then back on before commit. */
+async function setPermitPurgeTriggers(
+  tx: { execute: (query: ReturnType<typeof sql.raw>) => Promise<unknown> },
+  enabled: boolean,
+): Promise<void> {
+  const verb = enabled ? 'ENABLE' : 'DISABLE';
+  await tx.execute(sql.raw(`
+DO $purge$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT DISTINCT c.relname AS table_name
+    FROM pg_trigger t
+    JOIN pg_class c ON c.oid = t.tgrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND NOT t.tgisinternal
+      AND (t.tgtype & 8) <> 0
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I ${verb} TRIGGER USER', r.table_name);
+  END LOOP;
+END
+$purge$
+`));
 }

@@ -1,8 +1,8 @@
 /** Task views at the top of the permit list (?view=…). "Needs me" is the person's work queue. */
 export const QUEUE_VIEWS = [
   { key: "needs-me", label: "Needs me", statuses: null },
-  { key: "drafts", label: "Drafts", statuses: ["draft"] },
-  { key: "review", label: "Awaiting review", statuses: ["pending_approval", "deferred", "rejected"] },
+  { key: "drafts", label: "Drafts", statuses: ["draft", "rejected"] },
+  { key: "review", label: "Awaiting review", statuses: ["pending_approval", "deferred"] },
   { key: "live", label: "Live", statuses: ["approved", "active", "suspended"] },
   { key: "closing", label: "Closing", statuses: ["execution_completed", "pending_closure"] },
   { key: "finished", label: "Finished", statuses: ["closed", "cancelled", "expired"] },

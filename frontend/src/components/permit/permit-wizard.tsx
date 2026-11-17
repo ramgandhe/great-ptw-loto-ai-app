@@ -332,17 +332,25 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   const placeSelectionRef = useRef<string | null>(null);
   // One step at a time. A draft reopens where it was left; the executor's part starts at Site safety.
   const [active, setActive] = useState<PermitEditorSectionId>(() =>
-    mode === "edit" && authRoles.includes("safety-officer")
-      ? "safety"
-      : mode === "edit" && shouldSaveExecutorPayload(authRoles)
-        ? "site"
-        : (PERMIT_EDITOR_SECTIONS.find((section) => (section.steps as readonly number[]).includes(form.currentStep))?.id ?? "work"),
+    mode === "edit" &&
+    initialDetail?.permit.status === "rejected" &&
+    parseDraftHolder(initialDetail.permit.draftHolder) === "receiver"
+      ? "work"
+      : mode === "edit" && authRoles.includes("safety-officer")
+        ? "safety"
+        : mode === "edit" && shouldSaveExecutorPayload(authRoles)
+          ? "site"
+          : (PERMIT_EDITOR_SECTIONS.find((section) => (section.steps as readonly number[]).includes(form.currentStep))?.id ?? "work"),
   );
 
   useEffect(() => {
     if (authRoles.length > 0) {
       setUserRoles(authRoles);
-      if (mode === "edit" && authRoles.includes("safety-officer")) {
+      if (
+        mode === "edit" &&
+        authRoles.includes("safety-officer") &&
+        !(status === "rejected" && draftHolder === "receiver")
+      ) {
         setActive("safety");
       }
     }

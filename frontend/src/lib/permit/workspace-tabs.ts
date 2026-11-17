@@ -22,7 +22,9 @@ export function workspaceTabs(
   roles: string[],
   options?: { restorationPending?: boolean },
 ): WorkspaceTab[] {
-  const review = CLOSURE_REVIEW_STATUSES.includes(status) || (status !== "draft" && hasAnyRole(roles, APPROVAL_READ_ROLES));
+  const review =
+    CLOSURE_REVIEW_STATUSES.includes(status) ||
+    (status !== "draft" && status !== "rejected" && hasAnyRole(roles, APPROVAL_READ_ROLES));
   const work =
     (WORK_STATUSES.includes(status) || (status === "execution_completed" && options?.restorationPending === true)) &&
     hasAnyRole(roles, EXECUTION_READ_ROLES);

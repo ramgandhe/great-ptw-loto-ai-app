@@ -156,6 +156,17 @@ describe('Safety Approval collaboration', () => {
     expect(() => assertDraftUpdateAllowed(so, assigned, {})).not.toThrow();
   });
 
+  it('lets a receiver who assigned himself as executor save while he holds the operator draft', () => {
+    const receiver: AuthenticatedUser = {
+      id: 'executor-user',
+      username: 'receiver',
+      roles: ['permit-receiver'],
+      tenantId: 'tenant-id',
+    };
+    const sanitized = sanitizeDraftUpdateDto(receiver, { hazards: [{ hazardCategoryId: 'h1' }] }, detail());
+    expect(() => assertDraftUpdateAllowed(receiver, detail(), sanitized)).not.toThrow();
+  });
+
   it('lets a permit approver assign safety officers only', () => {
     const hod: AuthenticatedUser = {
       id: 'hod-1',

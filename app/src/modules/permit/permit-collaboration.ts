@@ -201,6 +201,14 @@ export function assertDraftUpdateAllowed(
   }
 
   if (hasAnyRole(user, PERMIT_CREATE_ROLES) && !hasAnyRole(user, PERMIT_EXECUTOR_DRAFT_ROLES)) {
+    // The receiver named himself as the executor. He can finish that part and mark it ready for review.
+    if (holder === 'operator' && isAssignedExecutor(detail, user.id)) {
+      const touchedIssuerFields = ISSUER_ONLY_FIELDS.filter((field) => dto[field] !== undefined);
+      if (touchedIssuerFields.length > 0) {
+        throw new ForbiddenException('Return the draft before changing receiver details');
+      }
+      return;
+    }
     if (holder !== 'receiver' && holder !== 'ready_for_review') {
       throw new ForbiddenException('The permit receiver cannot edit while another role holds the draft');
     }

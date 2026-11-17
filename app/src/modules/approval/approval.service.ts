@@ -12,6 +12,7 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import {
   permitApprovals,
+  permitDrafts,
   permitExecutors,
   permitTypes,
   permits,
@@ -37,6 +38,21 @@ import { SimopsService } from '../simops/simops.service';
 import { isAssignedExecutor } from '../permit/permit-collaboration';
 import { areaAuthorityIds, isAreaAuthorityRole } from '../permit/permit-access';
 import { resolveApprovalMultiDayPolicy } from './multi-day-approval-policy';
+
+/** A rejection sends the permit back to the receiver, at the start, with the written answers kept. */
+function returnedToReceiver(permit: { createdBy: string | null; submittedBy: string | null }) {
+  return {
+    draftHolder: 'receiver' as const,
+    draftHeldBy: permit.createdBy ?? permit.submittedBy,
+    draftReturnReason: null,
+    safetyApprovalComment: null,
+    safetyApprovalSignedName: null,
+    safetyOfficerSiteVisited: false,
+    receiverSiteVisited: false,
+    executorSiteVisited: false,
+    submittedSignedName: null,
+  };
+}
 
 @Injectable()
 export class ApprovalService {
@@ -429,8 +445,13 @@ export class ApprovalService {
     await this.db.transaction(async (tx) => {
       await tx
         .update(permits)
-        .set({ status: 'rejected', updatedBy: user.id })
+        .set({ status: 'rejected', updatedBy: user.id, ...returnedToReceiver(permit) })
         .where(and(eq(permits.id, permitId), eq(permits.tenantId, tenantId)));
+
+      await tx
+        .update(permitDrafts)
+        .set({ currentStep: 0, updatedBy: user.id })
+        .where(eq(permitDrafts.permitId, permitId));
 
       await cancelDraftCertificatesForPermit(tx, permitId, user.id);
 
@@ -663,8 +684,19 @@ export class ApprovalService {
 
       await tx
         .update(permits)
-        .set({ status: toStatus, updatedBy: user.id })
+        .set(
+          toStatus === 'rejected'
+            ? { status: toStatus, updatedBy: user.id, ...returnedToReceiver(permit) }
+            : { status: toStatus, updatedBy: user.id },
+        )
         .where(and(eq(permits.id, permitId), eq(permits.tenantId, permit.tenantId)));
+
+      if (toStatus === 'rejected') {
+        await tx
+          .update(permitDrafts)
+          .set({ currentStep: 0, updatedBy: user.id })
+          .where(eq(permitDrafts.permitId, permitId));
+      }
 
       await this.approvalHistoryService.record(
         {
