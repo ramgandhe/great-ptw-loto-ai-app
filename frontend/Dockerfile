@@ -8,6 +8,7 @@ RUN npm ci --workspace=web --workspace=@ptw/shared --include-workspace-root
 FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/frontend/node_modules ./frontend/node_modules
 COPY --from=deps /app/package.json ./package.json
 COPY --from=deps /app/tsconfig.base.json ./tsconfig.base.json
 COPY packages/shared packages/shared

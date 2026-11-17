@@ -1,6 +1,6 @@
 "use client";
 
-import { Children, Fragment, isValidElement, type ReactNode } from "react";
+import { Children, Fragment, isValidElement, type ReactNode, type ComponentProps } from "react";
 import { Select } from "@base-ui/react/select";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -126,7 +126,7 @@ function SelectControl({
           "ptw-select-trigger flex min-h-10 w-full items-center justify-between gap-3 rounded-lg border border-input bg-input-fill px-3 text-left text-sm text-foreground outline-none transition-[border-color,box-shadow,background-color] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-55 aria-invalid:border-destructive",
           className,
         )}
-        {...triggerProps}
+        {...(triggerProps as ComponentProps<typeof Select.Trigger>)}
       >
         <Select.Value placeholder={placeholder} />
         <Select.Icon className="shrink-0 text-muted-foreground">
