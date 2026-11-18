@@ -120,6 +120,10 @@ export class CreateTenantUserDto {
   @IsOptional()
   @IsString()
   departmentId?: string;
+
+  @IsOptional()
+  @IsString()
+  workLocationId?: string;
 }
 
 export class UpdateTenantUserDto {
@@ -133,4 +137,8 @@ export class UpdateTenantUserDto {
   @IsOptional()
   @IsString()
   departmentId?: string;
+
+  @IsOptional()
+  @IsString()
+  workLocationId?: string;
 }

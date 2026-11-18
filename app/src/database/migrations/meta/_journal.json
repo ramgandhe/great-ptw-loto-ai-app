@@ -827,6 +827,13 @@
       "when": 1797200000000,
       "tag": "0115_handover_cancellation",
       "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1797300000000,
+      "tag": "0116_tenant_users_work_location",
+      "breakpoints": true
     }
   ]
 }

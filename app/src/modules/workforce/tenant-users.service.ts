@@ -262,6 +262,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
         role,
         roles,
         departmentId: optionalUuid(dto.departmentId) ?? null,
+        workLocationId: optionalUuid(dto.workLocationId) ?? optionalUuid(dto.departmentId) ?? null,
         createdBy: actorId,
         updatedBy: actorId,
         temporaryPassword,
@@ -382,12 +383,18 @@ export class TenantUsersService implements OnApplicationBootstrap {
     const firstName = named ? named.firstName : row.firstName;
     const lastName = named ? named.lastName ?? null : row.lastName;
     const departmentId = dto.departmentId === undefined ? row.departmentId : optionalUuid(dto.departmentId) ?? null;
+    const workLocationId = dto.workLocationId !== undefined
+      ? optionalUuid(dto.workLocationId) ?? null
+      : dto.departmentId !== undefined
+        ? optionalUuid(dto.departmentId) ?? null
+        : row.workLocationId;
     await this.db
       .update(tenantUsers)
       .set({
         firstName,
         lastName,
         departmentId,
+        workLocationId,
         updatedBy: actorId,
         updatedAt: new Date(),
       })
@@ -404,6 +411,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
       firstName,
       lastName,
       departmentId,
+      workLocationId,
     });
   }
 
@@ -604,6 +612,7 @@ export class TenantUsersService implements OnApplicationBootstrap {
       enabled: row.status === 'active',
       roles: storedUserRoles(row),
       departmentId: row.departmentId,
+      workLocationId: row.workLocationId ?? row.departmentId,
       temporaryPassword: revealPassword ? row.temporaryPassword ?? null : undefined,
     };
   }
