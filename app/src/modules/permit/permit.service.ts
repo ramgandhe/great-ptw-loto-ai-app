@@ -15,6 +15,7 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { DATABASE_CONNECTION, Database } from '../../database/database.module';
 import { generatePermitReference } from '../../database/permit-reference';
 import {
+  approvalHistory,
   auditLogs,
   permitAttachments,
   permitDrafts,
@@ -200,6 +201,8 @@ export interface PermitDetail {
   attachments: (typeof permitAttachments.$inferSelect)[];
   /** Derived multi-day classification + policy (Slice A8). */
   multiDay: MultiDaySummary;
+  /** True when this permit has been approved, even if a later resubmit cleared approvedAt. */
+  previouslyApproved?: boolean;
 }
 
 @Injectable()
@@ -458,13 +461,27 @@ export class PermitService {
     const cached = await this.permitCacheService.getPermitDetail(tenantId, id);
     if (cached) {
       await assertPermitVisible(this.db, user, cached);
-      return this.withFreshRestoration(cached);
+      return this.withReportEligibility(await this.withFreshRestoration(cached));
     }
 
     const detail = await this.loadDetail(this.db, id, tenantId);
     await assertPermitVisible(this.db, user, detail);
     await this.permitCacheService.setPermitDetail(tenantId, id, detail);
-    return this.withFreshRestoration(detail);
+    return this.withReportEligibility(await this.withFreshRestoration(detail));
+  }
+
+  /** Prior approval survives a resubmit that clears approvedAt. Read it after the cache, so the cached permit stays unchanged. */
+  private async withReportEligibility(detail: PermitDetail): Promise<PermitDetail> {
+    if (detail.permit.approvedAt) return { ...detail, previouslyApproved: true };
+    if (!['pending_approval', 'rejected', 'deferred'].includes(detail.permit.status)) {
+      return { ...detail, previouslyApproved: false };
+    }
+    const [approved] = await this.db
+      .select({ id: approvalHistory.id })
+      .from(approvalHistory)
+      .where(and(eq(approvalHistory.permitId, detail.permit.id), eq(approvalHistory.action, 'approved')))
+      .limit(1);
+    return { ...detail, previouslyApproved: Boolean(approved) };
   }
 
   /** Restoration changes without rewriting the cached permit, so read it on the way out. */

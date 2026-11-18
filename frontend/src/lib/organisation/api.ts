@@ -1,4 +1,6 @@
-import { fetchApi } from "@/lib/api";
+import { ApiError, fetchApi, getApiBaseUrl } from "@/lib/api";
+import { refreshAccessToken } from "@/lib/auth/session";
+import { clearTokens, getAccessToken } from "@/lib/auth/token-storage";
 import { forceQuery } from "@/lib/confirm-delete";
 import type { HazardRecord } from "@/lib/master-data/api";
 import type { MachineryRecord, NotificationPreference, Organisation, OrgRecord } from "./types";
@@ -30,7 +32,33 @@ export const organisationsApi = {
     }),
   archive: (id: string, force = false) =>
     fetchApi<void>(`/organisations/${id}${forceQuery(force)}`, { method: "DELETE" }),
+  uploadLogo: (id: string, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return fetchApi<Organisation>(`/organisations/${id}/logo`, { method: "POST", body });
+  },
+  removeLogo: (id: string) => fetchApi<Organisation>(`/organisations/${id}/logo`, { method: "DELETE" }),
+  logo: (id: string) => fetchOrganisationLogo(id),
 };
+
+async function fetchOrganisationLogo(id: string, retried = false): Promise<Blob> {
+  const token = getAccessToken();
+  const response = await fetch(`${getApiBaseUrl()}/organisations/${id}/logo`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (response.status === 401 && !retried && typeof window !== "undefined") {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return fetchOrganisationLogo(id, true);
+    clearTokens();
+    window.location.assign(`/login?next=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`);
+    throw new ApiError("Session expired. Redirecting to sign in…", "Unauthorized");
+  }
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new ApiError(body?.error?.message ?? "Logo could not be loaded", body?.error?.code);
+  }
+  return response.blob();
+}
 
 export const plantsApi = crud<OrgRecord>("/plants");
 export const sitesApi = {

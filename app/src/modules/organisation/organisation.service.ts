@@ -15,7 +15,10 @@ import {
   permitTypes,
   plants,
 } from '../../database/schema';
+import { StorageService } from '../../infrastructure/storage/storage.service';
 import { AuditService } from '../logging/audit.service';
+import { assertOrganisationLogo, organisationLogoKey, presentOrganisation } from './organisation-logo';
+import { UploadedFilePayload } from '../permit/uploaded-file.interface';
 import { isApprovalApproverRole } from '../approval/default-workflow';
 import {
   applyCurrentWorkflowToLiveStep,
@@ -49,23 +52,17 @@ export class OrganisationService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly auditService: AuditService,
+    private readonly storageService: StorageService,
   ) {}
 
   async listOrganisations(user: AuthenticatedUser) {
     const tenantId = requireTenant(user);
-    return this.db.select().from(organisations).where(eq(organisations.tenantId, tenantId));
+    const rows = await this.db.select().from(organisations).where(eq(organisations.tenantId, tenantId));
+    return rows.map((row) => presentOrganisation(row));
   }
 
   async getOrganisation(id: string, user: AuthenticatedUser) {
-    const tenantId = requireTenant(user);
-    const [row] = await this.db
-      .select()
-      .from(organisations)
-      .where(and(eq(organisations.id, id), eq(organisations.tenantId, tenantId)));
-    if (!row) {
-      throw new NotFoundException('Organisation not found');
-    }
-    return row;
+    return presentOrganisation(await this.requireOrganisation(id, requireTenant(user)));
   }
 
   async createOrganisation(dto: CreateOrganisationDto, user: AuthenticatedUser) {
@@ -98,7 +95,7 @@ export class OrganisationService {
 
     await this.audit('organisation.created', 'organisation', row.id, user, tenantId);
     await ensureDefaultApprovalWorkflow(this.db, tenantId, optionalUuid(user.id));
-    return row;
+    return presentOrganisation(row);
   }
 
   async updateOrganisation(id: string, dto: UpdateOrganisationDto, user: AuthenticatedUser) {
@@ -139,7 +136,70 @@ export class OrganisationService {
       throw new NotFoundException('Organisation not found');
     }
     await this.audit('organisation.updated', 'organisation', id, user, tenantId);
-    return row;
+    return presentOrganisation(row);
+  }
+
+  async setLogo(id: string, file: UploadedFilePayload, user: AuthenticatedUser) {
+    assertOrganisationLogo(file);
+    const tenantId = requireTenant(user);
+    const current = await this.requireOrganisation(id, tenantId);
+    const contentType = file.mimetype.split(';')[0].trim().toLowerCase();
+    const fileName = file.originalname.replace(/[/\\]/g, '').slice(0, 255) || 'logo';
+    const key = organisationLogoKey(tenantId);
+    await this.storageService.putObject(key, file.buffer, contentType, file.size);
+    try {
+      const [row] = await this.db
+        .update(organisations)
+        .set({
+          logoStorageKey: key,
+          logoContentType: contentType,
+          logoFileName: fileName,
+          updatedBy: user.id,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(organisations.id, id), eq(organisations.tenantId, tenantId)))
+        .returning();
+      await this.audit('organisation.logo-updated', 'organisation', id, user, tenantId);
+      return presentOrganisation(row);
+    } catch (error) {
+      if (!current.logoStorageKey) {
+        await this.storageService.deleteObject(key).catch(() => undefined);
+      }
+      throw error;
+    }
+  }
+
+  async removeLogo(id: string, user: AuthenticatedUser) {
+    const tenantId = requireTenant(user);
+    const current = await this.requireOrganisation(id, tenantId);
+    if (current.logoStorageKey) {
+      await this.storageService.deleteObject(current.logoStorageKey).catch(() => undefined);
+    }
+    const [row] = await this.db
+      .update(organisations)
+      .set({
+        logoStorageKey: null,
+        logoContentType: null,
+        logoFileName: null,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(organisations.id, id), eq(organisations.tenantId, tenantId)))
+      .returning();
+    await this.audit('organisation.logo-removed', 'organisation', id, user, tenantId);
+    return presentOrganisation(row);
+  }
+
+  async readLogo(id: string, user: AuthenticatedUser) {
+    const current = await this.requireOrganisation(id, requireTenant(user));
+    if (!current.logoStorageKey || !current.logoContentType) {
+      throw new NotFoundException('Organisation logo not found');
+    }
+    return {
+      bytes: await this.storageService.getObject(current.logoStorageKey),
+      contentType: current.logoContentType,
+      fileName: current.logoFileName ?? 'logo',
+    };
   }
 
   async archiveOrganisation(id: string, user: AuthenticatedUser, force = false) {
@@ -153,7 +213,7 @@ export class OrganisationService {
         throw new NotFoundException('Organisation not found');
       }
       await this.audit('organisation.deleted', 'organisation', id, user, tenantId);
-      return row;
+      return presentOrganisation(row);
     } catch (error) {
       if (!isForeignKeyViolation(error)) {
         throw error;
@@ -170,7 +230,7 @@ export class OrganisationService {
         throw new NotFoundException('Organisation not found');
       }
       await this.audit('organisation.archived', 'organisation', id, user, tenantId);
-      return row;
+      return presentOrganisation(row);
     }
   }
 
@@ -703,6 +763,17 @@ export class OrganisationService {
       await this.audit(`${entityType}.archived`, entityType, id, user, tenantId);
       return row;
     }
+  }
+
+  private async requireOrganisation(id: string, tenantId: string) {
+    const [row] = await this.db
+      .select()
+      .from(organisations)
+      .where(and(eq(organisations.id, id), eq(organisations.tenantId, tenantId)));
+    if (!row) {
+      throw new NotFoundException('Organisation not found');
+    }
+    return row;
   }
 
   private async audit(

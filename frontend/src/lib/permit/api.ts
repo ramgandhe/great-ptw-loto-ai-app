@@ -1,4 +1,7 @@
-import { ApiError, fetchApi } from "@/lib/api";
+import { ApiError, fetchApi, getApiBaseUrl } from "@/lib/api";
+import { refreshAccessToken } from "@/lib/auth/session";
+import { clearTokens, getAccessToken } from "@/lib/auth/token-storage";
+import { permitReportFileNameFromDisposition } from "./report-file";
 import type { CreatePermitPayload, PermitDetail, PermitLototoExecutionBoard, PermitRecord, SaveDraftPayload } from "./types";
 
 export function listPermits(status?: string) {
@@ -8,6 +11,28 @@ export function listPermits(status?: string) {
 
 export function getPermit(id: string) {
   return fetchApi<PermitDetail>(`/permits/${id}`);
+}
+
+export async function fetchPermitReport(id: string, retried = false): Promise<{ blob: Blob; fileName: string }> {
+  const token = getAccessToken();
+  const response = await fetch(`${getApiBaseUrl()}/permits/${id}/report.pdf`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (response.status === 401 && !retried && typeof window !== "undefined") {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return fetchPermitReport(id, true);
+    clearTokens();
+    window.location.assign(`/login?next=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`);
+    throw new ApiError("Session expired. Redirecting to sign in…", "Unauthorized");
+  }
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new ApiError(body?.error?.message ?? "The permit report could not be generated", body?.error?.code);
+  }
+  return {
+    blob: await response.blob(),
+    fileName: permitReportFileNameFromDisposition(response.headers.get("Content-Disposition")),
+  };
 }
 
 export function createPermit(payload: CreatePermitPayload) {

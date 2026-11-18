@@ -191,6 +191,9 @@ export default () => ({
     reportPrefix: process.env.DASHBOARD_REPORT_PREFIX ?? 'dashboards/reports',
     metabaseUrl: process.env.METABASE_URL ?? '',
   },
+  permitReport: {
+    timeoutMs: parseInt(process.env.PERMIT_REPORT_TIMEOUT_MS ?? '30000', 10),
+  },
   billing: {
     cacheTtlSeconds: parseInt(process.env.BILLING_CACHE_TTL_SECONDS ?? '300', 10),
     cycleInvoiceCron: process.env.BILLING_CYCLE_INVOICE_CRON ?? '0 2 * * *',

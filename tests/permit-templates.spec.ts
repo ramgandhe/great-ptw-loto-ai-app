@@ -66,7 +66,7 @@ describe('Permit templates against the database', () => {
   it('imports the reference set once, links types, duplicates and edits forms', async () => {
     if (!canConnect) return;
     const db = drizzle(pool, { schema });
-    const service = new OrganisationService(db as never, { log: jest.fn() } as unknown as AuditService);
+    const service = new OrganisationService(db as never, { log: jest.fn() } as unknown as AuditService, {} as never);
     const tenantId = randomUUID();
     const user = { id: randomUUID(), username: 't', tenantId, roles: ['tenant-owner'] };
     const [hotWork, electrical] = await db
@@ -144,7 +144,7 @@ describe('Permit templates against the database', () => {
   it('links check sheets to standard permit type codes on a later import', async () => {
     if (!canConnect) return;
     const db = drizzle(pool, { schema });
-    const service = new OrganisationService(db as never, { log: jest.fn() } as unknown as AuditService);
+    const service = new OrganisationService(db as never, { log: jest.fn() } as unknown as AuditService, {} as never);
     const tenantId = randomUUID();
     const user = { id: randomUUID(), username: 't', tenantId, roles: ['tenant-owner'] };
 

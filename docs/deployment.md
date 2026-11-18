@@ -279,3 +279,12 @@ Keycloak's admin console stays on `127.0.0.1:8080` (SSH tunnel).
 
 `:80` in `CADDY_SITES` keeps HTTP on the bare IP. Ports 80 and 443 must be open
 on the host firewall.
+
+## Permit report PDF
+
+`GET /api/v1/permits/{id}/report.pdf` renders on demand. The PDF is not written to MinIO or Postgres. Rules, roles, and sections are in `docs/api-reference.md`.
+
+- **Font.** Noto Sans Regular is bundled at `app/src/assets/fonts/NotoSans-Regular.ttf` and copied to `dist/assets` by the Nest build. A missing font fails the report; the client sees “An unexpected error occurred.”
+- **Images.** `sharp` converts WebP and resizes wide evidence. Organisation logos and permit images are read from MinIO with the API credentials. No presigned URL is placed in the PDF.
+- **Time limit.** `PERMIT_REPORT_TIMEOUT_MS` (default `30000`). A stuck build returns `503` and is not audited.
+- **Multi-day evidence prefix.** `MDP_EVIDENCE_PREFIX` (default `mdp/daily-progress`). The report embeds images only under that prefix plus the permit’s own attachment prefix.

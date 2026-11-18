@@ -8,7 +8,12 @@ import {
   Patch,
   Post,
   Query,
+  Res,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -16,7 +21,9 @@ import { ORGANISATION_READ_ROLES, ORGANISATION_WRITE_ROLES } from './organisatio
 import { CreateOrgEntityDto, UpdateOrgEntityDto } from './dto/org-entity.dto';
 import { CreateOrganisationDto, UpdateOrganisationDto } from './dto/organisation.dto';
 import { CreatePermitTemplateDto, UpdatePermitTemplateDto } from './dto/permit-template.dto';
+import { ORGANISATION_LOGO_MAX_BYTES } from './organisation-logo';
 import { OrganisationService } from './organisation.service';
+import { UploadedFilePayload } from '../permit/uploaded-file.interface';
 import { ForceQuery } from '../../common/decorators/force-query.decorator';
 
 @Controller('organisations')
@@ -27,6 +34,36 @@ export class OrganisationController {
   @Get()
   findAll(@CurrentUser() user: AuthenticatedUser) {
     return this.organisationService.listOrganisations(user);
+  }
+
+  @Roles(...ORGANISATION_READ_ROLES)
+  @Get(':id/logo')
+  async logo(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res({ passthrough: true }) res: import('express').Response,
+  ) {
+    const file = await this.organisationService.readLogo(id, user);
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return new StreamableFile(file.bytes);
+  }
+
+  @Roles(...ORGANISATION_WRITE_ROLES)
+  @Post(':id/logo')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: ORGANISATION_LOGO_MAX_BYTES } }))
+  setLogo(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: UploadedFilePayload,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.organisationService.setLogo(id, file, user);
+  }
+
+  @Roles(...ORGANISATION_WRITE_ROLES)
+  @Delete(':id/logo')
+  removeLogo(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.organisationService.removeLogo(id, user);
   }
 
   @Roles(...ORGANISATION_READ_ROLES)

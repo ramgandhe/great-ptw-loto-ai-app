@@ -220,6 +220,8 @@ export type MultiDaySummary = {
 export type PermitDetail = {
   /** Set when a save recalculated gas defaults. */
   gasChanges?: string[];
+  /** True when this permit has been approved, even if a later resubmit cleared approvedAt. */
+  previouslyApproved?: boolean;
   permit: PermitRecord;
   /** Derived multi-day classification + policy. */
   multiDay?: MultiDaySummary;

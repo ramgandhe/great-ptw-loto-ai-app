@@ -38,6 +38,8 @@ export default function OrganisationProfilePage() {
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
 
   useEffect(() => {
     organisationsApi
@@ -60,6 +62,57 @@ export default function OrganisationProfilePage() {
       .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load organisation"))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!org?.hasLogo) {
+      setLogoUrl(null);
+      return;
+    }
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    organisationsApi
+      .logo(org.id)
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setLogoUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setLogoUrl(null);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [org?.id, org?.hasLogo, org?.logoFileName]);
+
+  async function handleLogo(file: File | undefined) {
+    if (!org || !file) return;
+    setLogoBusy(true);
+    setError(null);
+    try {
+      setOrg(await organisationsApi.uploadLogo(org.id, file));
+      setSavedMessage("Saved organisation logo.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Logo upload failed");
+    } finally {
+      setLogoBusy(false);
+    }
+  }
+
+  async function handleRemoveLogo() {
+    if (!org) return;
+    setLogoBusy(true);
+    setError(null);
+    try {
+      setOrg(await organisationsApi.removeLogo(org.id));
+      setSavedMessage("Removed organisation logo.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Logo removal failed");
+    } finally {
+      setLogoBusy(false);
+    }
+  }
 
   async function handleSave(event: React.FormEvent) {
     event.preventDefault();
@@ -124,6 +177,49 @@ export default function OrganisationProfilePage() {
         <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
+      ) : null}
+
+      {org ? (
+        <section className="grid gap-3 rounded-xl border border-border bg-card p-5 sm:grid-cols-[5.5rem_minmax(0,1fr)] sm:items-center">
+          <div className="grid h-20 w-20 place-items-center overflow-hidden rounded-lg border border-border bg-muted">
+            {logoUrl ? (
+              // The tenant logo is an uploaded image, not a static asset.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="" className="max-h-full max-w-full object-contain" />
+            ) : (
+              <span className="px-2 text-center text-[11px] text-muted-foreground">No logo</span>
+            )}
+          </div>
+          <div className="grid gap-2">
+            <div>
+              <h2 className="text-sm font-medium">Report logo</h2>
+              <p className="text-xs text-muted-foreground">PNG, JPEG or WebP, up to 2 MB. Printed on the first page of a permit report.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <label className={logoBusy ? "pointer-events-none opacity-60" : ""}>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="sr-only"
+                  disabled={logoBusy}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = "";
+                    void handleLogo(file);
+                  }}
+                />
+                <span className="inline-flex h-9 cursor-pointer items-center rounded-md border border-border px-3 text-sm font-medium">
+                  {logoBusy ? "Saving logo…" : org.hasLogo ? "Replace logo" : "Upload logo"}
+                </span>
+              </label>
+              {org.hasLogo ? (
+                <Button type="button" variant="ghost" disabled={logoBusy} onClick={() => void handleRemoveLogo()}>
+                  Remove logo
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </section>
       ) : null}
 
       {loading ? (

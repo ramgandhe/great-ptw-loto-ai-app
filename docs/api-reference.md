@@ -4,13 +4,13 @@ Base path: `/api/v1`
 
 ## Platform
 
-| Method | Path | Auth | Notes |
-| --- | --- | --- | --- |
-| GET | `/health` | Public | Aggregated dependency health |
-| GET | `/health/live` | Public | Liveness probe (process up) |
-| GET | `/health/ready` | Public | Readiness probe (DB+Redis); `503` when not ready |
-| GET | `/system/config` | Public | Client config |
-| GET | `/system/version` | Public | Version |
+| Method | Path              | Auth   | Notes                                            |
+| ------ | ----------------- | ------ | ------------------------------------------------ |
+| GET    | `/health`         | Public | Aggregated dependency health                     |
+| GET    | `/health/live`    | Public | Liveness probe (process up)                      |
+| GET    | `/health/ready`   | Public | Readiness probe (DB+Redis); `503` when not ready |
+| GET    | `/system/config`  | Public | Client config                                    |
+| GET    | `/system/version` | Public | Version                                          |
 
 Security notes (SP-08.02): JWT required on all non-public routes; Helmet +
 `SecurityHeadersInterceptor` apply `X-Content-Type-Options`, `X-Frame-Options`,
@@ -23,54 +23,54 @@ PTW permit/approval/execution/closure/SIMOPS routes remain under their existing 
 
 ## Multi-Day Daily Progress (MS-05 / SP-05.01)
 
-| Method | Path | Auth | Notes |
-| --- | --- | --- | --- |
-| POST | `/permits/{id}/daily-progress` | Required | Record daily progress (`operationalDate`, work summary) |
-| GET | `/permits/{id}/daily-progress` | Required | List daily progress history |
-| POST | `/permits/{id}/handover` | Required | Complete shift handover |
-| GET | `/permits/{id}/handover` | Required | List handover history |
-| GET | `/permits/{id}/daily-history` | Required | Append-only activity history |
+| Method | Path                           | Auth     | Notes                                                   |
+| ------ | ------------------------------ | -------- | ------------------------------------------------------- |
+| POST   | `/permits/{id}/daily-progress` | Required | Record daily progress (`operationalDate`, work summary) |
+| GET    | `/permits/{id}/daily-progress` | Required | List daily progress history                             |
+| POST   | `/permits/{id}/handover`       | Required | Complete shift handover                                 |
+| GET    | `/permits/{id}/handover`       | Required | List handover history                                   |
+| GET    | `/permits/{id}/daily-history`  | Required | Append-only activity history                            |
 
 ## Multi-Day Daily Revalidation (MS-05 / SP-05.02)
 
-| Method | Path | Auth | Notes |
-| --- | --- | --- | --- |
-| POST | `/permits/{id}/reopen` | Required | Today-bound reopen; pass → cleared for work; fail → suspend |
-| POST | `/permits/{id}/revalidate` | Required | Legacy alias for reopen (still today-bound) |
-| POST | `/permits/{id}/continue` | Required | Deprecated shim — reopen already clears |
-| POST | `/permits/{id}/suspend` | Required | Suspend permit (reason required) |
-| POST | `/permits/{id}/extensions` | Required | Request permit extension |
-| GET | `/permits/{id}/revalidation-history` | Required | Revalidation/continuation history |
-| POST | `/extensions/{id}/approve` | Required | Approve extension |
-| POST | `/extensions/{id}/reject` | Required | Reject extension |
+| Method | Path                                 | Auth     | Notes                                                       |
+| ------ | ------------------------------------ | -------- | ----------------------------------------------------------- |
+| POST   | `/permits/{id}/reopen`               | Required | Today-bound reopen; pass → cleared for work; fail → suspend |
+| POST   | `/permits/{id}/revalidate`           | Required | Legacy alias for reopen (still today-bound)                 |
+| POST   | `/permits/{id}/continue`             | Required | Deprecated shim — reopen already clears                     |
+| POST   | `/permits/{id}/suspend`              | Required | Suspend permit (reason required)                            |
+| POST   | `/permits/{id}/extensions`           | Required | Request permit extension                                    |
+| GET    | `/permits/{id}/revalidation-history` | Required | Revalidation/continuation history                           |
+| POST   | `/extensions/{id}/approve`           | Required | Approve extension                                           |
+| POST   | `/extensions/{id}/reject`            | Required | Reject extension                                            |
 
 ## Multi-Day refinement (Slices B–H)
 
 Draft contract: `.planning/2026-11-10-multi-day-permit-refinement/api-rbac-draft.md`.  
 Audit action names: `app/src/modules/revalidation/mdp-audit-events.ts`.
 
-| Method | Path | Notes |
-| --- | --- | --- |
-| POST | `/permits/{id}/day-secures` | End-of-day / late secure (progress first; light/full checklist; late reason if prior day; final-day flags closed path) |
-| GET | `/permits/{id}/day-secures/checklist-template` | Secure checklist template for permit policy mode |
-| GET | `/permits/{id}/day-secures` | List day secures for permit |
-| GET | `/permits/{id}/day-cycle` | Day-cycle snapshot (late secure outstanding, final day, state) |
-| POST | `/permits/{id}/day-secures/{secureId}/countersign` | Area/issuer countersign when daily audit ON or open LOTOTO remains |
-| POST | `/permits/{id}/handovers/{handoverId}/accept` | Dual handover accept |
-| POST | `/permits/{id}/handovers/{handoverId}/reject` | Dual handover reject |
-| POST | `/permits/{id}/reopen` | Today-bound reopen → cleared for work (composed checks when daily audit ON) |
-| GET | `/permits/{id}/reopen-composition` | Composed reopen checklist (site security / gas / LOTOTO / SIMOPS) |
-| POST | `/permits/{id}/mdp-override` | Day-scoped emergency override (reason required; blocked if policy disabled) |
-| POST/GET | `/permits/{id}/overtime` | Same-day overtime requests (must end on today’s operational date) |
-| POST | `/overtime/{id}/approve` | Approve overtime (tenant overtimeApproverRole routing) |
-| POST | `/overtime/{id}/reject` | Reject overtime |
-| GET | `/mdp/pending-time-requests` | Approver inbox: pending overtime + extensions |
-| GET | `/mdp/morning-queue` | Morning ops queues: late secure / reopen / secure / overtime / extension / validity ending |
-| GET | `/mdp/checklist-library` | MDP checklist seeds + tenant safety checklist copies |
-| GET | `/mdp/analytics/kpis` | MDP KPIs (cleared today, late secure, overrides, extension vs renewal) |
-| POST | `/permits/{id}/mdp-evidence` | Upload MinIO evidence (`multipart file`; kind=`daily_progress`\|`day_secure`\|`reopen`) |
-| GET | `/permits/{id}/mdp-evidence` | List MDP evidence (optional `?kind=`) |
-| GET | `/permits/{id}/mdp-evidence/{evidenceId}/download-url` | Presigned download URL |
+| Method   | Path                                                   | Notes                                                                                                                  |
+| -------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| POST     | `/permits/{id}/day-secures`                            | End-of-day / late secure (progress first; light/full checklist; late reason if prior day; final-day flags closed path) |
+| GET      | `/permits/{id}/day-secures/checklist-template`         | Secure checklist template for permit policy mode                                                                       |
+| GET      | `/permits/{id}/day-secures`                            | List day secures for permit                                                                                            |
+| GET      | `/permits/{id}/day-cycle`                              | Day-cycle snapshot (late secure outstanding, final day, state)                                                         |
+| POST     | `/permits/{id}/day-secures/{secureId}/countersign`     | Area/issuer countersign when daily audit ON or open LOTOTO remains                                                     |
+| POST     | `/permits/{id}/handovers/{handoverId}/accept`          | Dual handover accept                                                                                                   |
+| POST     | `/permits/{id}/handovers/{handoverId}/reject`          | Dual handover reject                                                                                                   |
+| POST     | `/permits/{id}/reopen`                                 | Today-bound reopen → cleared for work (composed checks when daily audit ON)                                            |
+| GET      | `/permits/{id}/reopen-composition`                     | Composed reopen checklist (site security / gas / LOTOTO / SIMOPS)                                                      |
+| POST     | `/permits/{id}/mdp-override`                           | Day-scoped emergency override (reason required; blocked if policy disabled)                                            |
+| POST/GET | `/permits/{id}/overtime`                               | Same-day overtime requests (must end on today’s operational date)                                                      |
+| POST     | `/overtime/{id}/approve`                               | Approve overtime (tenant overtimeApproverRole routing)                                                                 |
+| POST     | `/overtime/{id}/reject`                                | Reject overtime                                                                                                        |
+| GET      | `/mdp/pending-time-requests`                           | Approver inbox: pending overtime + extensions                                                                          |
+| GET      | `/mdp/morning-queue`                                   | Morning ops queues: late secure / reopen / secure / overtime / extension / validity ending                             |
+| GET      | `/mdp/checklist-library`                               | MDP checklist seeds + tenant safety checklist copies                                                                   |
+| GET      | `/mdp/analytics/kpis`                                  | MDP KPIs (cleared today, late secure, overrides, extension vs renewal)                                                 |
+| POST     | `/permits/{id}/mdp-evidence`                           | Upload MinIO evidence (`multipart file`; kind=`daily_progress`\|`day_secure`\|`reopen`)                                |
+| GET      | `/permits/{id}/mdp-evidence`                           | List MDP evidence (optional `?kind=`)                                                                                  |
+| GET      | `/permits/{id}/mdp-evidence/{evidenceId}/download-url` | Presigned download URL                                                                                                 |
 
 Day-transition job enforces FR-MDP-009 (48h renewal warning + expiry) and tenant max-validity → renew notify.  
 Morning `mdp.daily-reminder` emits actionable secure / late-secure / reopen notifications (deduped per operational day).
@@ -80,98 +80,173 @@ Final approve (`POST /approvals/{id}/approve`) accepts `dailyRevalidationRequire
 
 ## Incident Recording (MS-06 / SP-06.01)
 
-| Method | Path | Auth | Notes |
-| --- | --- | --- | --- |
-| POST | `/incidents` | Required | Create incident / near miss / unsafe condition |
-| GET | `/incidents` | Required | List tenant incidents |
-| GET | `/incidents/{id}` | Required | View incident with evidence and links |
-| PATCH | `/incidents/{id}` | Required | Update draft incident |
-| POST | `/incidents/{id}/submit` | Required | Submit draft → open (notifies Safety Officer) |
-| POST | `/incidents/{id}/evidence` | Required | Upload evidence (multipart `file`) |
-| GET | `/incidents/{id}/evidence` | Required | List evidence metadata |
+| Method | Path                       | Auth     | Notes                                          |
+| ------ | -------------------------- | -------- | ---------------------------------------------- |
+| POST   | `/incidents`               | Required | Create incident / near miss / unsafe condition |
+| GET    | `/incidents`               | Required | List tenant incidents                          |
+| GET    | `/incidents/{id}`          | Required | View incident with evidence and links          |
+| PATCH  | `/incidents/{id}`          | Required | Update draft incident                          |
+| POST   | `/incidents/{id}/submit`   | Required | Submit draft → open (notifies Safety Officer)  |
+| POST   | `/incidents/{id}/evidence` | Required | Upload evidence (multipart `file`)             |
+| GET    | `/incidents/{id}/evidence` | Required | List evidence metadata                         |
 
 ## Investigation (MS-06 / SP-06.02)
 
-| Method | Path | Auth | Notes |
-| --- | --- | --- | --- |
-| POST | `/incidents/{id}/assign` | Required | Assign investigator |
-| POST | `/incidents/{id}/root-cause` | Required | Record root cause analysis |
-| POST | `/incidents/{id}/corrective-actions` | Required | Create corrective action |
-| POST | `/incidents/{id}/preventive-actions` | Required | Create preventive action |
-| GET | `/incidents/{id}/investigation` | Required | View investigation detail |
-| PATCH | `/corrective-actions/{id}` | Required | Update corrective action status |
+| Method | Path                                 | Auth     | Notes                           |
+| ------ | ------------------------------------ | -------- | ------------------------------- |
+| POST   | `/incidents/{id}/assign`             | Required | Assign investigator             |
+| POST   | `/incidents/{id}/root-cause`         | Required | Record root cause analysis      |
+| POST   | `/incidents/{id}/corrective-actions` | Required | Create corrective action        |
+| POST   | `/incidents/{id}/preventive-actions` | Required | Create preventive action        |
+| GET    | `/incidents/{id}/investigation`      | Required | View investigation detail       |
+| PATCH  | `/corrective-actions/{id}`           | Required | Update corrective action status |
 
 ## Incident Closure (MS-06 / SP-06.03)
 
-| Method | Path | Auth | Notes |
-| --- | --- | --- | --- |
-| POST | `/incidents/{id}/verify` | Required | Verify investigation complete |
-| POST | `/incidents/{id}/close` | Required | Close verified incident + archive |
-| GET | `/incidents/archive` | Required | List archived incidents |
-| GET | `/incidents/archive/{id}` | Required | View archived incident snapshot |
-| GET | `/incidents/{id}/history` | Required | Full investigation/closure history |
+| Method | Path                      | Auth     | Notes                              |
+| ------ | ------------------------- | -------- | ---------------------------------- |
+| POST   | `/incidents/{id}/verify`  | Required | Verify investigation complete      |
+| POST   | `/incidents/{id}/close`   | Required | Close verified incident + archive  |
+| GET    | `/incidents/archive`      | Required | List archived incidents            |
+| GET    | `/incidents/archive/{id}` | Required | View archived incident snapshot    |
+| GET    | `/incidents/{id}/history` | Required | Full investigation/closure history |
 
 ## Notifications (MS-07 / SP-07.01)
 
-| Method | Path | Auth | Notes |
-| --- | --- | --- | --- |
-| GET | `/notifications` | Required | List current user's notifications (`unreadOnly` query optional) |
-| GET | `/notifications/{id}` | Required | View notification (recipient-scoped) |
-| PATCH | `/notifications/{id}/read` | Required | Mark notification as read |
-| POST | `/notifications/test` | Required | Test delivery (tenant-owner / platform-admin) |
+| Method | Path                       | Auth     | Notes                                                           |
+| ------ | -------------------------- | -------- | --------------------------------------------------------------- |
+| GET    | `/notifications`           | Required | List current user's notifications (`unreadOnly` query optional) |
+| GET    | `/notifications/{id}`      | Required | View notification (recipient-scoped)                            |
+| PATCH  | `/notifications/{id}/read` | Required | Mark notification as read                                       |
+| POST   | `/notifications/test`      | Required | Test delivery (tenant-owner / platform-admin)                   |
 
 ## Dashboards & Analytics (MS-07 / SP-07.02)
 
-| Method | Path | Auth | Notes |
-| --- | --- | --- | --- |
-| GET | `/dashboard` | Required | Role-based dashboard (`kind` = personal\|hod\|safety\|management) |
-| GET | `/dashboard/kpis` | Required | KPI widgets (`kind`, `periodLabel` optional) |
-| GET | `/reports` | Required | List report exports for current user (`status` optional) |
-| POST | `/reports/generate` | Required | Request report export (`reportType`, `format`, filters/period) |
-| GET | `/analytics` | Required | Analytics view (`scope` = permits\|incidents\|lototo\|simops\|operational) |
-| GET | `/analytics/trends` | Required | Historical analytics snapshots (`scope`, `limit`) |
+| Method | Path                | Auth     | Notes                                                                      |
+| ------ | ------------------- | -------- | -------------------------------------------------------------------------- |
+| GET    | `/dashboard`        | Required | Role-based dashboard (`kind` = personal\|hod\|safety\|management)          |
+| GET    | `/dashboard/kpis`   | Required | KPI widgets (`kind`, `periodLabel` optional)                               |
+| GET    | `/reports`          | Required | List report exports for current user (`status` optional)                   |
+| POST   | `/reports/generate` | Required | Request report export (`reportType`, `format`, filters/period)             |
+| GET    | `/analytics`        | Required | Analytics view (`scope` = permits\|incidents\|lototo\|simops\|operational) |
+| GET    | `/analytics/trends` | Required | Historical analytics snapshots (`scope`, `limit`)                          |
 
 ## Billing & Subscription (MS-08 / SP-08.01)
 
-| Method | Path | Auth | Notes |
-| --- | --- | --- | --- |
-| GET | `/subscriptions/plans` | Required | List active subscription plans |
-| GET | `/subscriptions/current` | Required | Current tenant subscription + plan |
-| POST | `/subscriptions` | Required | Create tenant subscription (`planId`) — tenant-owner |
-| POST | `/subscriptions/change-plan` | Required | Change plan (`planId`, `reason?`) — tenant-owner |
-| GET | `/subscriptions/plan-changes` | Required | Plan change history for tenant |
-| GET | `/billing/invoices` | Required | Billing history (`status` optional) |
-| GET | `/billing/usage` | Required | Usage records for tenant |
-| POST | `/billing/usage` | Required | Upsert usage metric — tenant-owner |
+| Method | Path                          | Auth     | Notes                                                |
+| ------ | ----------------------------- | -------- | ---------------------------------------------------- |
+| GET    | `/subscriptions/plans`        | Required | List active subscription plans                       |
+| GET    | `/subscriptions/current`      | Required | Current tenant subscription + plan                   |
+| POST   | `/subscriptions`              | Required | Create tenant subscription (`planId`) — tenant-owner |
+| POST   | `/subscriptions/change-plan`  | Required | Change plan (`planId`, `reason?`) — tenant-owner     |
+| GET    | `/subscriptions/plan-changes` | Required | Plan change history for tenant                       |
+| GET    | `/billing/invoices`           | Required | Billing history (`status` optional)                  |
+| GET    | `/billing/usage`              | Required | Usage records for tenant                             |
+| POST   | `/billing/usage`              | Required | Upsert usage metric — tenant-owner                   |
 
 ## Sites, work locations and assets (refined 14 October 2026)
 
 Auth: tenant admin (or owner) for configuration. Permit routes stay on `/permits`. Membership limits every list below to the caller's sites; owner and admin are unscoped.
 
-| Method | Path | Notes |
-| --- | --- | --- |
-| GET, POST | `/sites` | List, create. Body: `code`, `name`, `description?`, `address?` |
-| GET, PATCH | `/sites/{id}` | Read, update |
-| POST | `/sites/{id}/archive` | Refused while an active permit uses the site |
-| GET, POST | `/sites/{id}/members` | People tab. POST body: `userId` |
-| DELETE | `/sites/{id}/members/{userId}` | Also drops that user's approver rows on the site. `409` with a warning when a location would be left with no approver; repeat with `confirm=true` to proceed |
-| GET, POST | `/location-types` | Admin list. Seeded; "Site" is rejected as a name |
-| PATCH | `/location-types/{id}` | Rename or archive |
-| GET, POST | `/work-locations` | `siteId` query required on GET. POST body includes optional `parentId`, `locationTypeId` |
-| GET, PATCH | `/work-locations/{id}` | Parent change rejected on a cycle or a cross-site parent (`422`) |
-| POST | `/work-locations/{id}/archive` | Refused while an active permit uses it or a descendant |
-| GET, PUT | `/work-locations/{id}/approvers` | PUT replaces the location's own list. Empty list means "inherit" |
-| GET | `/work-locations/{id}/approvers/resolved` | Effective approvers after inheritance, plus `inheritedFrom` |
-| GET, POST | `/asset-types` | Admin list, seeded |
-| PATCH | `/asset-types/{id}` | Rename or archive |
-| GET, POST | `/assets` | Filter `siteId`, `workLocationId` (includes descendants unless `exact=true`) |
-| GET, PATCH | `/assets/{id}` | Tag unique per site; asset number unique per tenant when set |
-| POST | `/assets/{id}/archive` | Refused while an active permit uses it |
-| GET, POST | `/gas-testing` | Body target is `workLocationId` or `assetId`, not both. A child location cannot store a wider limit than it inherits (`422`) |
-| GET | `/gas-testing/defaults` | Query `workLocationId` and repeated `assetId`. Returns merged rows, strictest limit, and `source` |
-| POST | `/imports` | Accepts sites, work locations and assets in addition to existing catalogues |
+| Method     | Path                                      | Notes                                                                                                                                                        |
+| ---------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET, POST  | `/sites`                                  | List, create. Body: `code`, `name`, `description?`, `address?`                                                                                               |
+| GET, PATCH | `/sites/{id}`                             | Read, update                                                                                                                                                 |
+| POST       | `/sites/{id}/archive`                     | Refused while an active permit uses the site                                                                                                                 |
+| GET, POST  | `/sites/{id}/members`                     | People tab. POST body: `userId`                                                                                                                              |
+| DELETE     | `/sites/{id}/members/{userId}`            | Also drops that user's approver rows on the site. `409` with a warning when a location would be left with no approver; repeat with `confirm=true` to proceed |
+| GET, POST  | `/location-types`                         | Admin list. Seeded; "Site" is rejected as a name                                                                                                             |
+| PATCH      | `/location-types/{id}`                    | Rename or archive                                                                                                                                            |
+| GET, POST  | `/work-locations`                         | `siteId` query required on GET. POST body includes optional `parentId`, `locationTypeId`                                                                     |
+| GET, PATCH | `/work-locations/{id}`                    | Parent change rejected on a cycle or a cross-site parent (`422`)                                                                                             |
+| POST       | `/work-locations/{id}/archive`            | Refused while an active permit uses it or a descendant                                                                                                       |
+| GET, PUT   | `/work-locations/{id}/approvers`          | PUT replaces the location's own list. Empty list means "inherit"                                                                                             |
+| GET        | `/work-locations/{id}/approvers/resolved` | Effective approvers after inheritance, plus `inheritedFrom`                                                                                                  |
+| GET, POST  | `/asset-types`                            | Admin list, seeded                                                                                                                                           |
+| PATCH      | `/asset-types/{id}`                       | Rename or archive                                                                                                                                            |
+| GET, POST  | `/assets`                                 | Filter `siteId`, `workLocationId` (includes descendants unless `exact=true`)                                                                                 |
+| GET, PATCH | `/assets/{id}`                            | Tag unique per site; asset number unique per tenant when set                                                                                                 |
+| POST       | `/assets/{id}/archive`                    | Refused while an active permit uses it                                                                                                                       |
+| GET, POST  | `/gas-testing`                            | Body target is `workLocationId` or `assetId`, not both. A child location cannot store a wider limit than it inherits (`422`)                                 |
+| GET        | `/gas-testing/defaults`                   | Query `workLocationId` and repeated `assetId`. Returns merged rows, strictest limit, and `source`                                                            |
+| POST       | `/imports`                                | Accepts sites, work locations and assets in addition to existing catalogues                                                                                  |
 
 Permit create and update accept `siteId`, `workLocationId`, `exactSpot` and `assetIds`. Gas test rows on the permit accept `removedReason`, a tightened `minimum`/`maximum`, and hand-added rows. Loosening a configured limit returns `422`. LOTOTO required with an empty `assetIds` returns `422`.
 
 `/plants`, `/locations`, `/workstations` and `/machinery` stay readable. Their web screens are read-only. Departments stay editable because they group people for reporting only. New places and equipment are written on the routes above. Refined 14 October 2026. LOTOTO procedures and plans take `assetId` instead of a machinery id. Incidents require `siteId` and `workLocationId`; `assetIds` is optional. Dashboard and list filters accept `siteId` and `workLocationId` (descendants included).
 
+## Permit report
+
+`GET /permits/{id}/report.pdf` builds one A4 PDF for that request. The PDF is not stored. A later stored, immutable copy is deferred.
+
+The permit workspace shows **Generate report** in the header, on every tab, when the signed-in person and the permit are eligible. The dialog previews that PDF. **Download PDF** saves those same bytes. It does not generate a second file.
+
+|                    |                                                                                                                                    |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Success            | `200`, `Content-Type: application/pdf`, `Content-Disposition: inline`, `Cache-Control: no-store`                                   |
+| Filename           | `{reference}-{interim\|final}-{YYYYMMDD}-{HHMMSS}.pdf` in the organisation timezone                                                |
+| Audit              | `permit.report-generated` with status, edition, and permit version. The PDF and evidence bytes are not logged.                     |
+| Rate limit         | 10 requests per minute. Then `429` and “Too many requests. Wait a moment and try again.”                                           |
+| Time limit         | 30 seconds (`PERMIT_REPORT_TIMEOUT_MS`). Then `503` and “The permit report took too long. Try again.” That attempt is not audited. |
+| Unexpected failure | `500` and “An unexpected error occurred.” The server log keeps the detail.                                                         |
+
+### Who can generate it
+
+The API enforces the role. The button is only a hint.
+
+Allowed roles: `permit-receiver`, `permit-operator`, `permit-approver`, `safety-officer`, `tenant-owner`, `tenant-admin`, `platform-admin`. A `viewer` receives `403` “Insufficient permissions”, even when that person can open the permit.
+
+The caller must also be allowed to view the permit. Tenant owner, tenant admin, and platform admin can view permits in their tenant. Everyone else must belong to the permit’s site when it has one. One matching role is enough: a receiver who created it, an operator assigned as an executor, an assigned safety officer, or an approver whose location scope covers the work location. Anyone else receives `403` “You are not allowed to view this permit”. A permit in another tenant is `404` “Permit not found”.
+
+Eligible statuses: `approved`, `active`, `suspended`, `execution_completed`, `pending_closure`, `closed`, `expired`, `cancelled`. A draft is never eligible.
+
+`pending_approval`, `rejected`, and `deferred` are eligible only when the permit was approved before. That is `approvedAt`, or an approval-history row with action `approved`. Resubmit can clear `approvedAt`; the history row still counts. Otherwise `403` “This permit report is not available.”
+
+### Report status
+
+| Permit status               | Report status field   |
+| --------------------------- | --------------------- |
+| `closed`                    | `FINAL`               |
+| `expired`                   | `INTERIM — EXPIRED`   |
+| `cancelled`                 | `INTERIM — CANCELLED` |
+| Every other eligible status | `INTERIM`             |
+
+The lifecycle status is printed separately. Dates use the organisation timezone, and the timezone is shown. The report is in English. Page 1 carries the organisation logo when one is stored, the legal name, site, address, and document-control details. A missing logo still returns the PDF. The logo is PNG, JPEG, or WebP, up to 2 MB, uploaded on the organisation profile. The footer places the permit reference on the left, the page number in the centre, and “Powered by PermitWiseAI - ViXR India Pvt. Ltd.” on the right. History and the audit appendix use landscape pages. The other pages are portrait.
+
+### Sections
+
+These sections are always included, in this order, with the dynamic sections placed where they belong:
+
+1. Document control
+2. Permit summary
+3. Work scope, place and schedule
+4. People and responsibilities
+5. Hazards and risk assessment
+6. Controls and PPE
+7. Forms and checklists
+8. Approvals and electronic signatures
+9. Evidence and attachments
+10. Lifecycle history
+11. Audit appendix
+
+A dynamic section is omitted when the permit has nothing to show for it.
+
+| Section                       | Included when                                                                                                         |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Gas testing                   | At least one gas test remains (a row with a removal reason is left out)                                               |
+| LOTOTO and isolations         | The permit requires LOTOTO, or it has an isolation certificate                                                        |
+| Simultaneous operations       | The permit is on a SIMOPS case or an older conflict record                                                            |
+| Execution record              | Execution, verification, or closure exists                                                                            |
+| Multi-day activity            | The permit spans more than one operational day, or it has daily progress, a shift handover, a day secure, or a reopen |
+| Suspensions and revalidations | The execution has a suspension time or reason, or history contains `suspended` or `revalidated`                       |
+| Verification and closure      | Verification or closure exists                                                                                        |
+
+SIMOPS lines show severity, status, when it was detected, the decision or conflict type, comments, the other permits, and this permit’s controls. Multi-day lines are grouped by operational date: progress, handover, day secure, and reopen.
+
+### Electronic signatures
+
+Approvals print a signature block only for these actions, and only when the person is named: `approved`, `execution_released`, `activated`, `execution_completed`, `verified`, `closed`, `handover_accepted`, `countersigned`. The block shows the name, role, action, date and time with timezone, status change, comment, record id, and “Electronically signed”. The permit version is on the document-control page. An unresolved user id is not a signature. Other history stays in the lifecycle and audit pages without that label.
+
+### Evidence images
+
+PNG, JPEG, and WebP files up to 8 MB are embedded, at most 24 images. The storage key must belong to this permit: `{tenantId}/{permitId}/…`, or `{MDP_EVIDENCE_PREFIX}/{tenantId}/{permitId}/…` (default prefix `mdp/daily-progress`). A key with `..`, a backslash, or a leading slash is not read. A failed or disallowed image is listed as “Image not embedded.” Other files are listed with name, type, size, uploader, and time. Multi-day evidence is labelled with its kind and operational date.

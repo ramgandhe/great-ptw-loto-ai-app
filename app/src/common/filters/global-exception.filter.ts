@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import { ThrottlerException } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 
 /** Postgres 23503, directly or wrapped by the query builder as `cause`. */
@@ -31,7 +32,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let message = 'An unexpected error occurred';
     let details: unknown;
 
-    if (exception instanceof HttpException) {
+    if (exception instanceof ThrottlerException) {
+      status = exception.getStatus();
+      code = 'TOO_MANY_REQUESTS';
+      message = 'Too many requests. Wait a moment and try again.';
+    } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
 
@@ -50,7 +55,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       code = 'CONFLICT';
       message = 'This is used by other records, such as permits, so it cannot be deleted. Deactivate it instead.';
     } else if (exception instanceof Error) {
-      message = exception.message;
       this.logger.error(exception.message, exception.stack);
     }
 

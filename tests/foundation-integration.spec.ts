@@ -54,7 +54,7 @@ describe('Foundation integration (PUS-71)', () => {
     const logService = { logEvent: jest.fn() } as unknown as MasterDataLogService;
     const referenceIntegrity = new ReferenceIntegrityService(db);
 
-    organisationService = new OrganisationService(db, auditService);
+    organisationService = new OrganisationService(db, auditService, {} as never);
     workforceService = new WorkforceService(
       db,
       auditService,

@@ -7,7 +7,10 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -23,11 +26,16 @@ import {
   PERMIT_SUBMIT_ROLES,
   PERMIT_WRITE_ROLES,
 } from './permit.constants';
+import { PERMIT_REPORT_RATE_LIMIT, PERMIT_REPORT_RATE_WINDOW_MS, PERMIT_REPORT_ROLES } from './permit-report.policy';
+import { PermitReportService } from './permit-report.service';
 import { PermitService } from './permit.service';
 
 @Controller('permits')
 export class PermitController {
-  constructor(private readonly permitService: PermitService) {}
+  constructor(
+    private readonly permitService: PermitService,
+    private readonly permitReportService: PermitReportService,
+  ) {}
 
   @Roles(...PERMIT_CREATE_ROLES)
   @Post()
@@ -44,6 +52,21 @@ export class PermitController {
     @Query('workLocationId') workLocationId?: string,
   ) {
     return this.permitService.findAll(user, status, siteId, workLocationId);
+  }
+
+  @Roles(...PERMIT_REPORT_ROLES)
+  @Throttle({ default: { limit: PERMIT_REPORT_RATE_LIMIT, ttl: PERMIT_REPORT_RATE_WINDOW_MS } })
+  @Get(':id/report.pdf')
+  async report(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res({ passthrough: true }) res: import('express').Response,
+  ) {
+    const file = await this.permitReportService.render(id, user);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${file.fileName}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return new StreamableFile(file.buffer);
   }
 
   @Roles(...PERMIT_READ_ROLES)

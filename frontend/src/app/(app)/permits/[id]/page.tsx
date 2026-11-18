@@ -2,10 +2,12 @@
 
 import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ApiError } from "@/lib/api";
-import { deleteDraftPermit, getPermit } from "@/lib/permit/api";
+import { deleteDraftPermit, fetchPermitReport, getPermit } from "@/lib/permit/api";
+import { canGeneratePermitReport, permitReportEditionLabel } from "@/lib/permit/report-policy";
+import { permitReportCacheKey, permitReportOpenPlan } from "@/lib/permit/report-view";
 import { permitDetailToForm } from "@/lib/permit/form";
 import type { PermitDetail } from "@/lib/permit/types";
 import { isEditablePermitStatus } from "@/lib/permit/status";
@@ -26,7 +28,8 @@ import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { revalidatePermitAfterSuspension, suspendPermit } from "@/lib/execution/api";
 import { SuspensionDialog } from "@/components/execution/suspension-dialog";
-import { CalendarClock, LockKeyhole, Pencil, Printer } from "lucide-react";
+import { PermitReportDialog, downloadPermitReport } from "@/components/permit/permit-report-dialog";
+import { CalendarClock, FileText, LockKeyhole, Pencil, Printer } from "lucide-react";
 import { PersonalLocks } from "@/components/lototo/personal-locks";
 import { certificateStatusLabel } from "@/lib/lototo/certificates";
 import { CERTIFICATE_WRITE_ROLES } from "@/lib/auth/roles";
@@ -72,6 +75,23 @@ function PermitWorkspace() {
   const [suspendError, setSuspendError] = useState<string | null>(null);
   const [vetoOpen, setVetoOpen] = useState(false);
   const [vetoReason, setVetoReason] = useState("");
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportFile, setReportFile] = useState<{ url: string; fileName: string } | null>(null);
+  const reportKey = useRef<string | null>(null);
+  const reportBusy = useRef(false);
+  const reportUrl = useRef<string | null>(null);
+
+  useEffect(() => {
+    reportUrl.current = reportFile?.url ?? null;
+  }, [reportFile]);
+
+  useEffect(() => {
+    return () => {
+      if (reportUrl.current) URL.revokeObjectURL(reportUrl.current);
+    };
+  }, []);
 
   useEffect(() => {
     getPermit(params.id)
@@ -113,6 +133,11 @@ function PermitWorkspace() {
   const canSuspend = (permit.status === "approved" || permit.status === "active") && hasAnyRole(roles, SUSPEND_ROLES);
   const canVeto = VETO_STATUSES.includes(permit.status) && hasAnyRole(roles, SAFETY_VETO_ROLES);
   const canRevalidate = permit.status === "suspended" && hasAnyRole(roles, REVALIDATE_ROLES);
+  const canReport = canGeneratePermitReport({
+    status: permit.status,
+    roles,
+    previouslyApproved: detail.previouslyApproved ?? Boolean(permit.approvedAt),
+  });
   const editLink = canEdit ? (
     <Link href={`/permits/${permit.id}/edit`} className={buttonVariants({ variant: "outline", size: "lg" })}>
       <Pencil aria-hidden />
@@ -173,6 +198,44 @@ function PermitWorkspace() {
     }
   }
 
+  async function openReport() {
+    const key = permitReportCacheKey(permit);
+    const plan = permitReportOpenPlan({
+      currentKey: reportKey.current,
+      hasFile: Boolean(reportFile),
+      nextKey: key,
+      busy: reportBusy.current,
+    });
+    if (plan === "reuse") {
+      setReportError(null);
+      setReportOpen(true);
+      return;
+    }
+    if (plan === "wait") return;
+    reportBusy.current = true;
+    if (reportFile) {
+      URL.revokeObjectURL(reportFile.url);
+      reportUrl.current = null;
+      setReportFile(null);
+    }
+    setReportOpen(true);
+    setReportLoading(true);
+    setReportError(null);
+    try {
+      const file = await fetchPermitReport(permit.id);
+      if (reportUrl.current) URL.revokeObjectURL(reportUrl.current);
+      const url = URL.createObjectURL(file.blob);
+      reportUrl.current = url;
+      reportKey.current = key;
+      setReportFile({ url, fileName: file.fileName });
+    } catch (err) {
+      setReportError(err instanceof ApiError ? err.message : "The permit report could not be generated.");
+    } finally {
+      reportBusy.current = false;
+      setReportLoading(false);
+    }
+  }
+
   async function handleRevalidate() {
     if (!(await confirmAction("Revalidate this suspended permit? It will go through full approval again."))) return;
     setIsSubmitting(true);
@@ -194,7 +257,7 @@ function PermitWorkspace() {
           <BackLink href="/permits" label="Permit register" />
           <span className="hidden text-xs text-muted-foreground sm:inline">Updated {formatRelative(permit.updatedAt)}</span>
         </div>
-        <div className="grid gap-4 border-b border-border pb-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.65fr)] lg:items-end">
+        <div className="grid gap-4 border-b border-border pb-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.65fr)]">
           <div className="min-w-0">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Permit record · Version {permit.permitVersion ?? 1}
@@ -215,11 +278,19 @@ function PermitWorkspace() {
               </div>
             ) : null}
           </div>
-          <div className="flex items-start gap-3 border-l-2 border-primary pl-4">
-            <CalendarClock className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Planned work window</p>
-              <p className="mt-1 text-sm font-medium leading-5">{formatWindow(permit.plannedStartAt, permit.plannedEndAt)}</p>
+          <div className="flex flex-col items-end gap-4">
+            {canReport ? (
+              <Button type="button" variant="outline" size="lg" className="mt-7" disabled={reportLoading} onClick={() => void openReport()}>
+                <FileText aria-hidden />
+                {reportLoading ? "Preparing report…" : "Generate report"}
+              </Button>
+            ) : null}
+            <div className="mt-auto flex w-full items-start gap-3 border-l-2 border-primary pl-4">
+              <CalendarClock className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Planned work window</p>
+                <p className="mt-1 text-sm font-medium leading-5">{formatWindow(permit.plannedStartAt, permit.plannedEndAt)}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -441,6 +512,19 @@ function PermitWorkspace() {
       {tab === "history" ? <PermitJourney id={permit.id} part="history" /> : null}
         </div>
       </div>
+
+      <PermitReportDialog
+        open={reportOpen}
+        edition={permitReportEditionLabel(permit.status)}
+        fileName={reportFile?.fileName ?? null}
+        previewUrl={reportFile?.url ?? null}
+        loading={reportLoading}
+        error={reportError}
+        onDownload={() => {
+          if (reportFile) downloadPermitReport(reportFile.url, reportFile.fileName);
+        }}
+        onClose={() => setReportOpen(false)}
+      />
 
       <SuspensionDialog
         open={suspendOpen}

@@ -52,6 +52,10 @@ export const organisations = pgTable(
     addressState: varchar('address_state', { length: 128 }),
     addressCountry: varchar('address_country', { length: 128 }),
     addressPin: varchar('address_pin', { length: 32 }),
+    /** MinIO key for the mark printed on permit reports. Hidden from API responses. */
+    logoStorageKey: varchar('logo_storage_key', { length: 512 }),
+    logoContentType: varchar('logo_content_type', { length: 128 }),
+    logoFileName: varchar('logo_file_name', { length: 255 }),
     /** Organisation setup wizard: steps the admin skipped and where they left off. */
     setupProgress: jsonb('setup_progress').$type<OrganisationSetupProgress>().notNull().default({}),
     /** Max multi-day permit validity in days from planned start (MDP refinement). */

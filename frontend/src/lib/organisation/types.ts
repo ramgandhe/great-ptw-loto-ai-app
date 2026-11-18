@@ -29,6 +29,8 @@ export type Organisation = OrgRecord & {
   legalName?: string | null;
   registrationNumber?: string | null;
   ownerEmail?: string | null;
+  hasLogo?: boolean;
+  logoFileName?: string | null;
   timezone?: string;
   maxMultiDayValidityDays?: number;
   operationalDayCutoff?: string;

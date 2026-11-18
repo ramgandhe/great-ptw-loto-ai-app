@@ -12,6 +12,7 @@ import { PermitJobsService } from './permit-jobs.service';
 import { PermitLototoExecutionController } from './permit-lototo-execution.controller';
 import { PermitLototoExecutionService } from './permit-lototo-execution.service';
 import { PermitLogService } from './permit-log.service';
+import { PermitReportService } from './permit-report.service';
 
 import { SimopsModule } from '../simops/simops.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -35,8 +36,9 @@ import { KeycloakAdminModule } from '../../infrastructure/keycloak/keycloak-admi
     PermitValidationService,
     PermitCacheService,
     PermitLogService,
+    PermitReportService,
     PermitJobsService,
   ],
-  exports: [PermitService, PermitLototoExecutionService, PermitCacheService, PermitLogService],
+  exports: [PermitService, PermitReportService, PermitLototoExecutionService, PermitCacheService, PermitLogService],
 })
 export class PermitModule {}
