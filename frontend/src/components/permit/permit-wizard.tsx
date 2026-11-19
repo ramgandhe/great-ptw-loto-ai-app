@@ -406,6 +406,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           setPpeItems(ppeRows.filter(inUse));
 
           const displayName =
+            profile.displayName?.trim() ||
             [profile.firstName, profile.lastName].filter(Boolean).join(" ") ||
             profile.username;
           const isOperator = profile.roles.includes("permit-operator");
@@ -415,14 +416,15 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             profile.roles.includes("tenant-admin");
           const byId = new Map<string, WorkforceRecord>();
           for (const user of executorUsers) {
-            const name =
+            const rawName =
               user.name ||
               [user.firstName, user.lastName].filter(Boolean).join(" ") ||
               user.email ||
               user.username;
+            const name = user.id === profile.id ? `${displayName} (you)` : rawName;
             byId.set(user.id, {
               id: user.id,
-              name: user.id === profile.id ? `${name} (you)` : name,
+              name,
               email: user.email ?? null,
               role: executorRoleLabel(user.executorKind),
               executorKind: user.executorKind ?? "internal",
@@ -443,26 +445,32 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             ),
           );
           setViewerOptions(
-            viewerUsers.map((user) => ({
-              id: user.id,
-              name:
+            viewerUsers.map((user) => {
+              const rawName =
                 user.name ||
                 [user.firstName, user.lastName].filter(Boolean).join(" ") ||
                 user.email ||
-                user.username,
-              email: user.email ?? null,
-            })),
+                user.username;
+              return {
+                id: user.id,
+                name: user.id === profile.id ? `${displayName} (you)` : rawName,
+                email: user.email ?? null,
+              };
+            }),
           );
           setSafetyOfficerOptions(
-            safetyOfficerUsers.map((user) => ({
-              id: user.id,
-              name:
+            safetyOfficerUsers.map((user) => {
+              const rawName =
                 user.name ||
                 [user.firstName, user.lastName].filter(Boolean).join(" ") ||
                 user.email ||
-                user.username,
-              email: user.email ?? null,
-            })),
+                user.username;
+              return {
+                id: user.id,
+                name: user.id === profile.id ? `${displayName} (you)` : rawName,
+                email: user.email ?? null,
+              };
+            }),
           );
           setUserRoles(profile.roles);
 
@@ -727,7 +735,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     // A workstation often carries its location's name; say it once.
     const place = workLocations.find((row) => row.id === current.workLocationId);
     return {
-      department: nameOf(departments, current.departmentId) || undefined,
+      "work-location": place?.pathText || place?.name || undefined,
+      department: nameOf(departments, current.departmentId) || place?.pathText || place?.name || undefined,
       location: [place?.pathText || place?.name, current.exactSpot].filter(Boolean).join(" — ") || undefined,
       equipment: siteAssets.filter((row) => current.assetIds.includes(row.id)).map((row) => row.name).join(", ") || nameOf(machinery, current.machineryId) || undefined,
       "job-description": [current.title, current.workScope].filter((v) => v.trim()).join("\n\n") || undefined,
@@ -887,7 +896,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
   const forms = applicableTemplates(templates, form.permitTypeId);
   const signerName =
-    [authProfile?.firstName, authProfile?.lastName].filter(Boolean).join(" ") || authProfile?.displayName || "";
+    authProfile?.displayName?.trim() ||
+    [authProfile?.firstName, authProfile?.lastName].filter(Boolean).join(" ") ||
+    authProfile?.username ||
+    "";
   const [initiatorSignedName, setInitiatorSignedName] = useState<string | null>(null);
   const initiatorName = initiatorSignedName ?? signerName;
 
@@ -1235,8 +1247,16 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     setAttachments((current) => current.filter((item) => item.id !== attachmentId));
   };
 
-  const personName = (id: string) =>
-    executorOptions.find((o) => o.id === id)?.name ?? (id ? "Person no longer available" : "");
+  const personName = (id: string) => {
+    if (authProfile && id === authProfile.id) {
+      const selfDisplayName =
+        authProfile.displayName?.trim() ||
+        [authProfile.firstName, authProfile.lastName].filter(Boolean).join(" ") ||
+        authProfile.username;
+      return `${selfDisplayName} (you)`;
+    }
+    return executorOptions.find((o) => o.id === id)?.name ?? (id ? "Person no longer available" : "");
+  };
   const hazardRows = form.hazards.filter((h) => h.hazardCategoryId);
   const customHazardCount = form.hazards.filter((row) => !row.hazardCategoryId && row.customName?.trim()).length;
   const permitSafetyControls = hazardRows.flatMap((hazard) => {

@@ -10,10 +10,10 @@ import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { ASSIGNABLE_ROLES, rolesAssignableBy } from "@/lib/form-options";
-import { departmentsApi } from "@/lib/organisation/api";
-import type { OrgRecord } from "@/lib/organisation/types";
 import { inUse } from "@/components/organisation/org-status-badge";
 import { NAME_HINT, NAME_PATTERN } from "@/lib/validation";
+import { sitesApi } from "@/lib/organisation/api";
+import { placeApi, type WorkLocationRecord } from "@/lib/place/api";
 import { listTenantUsers, updateTenantUser, updateTenantUserRole } from "@/lib/workforce/api";
 import type { TenantUser } from "@/lib/workforce/types";
 import { formatRoleLabel } from "@/lib/auth/rbac";
@@ -29,9 +29,9 @@ export default function WorkforceUserEditPage() {
   const { profile, roles: actorRoles } = useAuthProfile();
   const assignableRoles = ASSIGNABLE_ROLES.filter((option) => rolesAssignableBy(actorRoles).includes(option.value));
   const [user, setUser] = useState<TenantUser | null>(null);
-  const [departments, setDepartments] = useState<OrgRecord[]>([]);
+  const [workLocations, setWorkLocations] = useState<WorkLocationRecord[]>([]);
   const [name, setName] = useState("");
-  const [departmentId, setDepartmentId] = useState("");
+  const [workLocationId, setWorkLocationId] = useState("");
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,18 +39,30 @@ export default function WorkforceUserEditPage() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([listTenantUsers(), departmentsApi.list().catch(() => [])])
-      .then(([users, departmentRows]) => {
+    Promise.all([
+      listTenantUsers(),
+      sitesApi
+        .list()
+        .then(async (sites) => {
+          const locsPerSite = await Promise.all(
+            sites.filter(inUse).map((site) => placeApi.listWorkLocations(site.id).catch(() => [])),
+          );
+          return locsPerSite.flat();
+        })
+        .catch(() => [] as WorkLocationRecord[]),
+    ])
+      .then(([users, locRows]) => {
         if (cancelled) return;
         const found = users.find((row) => row.id === id) ?? null;
         setUser(found);
-        setDepartments(departmentRows.filter((row) => inUse(row) || row.id === found?.departmentId));
+        const assignedLocId = found?.workLocationId ?? found?.departmentId ?? "";
+        setWorkLocations(locRows.filter((row) => inUse(row) || row.id === assignedLocId));
         if (!found) {
           setError("This user was not found.");
           return;
         }
         setName(displayName(found));
-        setDepartmentId(found.departmentId ?? "");
+        setWorkLocationId(assignedLocId);
         setSelectedRoles(found.roles);
       })
       .catch((err) => {
@@ -84,7 +96,11 @@ export default function WorkforceUserEditPage() {
     setSaving(true);
     setError(null);
     try {
-      await updateTenantUser(user.id, { name: name.trim(), departmentId });
+      await updateTenantUser(user.id, {
+        name: name.trim(),
+        workLocationId,
+        departmentId: workLocationId,
+      });
       if (rolesChanged) {
         await updateTenantUserRole(user.id, selectedRoles);
       }
@@ -99,7 +115,7 @@ export default function WorkforceUserEditPage() {
 
   return (
     <AdminPage>
-      <AdminPageHeader title="Edit user" description="Name, department, and roles. Email stays the login." back={back} />
+      <AdminPageHeader title="Edit user" description="Name, work location, and roles. Email stays the login." back={back} />
       {error ? (
         <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
@@ -130,13 +146,13 @@ export default function WorkforceUserEditPage() {
           </label>
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">
-              Department<span className="font-normal text-muted-foreground"> (optional)</span>
+              Work location<span className="font-normal text-muted-foreground"> (optional)</span>
             </span>
-            <AppSelect value={departmentId} className={FIELD_CLASS} onChange={(event) => setDepartmentId(event.target.value)}>
-              <option value="">No department</option>
-              {departments.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.name}
+            <AppSelect value={workLocationId} className={FIELD_CLASS} onChange={(event) => setWorkLocationId(event.target.value)}>
+              <option value="">No work location</option>
+              {workLocations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.pathText || location.name}
                 </option>
               ))}
             </AppSelect>

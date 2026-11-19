@@ -17,6 +17,7 @@ export type TemplateFieldType = (typeof TEMPLATE_FIELD_TYPES)[number]["value"];
 
 /** Permit details a field can start from (mirrors TEMPLATE_PREFILL_SOURCES in the API). */
 export const TEMPLATE_PREFILL_SOURCES = [
+  { value: "work-location", label: "Work location" },
   { value: "department", label: "Department" },
   { value: "location", label: "Location" },
   { value: "equipment", label: "Equipment (machinery)" },

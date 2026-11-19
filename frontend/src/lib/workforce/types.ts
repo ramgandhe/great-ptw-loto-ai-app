@@ -33,6 +33,7 @@ export type TenantUser = {
   enabled: boolean;
   roles: string[];
   departmentId?: string | null;
+  workLocationId?: string | null;
   executorKind?: "internal" | "contractor" | "agency";
   temporaryPassword?: string | null;
 };

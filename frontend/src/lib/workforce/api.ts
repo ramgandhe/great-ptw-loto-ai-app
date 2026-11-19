@@ -41,7 +41,10 @@ export function listTenantUserNames() {
   return fetchApi<TenantUser[]>("/tenant-users/names");
 }
 
-export function updateTenantUser(userId: string, payload: { name?: string; departmentId?: string }) {
+export function updateTenantUser(
+  userId: string,
+  payload: { name?: string; departmentId?: string; workLocationId?: string },
+) {
   return fetchApi<TenantUser>(`/tenant-users/${userId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -54,6 +57,7 @@ export function createTenantUser(payload: {
   role?: string;
   roles: string[];
   departmentId?: string;
+  workLocationId?: string;
 }) {
   return fetchApi<CreatedTenantUser>("/tenant-users", {
     method: "POST",

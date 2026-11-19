@@ -246,7 +246,8 @@ export function PermitWizard({ mode, permitId, initialDetail, initialForm }: Per
     const location = workLocations.find((row) => row.id === form.workLocationId);
     const equipment = assets.filter((row) => form.assetIds.includes(row.id)).map((row) => row.name);
     return {
-      department: nameOf(formOptions?.departments, form.departmentId),
+      "work-location": location?.pathText || location?.name || "",
+      department: nameOf(formOptions?.departments, form.departmentId) || location?.pathText || location?.name || "",
       location: location?.pathText || location?.name || "",
       equipment: equipment.join(", "),
       "job-description": [form.title, form.workScope].filter((v) => v.trim()).join("\n\n"),
