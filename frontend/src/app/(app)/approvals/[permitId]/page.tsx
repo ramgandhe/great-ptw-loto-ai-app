@@ -2,7 +2,7 @@
 
 import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, History, RotateCcw, X } from "lucide-react";
 import { ApiError } from "@/lib/api";
@@ -14,13 +14,13 @@ import { permitDetailToForm } from "@/lib/permit/form";
 import { PermitPageShell, useInPermitWorkspace, usePermitPageId } from "@/lib/permit/workspace";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { cn } from "@/lib/utils";
-import { useWorkQueue } from "@/lib/work-queue-context";
 import { WorkflowTimeline } from "@/components/approval/workflow-timeline";
 import { identityFromPermit, PermitSummary, permitGaps } from "@/components/permit/permit-summary";
 import { PermitFormResponses } from "@/components/permit/permit-form-responses";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { StageAnswers, stageAnswersLeft, stageAnswersPayload, type StageAnswerEdits } from "@/components/permit/stage-answers";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 
 type Decision = "approve" | "defer" | "reject";
 
@@ -58,7 +58,6 @@ export default function PermitReviewPage() {
   const permitId = usePermitPageId("permitId");
   const embedded = useInPermitWorkspace();
   const router = useRouter();
-  const { items } = useWorkQueue();
   const { profile } = useAuthProfile();
   const signerName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || profile?.displayName || "";
   const [stageEdits, setStageEdits] = useState<StageAnswerEdits>({});
@@ -80,11 +79,6 @@ export default function PermitReviewPage() {
       .then(setReview)
       .catch((err) => setError(err instanceof ApiError ? err.message : "This permit could not be loaded."));
   }, [permitId]);
-
-  const nextReview = useMemo(
-    () => items.find((item) => item.action === "review" && item.permit && item.permit.id !== permitId),
-    [items, permitId],
-  );
 
   if (error) {
     return (
@@ -163,9 +157,10 @@ export default function PermitReviewPage() {
       setDecision(null);
       setComment("");
       setStageEdits({});
-      // Another stage of this permit may also be yours; otherwise move on to the next permit.
+      toast(DECISIONS[decision].done);
+      // Another stage of this permit may also be yours; otherwise return to approvals list.
       if (!(decision === "approve" && updated.permit.status === "pending_approval" && updated.activeAssignment)) {
-        router.push(nextReview ? nextReview.href : "/approvals");
+        router.push("/approvals");
       }
     } catch (err) {
       if (isRevisionConflict(err)) {
@@ -386,7 +381,7 @@ export default function PermitReviewPage() {
                       disabled={isSubmitting || (decision === "approve" && !approvalName.trim())}
                       onClick={submit}
                     >
-                      {isSubmitting ? "Saving…" : `${DECISIONS[decision].label}${nextReview ? " and open next" : ""}`}
+                      {isSubmitting ? "Saving…" : DECISIONS[decision].label}
                     </Button>
                   </div>
                 ) : null}
