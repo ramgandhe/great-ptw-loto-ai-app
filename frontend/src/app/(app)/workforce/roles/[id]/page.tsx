@@ -12,7 +12,7 @@ import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { formatRoleLabel } from "@/lib/auth/rbac";
 import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { rolesAssignableBy } from "@/lib/form-options";
-import { departmentsApi, sitesApi } from "@/lib/organisation/api";
+import { sitesApi } from "@/lib/organisation/api";
 import { placeApi } from "@/lib/place/api";
 import {
   deactivateTenantUser,
@@ -39,7 +39,7 @@ export default function WorkforceUserViewPage() {
   const { profile, roles: actorRoles } = useAuthProfile();
   const [user, setUser] = useState<TenantUser | null>(null);
   const [sites, setSites] = useState<string[]>([]);
-  const [departmentName, setDepartmentName] = useState("");
+  const [workLocationName, setWorkLocationName] = useState("");
   const [revealed, setRevealed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,23 +54,29 @@ export default function WorkforceUserViewPage() {
     setLoading(true);
     Promise.all([
       listTenantUsers(),
-      departmentsApi.list().catch(() => []),
       sitesApi.list().then(async (rows) => {
         const groups = await Promise.all(
           rows.filter(inUse).map(async (site) => ({
             name: site.name,
             members: await placeApi.listMembers(site.id).catch(() => []),
+            locations: await placeApi.listWorkLocations(site.id).catch(() => []),
           })),
         );
-        return groups.filter((group) => group.members.some((member) => member.userId === id)).map((group) => group.name);
+        const userSites = groups
+          .filter((group) => group.members.some((member) => member.userId === id))
+          .map((group) => group.name);
+        const allLocations = groups.flatMap((group) => group.locations);
+        return { userSites, allLocations };
       }),
     ])
-      .then(([users, departmentRows, siteNames]) => {
+      .then(([users, siteData]) => {
         if (cancelled) return;
         const found = users.find((row) => row.id === id) ?? null;
         setUser(found);
-        setDepartmentName(departmentRows.find((department) => department.id === found?.departmentId)?.name ?? "");
-        setSites(siteNames);
+        const assignedLocId = found?.workLocationId ?? found?.departmentId;
+        const locationMatch = siteData.allLocations.find((loc) => loc.id === assignedLocId);
+        setWorkLocationName(locationMatch?.pathText || locationMatch?.name || "");
+        setSites(siteData.userSites);
         if (!found) setError("This user was not found.");
       })
       .catch((err) => {
@@ -187,8 +193,8 @@ export default function WorkforceUserViewPage() {
                 <dd className="mt-1">{user.roles.map(formatRoleLabel).join(", ") || "—"}</dd>
               </div>
               <div>
-                <dt className="text-muted-foreground">Department</dt>
-                <dd className="mt-1">{departmentName || "—"}</dd>
+                <dt className="text-muted-foreground">Work location</dt>
+                <dd className="mt-1">{workLocationName || "—"}</dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Sites</dt>

@@ -39,6 +39,7 @@ export const tenantUsers = pgTable(
     role: varchar('role', { length: 64 }).notNull(),
     roles: varchar('roles', { length: 64 }).array().notNull().default([]),
     departmentId: uuid('department_id'),
+    workLocationId: uuid('work_location_id'),
     status: varchar('status', { length: 32 }).notNull().default('active'),
     /** Temporary login password, shown to owner/admin until the user first signs in. */
     temporaryPassword: varchar('temporary_password', { length: 128 }),
@@ -47,6 +48,7 @@ export const tenantUsers = pgTable(
     uniqueIndex('tenant_users_keycloak_user_id_unique').on(table.keycloakUserId),
     uniqueIndex('tenant_users_tenant_email_unique').on(table.tenantId, table.email),
     index('tenant_users_tenant_id_idx').on(table.tenantId),
+    index('tenant_users_work_location_id_idx').on(table.workLocationId),
   ],
 );
 

@@ -19,6 +19,7 @@ export type TemplateFieldType = (typeof TEMPLATE_FIELD_TYPES)[number];
 /** Permit details a field can start from, so people do not type what the permit already holds. */
 export const TEMPLATE_PREFILL_SOURCES = [
   'department',
+  'work-location',
   'location',
   'equipment',
   'job-description',
@@ -104,14 +105,14 @@ export const REFERENCE_TEMPLATES: ReferenceTemplate[] = [
     code: 'SOP-ES-023-F1',
     name: 'Safe work permit',
     description:
-      'Master permit for any job. Valid for up to 7 days when the job issuer signs daily, and only until 16:30 unless the Head / Shift In-charge (Engineering) sanctions an extension. The check sheet for each type of work ticked must be attached. Distribution: pink copy to contractor, yellow to EHS, white to issuing department.',
+      'Master permit for any job. Valid for up to 7 days when the job issuer signs daily, and only until 16:30 unless the Head / Shift In-charge (Engineering) sanctions an extension. The check sheet for each type of work ticked must be attached. Distribution: pink copy to contractor, yellow to EHS, white to issuing work location.',
     permitTypeCodes: ['*'],
     config: {
       kind: 'permit',
       reference: 'SOP/ES/023-F1',
       sections: [
         section('permit', 'Permit details', [
-          ['Issuing department', 'text', { required: true, prefill: 'department' }],
+          ['Work location', 'text', { required: true, prefill: 'work-location' }],
           ['Permit issued to (contractor firm)', 'text', { required: true, help: 'M/s …' }],
           ['Contractor supervisor', 'signature', { required: true }],
           ['Supervisor contact number', 'text'],
