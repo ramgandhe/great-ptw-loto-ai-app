@@ -7,6 +7,7 @@ import { fetchApi } from "@/lib/api";
 export type TemplateFieldType = "check" | "text" | "textarea" | "number" | "date" | "time" | "select" | "multiselect" | "signature";
 export type TemplateRequiredStage = "submit" | "approval" | "closure";
 export type TemplatePrefillSource =
+  | "work-location"
   | "department"
   | "location"
   | "equipment"

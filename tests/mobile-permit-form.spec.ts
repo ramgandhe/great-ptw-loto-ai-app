@@ -11,9 +11,9 @@ describe('mobile permit form (S0a)', () => {
   });
 
   it('uses the same stored step index as the web editor, including the forms step (S6)', () => {
-    // Web and mobile: 0 basic, 1 location, 2 on-site, 3 crew, 4 forms, 5 review.
-    expect([0, 1, 2, 3, 4, 5, 9, -1].map(fromStoredStep)).toEqual([0, 1, 2, 3, 4, 5, 5, 0]);
-    expect([0, 1, 2, 3, 4, 5].map(toStoredStep)).toEqual([0, 1, 2, 3, 4, 5]);
+    // Web and mobile: 0 basic, 1 location, 2 on-site, 3 crew, 4 forms, 5 safety approval, 6 review.
+    expect([0, 1, 2, 3, 4, 5, 9, -1].map(fromStoredStep)).toEqual([0, 1, 2, 3, 4, 5, 6, 0]);
+    expect([0, 1, 2, 3, 4, 5, 6].map(toStoredStep)).toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
 
   it('forms: applicable templates, prefill only empty fields, and missing submit-stage answers', () => {

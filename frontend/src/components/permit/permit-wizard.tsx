@@ -727,7 +727,8 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     // A workstation often carries its location's name; say it once.
     const place = workLocations.find((row) => row.id === current.workLocationId);
     return {
-      department: nameOf(departments, current.departmentId) || undefined,
+      "work-location": place?.pathText || place?.name || undefined,
+      department: nameOf(departments, current.departmentId) || place?.pathText || place?.name || undefined,
       location: [place?.pathText || place?.name, current.exactSpot].filter(Boolean).join(" — ") || undefined,
       equipment: siteAssets.filter((row) => current.assetIds.includes(row.id)).map((row) => row.name).join(", ") || nameOf(machinery, current.machineryId) || undefined,
       "job-description": [current.title, current.workScope].filter((v) => v.trim()).join("\n\n") || undefined,
