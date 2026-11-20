@@ -409,8 +409,11 @@ export default function PermitExecutionPage() {
       const record = await addProgress(permitId, { summary: progressSummary.trim() });
       setProgress((items) => [...items, record]);
       setProgressSummary("");
+      toast("Progress update saved successfully");
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Failed to record progress");
+      const msg = err instanceof ApiError ? err.message : "Failed to record progress";
+      setActionError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
