@@ -23,7 +23,7 @@ import {
 } from '../frontend/src/lib/validation';
 import { CreatePermitDto } from '../app/src/modules/permit/dto/create-permit.dto';
 import { UpdatePermitDto } from '../app/src/modules/permit/dto/update-permit.dto';
-import { SubmitPermitDto } from '../app/src/modules/permit/dto/save-draft.dto';
+import { SaveDraftDto, SubmitPermitDto } from '../app/src/modules/permit/dto/save-draft.dto';
 import { FirstPasswordDto, PasswordResetCompleteDto } from '../app/src/modules/auth/dto/sign-in.dto';
 import { RejectPermitDto } from '../app/src/modules/approval/dto/reject-permit.dto';
 import { DeferPermitDto } from '../app/src/modules/approval/dto/defer-permit.dto';
@@ -54,10 +54,20 @@ describe('Shared Field Validation (Issue #341)', () => {
     });
 
     it('validates phone category', () => {
+      // Empty and whitespace-only values are accepted (optional field handling)
+      expect(validatePhone('')).toBeNull();
+      expect(validatePhone('   ')).toBeNull();
+      expect(validatePhone(undefined)).toBeNull();
+      expect(validatePhone(null)).toBeNull();
+
+      // Valid phone numbers are accepted
       expect(validatePhone('+91 9876543210')).toBeNull();
       expect(validatePhone('+1 2025550123')).toBeNull();
+
+      // Invalid phone numbers are rejected
       expect(validatePhone('9876543210')).not.toBeNull();
       expect(validatePhone('+91 123')).not.toBeNull();
+      expect(validatePhone('12345')).not.toBeNull();
     });
 
     it('validates text category and blocks links', () => {
@@ -177,6 +187,11 @@ describe('Shared Field Validation (Issue #341)', () => {
       dto.emergencyPhone = '12345';
       errors = await validate(dto);
       expect(errors.some((e) => e.property === 'emergencyPhone')).toBe(true);
+
+      // Empty emergencyPhone is accepted
+      dto.emergencyPhone = undefined;
+      errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'emergencyPhone')).toBe(false);
     });
 
     it('validates UpdatePermitDto fields', async () => {
@@ -188,6 +203,21 @@ describe('Shared Field Validation (Issue #341)', () => {
       let errors = await validate(dto);
       expect(errors).toHaveLength(0);
 
+      // Valid emergencyPhone is accepted
+      dto.emergencyPhone = '+91 9876543210';
+      errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'emergencyPhone')).toBe(false);
+
+      // Invalid emergencyPhone is rejected
+      dto.emergencyPhone = '12345';
+      errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'emergencyPhone')).toBe(true);
+
+      // Empty emergencyPhone is accepted
+      dto.emergencyPhone = undefined;
+      errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'emergencyPhone')).toBe(false);
+
       dto.safetyApprovalComment = 'Check www.external.com';
       errors = await validate(dto);
       expect(errors.some((e) => e.property === 'safetyApprovalComment')).toBe(true);
@@ -196,6 +226,42 @@ describe('Shared Field Validation (Issue #341)', () => {
       dto.safetyApprovalSignedName = '12345';
       errors = await validate(dto);
       expect(errors.some((e) => e.property === 'safetyApprovalSignedName')).toBe(true);
+    });
+
+    it('validates SaveDraftDto emergencyPhone field', async () => {
+      const dto = new SaveDraftDto();
+      dto.expectedRevision = 1;
+
+      // Empty emergencyPhone is accepted
+      dto.emergencyPhone = undefined;
+      let errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'emergencyPhone')).toBe(false);
+
+      // Valid emergencyPhone is accepted
+      dto.emergencyPhone = '+91 9876543210';
+      errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'emergencyPhone')).toBe(false);
+
+      // Invalid emergencyPhone is rejected
+      dto.emergencyPhone = '12345';
+      errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'emergencyPhone')).toBe(true);
+    });
+
+    it('normalizes empty and whitespace-only emergencyPhone for payload serialization', () => {
+      const normalize = (phone: string) => phone.trim() || undefined;
+      expect(normalize('')).toBeUndefined();
+      expect(normalize('   ')).toBeUndefined();
+      expect(normalize('+91 9876543210')).toBe('+91 9876543210');
+
+      // Serializing payload with undefined omits the key in JSON
+      const payload = {
+        title: 'Work Title',
+        emergencyPhone: normalize('   '),
+      };
+      const json = JSON.parse(JSON.stringify(payload));
+      expect(json).not.toHaveProperty('emergencyPhone');
+      expect(json.title).toBe('Work Title');
     });
 
     it('validates SubmitPermitDto signedName', async () => {
