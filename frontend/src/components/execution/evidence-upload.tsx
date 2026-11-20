@@ -8,7 +8,7 @@ type EvidenceUploadProps = {
   disabled?: boolean;
   isUploading?: boolean;
   error?: string | null;
-  onUpload: (file: File, comment: string) => void;
+  onUpload: (file: File, comment: string) => Promise<boolean | void> | void;
 };
 
 export function EvidenceUpload({
@@ -19,15 +19,38 @@ export function EvidenceUpload({
 }: EvidenceUploadProps) {
   const [comment, setComment] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (selectedFile && !isUploading) {
-      onUpload(selectedFile, comment);
-      setSelectedFile(null);
-      setComment("");
+  function handleFileChange(file: File | null) {
+    setSelectedFile(file);
+    if (file) {
+      setValidationError(null);
     }
   }
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (isUploading || disabled) return;
+
+    if (!selectedFile) {
+      setValidationError("File is required.");
+      return;
+    }
+
+    setValidationError(null);
+    try {
+      const result = await onUpload(selectedFile, comment);
+      // If result is explicitly false, do not clear
+      if (result !== false) {
+        setSelectedFile(null);
+        setComment("");
+      }
+    } catch {
+      // If upload threw, do not clear file state
+    }
+  }
+
+  const displayedError = validationError || error;
 
   return (
     <form className="grid gap-4 rounded-lg border border-border bg-card p-4" onSubmit={handleSubmit}>
@@ -38,7 +61,7 @@ export function EvidenceUpload({
         accept="image/*,application/pdf"
         disabled={disabled || isUploading}
         value={selectedFile}
-        onChange={setSelectedFile}
+        onChange={handleFileChange}
       />
 
       <div>
@@ -55,14 +78,14 @@ export function EvidenceUpload({
         />
       </div>
 
-      {error ? (
+      {displayedError ? (
         <p role="alert" className="text-sm text-destructive">
-          {error}
+          {displayedError}
         </p>
       ) : null}
 
       <div className="flex justify-end">
-        <Button type="submit" disabled={disabled || isUploading || !selectedFile}>
+        <Button type="submit" disabled={disabled || isUploading}>
           {isUploading ? "Uploading…" : "Upload evidence"}
         </Button>
       </div>

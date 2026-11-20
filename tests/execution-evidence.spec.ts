@@ -141,6 +141,7 @@ describe('EvidenceService MinIO upload (PUS-145)', () => {
     { invalidatePermit: jest.fn() } as never,
     { invalidatePermit: jest.fn() } as never,
     { logEvent: jest.fn() } as never,
+    { assertWorkWrite: jest.fn() } as never,
   );
 
   const operator: AuthenticatedUser = {

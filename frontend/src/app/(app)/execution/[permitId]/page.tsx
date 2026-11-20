@@ -51,6 +51,7 @@ import { DayCycleBadge } from "@/components/multi-day/day-cycle-badge";
 import { MultiDayPolicySummary } from "@/components/multi-day/multi-day-policy-summary";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import type { DayCycleSnapshot } from "@/lib/multi-day/types";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -415,7 +416,7 @@ export default function PermitExecutionPage() {
     }
   }
 
-  async function handleUploadEvidence(file: File, comment: string) {
+  async function handleUploadEvidence(file: File, comment: string): Promise<boolean> {
     setIsUploading(true);
     setUploadError(null);
     try {
@@ -423,8 +424,13 @@ export default function PermitExecutionPage() {
         comment: comment.trim() || undefined,
       });
       setEvidence((items) => [...items, record]);
+      toast(`${file.name} uploaded successfully`);
+      return true;
     } catch (err) {
-      setUploadError(err instanceof ApiError ? err.message : "Upload failed");
+      const msg = err instanceof ApiError ? err.message : "Upload failed";
+      setUploadError(msg);
+      toast(msg, "error");
+      return false;
     } finally {
       setIsUploading(false);
     }
