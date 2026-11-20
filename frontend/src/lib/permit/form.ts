@@ -1,4 +1,5 @@
 import { requiredForSubmit, type PermitTemplate } from "@/lib/organisation/templates";
+import { validateName, validatePhone, validateText } from "@/lib/validation";
 import type {
   DraftFields,
   FormAnswer,
@@ -308,7 +309,7 @@ export function formToSavePayload(
     title: form.title,
     workScope: form.workScope || undefined,
     siteNotes: form.siteNotes.trim(),
-    emergencyPhone: form.emergencyPhone.trim(),
+    emergencyPhone: form.emergencyPhone.trim() || undefined,
     plantId: optionalUuid(form.plantId),
     departmentId: optionalUuid(form.departmentId),
     locationId: optionalUuid(form.locationId),
@@ -496,7 +497,16 @@ export function validateStep(
 
   if (step === 0) {
     if (!form.permitTypeId.trim()) errors.push("Permit type is required");
-    if (!form.title.trim()) errors.push("Title is required");
+    if (!form.title.trim()) {
+      errors.push("Title is required");
+    } else {
+      const titleErr = validateName(form.title, "Title");
+      if (titleErr) errors.push(titleErr);
+    }
+    if (form.workScope) {
+      const scopeErr = validateText(form.workScope, "Work scope");
+      if (scopeErr) errors.push(scopeErr);
+    }
   }
 
   if (step === 1) {
@@ -507,6 +517,10 @@ export function validateStep(
     if (form.plannedStartAt && form.plannedEndAt && form.plannedEndAt <= form.plannedStartAt) {
       errors.push("Planned end must be after planned start");
     }
+    if (form.emergencyPhone) {
+      const phoneErr = validatePhone(form.emergencyPhone);
+      if (phoneErr) errors.push(phoneErr);
+    }
     if (!form.executors.some((e) => (e.workforceUserId ?? "").trim())) {
       errors.push("Assign a primary executor before handing off on-site details");
     }
@@ -514,6 +528,10 @@ export function validateStep(
 
   if (step === 2) {
     void machinery;
+    if (form.siteNotes) {
+      const notesErr = validateText(form.siteNotes, "Site notes");
+      if (notesErr) errors.push(notesErr);
+    }
     if (!form.hazards.some((h) => (h.hazardCategoryId ?? "").trim() || h.customName?.trim())) {
       errors.push("At least one hazard is required");
     }
@@ -545,8 +563,18 @@ export function validateStep(
   }
 
   if (step === 5 && needsSafetyApproval(form)) {
-    if (!form.safetyApprovalComment.trim()) errors.push("Safety Approval comments are required");
-    if (!form.safetyApprovalSignedName.trim()) errors.push("A typed name is required for Safety Approval");
+    if (!form.safetyApprovalComment.trim()) {
+      errors.push("Safety Approval comments are required");
+    } else {
+      const commentErr = validateText(form.safetyApprovalComment, "Safety Approval comments");
+      if (commentErr) errors.push(commentErr);
+    }
+    if (!form.safetyApprovalSignedName.trim()) {
+      errors.push("A typed name is required for Safety Approval");
+    } else {
+      const nameErr = validateName(form.safetyApprovalSignedName, "A typed name for Safety Approval");
+      if (nameErr) errors.push(nameErr);
+    }
   }
 
   return errors;

@@ -1,4 +1,5 @@
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { PASSWORD_MESSAGE, PASSWORD_REGEX } from '../../../common/validation';
 
 export class SignInDto {
   @IsEmail({}, { message: 'Enter the email you sign in with' })
@@ -15,6 +16,7 @@ export class FirstPasswordDto extends SignInDto {
   @IsString()
   @MinLength(8, { message: 'Use at least 8 characters for the new password' })
   @MaxLength(128)
+  @Matches(PASSWORD_REGEX, { message: PASSWORD_MESSAGE })
   newPassword!: string;
 }
 
@@ -40,5 +42,6 @@ export class PasswordResetCompleteDto {
   @IsString()
   @MinLength(8, { message: 'Use at least 8 characters for the new password' })
   @MaxLength(128)
+  @Matches(PASSWORD_REGEX, { message: PASSWORD_MESSAGE })
   newPassword!: string;
 }

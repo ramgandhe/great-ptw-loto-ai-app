@@ -9,9 +9,18 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
   Min,
 } from 'class-validator';
+import {
+  NAME_MESSAGE,
+  NAME_REGEX,
+  PHONE_MESSAGE,
+  PHONE_REGEX,
+  TEXT_MESSAGE,
+  TEXT_REGEX,
+} from '../../../common/validation';
 import { PermitRelationsDto } from './permit-relations.dto';
 
 export class CreatePermitDto extends PermitRelationsDto {
@@ -20,20 +29,24 @@ export class CreatePermitDto extends PermitRelationsDto {
 
   @IsString()
   @MaxLength(255)
+  @Matches(NAME_REGEX, { message: NAME_MESSAGE('title') })
   title!: string;
 
   @IsOptional()
   @IsString()
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('workScope') })
   workScope?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(4000)
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('siteNotes') })
   siteNotes?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(32)
+  @Matches(PHONE_REGEX, { message: PHONE_MESSAGE })
   emergencyPhone?: string;
 
   @IsOptional()
