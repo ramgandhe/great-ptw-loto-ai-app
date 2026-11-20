@@ -105,6 +105,7 @@ import { LototoAttachFields } from "./lototo-attach-fields";
 import { identityFromPermit, PermitSummary } from "./permit-summary";
 import { mergeAfterConflict, resolveConflict, type FieldConflict } from "@/lib/permit/conflict";
 import { useLeaveGuard } from "@/lib/leave-guard";
+import { validateName } from "@/lib/validation";
 
 function executorRoleLabel(kind?: "internal" | "contractor" | "agency") {
   if (kind === "agency") {
@@ -1198,6 +1199,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     }
     if (!initiatorName.trim()) {
       setApiError("Type your name before submitting.");
+      return;
+    }
+    const nameErr = validateName(initiatorName, "Your name");
+    if (nameErr) {
+      setApiError(nameErr);
       return;
     }
     if (!(await confirmAction(isResubmit ? "Resubmit this permit for approval?" : "Submit this permit for approval?"))) {

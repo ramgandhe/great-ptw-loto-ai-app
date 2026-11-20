@@ -11,6 +11,7 @@ import type { ApprovalReview } from "@/lib/approval/types";
 import { formatDateTime, formatStatus } from "@/lib/format";
 import { isRevisionConflict } from "@/lib/permit/api";
 import { permitDetailToForm } from "@/lib/permit/form";
+import { validateName, validateText } from "@/lib/validation";
 import { PermitPageShell, useInPermitWorkspace, usePermitPageId } from "@/lib/permit/workspace";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { cn } from "@/lib/utils";
@@ -134,9 +135,23 @@ export default function PermitReviewPage() {
       setActionError("Add a comment before confirming. The issuer needs to know what to change.");
       return;
     }
+    if (comment.trim()) {
+      const commentErr = validateText(comment, "Comment");
+      if (commentErr) {
+        setActionError(commentErr);
+        return;
+      }
+    }
     if (decision === "approve" && !approvalName.trim()) {
       setActionError("Type your name before approving.");
       return;
+    }
+    if (decision === "approve" && approvalName.trim()) {
+      const nameErr = validateName(approvalName, "Approver name");
+      if (nameErr) {
+        setActionError(nameErr);
+        return;
+      }
     }
     if (decision === "approve" && locationWarning && !locationAck) {
       setActionError("Acknowledge the nearby work location warning before approving.");
