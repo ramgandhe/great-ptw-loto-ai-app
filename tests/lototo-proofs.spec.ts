@@ -4,7 +4,7 @@ import { assertProofAcceptable, earlierUnappliedPoint } from '../app/src/modules
 
 describe('LOTOTO proof for an energy', () => {
   it('offers a meter test for electrical energy and a gauge for pressure', () => {
-    expect(proofsForEnergy('electrical')).toEqual(['meter', 'try_start']);
+    expect(proofsForEnergy('electrical')).toEqual(['meter', 'try_start', 'visual']);
     expect(proofsForEnergy('pressure')).toEqual(['gauge', 'try_start']);
     expect(proofsForEnergy('chemical')).not.toContain('meter');
     expect(proofsForEnergy('site_specific')).toEqual(['visual']);

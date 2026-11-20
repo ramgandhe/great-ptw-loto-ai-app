@@ -139,7 +139,7 @@ export async function downloadLototoProcedureTemplate() {
 
 export function importLototoProcedure(file: File, options?: { confirmOverride?: boolean }) {
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append("file", file, file.name || "procedure.xlsx");
   if (options?.confirmOverride) {
     formData.append("confirmOverride", "true");
   }

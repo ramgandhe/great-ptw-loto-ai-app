@@ -24,11 +24,11 @@ import {
   LOTOTO_LIBRARY_WRITE_ROLES,
   LOTOTO_PROCEDURE_IMPORT_ROLES,
 } from './lototo.constants';
+import { LOTOTO_IMPORT_MAX_BYTES } from './lototo-procedure-excel.parser';
 import { LototoProcedureImportService } from './lototo-procedure-import.service';
 import { LototoProcedureTemplateService } from './lototo-procedure-template.service';
 import { LototoProcedureService } from './lototo-procedure.service';
 import { UploadedFilePayload } from '../permit/uploaded-file.interface';
-import { LOTOTO_IMPORT_MAX_BYTES } from './lototo-procedure-excel.parser';
 
 @Controller('lototo/procedures')
 export class LototoProcedureController {

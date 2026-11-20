@@ -27,7 +27,8 @@ export const LOTOTO_PROOFS = [
 export type LototoProof = (typeof LOTOTO_PROOFS)[number];
 
 const PROOFS_FOR_ENERGY: Record<string, readonly LototoProof[]> = {
-  electrical: ['meter', 'try_start'],
+  // visual covers panel-indication / EMP checks that are not a meter prove-dead
+  electrical: ['meter', 'try_start', 'visual'],
   pressure: ['gauge', 'try_start'],
   hydraulic: ['gauge', 'try_start'],
   pneumatic: ['gauge', 'try_start'],

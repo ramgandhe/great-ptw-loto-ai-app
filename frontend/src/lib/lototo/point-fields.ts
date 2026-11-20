@@ -25,7 +25,8 @@ export const PROOF_LABELS: Record<string, string> = {
 };
 
 const PROOFS_FOR_ENERGY: Record<string, readonly string[]> = {
-  electrical: ["meter", "try_start"],
+  // visual covers panel-indication / EMP checks that are not a meter prove-dead
+  electrical: ["meter", "try_start", "visual"],
   pressure: ["gauge", "try_start"],
   hydraulic: ["gauge", "try_start"],
   pneumatic: ["gauge", "try_start"],
