@@ -34,7 +34,9 @@ function Field({ label, optional, wide, children }: { label: string; optional?: 
 
 function Panel({ title, error, onSubmit, children }: { title: string; error: string | null; onSubmit: (e: React.FormEvent) => void; children: React.ReactNode }) {
   const ref = useRef<HTMLFormElement>(null);
-  useEffect(() => ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), []);
+  useEffect(() => {
+    ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, []);
   return (
     <form ref={ref} onSubmit={onSubmit} className="reveal-in grid scroll-mt-48 grid-cols-[minmax(0,1fr)] gap-4 rounded-xl border border-border bg-card p-5 shadow-(--shadow-lg) sm:grid-cols-2">
       <h2 className="font-heading text-lg font-semibold sm:col-span-2">{title}</h2>
