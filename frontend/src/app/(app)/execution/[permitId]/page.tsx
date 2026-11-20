@@ -51,6 +51,7 @@ import { DayCycleBadge } from "@/components/multi-day/day-cycle-badge";
 import { MultiDayPolicySummary } from "@/components/multi-day/multi-day-policy-summary";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import type { DayCycleSnapshot } from "@/lib/multi-day/types";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -408,8 +409,11 @@ export default function PermitExecutionPage() {
       const record = await addProgress(permitId, { summary: progressSummary.trim() });
       setProgress((items) => [...items, record]);
       setProgressSummary("");
+      toast("Progress update saved successfully");
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Failed to record progress");
+      const msg = err instanceof ApiError ? err.message : "Failed to record progress";
+      setActionError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
