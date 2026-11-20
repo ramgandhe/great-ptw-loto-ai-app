@@ -9,6 +9,7 @@ import { BackLink } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { completePasswordReset } from "@/lib/auth/session";
+import { PASSWORD_HINT, validatePassword } from "@/lib/validation";
 
 function ResetContent() {
   const router = useRouter();
@@ -21,6 +22,11 @@ function ResetContent() {
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    const passErr = validatePassword(password);
+    if (passErr) {
+      setError(passErr);
+      return;
+    }
     if (password !== confirm) {
       setError("The two passwords do not match.");
       return;
@@ -64,7 +70,7 @@ function ResetContent() {
             New password
           </label>
           <PasswordInput id="new-password" value={password} onChange={setPassword} autoComplete="new-password" />
-          <p className="text-xs text-muted-foreground">At least 8 characters. A short sentence is easy to remember and hard to guess.</p>
+          <p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="confirm-password" className="text-sm font-medium">

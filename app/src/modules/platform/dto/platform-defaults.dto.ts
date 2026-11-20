@@ -1,8 +1,6 @@
 import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, IsUUID, Matches, MaxLength, MinLength } from 'class-validator';
 import { HAZARD_SEVERITIES } from '../../master-data/master-data.constants';
-import { NAME_MESSAGE, NAME_REGEX, TEXT_MESSAGE, TEXT_REGEX } from '../../../common/validation';
-
-const CODE_REGEX = /^[A-Za-z0-9][A-Za-z0-9._\-/]{0,63}$/;
+import { CODE_MESSAGE, CODE_REGEX, NAME_MESSAGE, NAME_REGEX, TEXT_MESSAGE, TEXT_REGEX } from '../../../common/validation';
 
 export class DefaultLocationTypeDto {
   @IsString()
@@ -38,7 +36,7 @@ export class DefaultPpeItemDto {
   @IsString()
   @MinLength(1)
   @MaxLength(64)
-  @Matches(CODE_REGEX, { message: 'code must start with a letter or digit' })
+  @Matches(CODE_REGEX, { message: CODE_MESSAGE('code') })
   code!: string;
 
   @IsString()
@@ -61,7 +59,7 @@ export class DefaultPermitTypeDto {
   @IsString()
   @MinLength(1)
   @MaxLength(64)
-  @Matches(CODE_REGEX, { message: 'code must start with a letter or digit' })
+  @Matches(CODE_REGEX, { message: CODE_MESSAGE('code') })
   code!: string;
 
   @IsString()
@@ -99,7 +97,7 @@ export class DefaultHazardDto {
   @IsString()
   @MinLength(1)
   @MaxLength(64)
-  @Matches(CODE_REGEX, { message: 'code must start with a letter or digit' })
+  @Matches(CODE_REGEX, { message: CODE_MESSAGE('code') })
   code!: string;
 
   @IsString()
