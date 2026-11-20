@@ -17,5 +17,5 @@ export function TenantName({ className }: { className?: string }) {
     return null;
   }
 
-  return <p className={className}>{name}</p>;
+  return <span className={className}>{name}</span>;
 }

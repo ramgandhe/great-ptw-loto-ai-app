@@ -7,6 +7,7 @@ import { organisationsApi } from "@/lib/organisation/api";
 import type { Organisation } from "@/lib/organisation/types";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 
 const TIME_ZONES = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : ["UTC"];
@@ -93,8 +94,11 @@ export default function OrganisationProfilePage() {
     try {
       setOrg(await organisationsApi.uploadLogo(org.id, file));
       setSavedMessage("Saved organisation logo.");
+      toast("Saved organisation logo.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Logo upload failed");
+      const msg = err instanceof ApiError ? err.message : "Logo upload failed";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setLogoBusy(false);
     }
@@ -107,8 +111,11 @@ export default function OrganisationProfilePage() {
     try {
       setOrg(await organisationsApi.removeLogo(org.id));
       setSavedMessage("Removed organisation logo.");
+      toast("Removed organisation logo.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Logo removal failed");
+      const msg = err instanceof ApiError ? err.message : "Logo removal failed";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setLogoBusy(false);
     }
@@ -145,9 +152,13 @@ export default function OrganisationProfilePage() {
           })
         : await organisationsApi.create(payload);
       setOrg(updated);
-      setSavedMessage(org ? "Saved organisation details." : "Registered organisation.");
+      const msg = org ? "Organisation profile saved" : "Registered organisation.";
+      setSavedMessage(msg);
+      toast(msg);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Save failed");
+      const msg = err instanceof ApiError ? err.message : "Save failed";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setSaving(false);
     }

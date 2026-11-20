@@ -832,21 +832,21 @@
       "idx": 118,
       "version": "7",
       "when": 1797300000000,
-      "tag": "0116_organisation_logo",
+      "tag": "0116_tenant_users_work_location",
       "breakpoints": true
     },
     {
       "idx": 119,
       "version": "7",
       "when": 1797400000000,
-      "tag": "0116_tenant_users_work_location",
+      "tag": "0117_safe_work_permit_work_location",
       "breakpoints": true
     },
     {
       "idx": 120,
       "version": "7",
-      "when": 1797500000000,
-      "tag": "0117_safe_work_permit_work_location",
+      "when": 1797600000000,
+      "tag": "0118_organisation_logo",
       "breakpoints": true
     }
   ]
