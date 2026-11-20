@@ -42,6 +42,9 @@ export function FileUploadField({
   function handleFiles(files: FileList | null) {
     const file = files?.[0] ?? null;
     onChange(file);
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
   }
 
   return (
