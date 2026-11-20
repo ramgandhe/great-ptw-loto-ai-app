@@ -309,7 +309,7 @@ export function formToSavePayload(
     title: form.title,
     workScope: form.workScope || undefined,
     siteNotes: form.siteNotes.trim(),
-    emergencyPhone: form.emergencyPhone.trim(),
+    emergencyPhone: form.emergencyPhone.trim() || undefined,
     plantId: optionalUuid(form.plantId),
     departmentId: optionalUuid(form.departmentId),
     locationId: optionalUuid(form.locationId),
