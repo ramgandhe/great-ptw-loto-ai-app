@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { organisationsApi } from "@/lib/organisation/api";
 
-export function TenantName({ className }: { className?: string }) {
+export function TenantName({ className, as: Component = "span" }: { className?: string; as?: "span" | "p" | "div" }) {
   const [name, setName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -17,5 +17,5 @@ export function TenantName({ className }: { className?: string }) {
     return null;
   }
 
-  return <p className={className}>{name}</p>;
+  return <Component className={className}>{name}</Component>;
 }

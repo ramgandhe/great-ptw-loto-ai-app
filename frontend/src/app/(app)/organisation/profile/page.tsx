@@ -8,6 +8,8 @@ import type { Organisation } from "@/lib/organisation/types";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { Button } from "@/components/ui/button";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
+import { EntityParentContext } from "@/components/organisation/entity-crud-page";
+import { useContext } from "react";
 
 const TIME_ZONES = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : ["UTC"];
 
@@ -24,6 +26,7 @@ const OVERTIME_APPROVER_OPTIONS = [
 ] as const;
 
 export default function OrganisationProfilePage() {
+  const parentContext = useContext(EntityParentContext);
   const [org, setOrg] = useState<Organisation | null>(null);
   const [form, setForm] = useState({
     name: "",
@@ -146,6 +149,7 @@ export default function OrganisationProfilePage() {
         : await organisationsApi.create(payload);
       setOrg(updated);
       setSavedMessage(org ? "Saved organisation details." : "Registered organisation.");
+      parentContext?.onSaved("plants" as unknown as any, updated as any);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Save failed");
     } finally {

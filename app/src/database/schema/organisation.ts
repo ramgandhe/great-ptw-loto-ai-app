@@ -15,7 +15,12 @@ import { auditColumns } from './base';
 export const RECORD_STATUSES = ['active', 'archived'] as const;
 export type RecordStatus = (typeof RECORD_STATUSES)[number];
 
-export type OrganisationSetupProgress = { skipped?: string[]; lastStep?: string };
+export type OrganisationSetupProgress = {
+  skipped?: string[];
+  lastStep?: string;
+  completed?: boolean;
+  dismissed?: boolean;
+};
 
 /** Platform-wide list. Tenants point at one row. Others is the fallback and cannot be removed. */
 export const industries = pgTable(

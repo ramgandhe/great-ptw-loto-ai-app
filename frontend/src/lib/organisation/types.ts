@@ -39,7 +39,12 @@ export type Organisation = OrgRecord & {
 };
 
 /** Organisation setup wizard state saved on the organisation. */
-export type OrganisationSetupProgress = { skipped?: string[]; lastStep?: string };
+export type OrganisationSetupProgress = {
+  skipped?: string[];
+  lastStep?: string;
+  completed?: boolean;
+  dismissed?: boolean;
+};
 
 export type NotificationPreference = OrgRecord & {
   channel?: string | null;

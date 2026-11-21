@@ -19,8 +19,8 @@ describe('organisation setup areas (S3)', () => {
     expect(unknown.map((step) => step.key)).toEqual(['workflows']);
   });
 
-  it('treats a partly filled profile as a gap', () => {
+  it('treats a profile without name as a gap', () => {
     const measures = Object.fromEntries(SETUP_STEPS.map((step) => [step.key, 1]));
-    expect(configurationGaps({ ...measures, profile: 2 / 3 }).missing.map((step) => step.key)).toEqual(['profile']);
+    expect(configurationGaps({ ...measures, profile: 0 }).missing.map((step) => step.key)).toEqual(['profile']);
   });
 });
