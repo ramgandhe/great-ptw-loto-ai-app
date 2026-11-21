@@ -123,6 +123,8 @@ export class OrganisationService {
               setupProgress: {
                 skipped: [...new Set(dto.setupProgress.skipped ?? [])],
                 lastStep: dto.setupProgress.lastStep,
+                ...(dto.setupProgress.completed !== undefined ? { completed: dto.setupProgress.completed } : {}),
+                ...(dto.setupProgress.dismissed !== undefined ? { dismissed: dto.setupProgress.dismissed } : {}),
               },
             }
           : {}),

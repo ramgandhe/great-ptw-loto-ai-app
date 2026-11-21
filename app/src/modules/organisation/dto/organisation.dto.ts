@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -27,6 +28,14 @@ export class OrganisationSetupProgressDto {
   @IsString()
   @MaxLength(64)
   lastStep?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  completed?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  dismissed?: boolean;
 }
 
 export class CreateOrganisationDto {

@@ -13,7 +13,12 @@ describe('Organisation setup progress', () => {
     expect(
       await errorsFor({
         timezone: 'Asia/Kolkata',
-        setupProgress: { skipped: ['machinery', 'gas-testing'], lastStep: 'hazards' },
+        setupProgress: {
+          skipped: ['machinery', 'gas-testing'],
+          lastStep: 'hazards',
+          completed: true,
+          dismissed: true,
+        },
       }),
     ).toEqual([]);
   });
@@ -22,5 +27,7 @@ describe('Organisation setup progress', () => {
     expect(await errorsFor({ setupProgress: { skipped: 'machinery' } })).toEqual(['setupProgress']);
     expect(await errorsFor({ setupProgress: { skipped: [42] } })).toEqual(['setupProgress']);
     expect(await errorsFor({ setupProgress: { lastStep: 'x'.repeat(65) } })).toEqual(['setupProgress']);
+    expect(await errorsFor({ setupProgress: { completed: 'yes' } })).toEqual(['setupProgress']);
+    expect(await errorsFor({ setupProgress: { dismissed: 'no' } })).toEqual(['setupProgress']);
   });
 });
