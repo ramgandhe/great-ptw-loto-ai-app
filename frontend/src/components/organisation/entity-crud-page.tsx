@@ -369,7 +369,7 @@ export function EntityCrudPage({
             <label key={field.key} className={`grid gap-1.5 text-sm ${field.multiline ? "sm:col-span-2" : ""}`}>
               <span className="font-medium">
                 {field.label}
-                {field.required ? "" : <span className="font-normal text-muted-foreground"> (optional)</span>}
+                {field.required ? <span className="text-destructive"> *</span> : <span className="font-normal text-muted-foreground"> (optional)</span>}
               </span>
               {field.multiline ? (
                 <textarea
