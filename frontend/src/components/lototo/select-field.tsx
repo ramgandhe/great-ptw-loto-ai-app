@@ -12,6 +12,7 @@ type SelectFieldProps = {
   id: string;
   label: string;
   hint?: string;
+  error?: string;
   value: string;
   options: SelectOption[];
   placeholder?: string;
@@ -25,6 +26,7 @@ export function SelectField({
   id,
   label,
   hint,
+  error,
   value,
   options,
   placeholder = "Select…",
@@ -34,7 +36,7 @@ export function SelectField({
   className,
 }: SelectFieldProps) {
   return (
-    <FormField label={label} htmlFor={id} hint={hint} className={className}>
+    <FormField label={label} htmlFor={id} hint={hint} error={error} className={className}>
       <AppSelect
         id={id}
         required={required}

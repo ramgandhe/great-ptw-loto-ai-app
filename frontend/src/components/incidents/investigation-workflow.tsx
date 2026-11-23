@@ -22,6 +22,7 @@ import { confirmAction } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/ui/status-chip";
 import { toast } from "@/components/ui/toast";
+import { validateCorrectiveAction, validatePreventiveAction } from "@/lib/incidents/validation";
 
 const ACTION_TONE: Record<ActionStatus, { label: string; color: string }> = {
   open: { label: "Open", color: "var(--st-pending_approval)" },
@@ -57,6 +58,8 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Props) 
   const [rootCause, setRootCause] = useState("");
   const [corrective, setCorrective] = useState({ title: "", ownerId: "", dueDate: "" });
   const [preventive, setPreventive] = useState({ title: "", ownerId: "", dueDate: "" });
+  const [correctiveOwnerError, setCorrectiveOwnerError] = useState<string | null>(null);
+  const [preventiveOwnerError, setPreventiveOwnerError] = useState<string | null>(null);
 
   useEffect(() => {
     // Sign-in accounts, so the investigator and action owners see the work in their queue.
@@ -213,10 +216,22 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Props) 
             className="grid gap-2 sm:grid-cols-[2fr_1fr_auto_auto] sm:items-end"
             onSubmit={(e) => {
               e.preventDefault();
+              const val = validateCorrectiveAction(corrective);
+              if (!val.valid) {
+                if (val.field === "ownerId") {
+                  setCorrectiveOwnerError(val.message ?? "Please select an Owner");
+                  toast(val.message ?? "Please select an Owner", "error");
+                }
+                return;
+              }
+              setCorrectiveOwnerError(null);
               void run(
                 () => createCorrectiveAction(incidentId, { title: corrective.title.trim(), ownerId: corrective.ownerId, dueDate: new Date(corrective.dueDate).toISOString() }),
                 "Corrective action added",
-                () => setCorrective({ title: "", ownerId: "", dueDate: "" }),
+                () => {
+                  setCorrective({ title: "", ownerId: "", dueDate: "" });
+                  setCorrectiveOwnerError(null);
+                },
               );
             }}
           >
@@ -224,7 +239,18 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Props) 
               <span className="font-medium">Fix to make</span>
               <input required value={corrective.title} onChange={(e) => setCorrective({ ...corrective, title: e.target.value })} className={fieldClassName} />
             </label>
-            <SelectField id="corrective-owner" label="Owner" required value={corrective.ownerId} options={people} placeholder="Choose" onChange={(ownerId) => setCorrective({ ...corrective, ownerId })} />
+            <SelectField
+              id="corrective-owner"
+              label="Owner"
+              value={corrective.ownerId}
+              options={people}
+              placeholder="Choose"
+              error={correctiveOwnerError ?? undefined}
+              onChange={(ownerId) => {
+                setCorrective({ ...corrective, ownerId });
+                if (ownerId.trim()) setCorrectiveOwnerError(null);
+              }}
+            />
             <label className="grid gap-1.5 text-sm">
               <span className="font-medium">Due</span>
               <input type="date" required min={today} value={corrective.dueDate} onChange={(e) => setCorrective({ ...corrective, dueDate: e.target.value })} className={fieldClassName} />
@@ -258,6 +284,15 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Props) 
             className="grid gap-2 sm:grid-cols-[2fr_1fr_auto_auto] sm:items-end"
             onSubmit={(e) => {
               e.preventDefault();
+              const val = validatePreventiveAction(preventive);
+              if (!val.valid) {
+                if (val.field === "ownerId") {
+                  setPreventiveOwnerError(val.message ?? "Please select an Owner");
+                  toast(val.message ?? "Please select an Owner", "error");
+                }
+                return;
+              }
+              setPreventiveOwnerError(null);
               void run(
                 () =>
                   createPreventiveAction(incidentId, {
@@ -266,7 +301,10 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Props) 
                     ...(preventive.dueDate ? { dueDate: new Date(preventive.dueDate).toISOString() } : {}),
                   }),
                 "Preventive action added",
-                () => setPreventive({ title: "", ownerId: "", dueDate: "" }),
+                () => {
+                  setPreventive({ title: "", ownerId: "", dueDate: "" });
+                  setPreventiveOwnerError(null);
+                },
               );
             }}
           >
@@ -274,7 +312,18 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Props) 
               <span className="font-medium">Stop it happening again</span>
               <input required value={preventive.title} onChange={(e) => setPreventive({ ...preventive, title: e.target.value })} className={fieldClassName} />
             </label>
-            <SelectField id="preventive-owner" label="Owner" required value={preventive.ownerId} options={people} placeholder="Choose" onChange={(ownerId) => setPreventive({ ...preventive, ownerId })} />
+            <SelectField
+              id="preventive-owner"
+              label="Owner"
+              value={preventive.ownerId}
+              options={people}
+              placeholder="Choose"
+              error={preventiveOwnerError ?? undefined}
+              onChange={(ownerId) => {
+                setPreventive({ ...preventive, ownerId });
+                if (ownerId.trim()) setPreventiveOwnerError(null);
+              }}
+            />
             <label className="grid gap-1.5 text-sm">
               <span className="font-medium">Due (optional)</span>
               <input type="date" min={today} value={preventive.dueDate} onChange={(e) => setPreventive({ ...preventive, dueDate: e.target.value })} className={fieldClassName} />
