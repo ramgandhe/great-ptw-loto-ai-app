@@ -11,8 +11,8 @@ import type { EntityField, OrgRecord } from "@/lib/organisation/types";
 
 const fields: EntityField[] = [
   { key: "name", label: "Machinery name", required: true },
-  { key: "code", label: "Code" },
-  { key: "workstationId", label: "Workstation", select: "workstation" },
+  { key: "code", label: "Code", required: true },
+  { key: "workstationId", label: "Workstation", select: "workstation", required: true },
   { key: "description", label: "Description", multiline: true },
 ];
 

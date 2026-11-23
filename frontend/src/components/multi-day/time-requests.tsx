@@ -53,10 +53,13 @@ export function TimeRequests({ permitId, onUpdated }: TimeRequestsProps) {
     try {
       await action();
       setMessage(success);
+      toast(success);
       onUpdated?.();
       loadPending();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Action failed");
+      const msg = err instanceof ApiError ? err.message : "Action failed";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }

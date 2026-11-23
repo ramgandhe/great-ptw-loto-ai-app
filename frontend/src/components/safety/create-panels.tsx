@@ -26,7 +26,7 @@ function Field({ label, optional, wide, children }: { label: string; optional?: 
     <label className={`grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5 text-sm ${wide ? "sm:col-span-2" : ""}`}>
       <span className="font-medium">
         {label}
-        {optional ? <span className="font-normal text-muted-foreground"> (optional)</span> : null}
+        {optional ? <span className="font-normal text-muted-foreground"> (optional)</span> : <span className="text-destructive"> *</span>}
       </span>
       {children}
     </label>
