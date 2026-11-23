@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/components/ui/toast";
 import { AppSelect } from "@/components/ui/select";
 
 import { inUse } from "@/components/organisation/org-status-badge";
@@ -1179,9 +1180,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       await persistDraft();
       setDirty(false);
       setSaveState("saved");
+      toast(isExecutor ? "Preparation saved successfully" : "Draft saved successfully");
     } catch (error) {
       setSaveState("error");
-      setApiError(error instanceof ApiError ? error.message : "Failed to save draft");
+      const msg = error instanceof ApiError ? error.message : "Failed to save draft";
+      setApiError(msg);
+      toast(msg, "error");
     } finally {
       setIsSaving(false);
     }
