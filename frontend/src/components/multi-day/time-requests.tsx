@@ -13,6 +13,7 @@ import {
 } from "@/lib/multi-day/api";
 import type { PendingTimeRequests } from "@/lib/multi-day/types";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 
 type TimeRequestsProps = {
   permitId: string;
@@ -51,10 +52,13 @@ export function TimeRequests({ permitId, onUpdated }: TimeRequestsProps) {
     try {
       await action();
       setMessage(success);
+      toast(success);
       onUpdated?.();
       loadPending();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Action failed");
+      const msg = err instanceof ApiError ? err.message : "Action failed";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
