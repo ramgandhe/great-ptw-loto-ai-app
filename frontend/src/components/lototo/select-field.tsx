@@ -36,7 +36,7 @@ export function SelectField({
   className,
 }: SelectFieldProps) {
   return (
-    <FormField label={label} htmlFor={id} hint={hint} error={error} className={className}>
+    <FormField label={label} htmlFor={id} hint={hint} error={error} className={className} required={required}>
       <AppSelect
         id={id}
         required={required}

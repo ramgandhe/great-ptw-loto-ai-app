@@ -288,16 +288,6 @@ export default function PermitReviewPage() {
                       </div>
                     ) : null}
                     {decision === "approve" ? (
-                      <label className="grid gap-1 text-sm font-medium">
-                        Typed name
-                        <input
-                          value={approvalName}
-                          onChange={(event) => setApproverSignedName(event.target.value)}
-                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                        />
-                      </label>
-                    ) : null}
-                    {decision === "approve" ? (
                       <label className="flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"
@@ -345,7 +335,7 @@ export default function PermitReviewPage() {
                     ) : null}
                     <label htmlFor="decision-comment" className="text-sm font-medium">
                       {DECISIONS[decision].prompt}
-                      {commentRequired ? "" : <span className="font-normal text-muted-foreground"> (optional)</span>}
+                      {commentRequired ? <span className="text-destructive"> *</span> : <span className="font-normal text-muted-foreground"> (optional)</span>}
                     </label>
                     {suggestions.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5">
@@ -369,6 +359,17 @@ export default function PermitReviewPage() {
                       placeholder={DECISIONS[decision].placeholder}
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                     />
+                    {decision === "approve" ? (
+                      <label htmlFor="approver-signed-name" className="grid gap-1 text-sm font-medium">
+                        Typed name
+                        <input
+                          id="approver-signed-name"
+                          value={approvalName}
+                          onChange={(event) => setApproverSignedName(event.target.value)}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                        />
+                      </label>
+                    ) : null}
                     {actionError ? (
                       <p role="alert" className="text-sm text-destructive">
                         {actionError}

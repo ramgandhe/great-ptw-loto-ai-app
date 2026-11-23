@@ -12,6 +12,7 @@ import {
   releasePermitForExecution,
   addProgress,
   completeExecution,
+  getEvidenceDownloadUrl,
   getWorkCycle,
   listEvidence,
   listProgress,
@@ -23,6 +24,7 @@ import {
   suspendPermit,
   uploadEvidence,
 } from "@/lib/execution/api";
+import { openPresignedDownload } from "@/lib/download";
 import { WorkPauseForm } from "@/components/execution/work-pause-form";
 import { WorkResumeForm } from "@/components/execution/work-resume-form";
 import { DayRecordHistory } from "@/components/multi-day/day-record-history";
@@ -42,6 +44,7 @@ import { permitDetailToForm } from "@/lib/permit/form";
 import type { PermitDetail } from "@/lib/permit/types";
 import { ActivityLog } from "@/components/execution/activity-log";
 import { EvidenceUpload } from "@/components/execution/evidence-upload";
+import { EvidencePreviewList } from "@/components/execution/evidence-preview-list";
 import { ProgressFeed } from "@/components/execution/progress-feed";
 import { StatusTimeline } from "@/components/execution/status-timeline";
 import { SuspensionDialog } from "@/components/execution/suspension-dialog";
@@ -100,6 +103,7 @@ export default function PermitExecutionPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [downloadingEvidenceId, setDownloadingEvidenceId] = useState<string | null>(null);
   const [suspendOpen, setSuspendOpen] = useState(false);
   const [suspendReason, setSuspendReason] = useState("");
   const [suspendError, setSuspendError] = useState<string | null>(null);
@@ -439,6 +443,18 @@ export default function PermitExecutionPage() {
     }
   }
 
+  async function handleOpenEvidence(evidenceId: string) {
+    setDownloadingEvidenceId(evidenceId);
+    try {
+      await openPresignedDownload(() => getEvidenceDownloadUrl(permitId, evidenceId));
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to open evidence file";
+      toast(msg, "error");
+    } finally {
+      setDownloadingEvidenceId(null);
+    }
+  }
+
   if (error) {
     return (
       <div className="p-8 text-sm text-destructive" role="alert">
@@ -697,13 +713,31 @@ export default function PermitExecutionPage() {
               </section>
 
               <section className="grid gap-3">
-                <h2 className="text-sm font-semibold">Upload evidence</h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">Upload evidence</h2>
+                  <Link
+                    href={`/execution/${permit.id}/evidence`}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    View gallery ({evidence.length})
+                  </Link>
+                </div>
                 <EvidenceUpload
                   disabled={!isActive || !canRunThisPermit || workWriteBlocked}
                   isUploading={isUploading}
                   error={uploadError}
                   onUpload={handleUploadEvidence}
                 />
+                {evidence.length > 0 ? (
+                  <div className="mt-2 grid gap-2">
+                    <p className="text-xs font-medium text-muted-foreground">Uploaded evidence ({evidence.length})</p>
+                    <EvidencePreviewList
+                      evidence={evidence.slice().reverse()}
+                      onOpen={handleOpenEvidence}
+                      openingId={downloadingEvidenceId}
+                    />
+                  </div>
+                ) : null}
               </section>
 
               {workCycle ? (

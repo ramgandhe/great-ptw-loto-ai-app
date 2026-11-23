@@ -230,7 +230,7 @@ export default function OrganisationProfilePage() {
             <label key={field.key} className="grid content-start gap-1.5 text-sm">
               <span className="font-medium">
                 {field.label}
-                {"required" in field ? "" : <span className="font-normal text-muted-foreground"> (optional)</span>}
+                {"required" in field && field.required ? <span className="text-destructive"> *</span> : <span className="font-normal text-muted-foreground"> (optional)</span>}
               </span>
               <input
                 required={"required" in field}
