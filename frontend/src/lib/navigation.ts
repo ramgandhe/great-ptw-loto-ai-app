@@ -1,16 +1,16 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  AlertTriangle,
   BarChart3,
   Building2,
   CalendarClock,
   CreditCard,
   FileText,
   HardHat,
+  Layers,
   LayoutDashboard,
   Route,
   Settings2,
-  TriangleAlert,
+  Siren,
   Users,
 } from "lucide-react";
 import {
@@ -55,8 +55,8 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     group: "Work",
   },
   { href: "/lototo", label: "LOTOTO", icon: DOMAIN_ICONS.lototo, roles: NAV_LOTOTO_ROLES, group: "Safety" },
-  { href: "/simops", label: "SIMOPS", icon: TriangleAlert, roles: NAV_SIMOPS_ROLES, group: "Safety" },
-  { href: "/incidents", label: "Incidents", icon: AlertTriangle, roles: NAV_INCIDENTS_ROLES, group: "Safety" },
+  { href: "/simops", label: "SIMOPS", icon: Layers, roles: NAV_SIMOPS_ROLES, group: "Safety" },
+  { href: "/incidents", label: "Incidents", icon: Siren, roles: NAV_INCIDENTS_ROLES, group: "Safety" },
   { href: "/permits/process", label: "Permit process", icon: Route, roles: NAV_PERMITS_ROLES, group: "Insights" },
   { href: "/analytics", label: "Analytics", icon: BarChart3, roles: DASHBOARD_ANALYTICS_ROLES, group: "Insights" },
   { href: "/reports", label: "Reports", icon: FileText, roles: DASHBOARD_REPORT_ROLES, group: "Insights" },
