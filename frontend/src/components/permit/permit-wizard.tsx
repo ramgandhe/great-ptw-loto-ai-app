@@ -1588,7 +1588,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       {active === "place" ? (
       <EditorSection id="place" title="Place and schedule" owner="Permit receiver" editable={placeEditable} left={missing.place.length} note={!placeEditable ? "Read-only until the current holder returns the draft." : undefined}>
         <div className="grid gap-4 md:grid-cols-2">
-          <FormField label="Site" htmlFor="siteId" error={fieldError("siteId")}>
+          <FormField label="Site" htmlFor="siteId" error={fieldError("siteId")} required>
             <MasterDataSelect
               id="siteId"
               value={form.siteId}
@@ -1614,9 +1614,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               onChange={(e) => edit((current) => ({ ...current, exactSpot: e.target.value }))}
             />
           </FormField>
-          <div className="md:col-span-2 grid gap-2">
+          <div id="workLocationId" className="md:col-span-2 grid gap-2 scroll-mt-20">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <label className="text-sm font-semibold" htmlFor="work-location-search">Work location</label>
+              <label className="text-sm font-semibold" htmlFor="work-location-search">
+                Work location <span className="text-destructive">*</span>
+              </label>
               <div className="relative w-full sm:w-72">
                 <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <input
@@ -1671,7 +1673,9 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           </div>
           <FormField
             label="Primary executor"
-            htmlFor="primary-executor" error={fieldError("primary-executor")}
+            htmlFor="primary-executor"
+            error={fieldError("primary-executor")}
+            required
             hint="Permit operators or permit receivers (including you). They fill Site safety, Crew and Forms."
           >
             <PersonSelect
@@ -1714,7 +1718,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             </div>
           ) : null}
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField label="Planned start" htmlFor="plannedStartAt" error={fieldError("plannedStartAt")}>
+            <FormField label="Planned start" htmlFor="plannedStartAt" error={fieldError("plannedStartAt")} required>
               <PlannedDateTimeField
                 id="plannedStartAt"
                 value={form.plannedStartAt}
@@ -1728,7 +1732,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
                 }
               />
             </FormField>
-            <FormField label="Planned end" htmlFor="plannedEndAt" error={fieldError("plannedEndAt")} hint={form.plannedStartAt ? "Must be after planned start" : undefined}>
+            <FormField label="Planned end" htmlFor="plannedEndAt" error={fieldError("plannedEndAt")} hint={form.plannedStartAt ? "Must be after planned start" : undefined} required>
               <PlannedDateTimeField
                 id="plannedEndAt"
                 value={form.plannedEndAt}
