@@ -47,7 +47,9 @@ export function WorkLocationFields({
   return (
     <>
       <label className="grid gap-1.5 text-sm">
-        <span className="font-medium">Name</span>
+        <span className="font-medium">
+          Name<span className="text-destructive"> *</span>
+        </span>
         <input
           required
           className={FIELD_CLASS}
@@ -56,7 +58,9 @@ export function WorkLocationFields({
         />
       </label>
       <label className="grid gap-1.5 text-sm">
-        <span className="font-medium">Code</span>
+        <span className="font-medium">
+          Code<span className="text-destructive"> *</span>
+        </span>
         <input
           required
           className={FIELD_CLASS}

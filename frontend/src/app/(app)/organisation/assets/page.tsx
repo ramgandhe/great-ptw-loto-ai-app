@@ -297,7 +297,9 @@ export default function AssetsPage() {
         <form noValidate onSubmit={(event) => void saveAsset(event)} className="grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
           <h2 className="font-semibold sm:col-span-2">{editingId ? "Asset details" : "New asset"}</h2>
           <label className="grid gap-1.5 text-sm">
-            <span className="font-medium">Tag</span>
+            <span className="font-medium">
+              Tag<span className="text-destructive"> *</span>
+            </span>
             <input
               className={`${FIELD_CLASS} ${fieldErrors.tag ? "border-destructive" : ""}`}
               aria-invalid={fieldErrors.tag ? true : undefined}
@@ -310,7 +312,9 @@ export default function AssetsPage() {
             {fieldErrors.tag ? <span className="text-sm text-destructive">{fieldErrors.tag}</span> : null}
           </label>
           <label className="grid gap-1.5 text-sm">
-            <span className="font-medium">Name</span>
+            <span className="font-medium">
+              Name<span className="text-destructive"> *</span>
+            </span>
             <input
               className={`${FIELD_CLASS} ${fieldErrors.name ? "border-destructive" : ""}`}
               aria-invalid={fieldErrors.name ? true : undefined}
@@ -323,7 +327,9 @@ export default function AssetsPage() {
             {fieldErrors.name ? <span className="text-sm text-destructive">{fieldErrors.name}</span> : null}
           </label>
           <label className="grid gap-1.5 text-sm">
-            <span className="font-medium">Work location</span>
+            <span className="font-medium">
+              Work location<span className="text-destructive"> *</span>
+            </span>
             <AppSelect
               className={FIELD_CLASS}
               aria-invalid={fieldErrors.workLocationId ? true : undefined}

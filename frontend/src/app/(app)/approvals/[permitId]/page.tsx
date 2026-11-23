@@ -345,7 +345,7 @@ export default function PermitReviewPage() {
                     ) : null}
                     <label htmlFor="decision-comment" className="text-sm font-medium">
                       {DECISIONS[decision].prompt}
-                      {commentRequired ? "" : <span className="font-normal text-muted-foreground"> (optional)</span>}
+                      {commentRequired ? <span className="text-destructive"> *</span> : <span className="font-normal text-muted-foreground"> (optional)</span>}
                     </label>
                     {suggestions.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5">
