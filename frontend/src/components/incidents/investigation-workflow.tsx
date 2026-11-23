@@ -20,6 +20,7 @@ import { fieldClassName } from "@/components/permit/form-field";
 import { SelectField } from "@/components/lototo/select-field";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { StatusChip } from "@/components/ui/status-chip";
 import { toast } from "@/components/ui/toast";
 
@@ -57,6 +58,7 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Props) 
   const [rootCause, setRootCause] = useState("");
   const [corrective, setCorrective] = useState({ title: "", ownerId: "", dueDate: "" });
   const [preventive, setPreventive] = useState({ title: "", ownerId: "", dueDate: "" });
+  const [actionEvidences, setActionEvidences] = useState<Record<string, File | null>>({});
 
   useEffect(() => {
     // Sign-in accounts, so the investigator and action owners see the work in their queue.
@@ -203,6 +205,17 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Props) 
                       </>
                     ) : null}
                   </span>
+                  {open ? (
+                    <div className="w-full">
+                      <VerificationEvidenceCapture
+                        visible={true}
+                        label="Corrective action completion evidence"
+                        file={actionEvidences[action.id] ?? null}
+                        onFileChange={(file) => setActionEvidences((prev) => ({ ...prev, [action.id]: file }))}
+                        disabled={busy}
+                      />
+                    </div>
+                  ) : null}
                 </li>
               );
             })}

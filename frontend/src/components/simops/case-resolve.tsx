@@ -8,6 +8,7 @@ import { resolveSimopsCase } from "@/lib/simops/api";
 import type { SimopsCaseDetail, SimopsPermitDecision } from "@/lib/simops/types";
 import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { ConflictSeverityBadge } from "@/components/simops/conflict-severity-badge";
 
 const DECISIONS: { value: SimopsPermitDecision; label: string }[] = [
@@ -36,6 +37,7 @@ export function CaseResolve({
     Object.fromEntries(detail.members.map((m) => [m.permitId, m.comments ?? ""])),
   );
   const [controlText, setControlText] = useState<Record<string, string>>({});
+  const [controlEvidences, setControlEvidences] = useState<Record<string, File | null>>({});
   const [controlPerson, setControlPerson] = useState<Record<string, string>>({});
   const [controlComments, setControlComments] = useState<Record<string, string>>({});
 
@@ -170,6 +172,16 @@ export function CaseResolve({
                     }
                     placeholder="Control comments"
                     className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  <VerificationEvidenceCapture
+                    visible={true}
+                    label="Agreed SIMOPS controls evidence"
+                    hint="Optional — photo of physical barrier or signed joint agreement"
+                    file={controlEvidences[member.permitId] ?? null}
+                    onFileChange={(file) =>
+                      setControlEvidences((prev) => ({ ...prev, [member.permitId]: file }))
+                    }
+                    disabled={saving}
                   />
                 </div>
               ) : null}

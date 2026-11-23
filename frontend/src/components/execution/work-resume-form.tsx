@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import type { WorkCycleSnapshot } from "@/lib/execution/types";
 
 type WorkResumeFormProps = {
@@ -19,6 +20,7 @@ export function WorkResumeForm({ work, disabled, isSubmitting, onSubmit }: WorkR
   const items = work.resumeTemplate.items;
   const [notes, setNotes] = useState("");
   const [checks, setChecks] = useState<Record<string, boolean>>({});
+  const [resumeEvidence, setResumeEvidence] = useState<File | null>(null);
   const [crewUserIds, setCrewUserIds] = useState("");
   const crewRequired = work.crewRosterRequired === true;
   const suggested = work.suggestedCrew ?? [];
@@ -96,6 +98,13 @@ export function WorkResumeForm({ work, disabled, isSubmitting, onSubmit }: WorkR
           {item.label}
         </label>
       ))}
+      <VerificationEvidenceCapture
+        visible={Object.values(checks).some(Boolean)}
+        label="Resume clearance verification evidence"
+        file={resumeEvidence}
+        onFileChange={setResumeEvidence}
+        disabled={disabled || isSubmitting}
+      />
       {crewRequired ? (
         <div className="grid gap-2">
           <label className="block text-sm">

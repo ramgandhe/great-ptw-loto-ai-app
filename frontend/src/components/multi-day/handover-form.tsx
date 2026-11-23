@@ -1,6 +1,7 @@
 "use client";
 import { AppSelect } from "@/components/ui/select";
 
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { createHandover } from "@/lib/multi-day/api";
@@ -34,6 +35,7 @@ export function HandoverForm({
   const [completedActivities, setCompletedActivities] = useState("");
   const [outstandingWork, setOutstandingWork] = useState("");
   const [safetyObservations, setSafetyObservations] = useState("");
+  const [handoverEvidence, setHandoverEvidence] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -154,6 +156,13 @@ export function HandoverForm({
           onChange={(event) => setSafetyObservations(event.target.value)}
         />
       </label>
+      <VerificationEvidenceCapture
+        visible={true}
+        label="Handover site/log evidence"
+        file={handoverEvidence}
+        onFileChange={setHandoverEvidence}
+        disabled={isSubmitting}
+      />
       <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Saving…" : "Submit handover"}
       </Button>

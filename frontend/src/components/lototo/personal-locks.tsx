@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { ApiError } from "@/lib/api";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import {
@@ -41,6 +42,7 @@ export function PersonalLocks({
   const [masterLock, setMasterLock] = useState("");
   const [place, setPlace] = useState("");
   const [lockNumber, setLockNumber] = useState("");
+  const [personalLockEvidence, setPersonalLockEvidence] = useState<File | null>(null);
   const [permitId, setPermitId] = useState("");
   const [absentLock, setAbsentLock] = useState<PersonalLock | null>(null);
   const [contactAttempts, setContactAttempts] = useState("");
@@ -250,6 +252,13 @@ export function PersonalLocks({
                 <span className="font-medium">My lock number</span>
                 <input className={FIELD} value={lockNumber} onChange={(event) => setLockNumber(event.target.value)} required />
               </label>
+              <VerificationEvidenceCapture
+                visible={Boolean(lockNumber.trim())}
+                label="Personal lock photo / applied proof"
+                file={personalLockEvidence}
+                onFileChange={setPersonalLockEvidence}
+                disabled={busy}
+              />
               <div>
                 <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Add my lock"}</Button>
               </div>

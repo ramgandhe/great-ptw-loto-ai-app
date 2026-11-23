@@ -2,6 +2,7 @@
 
 import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, History, RotateCcw, X } from "lucide-react";
@@ -67,6 +68,7 @@ export default function PermitReviewPage() {
   const [approverSignedName, setApproverSignedName] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [siteVisited, setSiteVisited] = useState(false);
+  const [siteVisitedEvidence, setSiteVisitedEvidence] = useState<File | null>(null);
   const [locationAck, setLocationAck] = useState(false);
   const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [dailyRevalidationRequired, setDailyRevalidationRequired] = useState(true);
@@ -298,14 +300,22 @@ export default function PermitReviewPage() {
                       </label>
                     ) : null}
                     {decision === "approve" ? (
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={siteVisited}
-                          onChange={(e) => setSiteVisited(e.target.checked)}
+                      <div className="grid gap-2">
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={siteVisited}
+                            onChange={(e) => setSiteVisited(e.target.checked)}
+                          />
+                          Site visited and verified
+                        </label>
+                        <VerificationEvidenceCapture
+                          visible={siteVisited}
+                          label="Approver site visit evidence"
+                          file={siteVisitedEvidence}
+                          onFileChange={setSiteVisitedEvidence}
                         />
-                        Site visited and verified
-                      </label>
+                      </div>
                     ) : null}
                     {decision === "approve" && isMultiDay ? (
                       <div className="grid gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">

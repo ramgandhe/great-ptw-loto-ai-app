@@ -13,6 +13,7 @@ import {
 } from "@/lib/multi-day/api";
 import type { PendingTimeRequests } from "@/lib/multi-day/types";
 import { Button } from "@/components/ui/button";
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 
 type TimeRequestsProps = {
   permitId: string;
@@ -22,6 +23,7 @@ type TimeRequestsProps = {
 export function TimeRequests({ permitId, onUpdated }: TimeRequestsProps) {
   const [requestedEndAt, setRequestedEndAt] = useState("");
   const [justification, setJustification] = useState("");
+  const [extensionEvidence, setExtensionEvidence] = useState<File | null>(null);
   const [overtimeUntil, setOvertimeUntil] = useState("");
   const [overtimeJustification, setOvertimeJustification] = useState("");
   const [pending, setPending] = useState<PendingTimeRequests>({ extensions: [], overtime: [] });
@@ -127,6 +129,13 @@ export function TimeRequests({ permitId, onUpdated }: TimeRequestsProps) {
             onChange={(event) => setJustification(event.target.value)}
           />
         </label>
+        <VerificationEvidenceCapture
+          visible={Boolean(justification.trim() || requestedEndAt)}
+          label="Extension justification evidence"
+          file={extensionEvidence}
+          onFileChange={setExtensionEvidence}
+          disabled={isSubmitting}
+        />
         <Button
           disabled={isSubmitting || !requestedEndAt || !justification.trim()}
           onClick={() =>

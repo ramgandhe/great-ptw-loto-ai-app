@@ -1,4 +1,5 @@
 "use client";
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { AppSelect } from "@/components/ui/select";
 
 import { useRouter } from "next/navigation";
@@ -34,7 +35,9 @@ function Field({ label, optional, wide, children }: { label: string; optional?: 
 
 function Panel({ title, error, onSubmit, children }: { title: string; error: string | null; onSubmit: (e: React.FormEvent) => void; children: React.ReactNode }) {
   const ref = useRef<HTMLFormElement>(null);
-  useEffect(() => ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), []);
+  useEffect(() => {
+    ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, []);
   return (
     <form ref={ref} onSubmit={onSubmit} className="reveal-in grid scroll-mt-48 grid-cols-[minmax(0,1fr)] gap-4 rounded-xl border border-border bg-card p-5 shadow-(--shadow-lg) sm:grid-cols-2">
       <h2 className="font-heading text-lg font-semibold sm:col-span-2">{title}</h2>
@@ -158,6 +161,7 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
     return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
   });
   const [permitId, setPermitId] = useState(initialPermitId ?? "");
+  const [incidentEvidence, setIncidentEvidence] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const asDraft = useRef(false);
@@ -272,6 +276,15 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
           ))}
         </AppSelect>
       </Field>
+      <div className="sm:col-span-2">
+        <VerificationEvidenceCapture
+          visible={true}
+          label="Initial incident evidence (photo / report)"
+          file={incidentEvidence}
+          onFileChange={setIncidentEvidence}
+          disabled={submitting}
+        />
+      </div>
       <div className="flex flex-wrap gap-2 sm:col-span-2">
         <Button type="submit" disabled={submitting} onClick={() => (asDraft.current = false)}>
           {submitting ? "Saving…" : "Submit report"}

@@ -182,7 +182,9 @@ export type PermitFormState = {
   safetyApprovalSignedName: string;
   receiverSiteVisited: boolean;
   executorSiteVisited: boolean;
+  executorSiteVisitedEvidence?: File | null;
   safetyOfficerSiteVisited: boolean;
+  safetyOfficerSiteVisitedEvidence?: File | null;
   /** Answers per permit template id. */
   formResponses: Record<string, FormAnswers>;
   currentStep: number;

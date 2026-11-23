@@ -1,5 +1,6 @@
 "use client";
 
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
 import { formatDateTime, formatWindow } from "@/lib/format";
@@ -110,8 +111,11 @@ export default function PermitExecutionPage() {
   const [ppeNames, setPpeNames] = useState<Map<string, string>>(new Map());
   const [wizardOpen, setWizardOpen] = useState(false);
   const [siteReady, setSiteReady] = useState(false);
+  const [siteReadyEvidence, setSiteReadyEvidence] = useState<File | null>(null);
   const [detailsCorrect, setDetailsCorrect] = useState(false);
+  const [detailsCorrectEvidence, setDetailsCorrectEvidence] = useState<File | null>(null);
   const [completeComment, setCompleteComment] = useState("");
+  const [completeEvidence, setCompleteEvidence] = useState<File | null>(null);
   const [completeChecklist, setCompleteChecklist] = useState({
     workDescribedComplete: false,
     procedureFollowed: false,
@@ -541,14 +545,30 @@ export default function PermitExecutionPage() {
       {isApproved && !released && isReceiver ? (
         <section className="grid gap-3 rounded-xl border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">Release for execution</h2>
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" checked={siteReady} onChange={(event) => setSiteReady(event.target.checked)} />
-            Site is ready for execution
-          </label>
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" checked={detailsCorrect} onChange={(event) => setDetailsCorrect(event.target.checked)} />
-            The approved work, place and people are still correct
-          </label>
+          <div className="grid gap-2">
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={siteReady} onChange={(event) => setSiteReady(event.target.checked)} />
+              Site is ready for execution
+            </label>
+            <VerificationEvidenceCapture
+              visible={siteReady}
+              label="Site readiness evidence"
+              file={siteReadyEvidence}
+              onFileChange={setSiteReadyEvidence}
+            />
+          </div>
+          <div className="grid gap-2">
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={detailsCorrect} onChange={(event) => setDetailsCorrect(event.target.checked)} />
+              The approved work, place and people are still correct
+            </label>
+            <VerificationEvidenceCapture
+              visible={detailsCorrect}
+              label="Workplace and personnel check evidence"
+              file={detailsCorrectEvidence}
+              onFileChange={setDetailsCorrectEvidence}
+            />
+          </div>
         </section>
       ) : null}
 
@@ -776,6 +796,14 @@ export default function PermitExecutionPage() {
                     placeholder="Completion comments (required)"
                     rows={3}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                  <VerificationEvidenceCapture
+                    visible={Boolean(completeChecklist.workDescribedComplete && completeChecklist.procedureFollowed)}
+                    label="Execution completion photo / closing evidence"
+                    hint="Optional — attach a closing site photo if none uploaded yet"
+                    file={completeEvidence}
+                    onFileChange={setCompleteEvidence}
+                    disabled={isSubmitting || completeOff || workWriteBlocked}
                   />
                   <Button
                     onClick={() => void handleCompleteExecution()}
