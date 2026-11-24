@@ -40,7 +40,6 @@ export const PERMIT_EDITOR_SECTIONS = [
   { id: "place", label: "Place and schedule", steps: [1] },
   { id: "site", label: "Site safety", steps: [2] },
   { id: "crew", label: "Crew", steps: [3] },
-  { id: "forms", label: "Forms and evidence", steps: [4] },
   { id: "safety", label: "Safety Approval", steps: [5] },
   { id: "review", label: "Review", steps: [6] },
 ] as const;

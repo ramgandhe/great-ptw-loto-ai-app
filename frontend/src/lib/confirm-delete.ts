@@ -1,5 +1,4 @@
 import { ApiError } from "@/lib/api";
-import { confirmAction } from "@/components/ui/confirm-dialog";
 
 function assignmentLines(details: unknown): string[] {
   return Array.isArray(details) ? details.map(String).filter(Boolean) : [];
@@ -10,6 +9,7 @@ export async function deleteWithAssignmentConfirm(
   name: string,
   run: (force: boolean) => Promise<void>,
 ): Promise<boolean> {
+  const { confirmAction } = await import("@/components/ui/confirm-dialog");
   if (!(await confirmAction(`Permanently delete ${name}? This cannot be undone.`))) {
     return false;
   }
