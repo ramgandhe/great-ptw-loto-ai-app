@@ -5,12 +5,15 @@ function assignmentLines(details: unknown): string[] {
 }
 
 async function askConfirm(message: string): Promise<boolean> {
-  if (typeof window === "undefined") return true;
+  if (typeof window === "undefined") return false;
   try {
     const { confirmAction } = await import("@/components/ui/confirm-dialog");
     return await confirmAction(message);
   } catch {
-    return window.confirm?.(message) ?? true;
+    if (typeof window.confirm === "function") {
+      return window.confirm(message);
+    }
+    return false;
   }
 }
 

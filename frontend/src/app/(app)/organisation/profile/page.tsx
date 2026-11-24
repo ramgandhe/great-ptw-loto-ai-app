@@ -149,7 +149,7 @@ export default function OrganisationProfilePage() {
         : await organisationsApi.create(payload);
       setOrg(updated);
       setSavedMessage(org ? "Saved organisation details." : "Registered organisation.");
-      parentContext?.onSaved("plants" as unknown as any, updated as any);
+      parentContext?.onSaved("profile", updated);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Save failed");
     } finally {

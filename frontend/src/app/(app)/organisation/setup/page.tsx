@@ -22,6 +22,8 @@ import {
 import { AdminEmbedContext } from "@/components/layout/admin-page-header";
 import { EntityParentContext, type OrganisationEntityResource } from "@/components/organisation/entity-crud-page";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
+import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { ORGANISATION_WRITE_ROLES } from "@/lib/auth/roles";
@@ -188,8 +190,9 @@ function Overview({
           dismissed: nextVal ? true : false,
         },
       });
-    } catch {
-      // Local state is already set
+    } catch (err) {
+      setMarkedCompleted(!nextVal);
+      toast(err instanceof ApiError ? err.message : "Failed to update setup completion status.", "error");
     }
   };
   return (

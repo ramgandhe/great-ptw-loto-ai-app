@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2, Eye, ListChecks, X } from "lucide-react";
 import { configurationGaps, measureSteps, type SetupStepKey } from "@/lib/organisation/setup";
 import { organisationsApi } from "@/lib/organisation/api";
+import { ApiError } from "@/lib/api";
+import { toast } from "@/components/ui/toast";
 import type { Organisation } from "@/lib/organisation/types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -31,9 +33,10 @@ export function SetupProgressCard() {
   const { missing, unknown } = configurationGaps(measures);
   const ready = missing.length === 0 && unknown.length === 0;
 
-  // Once all required configurations are in place (ready), or if setup was completed or dismissed,
-  // do not show the setup card unless the admin explicitly reopened it.
-  const isDismissed = dismissedLocally !== null ? dismissedLocally : (org.setupProgress?.dismissed ?? ready ?? org.setupProgress?.completed);
+  // Hide only when dismissed is explicitly true (either locally or in org.setupProgress).
+  // Do not automatically hide based on ready or completed; keep the completed card visible
+  // with a Completed badge until an administrator explicitly dismisses it.
+  const isDismissed = dismissedLocally !== null ? dismissedLocally : Boolean(org.setupProgress?.dismissed);
 
   const handleDismiss = async () => {
     setDismissedLocally(true);
@@ -45,8 +48,9 @@ export function SetupProgressCard() {
           completed: ready ? true : org.setupProgress?.completed,
         },
       });
-    } catch {
-      // Local state is already set
+    } catch (err) {
+      setDismissedLocally(false);
+      toast(err instanceof ApiError ? err.message : "Failed to dismiss setup card.", "error");
     }
   };
 
@@ -59,8 +63,9 @@ export function SetupProgressCard() {
           dismissed: false,
         },
       });
-    } catch {
-      // Local state is already set
+    } catch (err) {
+      setDismissedLocally(true);
+      toast(err instanceof ApiError ? err.message : "Failed to show setup checklist.", "error");
     }
   };
 
