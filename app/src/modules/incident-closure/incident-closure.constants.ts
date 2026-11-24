@@ -15,5 +15,7 @@ export const INCIDENT_CLOSE_ROLES = [
 
 export const INCIDENT_ARCHIVE_READ_ROLES = [
   ...INCIDENT_CLOSE_ROLES,
+  'permit-operator',
+  'permit-receiver',
   'viewer',
 ] as const;
