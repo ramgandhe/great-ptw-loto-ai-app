@@ -12,7 +12,13 @@ import { permitEvidence, permits } from '../../database/schema';
 import { StorageService } from '../../infrastructure/storage/storage.service';
 import { EXECUTION_READ_ROLES } from './execution.constants';
 
-const VIEWABLE_STATUSES = ['active', 'suspended', 'closed'] as const;
+const VIEWABLE_STATUSES = [
+  'active',
+  'suspended',
+  'execution_completed',
+  'pending_closure',
+  'closed',
+] as const;
 
 @Injectable()
 export class ExecutionEvidenceService {
