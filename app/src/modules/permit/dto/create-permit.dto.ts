@@ -12,14 +12,15 @@ import {
   Matches,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import {
-  NAME_MESSAGE,
-  NAME_REGEX,
-  PHONE_MESSAGE,
-  PHONE_REGEX,
+  EMERGENCY_PHONE_MESSAGE,
+  EMERGENCY_PHONE_REGEX,
   TEXT_MESSAGE,
   TEXT_REGEX,
+  TITLE_MESSAGE,
+  TITLE_REGEX,
 } from '../../../common/validation';
 import { PermitRelationsDto } from './permit-relations.dto';
 
@@ -29,7 +30,7 @@ export class CreatePermitDto extends PermitRelationsDto {
 
   @IsString()
   @MaxLength(255)
-  @Matches(NAME_REGEX, { message: NAME_MESSAGE('title') })
+  @Matches(TITLE_REGEX, { message: TITLE_MESSAGE('title') })
   title!: string;
 
   @IsOptional()
@@ -44,9 +45,10 @@ export class CreatePermitDto extends PermitRelationsDto {
   siteNotes?: string;
 
   @IsOptional()
+  @ValidateIf((o) => typeof o.emergencyPhone === 'string' && o.emergencyPhone.trim().length > 0)
   @IsString()
   @MaxLength(32)
-  @Matches(PHONE_REGEX, { message: PHONE_MESSAGE })
+  @Matches(EMERGENCY_PHONE_REGEX, { message: EMERGENCY_PHONE_MESSAGE })
   emergencyPhone?: string;
 
   @IsOptional()

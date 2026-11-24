@@ -1,6 +1,9 @@
 import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, IsUUID, Matches, MaxLength, MinLength } from 'class-validator';
 import { HAZARD_SEVERITIES } from '../../master-data/master-data.constants';
-import { CODE_MESSAGE, CODE_REGEX, NAME_MESSAGE, NAME_REGEX, TEXT_MESSAGE, TEXT_REGEX } from '../../../common/validation';
+import { NAME_MESSAGE, NAME_REGEX, TEXT_MESSAGE, TEXT_REGEX } from '../../../common/validation';
+
+const CODE_REGEX = /^[A-Za-z0-9][A-Za-z0-9._\-/]{0,63}$/;
+const CODE_MESSAGE = (field: string = 'code') => `${field} must start with a letter or digit`;
 
 export class DefaultLocationTypeDto {
   @IsString()

@@ -1,5 +1,13 @@
 import { requiredForSubmit, type PermitTemplate } from "@/lib/organisation/templates";
-import { validateName, validatePhone, validateText } from "@/lib/validation";
+import {
+  EMERGENCY_PHONE_MESSAGE,
+  NAME_MESSAGE,
+  TITLE_MESSAGE,
+  validateEmergencyPhone,
+  validateName,
+  validateTitle,
+  validateText,
+} from "@/lib/validation";
 import type {
   DraftFields,
   FormAnswer,
@@ -470,6 +478,8 @@ export function missingRequired(template: PermitTemplate, form: PermitFormState)
 /** The control each editor error belongs to, so its link and its message go to the field itself. */
 export const ERROR_FIELDS: Record<string, string> = {
   "Title is required": "title",
+  [TITLE_MESSAGE("Title")]: "title",
+  [EMERGENCY_PHONE_MESSAGE]: "emergencyPhone",
   "Department is required": "departmentId",
   "Site is required": "siteId",
   "Work location is required": "workLocationId",
@@ -485,6 +495,7 @@ export const ERROR_FIELDS: Record<string, string> = {
   "Machinery is required when LOTOTO is required": "machineryId",
   "Safety Approval comments are required": "safetyApprovalComment",
   "A typed name is required for Safety Approval": "safetyApprovalSignedName",
+  [NAME_MESSAGE("A typed name for Safety Approval")]: "safetyApprovalSignedName",
 };
 
 export function validateStep(
@@ -500,8 +511,12 @@ export function validateStep(
     if (!form.title.trim()) {
       errors.push("Title is required");
     } else {
-      const titleErr = validateName(form.title, "Title");
+      const titleErr = validateTitle(form.title, "Title");
       if (titleErr) errors.push(titleErr);
+    }
+    if (form.emergencyPhone && form.emergencyPhone.trim()) {
+      const phoneErr = validateEmergencyPhone(form.emergencyPhone);
+      if (phoneErr) errors.push(phoneErr);
     }
     if (form.workScope) {
       const scopeErr = validateText(form.workScope, "Work scope");
@@ -517,8 +532,8 @@ export function validateStep(
     if (form.plannedStartAt && form.plannedEndAt && form.plannedEndAt <= form.plannedStartAt) {
       errors.push("Planned end must be after planned start");
     }
-    if (form.emergencyPhone) {
-      const phoneErr = validatePhone(form.emergencyPhone);
+    if (form.emergencyPhone && form.emergencyPhone.trim()) {
+      const phoneErr = validateEmergencyPhone(form.emergencyPhone);
       if (phoneErr) errors.push(phoneErr);
     }
     if (!form.executors.some((e) => (e.workforceUserId ?? "").trim())) {

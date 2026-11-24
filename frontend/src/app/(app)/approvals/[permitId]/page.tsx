@@ -380,7 +380,19 @@ export default function PermitReviewPage() {
                         <input
                           id="approver-signed-name"
                           value={approvalName}
-                          onChange={(event) => setApproverSignedName(event.target.value)}
+                          onChange={(event) => {
+                            setApproverSignedName(event.target.value);
+                            if (actionError) {
+                              const err = event.target.value.trim() ? validateName(event.target.value, "Approver name") : null;
+                              setActionError(err);
+                            }
+                          }}
+                          onBlur={() => {
+                            if (approvalName.trim()) {
+                              const err = validateName(approvalName, "Approver name");
+                              if (err) setActionError(err);
+                            }
+                          }}
                           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                         />
                       </label>
