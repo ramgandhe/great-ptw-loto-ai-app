@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/components/ui/toast";
 import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { AppSelect } from "@/components/ui/select";
 
@@ -818,6 +819,14 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
     // Create stores only type, title and scope; this save stores the rest of the form.
     try {
+      if (form.executorSiteVisited && form.executorSiteVisitedEvidence) {
+        await uploadPermitAttachment(id, form.executorSiteVisitedEvidence);
+        edit((current) => ({ ...current, executorSiteVisitedEvidence: null }));
+      }
+      if (form.safetyOfficerSiteVisited && form.safetyOfficerSiteVisitedEvidence) {
+        await uploadPermitAttachment(id, form.safetyOfficerSiteVisitedEvidence);
+        edit((current) => ({ ...current, safetyOfficerSiteVisitedEvidence: null }));
+      }
       const saved = await savePermitDraft(id, { ...payload, expectedRevision: baseRevision });
       setGasNotice(saved.gasChanges && saved.gasChanges.length > 0 ? saved.gasChanges : null);
       setRevision(saved.permit.draftRevision);

@@ -11,8 +11,10 @@ import {
   requestExtension,
   requestOvertime,
 } from "@/lib/multi-day/api";
+import { uploadEvidence } from "@/lib/execution/api";
 import type { PendingTimeRequests } from "@/lib/multi-day/types";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 
 type TimeRequestsProps = {
@@ -143,11 +145,16 @@ export function TimeRequests({ permitId, onUpdated }: TimeRequestsProps) {
           disabled={isSubmitting || !requestedEndAt || !justification.trim()}
           onClick={() =>
             runAction(
-              () =>
-                requestExtension(permitId, {
+              async () => {
+                if (extensionEvidence) {
+                  await uploadEvidence(permitId, extensionEvidence, { comment: "Extension justification evidence" });
+                  setExtensionEvidence(null);
+                }
+                return requestExtension(permitId, {
                   requestedEndAt: new Date(requestedEndAt).toISOString(),
                   justification: justification.trim(),
-                }),
+                });
+              },
               "Extension requested",
             )
           }

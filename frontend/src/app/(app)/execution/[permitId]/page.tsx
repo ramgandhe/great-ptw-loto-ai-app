@@ -246,9 +246,17 @@ export default function PermitExecutionPage() {
     setIsSubmitting(true);
     setActionError(null);
     try {
+      if (siteReadyEvidence) {
+        await uploadEvidence(permitId, siteReadyEvidence, { comment: "Site readiness evidence" });
+      }
+      if (detailsCorrectEvidence) {
+        await uploadEvidence(permitId, detailsCorrectEvidence, { comment: "Workplace and personnel check evidence" });
+      }
       await releasePermitForExecution(permitId, { siteReady: true, detailsCorrect: true });
       setSiteReady(false);
+      setSiteReadyEvidence(null);
       setDetailsCorrect(false);
+      setDetailsCorrectEvidence(null);
       toast("Released for execution");
       await loadData();
     } catch (err) {
@@ -266,7 +274,17 @@ export default function PermitExecutionPage() {
       setIsSubmitting(true);
       setActionError(null);
       try {
+        if (siteReadyEvidence) {
+          await uploadEvidence(permitId, siteReadyEvidence, { comment: "Site readiness evidence" });
+        }
+        if (detailsCorrectEvidence) {
+          await uploadEvidence(permitId, detailsCorrectEvidence, { comment: "Workplace and personnel check evidence" });
+        }
         await releasePermitForExecution(permitId, { siteReady: true, detailsCorrect: true });
+        setSiteReady(false);
+        setSiteReadyEvidence(null);
+        setDetailsCorrect(false);
+        setDetailsCorrectEvidence(null);
         toast("Released for execution");
         await loadData();
       } catch (err) {
@@ -323,10 +341,13 @@ export default function PermitExecutionPage() {
     }
   }
 
-  async function handleSuspend() {
+  async function handleSuspend(file?: File | null) {
     setIsSubmitting(true);
     setSuspendError(null);
     try {
+      if (file) {
+        await uploadEvidence(permitId, file, { comment: "Suspension evidence" });
+      }
       const result = await suspendPermit(permitId, suspendReason);
       setDetail((current) =>
         current ? { ...current, permit: result.permit } : current,
@@ -413,6 +434,9 @@ export default function PermitExecutionPage() {
     setIsSubmitting(true);
     setActionError(null);
     try {
+      if (completeEvidence) {
+        await uploadEvidence(permitId, completeEvidence, { comment: "Execution completion evidence" });
+      }
       const updated = await completeExecution(permitId, {
         comment: completeComment.trim(),
         checklist: {
@@ -422,6 +446,7 @@ export default function PermitExecutionPage() {
         },
       });
       setDetail(updated);
+      setCompleteEvidence(null);
       toast("Execution marked complete");
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Could not complete execution";
@@ -713,6 +738,7 @@ export default function PermitExecutionPage() {
 
           {isActive && workPaused && workCycle && canWriteProgress ? (
             <WorkResumeForm
+              permitId={permitId}
               work={workCycle}
               disabled={!canRunThisPermit}
               isSubmitting={isSubmitting}

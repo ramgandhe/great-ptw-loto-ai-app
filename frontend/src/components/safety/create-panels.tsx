@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { SegmentedToggle } from "@/components/ui/toggle-group";
 import { ApiError } from "@/lib/api";
 import { INCIDENT_TYPES } from "@/lib/analytics/labels";
-import { createIncident } from "@/lib/incidents/api";
+import { createIncident, uploadIncidentEvidence } from "@/lib/incidents/api";
 import type { Incident, IncidentType } from "@/lib/incidents/types";
 import { createLototoPlan } from "@/lib/lototo/api";
 import { sitesApi } from "@/lib/organisation/api";
@@ -207,6 +207,14 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
         permitIds: permitId ? [permitId] : undefined,
         submit,
       });
+      if (incidentEvidence) {
+        try {
+          await uploadIncidentEvidence(incident.id, incidentEvidence, "Initial incident evidence");
+          setIncidentEvidence(null);
+        } catch {
+          // If upload fails, show error or let user retry
+        }
+      }
       onCreated(incident, submit);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "The report could not be saved. Try again.");

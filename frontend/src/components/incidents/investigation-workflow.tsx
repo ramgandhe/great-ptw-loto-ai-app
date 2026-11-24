@@ -9,6 +9,7 @@ import {
   createPreventiveAction,
   recordRootCause,
   updateCorrectiveAction,
+  uploadIncidentEvidence,
 } from "@/lib/incidents/api";
 import type { ActionStatus, InvestigationDetail } from "@/lib/incidents/types";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -190,7 +191,21 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Props) 
                     <StatusChip {...ACTION_TONE[action.status]} />
                     {canWrite && open ? (
                       <>
-                        <Button size="sm" variant="outline" disabled={busy} onClick={() => void run(() => updateCorrectiveAction(action.id, { status: "completed" }), "Corrective action completed")}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() =>
+                            void run(async () => {
+                              const file = actionEvidences[action.id];
+                              if (file) {
+                                await uploadIncidentEvidence(incidentId, file, `Action "${action.title}" completion evidence`);
+                                setActionEvidences((prev) => ({ ...prev, [action.id]: null }));
+                              }
+                              return updateCorrectiveAction(action.id, { status: "completed" });
+                            }, "Corrective action completed")
+                          }
+                        >
                           Mark complete
                         </Button>
                         <Button

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { resolveSimopsCase } from "@/lib/simops/api";
+import { uploadEvidence } from "@/lib/execution/api";
 import type { SimopsCaseDetail, SimopsPermitDecision } from "@/lib/simops/types";
 import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,11 @@ export function CaseResolve({
     setSaving(true);
     setError(null);
     try {
+      for (const [permitId, file] of Object.entries(controlEvidences)) {
+        if (file) {
+          await uploadEvidence(permitId, file, { comment: "SIMOPS agreed controls evidence" });
+        }
+      }
       const controls = detail.members
         .filter((m) => decisions[m.permitId] === "allow_with_controls")
         .map((m) => ({

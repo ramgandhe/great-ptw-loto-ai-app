@@ -17,6 +17,7 @@ import {
   type PersonalLock,
   type PersonalLocks,
 } from "@/lib/lototo/personal-locks";
+import { uploadEvidence } from "@/lib/execution/api";
 
 const FIELD =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -237,11 +238,17 @@ export function PersonalLocks({
               className="grid gap-3"
               onSubmit={(event) => {
                 event.preventDefault();
-                void run(() => applyPersonalLock(detail.lockbox!.id, {
-                  personalLockNumber: lockNumber.trim(),
-                  workerName: displayName(profile),
-                  permitId: chosenPermit,
-                }), "Lock applied");
+                void run(async () => {
+                  if (chosenPermit && personalLockEvidence) {
+                    await uploadEvidence(chosenPermit, personalLockEvidence, { comment: `Personal lock ${lockNumber.trim()} applied proof` });
+                    setPersonalLockEvidence(null);
+                  }
+                  return applyPersonalLock(detail.lockbox!.id, {
+                    personalLockNumber: lockNumber.trim(),
+                    workerName: displayName(profile),
+                    permitId: chosenPermit,
+                  });
+                }, "Lock applied");
               }}
             >
               {detail.myPermits.length > 1 ? (

@@ -3,9 +3,13 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
+import { uploadEvidence } from "@/lib/execution/api";
+import { toast } from "@/components/ui/toast";
+import { ApiError } from "@/lib/api";
 import type { WorkCycleSnapshot } from "@/lib/execution/types";
 
 type WorkResumeFormProps = {
+  permitId: string;
   work: WorkCycleSnapshot;
   disabled?: boolean;
   isSubmitting?: boolean;
@@ -16,7 +20,7 @@ type WorkResumeFormProps = {
   }) => Promise<void>;
 };
 
-export function WorkResumeForm({ work, disabled, isSubmitting, onSubmit }: WorkResumeFormProps) {
+export function WorkResumeForm({ permitId, work, disabled, isSubmitting, onSubmit }: WorkResumeFormProps) {
   const items = work.resumeTemplate.items;
   const [notes, setNotes] = useState("");
   const [checks, setChecks] = useState<Record<string, boolean>>({});
@@ -44,10 +48,20 @@ export function WorkResumeForm({ work, disabled, isSubmitting, onSubmit }: WorkR
   return (
     <form
       className="grid gap-3 rounded-lg border border-border p-4"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
         if (!allRequired || !crewReady || handoverBlocked || disabled || isSubmitting) return;
         const suggestionById = new Map(suggested.map((row) => [row.workforceUserId, row.role]));
+        if (resumeEvidence) {
+          try {
+            await uploadEvidence(permitId, resumeEvidence, { comment: "Resume clearance evidence" });
+            setResumeEvidence(null);
+          } catch (err) {
+            const msg = err instanceof ApiError ? err.message : "Failed to upload resume evidence";
+            toast(msg, "error");
+            return;
+          }
+        }
         void onSubmit({
           checklist: checks,
           notes: notes.trim() || undefined,

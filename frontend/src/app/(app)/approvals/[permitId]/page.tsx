@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { Check, History, RotateCcw, X } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { approvePermit, deferPermit, getApprovalReview, rejectPermit } from "@/lib/approval/api";
+import { uploadPermitAttachment } from "@/lib/permit/api";
 import type { ApprovalReview } from "@/lib/approval/types";
 import { formatDateTime, formatStatus } from "@/lib/format";
 import { isRevisionConflict } from "@/lib/permit/api";
@@ -156,6 +157,9 @@ export default function PermitReviewPage() {
     setIsSubmitting(true);
     setActionError(null);
     try {
+      if (decision === "approve" && siteVisited && siteVisitedEvidence) {
+        await uploadPermitAttachment(permitId, siteVisitedEvidence);
+      }
       const updated =
         decision === "approve"
           ? await approvePermit(
@@ -303,16 +307,6 @@ export default function PermitReviewPage() {
                           </p>
                         ) : null}
                       </div>
-                    ) : null}
-                    {decision === "approve" ? (
-                      <label className="grid gap-1 text-sm font-medium">
-                        Typed name
-                        <input
-                          value={approvalName}
-                          onChange={(event) => setApproverSignedName(event.target.value)}
-                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                        />
-                      </label>
                     ) : null}
                     {decision === "approve" ? (
                       <div className="grid gap-2">

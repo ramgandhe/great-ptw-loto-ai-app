@@ -5,6 +5,7 @@ import { VerificationEvidenceCapture } from "@/components/common/verification-ev
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { createHandover } from "@/lib/multi-day/api";
+import { uploadEvidence } from "@/lib/execution/api";
 import type { DailyProgressRecord } from "@/lib/multi-day/types";
 import { listTenantUserNames } from "@/lib/workforce/api";
 import type { TenantUser } from "@/lib/workforce/types";
@@ -57,6 +58,9 @@ export function HandoverForm({
     setIsSubmitting(true);
     setError(null);
     try {
+      if (handoverEvidence) {
+        await uploadEvidence(permitId, handoverEvidence, { comment: "Shift handover evidence" });
+      }
       await createHandover(permitId, {
         incomingUserId,
         completedActivities: completedActivities.trim(),
@@ -64,6 +68,7 @@ export function HandoverForm({
         safetyObservations: safetyObservations.trim() || undefined,
         dailyProgressId: dailyProgressId || undefined,
       });
+      setHandoverEvidence(null);
       setIncomingUserId("");
       setCompletedActivities("");
       setOutstandingWork("");

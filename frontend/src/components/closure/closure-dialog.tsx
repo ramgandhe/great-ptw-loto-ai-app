@@ -10,7 +10,7 @@ type ClosureDialogProps = {
   isSubmitting?: boolean;
   error?: string | null;
   onCommentChange: (value: string) => void;
-  onConfirm: () => void;
+  onConfirm: (evidenceFile?: File | null) => void;
   onClose: () => void;
 };
 
@@ -56,7 +56,7 @@ export function ClosureDialog({
         onSubmit={(event) => {
           event.preventDefault();
           if (!isSubmitting) {
-            onConfirm();
+            onConfirm(closureEvidence);
           }
         }}
       >

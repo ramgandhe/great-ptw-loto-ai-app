@@ -19,7 +19,7 @@ type VerificationChecklistProps = {
 export function VerificationChecklistPanel({
   value,
   disabled = false,
-  hasExistingEvidence = true,
+  hasExistingEvidence = false,
   onChange,
 }: VerificationChecklistProps) {
   const [itemEvidences, setItemEvidences] = useState<Record<string, File | null>>({});
