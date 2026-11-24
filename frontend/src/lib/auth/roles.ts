@@ -261,5 +261,17 @@ export const NAV_SAFETY_ROLES = [
 export const INCIDENT_HOD_DECISION_ROLES = ["permit-approver", "tenant-owner", "tenant-admin"] as const;
 export const INVESTIGATION_ASSIGN_ROLES = ["safety-officer", "tenant-owner", "tenant-admin", "platform-admin"] as const;
 export const INVESTIGATION_WRITE_ROLES = [...INVESTIGATION_ASSIGN_ROLES, "permit-approver"] as const;
+export const INVESTIGATION_READ_ROLES = [
+  ...INVESTIGATION_WRITE_ROLES,
+  "permit-operator",
+  "permit-receiver",
+  "viewer",
+] as const;
 export const INCIDENT_VERIFY_ROLES = ["safety-officer", "tenant-owner", "tenant-admin", "platform-admin"] as const;
 export const INCIDENT_CLOSE_ROLES = ["safety-officer", "permit-approver", "tenant-owner", "tenant-admin", "platform-admin"] as const;
+export const INCIDENT_ARCHIVE_READ_ROLES = [
+  ...INCIDENT_CLOSE_ROLES,
+  "permit-operator",
+  "permit-receiver",
+  "viewer",
+] as const;

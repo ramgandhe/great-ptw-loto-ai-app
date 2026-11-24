@@ -13,6 +13,8 @@ export const INVESTIGATION_WRITE_ROLES = [
 
 export const INVESTIGATION_READ_ROLES = [
   ...INVESTIGATION_WRITE_ROLES,
+  'permit-operator',
+  'permit-receiver',
   'viewer',
 ] as const;
 
