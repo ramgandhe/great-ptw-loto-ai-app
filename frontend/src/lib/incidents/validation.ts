@@ -34,3 +34,49 @@ export function validatePreventiveAction(input: {
   }
   return { valid: true };
 }
+
+export type IncidentReportFormValues = {
+  title: string;
+  description: string;
+  siteId: string;
+  workLocationId: string;
+  occurredAt: string;
+};
+
+export type IncidentReportFieldErrors = {
+  title?: string;
+  description?: string;
+  siteId?: string;
+  workLocationId?: string;
+  occurredAt?: string;
+};
+
+export function validateIncidentReport(
+  values: IncidentReportFormValues,
+  isSubmit: boolean,
+): IncidentReportFieldErrors {
+  const errors: IncidentReportFieldErrors = {};
+
+  if (!values.title || !values.title.trim()) {
+    errors.title = 'Title is required';
+  }
+
+  if (!values.description || !values.description.trim()) {
+    errors.description = 'Description is required';
+  }
+
+  if (!values.occurredAt || !values.occurredAt.trim() || isNaN(new Date(values.occurredAt).getTime())) {
+    errors.occurredAt = 'Date and time of incident are required';
+  }
+
+  if (isSubmit) {
+    if (!values.siteId || !values.siteId.trim()) {
+      errors.siteId = 'Site is required';
+    }
+    if (!values.workLocationId || !values.workLocationId.trim()) {
+      errors.workLocationId = 'Work location is required';
+    }
+  }
+
+  return errors;
+}
