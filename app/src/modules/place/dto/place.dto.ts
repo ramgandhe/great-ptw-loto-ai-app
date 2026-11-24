@@ -9,17 +9,13 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { NAME_MESSAGE, NAME_REGEX, TEXT_MESSAGE, TEXT_REGEX } from '../../../common/validation';
-
-/** Codes and tags may start with a digit, unlike display names. */
-const CODE_REGEX = /^[\p{L}\p{N}][\p{L}\p{N} ._\-/]*$/u;
-const CODE_MESSAGE = 'use letters or digits, and only letters, digits, spaces and . _ - /';
+import { CODE_MESSAGE, CODE_REGEX, NAME_MESSAGE, NAME_REGEX, TEXT_MESSAGE, TEXT_REGEX } from '../../../common/validation';
 
 export class CreateSiteDto {
   @IsString()
   @MinLength(1)
   @MaxLength(64)
-  @Matches(CODE_REGEX, { message: CODE_MESSAGE })
+  @Matches(CODE_REGEX, { message: CODE_MESSAGE('code') })
   code!: string;
 
   @IsString()
@@ -44,7 +40,7 @@ export class UpdateSiteDto {
   @IsString()
   @MinLength(1)
   @MaxLength(64)
-  @Matches(CODE_REGEX, { message: CODE_MESSAGE })
+  @Matches(CODE_REGEX, { message: CODE_MESSAGE('code') })
   code?: string;
 
   @IsOptional()
@@ -110,7 +106,7 @@ export class CreateWorkLocationDto {
   @IsString()
   @MinLength(1)
   @MaxLength(64)
-  @Matches(CODE_REGEX, { message: CODE_MESSAGE })
+  @Matches(CODE_REGEX, { message: CODE_MESSAGE('code') })
   code!: string;
 
   @IsString()
@@ -149,7 +145,7 @@ export class UpdateWorkLocationDto {
   @IsString()
   @MinLength(1)
   @MaxLength(64)
-  @Matches(CODE_REGEX, { message: CODE_MESSAGE })
+  @Matches(CODE_REGEX, { message: CODE_MESSAGE('code') })
   code?: string;
 
   @IsOptional()
@@ -196,14 +192,14 @@ export class CreateAssetDto {
   @IsString()
   @MinLength(1)
   @MaxLength(64)
-  @Matches(CODE_REGEX, { message: CODE_MESSAGE })
+  @Matches(CODE_REGEX, { message: CODE_MESSAGE('tag') })
   tag!: string;
 
   @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(64)
-  @Matches(CODE_REGEX, { message: CODE_MESSAGE })
+  @Matches(CODE_REGEX, { message: CODE_MESSAGE('assetNumber') })
   assetNumber?: string;
 
   @IsString()
@@ -240,13 +236,13 @@ export class UpdateAssetDto {
   @IsString()
   @MinLength(1)
   @MaxLength(64)
-  @Matches(CODE_REGEX, { message: CODE_MESSAGE })
+  @Matches(CODE_REGEX, { message: CODE_MESSAGE('tag') })
   tag?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(64)
-  @Matches(CODE_REGEX, { message: CODE_MESSAGE })
+  @Matches(CODE_REGEX, { message: CODE_MESSAGE('assetNumber') })
   assetNumber?: string | null;
 
   @IsOptional()

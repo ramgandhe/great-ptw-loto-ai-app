@@ -106,6 +106,7 @@ import { LototoAttachFields } from "./lototo-attach-fields";
 import { identityFromPermit, PermitSummary } from "./permit-summary";
 import { mergeAfterConflict, resolveConflict, type FieldConflict } from "@/lib/permit/conflict";
 import { useLeaveGuard } from "@/lib/leave-guard";
+import { validateEmergencyPhone, validateName, validateTitle } from "@/lib/validation";
 
 function executorRoleLabel(kind?: "internal" | "contractor" | "agency") {
   if (kind === "agency") {
@@ -1204,6 +1205,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       setApiError("Type your name before submitting.");
       return;
     }
+    const nameErr = validateName(initiatorName, "Your name");
+    if (nameErr) {
+      setApiError(nameErr);
+      return;
+    }
     if (!(await confirmAction(isResubmit ? "Resubmit this permit for approval?" : "Submit this permit for approval?"))) {
       return;
     }
@@ -1567,13 +1573,33 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             disabled={!editable(0)}
             onChange={(e) => {
               setTitleEdited(true);
-              edit({ ...form, title: e.target.value });
+              const val = e.target.value;
+              edit({ ...form, title: val });
+              if (fieldError("title")) {
+                const err = val.trim() ? validateTitle(val, "Title") : "Title is required";
+                setErrors((prev) => {
+                  const filtered = prev.filter((item) => item.href !== "#title");
+                  return err ? [...filtered, { message: err, section: "work", href: "#title" }] : filtered;
+                });
+              }
+            }}
+            onBlur={() => {
+              if (form.title?.trim()) {
+                const err = validateTitle(form.title, "Title");
+                if (err) {
+                  setErrors((prev) => [
+                    ...prev.filter((e) => e.href !== "#title"),
+                    { message: err, section: "work", href: "#title" },
+                  ]);
+                }
+              }
             }}
           />
         </FormField>
         <FormField
           label="Emergency phone"
           htmlFor="emergencyPhone"
+          error={fieldError("emergencyPhone")}
           hint="Optional. Who to call if something goes wrong on this job."
         >
           <input
@@ -1583,7 +1609,28 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             className={fieldClassName}
             value={form.emergencyPhone}
             disabled={!editable(0)}
-            onChange={(e) => edit({ ...form, emergencyPhone: e.target.value })}
+            onChange={(e) => {
+              const val = e.target.value;
+              edit({ ...form, emergencyPhone: val });
+              if (fieldError("emergencyPhone")) {
+                const err = val.trim() ? validateEmergencyPhone(val) : null;
+                setErrors((prev) => {
+                  const filtered = prev.filter((item) => item.href !== "#emergencyPhone");
+                  return err ? [...filtered, { message: err, section: "work", href: "#emergencyPhone" }] : filtered;
+                });
+              }
+            }}
+            onBlur={() => {
+              if (form.emergencyPhone?.trim()) {
+                const err = validateEmergencyPhone(form.emergencyPhone);
+                setErrors((prev) => {
+                  const filtered = prev.filter((e) => e.href !== "#emergencyPhone");
+                  return err ? [...filtered, { message: err, section: "work", href: "#emergencyPhone" }] : filtered;
+                });
+              } else {
+                setErrors((prev) => prev.filter((e) => e.href !== "#emergencyPhone"));
+              }
+            }}
           />
         </FormField>
       </EditorSection>
@@ -2736,14 +2783,47 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               className={`${fieldClassName} min-w-48 flex-1`}
               value={form.safetyApprovalSignedName}
               disabled={!safetyEditable}
-              onChange={(e) => edit({ ...form, safetyApprovalSignedName: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                edit({ ...form, safetyApprovalSignedName: val });
+                if (fieldError("safetyApprovalSignedName")) {
+                  const err = val.trim() ? validateName(val, "A typed name for Safety Approval") : "A typed name is required for Safety Approval";
+                  setErrors((prev) => {
+                    const filtered = prev.filter((item) => item.href !== "#safetyApprovalSignedName");
+                    return err ? [...filtered, { message: err, section: "safety", href: "#safetyApprovalSignedName" }] : filtered;
+                  });
+                }
+              }}
+              onBlur={() => {
+                if (form.safetyApprovalSignedName?.trim()) {
+                  const err = validateName(form.safetyApprovalSignedName, "A typed name for Safety Approval");
+                  if (err) {
+                    setErrors((prev) => [
+                      ...prev.filter((e) => e.href !== "#safetyApprovalSignedName"),
+                      { message: err, section: "safety", href: "#safetyApprovalSignedName" },
+                    ]);
+                  }
+                }
+              }}
             />
             <Button
               type="button"
               variant="outline"
               className="min-h-11"
               disabled={!safetyEditable}
-              onClick={() => edit({ ...form, safetyApprovalSignedName: form.safetyApprovalSignedName.trim() || signerName })}
+              onClick={() => {
+                const nextVal = signerName || "";
+                edit({ ...form, safetyApprovalSignedName: nextVal });
+                if (fieldError("safetyApprovalSignedName")) {
+                  const err = nextVal.trim()
+                    ? validateName(nextVal, "A typed name for Safety Approval")
+                    : "A typed name is required for Safety Approval";
+                  setErrors((prev) => {
+                    const filtered = prev.filter((item) => item.href !== "#safetyApprovalSignedName");
+                    return err ? [...filtered, { message: err, section: "safety", href: "#safetyApprovalSignedName" }] : filtered;
+                  });
+                }
+              }}
             >
               <PenLine aria-hidden />
               Me
