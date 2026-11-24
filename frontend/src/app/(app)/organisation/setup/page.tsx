@@ -22,7 +22,12 @@ import {
 import { AdminEmbedContext } from "@/components/layout/admin-page-header";
 import { EntityParentContext, type OrganisationEntityResource } from "@/components/organisation/entity-crud-page";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
+import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useAuthProfile } from "@/lib/auth/auth-profile-context";
+import { ORGANISATION_WRITE_ROLES } from "@/lib/auth/roles";
+import { hasAnyRole } from "@/lib/auth/rbac";
 import OrganisationProfilePage from "../profile/page";
 import SitesPage from "../sites/page";
 import WorkLocationsPage from "../work-locations/page";
@@ -75,7 +80,7 @@ function StatusBadge({ step, measures }: { step: SetupStep; measures: Measures }
   const value = measures[step.key];
   if (value === undefined) return <span className="text-xs text-muted-foreground">Could not check</span>;
   const status = stepStatus(step, value, []);
-  const detail = step.key === "profile" ? `${Math.round(value * 3)} of 3 details` : value > 0 ? `${value} set up` : null;
+  const detail = step.key === "profile" ? (value === 1 ? "Details recorded" : null) : value > 0 ? `${value} set up` : null;
   return (
     <span
       className={cn(
@@ -127,7 +132,13 @@ function SetupPage() {
     if (!areaKey || !org) return;
     const lastStep = legacyStep ?? SETUP_AREAS.find((a) => a.key === areaKey)!.steps[0];
     if (org.setupProgress?.lastStep === lastStep) return;
-    void organisationsApi.update(org.id, { setupProgress: { skipped: org.setupProgress?.skipped ?? [], lastStep } }).catch(() => undefined);
+    void organisationsApi.update(org.id, {
+      setupProgress: {
+        ...org.setupProgress,
+        skipped: org.setupProgress?.skipped ?? [],
+        lastStep,
+      },
+    }).catch(() => undefined);
   }, [areaKey, legacyStep, org]);
 
   // The lists above the target load after the first scroll and push it down; scroll again as they settle.
@@ -143,13 +154,47 @@ function SetupPage() {
   return areaKey ? (
     <AreaView areaKey={areaKey} measures={measures} onChanged={(keys) => void measure(keys)} />
   ) : (
-    <Overview measures={measures} loaded={loaded} onRetry={(keys) => void measure(keys)} />
+    <Overview org={org} measures={measures} loaded={loaded} onRetry={(keys) => void measure(keys)} />
   );
 }
 
-function Overview({ measures, loaded, onRetry }: { measures: Measures; loaded: boolean; onRetry: (keys: SetupStepKey[]) => void }) {
+function Overview({
+  org,
+  measures,
+  loaded,
+  onRetry,
+}: {
+  org: Organisation | null;
+  measures: Measures;
+  loaded: boolean;
+  onRetry: (keys: SetupStepKey[]) => void;
+}) {
   const { missing, unknown } = configurationGaps(measures);
   const nextArea = SETUP_AREAS.find((area) => missing.some((step) => area.steps.includes(step.key)));
+  const ready = missing.length === 0 && unknown.length === 0;
+  const { roles } = useAuthProfile();
+  const canManageOrg = hasAnyRole(roles, ORGANISATION_WRITE_ROLES);
+
+  const [markedCompleted, setMarkedCompleted] = useState<boolean | null>(null);
+  const isCompleted = markedCompleted !== null ? markedCompleted : (org?.setupProgress?.completed ?? ready);
+
+  const toggleComplete = async () => {
+    if (!org) return;
+    const nextVal = !isCompleted;
+    setMarkedCompleted(nextVal);
+    try {
+      await organisationsApi.update(org.id, {
+        setupProgress: {
+          ...org.setupProgress,
+          completed: nextVal,
+          dismissed: nextVal ? true : false,
+        },
+      });
+    } catch (err) {
+      setMarkedCompleted(!nextVal);
+      toast(err instanceof ApiError ? err.message : "Failed to update setup completion status.", "error");
+    }
+  };
   return (
     <main className="flex flex-1 flex-col gap-5 px-4 pb-8 sm:gap-6 sm:px-8">
       <PageHeader
@@ -159,9 +204,21 @@ function Overview({ measures, loaded, onRetry }: { measures: Measures; loaded: b
       />
 
       <section aria-labelledby="config-checklist" className="rounded-xl border border-border bg-card px-5 py-4">
-        <h2 id="config-checklist" className="font-semibold">
-          Configuration checklist
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="config-checklist" className="font-semibold">
+            Configuration checklist
+          </h2>
+          {loaded && org && canManageOrg ? (
+            <Button
+              variant={isCompleted ? "outline" : "default"}
+              size="sm"
+              onClick={toggleComplete}
+              className="min-h-9"
+            >
+              {isCompleted ? "Re-open setup" : "Mark setup as complete"}
+            </Button>
+          ) : null}
+        </div>
         {!loaded ? (
           <p className="mt-1 text-sm text-muted-foreground">Checking what is set up…</p>
         ) : (
@@ -196,9 +253,12 @@ function Overview({ measures, loaded, onRetry }: { measures: Measures; loaded: b
               </div>
             ) : null}
             {!missing.length && !unknown.length ? (
-              <p className="text-(--status-success)">
-                The required configuration is in place. Each permit is still checked at submission and approval.
-              </p>
+              <div className="flex items-center gap-2 text-(--status-success)">
+                <Check className="size-4 shrink-0" aria-hidden />
+                <p>
+                  The required configuration is in place. Setup is complete and permits can be raised and approved. Optional configurations (e.g., equipment assets, contractors, competencies, gas limits) can be added anytime.
+                </p>
+              </div>
             ) : null}
           </div>
         )}
@@ -307,7 +367,9 @@ function AreaView({ areaKey, measures, onChanged }: { areaKey: SetupAreaKey; mea
                     {missingNeeds.length > 1 ? "have" : "has"} nothing yet.
                   </p>
                 ) : null}
-                <StepPage />
+                <div onBlur={() => onChanged([step.key])}>
+                  <StepPage />
+                </div>
               </section>
             );
           })}

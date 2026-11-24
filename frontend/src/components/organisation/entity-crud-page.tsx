@@ -17,6 +17,7 @@ import {
   ppeConfigurationsApi,
   safetyChecklistsApi,
   workstationsApi,
+  organisationsApi,
 } from "@/lib/organisation/api";
 import type { EntityField, OrgRecord } from "@/lib/organisation/types";
 import { loadEntitySelectOptions, type EntitySelectResource } from "@/lib/form-options";
@@ -46,6 +47,7 @@ const entityApis = {
   ppe: ppeConfigurationsApi,
   hazards: hazardsApi,
   notifications: notificationPreferencesApi,
+  profile: organisationsApi,
 } as const;
 
 export type OrganisationEntityResource = keyof typeof entityApis;

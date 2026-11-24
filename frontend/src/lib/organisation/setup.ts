@@ -75,7 +75,9 @@ export const SETUP_STEPS: SetupStep[] = [
     measure: async () => {
       const [org] = await organisationsApi.list();
       if (!org) return 0;
-      return [org.name, org.legalName, org.registrationNumber].filter((value) => value?.trim()).length / 3;
+      // The profile requires the organisation name (the only mandatory field on the profile form).
+      // If name is filled, measure is 1 (complete).
+      return org.name?.trim() ? 1 : 0;
     },
   },
   {
