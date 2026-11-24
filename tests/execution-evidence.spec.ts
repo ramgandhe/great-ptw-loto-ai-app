@@ -110,6 +110,87 @@ describe('ExecutionEvidenceService (PUS-145)', () => {
 
     expect(result.url).toContain('minio.example');
   });
+
+  it('returns presigned download url for execution_completed permit evidence', async () => {
+    const permit = {
+      id: 'permit-1',
+      tenantId: 'tenant-1',
+      status: 'execution_completed',
+    };
+    const evidence = {
+      id: 'evidence-1',
+      permitId: 'permit-1',
+      storageKey: 'tenant-1/permit-1/evidence.jpg',
+    };
+
+    const permitSelect = {
+      from: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([permit]),
+    };
+    const evidenceSelect = {
+      from: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([evidence]),
+    };
+
+    db.select = jest
+      .fn()
+      .mockReturnValueOnce(permitSelect)
+      .mockReturnValueOnce(evidenceSelect);
+
+    const result = await service.getDownloadUrl('permit-1', 'evidence-1', viewer);
+
+    expect(result.url).toContain('minio.example');
+  });
+
+  it('returns presigned download url for pending_closure permit evidence', async () => {
+    const permit = {
+      id: 'permit-1',
+      tenantId: 'tenant-1',
+      status: 'pending_closure',
+    };
+    const evidence = {
+      id: 'evidence-1',
+      permitId: 'permit-1',
+      storageKey: 'tenant-1/permit-1/evidence.jpg',
+    };
+
+    const permitSelect = {
+      from: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([permit]),
+    };
+    const evidenceSelect = {
+      from: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([evidence]),
+    };
+
+    db.select = jest
+      .fn()
+      .mockReturnValueOnce(permitSelect)
+      .mockReturnValueOnce(evidenceSelect);
+
+    const result = await service.getDownloadUrl('permit-1', 'evidence-1', viewer);
+
+    expect(result.url).toContain('minio.example');
+  });
+
+  it('denies evidence download for non-viewable permit statuses like draft', async () => {
+    const permit = {
+      id: 'permit-1',
+      tenantId: 'tenant-1',
+      status: 'draft',
+    };
+
+    const permitSelect = {
+      from: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([permit]),
+    };
+
+    db.select = jest.fn().mockReturnValueOnce(permitSelect);
+
+    await expect(
+      service.getDownloadUrl('permit-1', 'evidence-1', viewer),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
 });
 
 describe('EvidenceService MinIO upload (PUS-145)', () => {
