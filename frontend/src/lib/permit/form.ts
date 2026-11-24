@@ -1,4 +1,5 @@
 import { requiredForSubmit, type PermitTemplate } from "@/lib/organisation/templates";
+import { hasTimeComponent } from "@/lib/datetime";
 import {
   EMERGENCY_PHONE_MESSAGE,
   NAME_MESSAGE,
@@ -326,8 +327,8 @@ export function formToSavePayload(
     workLocationId: optionalUuid(form.workLocationId),
     exactSpot: form.exactSpot.trim() || undefined,
     assetIds: form.assetIds,
-    plannedStartAt: form.plannedStartAt ? new Date(form.plannedStartAt).toISOString() : undefined,
-    plannedEndAt: form.plannedEndAt ? new Date(form.plannedEndAt).toISOString() : undefined,
+    plannedStartAt: form.plannedStartAt && hasTimeComponent(form.plannedStartAt) ? new Date(form.plannedStartAt).toISOString() : (form.plannedStartAt || undefined),
+    plannedEndAt: form.plannedEndAt && hasTimeComponent(form.plannedEndAt) ? new Date(form.plannedEndAt).toISOString() : (form.plannedEndAt || undefined),
     currentStep: form.currentStep,
     hazards: form.hazards
       .filter((h) => (h.hazardCategoryId ?? "").trim() || h.customName?.trim())
@@ -484,7 +485,9 @@ export const ERROR_FIELDS: Record<string, string> = {
   "Work location is required": "workLocationId",
   "Location is required": "locationId",
   "Planned start date and time are required": "plannedStartAt",
+  "Planned start time is required": "plannedStartAt",
   "Planned end date and time are required": "plannedEndAt",
+  "Planned end time is required": "plannedEndAt",
   "Planned end must be after planned start": "plannedEndAt",
   "Assign a primary executor before handing off on-site details": "primary-executor",
   "Workstation is required": "workstationId",
@@ -526,10 +529,22 @@ export function validateStep(
   if (step === 1) {
     if (!form.siteId.trim()) errors.push("Site is required");
     if (!form.workLocationId.trim()) errors.push("Work location is required");
-    if (!form.plannedStartAt) errors.push("Planned start date and time are required");
-    if (!form.plannedEndAt) errors.push("Planned end date and time are required");
-    if (form.plannedStartAt && form.plannedEndAt && form.plannedEndAt <= form.plannedStartAt) {
-      errors.push("Planned end must be after planned start");
+    if (!form.plannedStartAt) {
+      errors.push("Planned start date and time are required");
+    } else if (!hasTimeComponent(form.plannedStartAt)) {
+      errors.push("Planned start time is required");
+    }
+    if (!form.plannedEndAt) {
+      errors.push("Planned end date and time are required");
+    } else if (!hasTimeComponent(form.plannedEndAt)) {
+      errors.push("Planned end time is required");
+    }
+    if (form.plannedStartAt && form.plannedEndAt) {
+      if (hasTimeComponent(form.plannedStartAt) && hasTimeComponent(form.plannedEndAt)) {
+        if (form.plannedEndAt <= form.plannedStartAt) {
+          errors.push("Planned end must be after planned start");
+        }
+      }
     }
     if (form.emergencyPhone && form.emergencyPhone.trim()) {
       const phoneErr = validateEmergencyPhone(form.emergencyPhone);

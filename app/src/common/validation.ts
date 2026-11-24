@@ -44,6 +44,25 @@ export const PASSWORD_MESSAGE =
 export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const UUID_MESSAGE = (field: string = 'id') => `${field} must be a valid UUID`;
 
+export const DATETIME_MESSAGE = (field: string = 'field') => `${field} must be a valid date and time`;
+
+/** Transformer for class-transformer to require both date and time components. */
+export function transformDateTime({ value }: { value: unknown }): Date | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? new Date(NaN) : value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    if (!/[T ]\d{2}:\d{2}/.test(trimmed)) {
+      return new Date(NaN);
+    }
+    return new Date(trimmed);
+  }
+  return new Date(NaN);
+}
+
 // ponytail: self-check, run with `npx ts-node src/common/validation.ts`
 if (require.main === module) {
   const ok = (re: RegExp, v: string, want: boolean) => {
