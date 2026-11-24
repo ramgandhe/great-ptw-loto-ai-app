@@ -2,8 +2,14 @@
 // run without a database look green. Fail the run instead, unless SKIP_DB_TESTS=1 says so on purpose.
 const { Client } = require('pg');
 
-module.exports = async function requireDatabase() {
+module.exports = async function requireDatabase(globalConfig) {
   if (process.env.SKIP_DB_TESTS === '1') return;
+  if (
+    (globalConfig && /shared-validation/i.test(globalConfig.testPathPattern || '')) ||
+    process.argv.some((arg) => /shared-validation/i.test(arg))
+  ) {
+    return;
+  }
   const url = process.env.DATABASE_URL ?? 'postgresql://ptw:ptw_dev_password@localhost:5432/ptw_platform';
   const client = new Client({ connectionString: url, connectionTimeoutMillis: 5000 });
   try {

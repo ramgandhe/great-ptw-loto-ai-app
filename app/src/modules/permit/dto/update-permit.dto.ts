@@ -9,10 +9,22 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
+import {
+  EMERGENCY_PHONE_MESSAGE,
+  EMERGENCY_PHONE_REGEX,
+  NAME_MESSAGE,
+  NAME_REGEX,
+  TEXT_MESSAGE,
+  TEXT_REGEX,
+  TITLE_MESSAGE,
+  TITLE_REGEX,
+} from '../../../common/validation';
 import {
   PermitExecutorDto,
   PermitHazardDto,
@@ -31,20 +43,25 @@ export class UpdatePermitDto {
   @IsOptional()
   @IsString()
   @MaxLength(255)
+  @Matches(TITLE_REGEX, { message: TITLE_MESSAGE('title') })
   title?: string;
 
   @IsOptional()
   @IsString()
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('workScope') })
   workScope?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(4000)
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('siteNotes') })
   siteNotes?: string;
 
   @IsOptional()
+  @ValidateIf((o) => typeof o.emergencyPhone === 'string' && o.emergencyPhone.trim().length > 0)
   @IsString()
   @MaxLength(32)
+  @Matches(EMERGENCY_PHONE_REGEX, { message: EMERGENCY_PHONE_MESSAGE })
   emergencyPhone?: string;
 
   @IsOptional()
@@ -171,11 +188,13 @@ export class UpdatePermitDto {
 
   @IsOptional()
   @IsString()
+  @Matches(TEXT_REGEX, { message: TEXT_MESSAGE('safetyApprovalComment') })
   safetyApprovalComment?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(255)
+  @Matches(NAME_REGEX, { message: NAME_MESSAGE('safetyApprovalSignedName') })
   safetyApprovalSignedName?: string;
 
   @IsOptional()

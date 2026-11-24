@@ -225,9 +225,12 @@ export default function PermitExecutionPage() {
         current ? { ...current, permit: result.permit } : current,
       );
       setExecution(result.execution);
+      toast("Work started");
       await loadData();
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Activation failed");
+      const msg = err instanceof ApiError ? err.message : "Activation failed";
+      setActionError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -246,9 +249,12 @@ export default function PermitExecutionPage() {
       await releasePermitForExecution(permitId, { siteReady: true, detailsCorrect: true });
       setSiteReady(false);
       setDetailsCorrect(false);
+      toast("Released for execution");
       await loadData();
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Release failed");
+      const msg = err instanceof ApiError ? err.message : "Release failed";
+      setActionError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -261,9 +267,12 @@ export default function PermitExecutionPage() {
       setActionError(null);
       try {
         await releasePermitForExecution(permitId, { siteReady: true, detailsCorrect: true });
+        toast("Released for execution");
         await loadData();
       } catch (err) {
-        setActionError(err instanceof ApiError ? err.message : "Release failed");
+        const msg = err instanceof ApiError ? err.message : "Release failed";
+        setActionError(msg);
+        toast(msg, "error");
         setIsSubmitting(false);
         return;
       }
@@ -281,9 +290,12 @@ export default function PermitExecutionPage() {
         current ? { ...current, permit: result.permit } : current,
       );
       setExecution(result.execution);
+      toast("Permit resumed");
       await loadData();
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Resume failed");
+      const msg = err instanceof ApiError ? err.message : "Resume failed";
+      setActionError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -300,9 +312,12 @@ export default function PermitExecutionPage() {
     setActionError(null);
     try {
       await revalidatePermitAfterSuspension(permitId);
+      toast("Permit revalidated, sent for approval");
       router.push(`/approvals/${permitId}`);
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Revalidation failed");
+      const msg = err instanceof ApiError ? err.message : "Revalidation failed";
+      setActionError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -319,9 +334,12 @@ export default function PermitExecutionPage() {
       setExecution(result.execution);
       setSuspendOpen(false);
       setSuspendReason("");
+      toast("Permit suspended");
       await loadData();
     } catch (err) {
-      setSuspendError(err instanceof ApiError ? err.message : "Suspension failed");
+      const msg = err instanceof ApiError ? err.message : "Suspension failed";
+      setSuspendError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -340,9 +358,12 @@ export default function PermitExecutionPage() {
     try {
       const result = await pauseWork(permitId, payload);
       setExecution(result.execution);
+      toast("Work paused");
       await loadData();
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Pause failed");
+      const msg = err instanceof ApiError ? err.message : "Pause failed";
+      setActionError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -358,9 +379,12 @@ export default function PermitExecutionPage() {
     try {
       const result = await resumeWork(permitId, payload);
       setExecution(result.execution);
+      toast("Work resumed");
       await loadData();
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Resume work failed");
+      const msg = err instanceof ApiError ? err.message : "Resume work failed";
+      setActionError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -398,8 +422,11 @@ export default function PermitExecutionPage() {
         },
       });
       setDetail(updated);
+      toast("Execution marked complete");
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Could not complete execution");
+      const msg = err instanceof ApiError ? err.message : "Could not complete execution";
+      setActionError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -610,7 +637,14 @@ export default function PermitExecutionPage() {
           isSubmitting={isSubmitting}
           onChange={setStart}
           onSave={async () => {
-            await saveExecutionStart(permitId, start);
+            try {
+              await saveExecutionStart(permitId, start);
+              toast("Start time saved");
+            } catch (err) {
+              const msg = err instanceof ApiError ? err.message : "Failed to save start time";
+              toast(msg, "error");
+              throw err;
+            }
           }}
           onBeginWork={handleActivate}
           onPostpone={() => setWizardOpen(false)}

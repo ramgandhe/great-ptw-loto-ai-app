@@ -1012,7 +1012,6 @@ export class PermitService {
       assertExpectedRevision(detail, dto.expectedRevision);
 
       const placed = await this.backfillPlaceFromLegacy(tx, detail.permit);
-      const applicable = await this.applicableTemplates(tx, tenantId, placed.permitTypeId);
       const assetRows = await tx
         .select({ assetId: permitAssets.assetId })
         .from(permitAssets)
@@ -1035,7 +1034,7 @@ export class PermitService {
       const scheduleOptions = await this.loadScheduleValidationOptions(tenantId);
       this.validationService.validateForSubmit(
         { ...detail, permit: placed, assetIds: assetRows.map((row) => row.assetId) },
-        missingFormAnswers(applicable, placed.formResponses as PermitFormResponse[]),
+        [],
         scheduleOptions,
       );
       assertPermitSegregationOfDuties({

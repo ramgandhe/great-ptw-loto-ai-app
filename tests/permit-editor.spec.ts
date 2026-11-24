@@ -30,8 +30,10 @@ describe('permit editor (S2)', () => {
     expect(title.startsWith('As per work order 4411')).toBe(true);
   });
 
-  it('covers every stored step exactly once, in order', () => {
-    expect(PERMIT_EDITOR_SECTIONS.flatMap((section) => section.steps)).toEqual(PERMIT_WIZARD_STEPS.map((_, index) => index));
+  it('covers every active editor step in order without the forms section', () => {
+    expect(PERMIT_EDITOR_SECTIONS.flatMap((section) => section.steps)).toEqual(
+      PERMIT_WIZARD_STEPS.map((_, index) => index).filter((index) => index !== 4),
+    );
   });
 
   it('skips Safety Approval when no safety officer is assigned', () => {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
+import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import {
@@ -69,14 +70,19 @@ export function PersonalLocks({
     };
   }, [certificateId]);
 
-  async function run(action: () => Promise<unknown>) {
+  async function run(action: () => Promise<unknown>, successMessage?: string) {
     setBusy(true);
     setError(null);
     try {
       await action();
       await load();
+      if (successMessage) {
+        toast(successMessage);
+      }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "That step could not be saved.");
+      const msg = err instanceof ApiError ? err.message : "That step could not be saved.";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setBusy(false);
     }
@@ -221,7 +227,7 @@ export function PersonalLocks({
           ) : null}
           {sealed && mine ? (
             <div>
-              <Button type="button" disabled={busy} onClick={() => void run(() => removePersonalLock(detail.lockbox!.id, mine.id))}>
+              <Button type="button" disabled={busy} onClick={() => void run(() => removePersonalLock(detail.lockbox!.id, mine.id), "Lock removed")}>
                 {busy ? "Saving…" : "Take off my lock"}
               </Button>
             </div>
@@ -235,7 +241,7 @@ export function PersonalLocks({
                   personalLockNumber: lockNumber.trim(),
                   workerName: displayName(profile),
                   permitId: chosenPermit,
-                }));
+                }), "Lock applied");
               }}
             >
               {detail.myPermits.length > 1 ? (

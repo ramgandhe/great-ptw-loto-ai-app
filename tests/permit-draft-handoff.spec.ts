@@ -29,7 +29,7 @@ describe('permit draft handoff', () => {
 
   it('shows handoff at the end of a role and return at the start', () => {
     expect(handoffSectionFor('receiver')).toBe('place');
-    expect(handoffSectionFor('operator')).toBe('forms');
+    expect(handoffSectionFor('operator')).toBe('crew');
     expect(handoffSectionFor('safety_officer')).toBe('safety');
     expect(returnSectionFor('operator')).toBe('site');
     expect(returnSectionFor('safety_officer')).toBe('safety');

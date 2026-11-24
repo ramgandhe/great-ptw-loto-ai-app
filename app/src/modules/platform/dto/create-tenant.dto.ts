@@ -1,7 +1,5 @@
 import { IsEmail, IsOptional, IsString, IsUUID, Matches, MaxLength, MinLength } from 'class-validator';
-import { NAME_MESSAGE, NAME_REGEX, TEXT_MESSAGE, TEXT_REGEX } from '../../../common/validation';
-
-const PIN_REGEX = /^[\p{L}\p{N}][\p{L}\p{N} \-]{0,31}$/u;
+import { NAME_MESSAGE, NAME_REGEX, PIN_MESSAGE, PIN_REGEX, TEXT_MESSAGE, TEXT_REGEX } from '../../../common/validation';
 
 export class CreateTenantDto {
   @IsString()
@@ -56,7 +54,7 @@ export class CreateTenantDto {
   @IsString()
   @MinLength(1)
   @MaxLength(32)
-  @Matches(PIN_REGEX, { message: 'pin must be letters or digits' })
+  @Matches(PIN_REGEX, { message: PIN_MESSAGE('pin') })
   pin!: string;
 }
 
@@ -102,7 +100,7 @@ export class UpdateTenantDto {
   @IsString()
   @MinLength(1)
   @MaxLength(32)
-  @Matches(PIN_REGEX, { message: 'pin must be letters or digits' })
+  @Matches(PIN_REGEX, { message: PIN_MESSAGE('pin') })
   pin!: string;
 }
 

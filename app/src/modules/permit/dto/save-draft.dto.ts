@@ -1,5 +1,16 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsInt, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { NAME_MESSAGE, NAME_REGEX } from '../../../common/validation';
 import { PermitFormResponseDto } from './permit-relations.dto';
 import { UpdatePermitDto } from './update-permit.dto';
 
@@ -20,6 +31,7 @@ export class SubmitPermitDto {
   @IsOptional()
   @IsString()
   @MaxLength(255)
+  @Matches(NAME_REGEX, { message: NAME_MESSAGE('signedName') })
   signedName?: string;
 }
 

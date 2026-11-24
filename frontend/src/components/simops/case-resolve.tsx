@@ -9,6 +9,7 @@ import type { SimopsCaseDetail, SimopsPermitDecision } from "@/lib/simops/types"
 import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
+import { toast } from "@/components/ui/toast";
 import { ConflictSeverityBadge } from "@/components/simops/conflict-severity-badge";
 
 const DECISIONS: { value: SimopsPermitDecision; label: string }[] = [
@@ -68,9 +69,12 @@ export function CaseResolve({
         })),
         controls: controls.filter((c) => c.controlText && c.responsibleUserId),
       });
+      toast("Case resolved");
       onUpdated();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save this case.");
+      const msg = err instanceof ApiError ? err.message : "Could not save this case.";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setSaving(false);
     }

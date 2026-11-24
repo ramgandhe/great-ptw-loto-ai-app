@@ -58,7 +58,7 @@ export function holderNextWork(holder: DraftHolder): string {
     case 'receiver':
       return 'Work, Place and schedule';
     case 'operator':
-      return 'Site safety, Crew, Forms and evidence';
+      return 'Site safety and Crew';
     case 'safety_officer':
       return 'Safety Approval';
     case 'ready_for_review':
@@ -71,7 +71,7 @@ export function stepsEditableForHolder(holder: DraftHolder): number[] {
     case 'receiver':
       return [0, 1];
     case 'operator':
-      return [2, 3, 4];
+      return [2, 3];
     case 'safety_officer':
       return [5];
     case 'ready_for_review':
