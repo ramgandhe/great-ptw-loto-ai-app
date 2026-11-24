@@ -25,6 +25,7 @@ import {
 import { ProgressFeed } from "@/components/execution/progress-feed";
 import { StageAnswers, stageAnswersLeft, stageAnswersPayload, type StageAnswerEdits } from "@/components/permit/stage-answers";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { openPresignedDownload } from "@/lib/download";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
@@ -120,13 +121,17 @@ export default function PermitClosurePage() {
       // Reload so the permit carries the signed answers and its new revision.
       setDetail(await getPermit(permitId));
       setStageEdits({});
+      toast("Permit verified");
     } catch (err) {
       if (isRevisionConflict(err)) {
         await reloadAfterConflict();
         setActionError(CONFLICT_MESSAGE);
+        toast(CONFLICT_MESSAGE, "error");
         return;
       }
-      setActionError(err instanceof ApiError ? err.message : "Verification failed");
+      const msg = err instanceof ApiError ? err.message : "Verification failed";
+      setActionError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -146,14 +151,18 @@ export default function PermitClosurePage() {
         stageAnswers: stageAnswersPayload(stageEdits, detail!.permit.draftRevision),
       });
       setCloseOpen(false);
+      toast("Permit closed");
       router.push("/closure/archive");
     } catch (err) {
       if (isRevisionConflict(err)) {
         await reloadAfterConflict();
         setCloseError(CONFLICT_MESSAGE);
+        toast(CONFLICT_MESSAGE, "error");
         return;
       }
-      setCloseError(err instanceof ApiError ? err.message : "Closure failed");
+      const msg = err instanceof ApiError ? err.message : "Closure failed";
+      setCloseError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -175,8 +184,11 @@ export default function PermitClosurePage() {
       const updated = await sendBackToExecutor(permitId, sendBackComment.trim());
       setDetail(updated);
       setVerification(null);
+      toast("Permit sent back to executor");
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Send back failed");
+      const msg = err instanceof ApiError ? err.message : "Send back failed";
+      setActionError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -193,8 +205,11 @@ export default function PermitClosurePage() {
       const updated = await sendBackToIssuer(permitId, sendBackComment.trim());
       setDetail(updated);
       setVerification(null);
+      toast("Permit sent back to receiver");
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Send back failed");
+      const msg = err instanceof ApiError ? err.message : "Send back failed";
+      setActionError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }

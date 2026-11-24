@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api";
 import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { confirmAction } from "@/components/ui/confirm-dialog";
@@ -310,9 +311,12 @@ export function LototoProcedureEditor({
         : await createLototoProcedure(payloadOf(form));
       setDetail(saved);
       setForm(fromProcedure(saved));
+      toast("Procedure saved");
       if (!procedureId) router.replace(`/lototo/procedures/${saved.id}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save the procedure.");
+      const msg = err instanceof ApiError ? err.message : "Could not save the procedure.";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setSaving(false);
     }
@@ -330,8 +334,11 @@ export function LototoProcedureEditor({
       const published = await publishLototoProcedure(procedureId);
       setDetail(published);
       setForm(fromProcedure(published));
+      toast("Procedure published");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not publish.");
+      const msg = err instanceof ApiError ? err.message : "Could not publish.";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setSaving(false);
     }
@@ -345,8 +352,11 @@ export function LototoProcedureEditor({
       const next = await reviseLototoProcedure(procedureId);
       setDetail(next);
       setForm(fromProcedure(next));
+      toast("Procedure revision created");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not create a revision.");
+      const msg = err instanceof ApiError ? err.message : "Could not create a revision.";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setSaving(false);
     }
@@ -360,8 +370,11 @@ export function LototoProcedureEditor({
       const next = await deactivateLototoProcedure(procedureId);
       setDetail(next);
       setForm(fromProcedure(next));
+      toast("Procedure deactivated");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not deactivate.");
+      const msg = err instanceof ApiError ? err.message : "Could not deactivate.";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setSaving(false);
     }
@@ -375,8 +388,11 @@ export function LototoProcedureEditor({
       const next = await reactivateLototoProcedure(procedureId);
       setDetail(next);
       setForm(fromProcedure(next));
+      toast("Procedure reactivated");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not reactivate.");
+      const msg = err instanceof ApiError ? err.message : "Could not reactivate.";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setSaving(false);
     }
@@ -389,9 +405,12 @@ export function LototoProcedureEditor({
         deleteLototoProcedure(procedureId, force).then(() => undefined),
       );
       if (!ok) return;
+      toast("Procedure deleted");
       router.push("/lototo/procedures");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not delete.");
+      const msg = err instanceof ApiError ? err.message : "Could not delete.";
+      setError(msg);
+      toast(msg, "error");
     }
   }
 

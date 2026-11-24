@@ -933,8 +933,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       });
       setTitleEdited(copy.title !== titleFromScope(copy.workScope));
       setCopiedFrom(source.permit.reference ?? source.permit.title);
+      toast("Draft created from permit successfully");
     } catch (error) {
-      setApiError(error instanceof ApiError ? error.message : "That permit could not be copied. Fill in the form instead.");
+      const msg = error instanceof ApiError ? error.message : "That permit could not be copied. Fill in the form instead.";
+      setApiError(msg);
+      toast(msg, "error");
     } finally {
       setIsSaving(false);
     }
@@ -1131,6 +1134,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
           ? "You now hold the draft as operator. Fill Site safety, Crew, and Forms."
           : `Your part is done. ${nextName} has been notified.`,
       );
+      toast("Draft handed off");
       if (nextHold === "operator") setActive("site");
       else if (nextHold === "safety_officer") setActive("safety");
       else setActive("review");
@@ -1139,9 +1143,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         const details = Array.isArray(error.details)
           ? error.details.filter((detail): detail is string => typeof detail === "string")
           : [];
-        setApiError([error.message, ...details.map((detail) => `- ${detail}`)].join("\n"));
+        const fullMsg = [error.message, ...details.map((detail) => `- ${detail}`)].join("\n");
+        setApiError(fullMsg);
+        toast(error.message, "error");
       } else {
         setApiError("Could not hand over the draft");
+        toast("Could not hand over the draft", "error");
       }
     } finally {
       setIsSaving(false);
@@ -1166,8 +1173,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         result,
         `Draft returned. ${holderStageLabel(parseDraftHolder(result.permit.draftHolder))} holds it now.`,
       );
+      toast("Draft returned");
     } catch (error) {
-      setApiError(error instanceof ApiError ? error.message : "Could not return the draft");
+      const msg = error instanceof ApiError ? error.message : "Could not return the draft";
+      setApiError(msg);
+      toast(msg, "error");
     } finally {
       setIsSaving(false);
     }
@@ -1222,12 +1232,15 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       setDirty(false);
       const result = await submitPermit(saved.id, saved.revision, initiatorName.trim());
       setStatus(result.permit.status);
+      toast(isResubmit ? "Permit resubmitted" : "Permit submitted for approval");
       router.push(`/permits/${saved.id}`);
     } catch (error) {
       if (error instanceof ApiError && Array.isArray(error.details)) {
         setErrors((error.details as string[]).map((message) => ({ message })));
       }
-      setApiError(error instanceof ApiError ? error.message : "Failed to submit permit");
+      const msg = error instanceof ApiError ? error.message : "Failed to submit permit";
+      setApiError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -1243,8 +1256,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     try {
       const uploaded = await uploadPermitAttachment(permitId, file);
       setAttachments((current) => [...current, uploaded]);
+      toast("Attachment uploaded");
     } catch (error) {
-      setApiError(error instanceof ApiError ? error.message : "Failed to upload attachment");
+      const msg = error instanceof ApiError ? error.message : "Failed to upload attachment";
+      setApiError(msg);
+      toast(msg, "error");
     }
   };
 
@@ -1253,8 +1269,15 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       return;
     }
 
-    await removePermitAttachment(permitId, attachmentId);
-    setAttachments((current) => current.filter((item) => item.id !== attachmentId));
+    try {
+      await removePermitAttachment(permitId, attachmentId);
+      setAttachments((current) => current.filter((item) => item.id !== attachmentId));
+      toast("Attachment removed");
+    } catch (error) {
+      const msg = error instanceof ApiError ? error.message : "Failed to remove attachment";
+      setApiError(msg);
+      toast(msg, "error");
+    }
   };
 
   const personName = (id: string) => {
