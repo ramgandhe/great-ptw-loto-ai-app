@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { setFirstPassword, signIn } from "@/lib/auth/session";
 import { isAuthenticated } from "@/lib/auth/token-storage";
+import { PASSWORD_HINT, validatePassword } from "@/lib/validation";
 
 function LoginContent() {
   const router = useRouter();
@@ -32,9 +33,16 @@ function LoginContent() {
     event.preventDefault();
     setError(null);
     if (step === "sign-in") setNotice(null);
-    if (step === "new-password" && newPassword !== confirm) {
-      setError("The two new passwords do not match.");
-      return;
+    if (step === "new-password") {
+      const passErr = validatePassword(newPassword);
+      if (passErr) {
+        setError(passErr);
+        return;
+      }
+      if (newPassword !== confirm) {
+        setError("The two new passwords do not match.");
+        return;
+      }
     }
     setBusy(true);
     try {
@@ -96,7 +104,7 @@ function LoginContent() {
                 <div className="[&_input]:rounded-[8px]! [&_button]:rounded-r-[8px]!">
                   <PasswordInput id="new-password" value={newPassword} onChange={setNewPassword} autoComplete="new-password" />
                 </div>
-                <p className="text-xs leading-5 text-muted-foreground">At least 8 characters. A short sentence is easy to remember and hard to guess.</p>
+                <p className="text-xs leading-5 text-muted-foreground">{PASSWORD_HINT}</p>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="confirm-password" className="text-sm font-medium">

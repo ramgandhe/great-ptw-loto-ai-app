@@ -122,6 +122,7 @@ function checksFor(detail: PermitDetail, templates: PermitTemplate[]): Check[] {
   if (["draft", "deferred", "rejected"].includes(permit.status)) {
     const applicable = applicableTemplates(templates, permit.permitTypeId);
     return PERMIT_WIZARD_STEPS.slice(0, 6).flatMap((step, index): Check[] => {
+      if (index === 4) return [];
       if (index === 5 && !needsSafetyApproval(form)) return [];
       const errors = validateStep(form, index, applicable);
       const owner = getWizardStepOwner(index);

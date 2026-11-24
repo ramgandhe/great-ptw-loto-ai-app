@@ -22,7 +22,8 @@ export async function deleteWithAssignmentConfirm(
   name: string,
   run: (force: boolean) => Promise<void>,
 ): Promise<boolean> {
-  if (!(await askConfirm(`Permanently delete ${name}? This cannot be undone.`))) {
+  const { confirmAction } = await import("@/components/ui/confirm-dialog");
+  if (!(await confirmAction(`Permanently delete ${name}? This cannot be undone.`))) {
     return false;
   }
   try {

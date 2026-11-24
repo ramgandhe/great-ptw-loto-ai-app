@@ -100,12 +100,12 @@ import { fieldClassName, FormField } from "./form-field";
 import { MasterDataSelect } from "./master-data-select";
 import { formatWorkforceOptionLabel } from "@/components/lototo/select-field";
 import { PlannedDateTimeField } from "./planned-datetime-field";
-import { TemplateFormFill } from "./template-form-fill";
 import { ValidationSummary } from "./validation-summary";
 import { LototoAttachFields } from "./lototo-attach-fields";
 import { identityFromPermit, PermitSummary } from "./permit-summary";
 import { mergeAfterConflict, resolveConflict, type FieldConflict } from "@/lib/permit/conflict";
 import { useLeaveGuard } from "@/lib/leave-guard";
+import { validateEmergencyPhone, validateName, validateTitle } from "@/lib/validation";
 
 function executorRoleLabel(kind?: "internal" | "contractor" | "agency") {
   if (kind === "agency") {
@@ -932,8 +932,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       });
       setTitleEdited(copy.title !== titleFromScope(copy.workScope));
       setCopiedFrom(source.permit.reference ?? source.permit.title);
+      toast("Draft created from permit successfully");
     } catch (error) {
-      setApiError(error instanceof ApiError ? error.message : "That permit could not be copied. Fill in the form instead.");
+      const msg = error instanceof ApiError ? error.message : "That permit could not be copied. Fill in the form instead.";
+      setApiError(msg);
+      toast(msg, "error");
     } finally {
       setIsSaving(false);
     }
@@ -981,7 +984,6 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     place: validateStep(prefilled, 1),
     site: validateStep(prefilled, 2, forms, machinery),
     crew: validateStep(prefilled, 3),
-    forms: validateStep(prefilled, 4, forms),
     safety: validateStep(prefilled, 5),
     review: [],
   };
@@ -995,7 +997,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     (draftHolder === "receiver"
       ? missing.work.length + missing.place.length === 0
       : draftHolder === "operator"
-        ? missing.site.length + missing.crew.length + missing.forms.length === 0
+        ? missing.site.length + missing.crew.length === 0
         : draftHolder === "safety_officer"
           ? missing.safety.length === 0
           : false);
@@ -1035,11 +1037,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   };
   const sectionEditable = (id: PermitEditorSectionId) => id === "review" || editable(PERMIT_EDITOR_SECTIONS.find((section) => section.id === id)!.steps[0]);
   const errorsFor = (id: PermitEditorSectionId) =>
-    missing[id].map((message) => {
-      // A form's error goes to that form, where the unanswered questions are marked.
-      const template = id === "forms" ? forms.find((t) => message.startsWith(`${t.name}:`)) : undefined;
-      return { message, section: id, href: `#${template ? `form-${template.id}` : (ERROR_FIELDS[message] ?? `section-${id}`)}` };
-    });
+    missing[id].map((message) => ({
+      message,
+      section: id,
+      href: `#${ERROR_FIELDS[message] ?? `section-${id}`}`,
+    }));
   useEffect(() => {
     if (!apiError?.includes("listed more than once")) return;
     if (!duplicateGasName(form.gasTesting)) {
@@ -1097,7 +1099,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
   const holderSectionsComplete = () => {
     if (draftHolder === "receiver") return missing.work.length + missing.place.length === 0;
-    if (draftHolder === "operator") return missing.site.length + missing.crew.length + missing.forms.length === 0;
+    if (draftHolder === "operator") return missing.site.length + missing.crew.length === 0;
     if (draftHolder === "safety_officer") return missing.safety.length === 0;
     return true;
   };
@@ -1106,7 +1108,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     if (!nextHold) return;
     const stepErrors = holderSectionsComplete() ? [] : [
       ...(draftHolder === "receiver" ? [...errorsFor("work"), ...errorsFor("place")] : []),
-      ...(draftHolder === "operator" ? [...errorsFor("site"), ...errorsFor("crew"), ...errorsFor("forms")] : []),
+      ...(draftHolder === "operator" ? [...errorsFor("site"), ...errorsFor("crew")] : []),
       ...(draftHolder === "safety_officer" ? errorsFor("safety") : []),
     ];
     setErrors(stepErrors);
@@ -1127,9 +1129,10 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       applyHandoffDetail(
         result,
         selfOperator && nextHold === "operator"
-          ? "You now hold the draft as operator. Fill Site safety, Crew, and Forms."
+          ? "You now hold the draft as operator. Fill Site safety and Crew."
           : `Your part is done. ${nextName} has been notified.`,
       );
+      toast("Draft handed off");
       if (nextHold === "operator") setActive("site");
       else if (nextHold === "safety_officer") setActive("safety");
       else setActive("review");
@@ -1138,9 +1141,12 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         const details = Array.isArray(error.details)
           ? error.details.filter((detail): detail is string => typeof detail === "string")
           : [];
-        setApiError([error.message, ...details.map((detail) => `- ${detail}`)].join("\n"));
+        const fullMsg = [error.message, ...details.map((detail) => `- ${detail}`)].join("\n");
+        setApiError(fullMsg);
+        toast(error.message, "error");
       } else {
         setApiError("Could not hand over the draft");
+        toast("Could not hand over the draft", "error");
       }
     } finally {
       setIsSaving(false);
@@ -1165,8 +1171,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         result,
         `Draft returned. ${holderStageLabel(parseDraftHolder(result.permit.draftHolder))} holds it now.`,
       );
+      toast("Draft returned");
     } catch (error) {
-      setApiError(error instanceof ApiError ? error.message : "Could not return the draft");
+      const msg = error instanceof ApiError ? error.message : "Could not return the draft";
+      setApiError(msg);
+      toast(msg, "error");
     } finally {
       setIsSaving(false);
     }
@@ -1204,6 +1213,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       setApiError("Type your name before submitting.");
       return;
     }
+    const nameErr = validateName(initiatorName, "Your name");
+    if (nameErr) {
+      setApiError(nameErr);
+      return;
+    }
     if (!(await confirmAction(isResubmit ? "Resubmit this permit for approval?" : "Submit this permit for approval?"))) {
       return;
     }
@@ -1216,12 +1230,15 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       setDirty(false);
       const result = await submitPermit(saved.id, saved.revision, initiatorName.trim());
       setStatus(result.permit.status);
+      toast(isResubmit ? "Permit resubmitted" : "Permit submitted for approval");
       router.push(`/permits/${saved.id}`);
     } catch (error) {
       if (error instanceof ApiError && Array.isArray(error.details)) {
         setErrors((error.details as string[]).map((message) => ({ message })));
       }
-      setApiError(error instanceof ApiError ? error.message : "Failed to submit permit");
+      const msg = error instanceof ApiError ? error.message : "Failed to submit permit";
+      setApiError(msg);
+      toast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -1237,8 +1254,11 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     try {
       const uploaded = await uploadPermitAttachment(permitId, file);
       setAttachments((current) => [...current, uploaded]);
+      toast("Attachment uploaded");
     } catch (error) {
-      setApiError(error instanceof ApiError ? error.message : "Failed to upload attachment");
+      const msg = error instanceof ApiError ? error.message : "Failed to upload attachment";
+      setApiError(msg);
+      toast(msg, "error");
     }
   };
 
@@ -1247,8 +1267,15 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       return;
     }
 
-    await removePermitAttachment(permitId, attachmentId);
-    setAttachments((current) => current.filter((item) => item.id !== attachmentId));
+    try {
+      await removePermitAttachment(permitId, attachmentId);
+      setAttachments((current) => current.filter((item) => item.id !== attachmentId));
+      toast("Attachment removed");
+    } catch (error) {
+      const msg = error instanceof ApiError ? error.message : "Failed to remove attachment";
+      setApiError(msg);
+      toast(msg, "error");
+    }
   };
 
   const personName = (id: string) => {
@@ -1329,7 +1356,6 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
     setCustomHazardOpen(false);
   }
   const crewEditable = editable(3);
-  const formsEditable = editable(4);
 
   return (
     <div className="flex flex-col gap-5 px-4 pb-28 sm:px-8">
@@ -1567,13 +1593,33 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             disabled={!editable(0)}
             onChange={(e) => {
               setTitleEdited(true);
-              edit({ ...form, title: e.target.value });
+              const val = e.target.value;
+              edit({ ...form, title: val });
+              if (fieldError("title")) {
+                const err = val.trim() ? validateTitle(val, "Title") : "Title is required";
+                setErrors((prev) => {
+                  const filtered = prev.filter((item) => item.href !== "#title");
+                  return err ? [...filtered, { message: err, section: "work", href: "#title" }] : filtered;
+                });
+              }
+            }}
+            onBlur={() => {
+              if (form.title?.trim()) {
+                const err = validateTitle(form.title, "Title");
+                if (err) {
+                  setErrors((prev) => [
+                    ...prev.filter((e) => e.href !== "#title"),
+                    { message: err, section: "work", href: "#title" },
+                  ]);
+                }
+              }
             }}
           />
         </FormField>
         <FormField
           label="Emergency phone"
           htmlFor="emergencyPhone"
+          error={fieldError("emergencyPhone")}
           hint="Optional. Who to call if something goes wrong on this job."
         >
           <input
@@ -1583,9 +1629,71 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             className={fieldClassName}
             value={form.emergencyPhone}
             disabled={!editable(0)}
-            onChange={(e) => edit({ ...form, emergencyPhone: e.target.value })}
+            onChange={(e) => {
+              const val = e.target.value;
+              edit({ ...form, emergencyPhone: val });
+              if (fieldError("emergencyPhone")) {
+                const err = val.trim() ? validateEmergencyPhone(val) : null;
+                setErrors((prev) => {
+                  const filtered = prev.filter((item) => item.href !== "#emergencyPhone");
+                  return err ? [...filtered, { message: err, section: "work", href: "#emergencyPhone" }] : filtered;
+                });
+              }
+            }}
+            onBlur={() => {
+              if (form.emergencyPhone?.trim()) {
+                const err = validateEmergencyPhone(form.emergencyPhone);
+                setErrors((prev) => {
+                  const filtered = prev.filter((e) => e.href !== "#emergencyPhone");
+                  return err ? [...filtered, { message: err, section: "work", href: "#emergencyPhone" }] : filtered;
+                });
+              } else {
+                setErrors((prev) => prev.filter((e) => e.href !== "#emergencyPhone"));
+              }
+            }}
           />
         </FormField>
+        <div className="grid gap-3">
+          <h3 className="text-sm font-semibold">Attachments (optional)</h3>
+          <FileUploadField
+            id="permit-attachment"
+            label="Add attachment"
+            hint={permitId ? "Supporting documents, photos, or drawings" : `${saveLabel} first, then add attachments.`}
+            disabled={isReadOnly || isUploadingAttachment || !permitId}
+            value={pendingAttachment}
+            onChange={(file) => {
+              setPendingAttachment(file);
+              if (file) {
+                void (async () => {
+                  setIsUploadingAttachment(true);
+                  setApiError(null);
+                  try {
+                    await handleUpload(file);
+                    setPendingAttachment(null);
+                  } finally {
+                    setIsUploadingAttachment(false);
+                  }
+                })();
+              }
+            }}
+          />
+          {attachments.length ? (
+            <ul className="grid gap-2 text-sm">
+              {attachments.map((attachment) => (
+                <li key={attachment.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                  <span>
+                    {attachment.fileName} ({Math.round(attachment.fileSize / 1024)} KB)
+                  </span>
+                  {status === "draft" ? (
+                    <Button type="button" variant="ghost" className="min-h-11" onClick={() => void handleRemoveAttachment(attachment.id)}>
+                      Remove
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       </EditorSection>
       ) : null}
 
@@ -1680,7 +1788,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             htmlFor="primary-executor"
             error={fieldError("primary-executor")}
             required
-            hint="Permit operators or permit receivers (including you). They fill Site safety, Crew and Forms."
+            hint="Permit operators or permit receivers (including you). They fill Site safety and Crew."
           >
             <PersonSelect
               id="primary-executor"
@@ -2594,80 +2702,6 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
       </EditorSection>
       ) : null}
 
-      {active === "forms" ? (
-      <EditorSection id="forms" title="Forms and evidence" owner="Permit receiver or operator" editable={formsEditable} left={missing.forms.length}>
-        {!templatesLoaded && !masterDataLoading ? (
-          <p role="alert" className="text-sm text-destructive">The forms for this permit could not be loaded. Reload the page to try again.</p>
-        ) : forms.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No permit forms or check sheets are linked to {permitTypes.find((type) => type.id === form.permitTypeId)?.name ?? "this permit type"}.
-          </p>
-        ) : (
-          <>
-            <p className="text-sm text-muted-foreground">
-              Details the permit already holds are filled in for you and not asked again. Questions marked * must be answered before the
-              permit can be submitted.
-            </p>
-            {forms.map((template) => (
-              <TemplateFormFill
-                key={template.id}
-                name={template.name}
-                config={template.config!}
-                answers={prefilled.formResponses[template.id] ?? {}}
-                disabled={!formsEditable}
-                signerName={signerName}
-                anchorId={`form-${template.id}`}
-                fromPermit={fromPermit}
-                showMissing={errors.length > 0}
-                onChange={(answers) => edit((current) => ({ ...current, formResponses: { ...current.formResponses, [template.id]: answers } }))}
-              />
-            ))}
-          </>
-        )}
-        <div className="grid gap-3">
-          <h3 className="text-sm font-semibold">Attachments (optional)</h3>
-          <FileUploadField
-            id="permit-attachment"
-            label="Add attachment"
-            hint={permitId ? "Supporting documents, photos, or drawings" : `${saveLabel} first, then add attachments.`}
-            disabled={isReadOnly || isUploadingAttachment || !permitId}
-            value={pendingAttachment}
-            onChange={(file) => {
-              setPendingAttachment(file);
-              if (file) {
-                void (async () => {
-                  setIsUploadingAttachment(true);
-                  setApiError(null);
-                  try {
-                    await handleUpload(file);
-                    setPendingAttachment(null);
-                  } finally {
-                    setIsUploadingAttachment(false);
-                  }
-                })();
-              }
-            }}
-          />
-          {attachments.length ? (
-            <ul className="grid gap-2 text-sm">
-              {attachments.map((attachment) => (
-                <li key={attachment.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                  <span>
-                    {attachment.fileName} ({Math.round(attachment.fileSize / 1024)} KB)
-                  </span>
-                  {status === "draft" ? (
-                    <Button type="button" variant="ghost" className="min-h-11" onClick={() => void handleRemoveAttachment(attachment.id)}>
-                      Remove
-                    </Button>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      </EditorSection>
-      ) : null}
-
       {active === "safety" ? (
       <EditorSection id="safety" title="Safety Approval" owner="Assigned safety officer" editable={safetyEditable} left={missing.safety.length}>
         <p className="text-sm text-muted-foreground">
@@ -2736,14 +2770,47 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
               className={`${fieldClassName} min-w-48 flex-1`}
               value={form.safetyApprovalSignedName}
               disabled={!safetyEditable}
-              onChange={(e) => edit({ ...form, safetyApprovalSignedName: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                edit({ ...form, safetyApprovalSignedName: val });
+                if (fieldError("safetyApprovalSignedName")) {
+                  const err = val.trim() ? validateName(val, "A typed name for Safety Approval") : "A typed name is required for Safety Approval";
+                  setErrors((prev) => {
+                    const filtered = prev.filter((item) => item.href !== "#safetyApprovalSignedName");
+                    return err ? [...filtered, { message: err, section: "safety", href: "#safetyApprovalSignedName" }] : filtered;
+                  });
+                }
+              }}
+              onBlur={() => {
+                if (form.safetyApprovalSignedName?.trim()) {
+                  const err = validateName(form.safetyApprovalSignedName, "A typed name for Safety Approval");
+                  if (err) {
+                    setErrors((prev) => [
+                      ...prev.filter((e) => e.href !== "#safetyApprovalSignedName"),
+                      { message: err, section: "safety", href: "#safetyApprovalSignedName" },
+                    ]);
+                  }
+                }
+              }}
             />
             <Button
               type="button"
               variant="outline"
               className="min-h-11"
               disabled={!safetyEditable}
-              onClick={() => edit({ ...form, safetyApprovalSignedName: form.safetyApprovalSignedName.trim() || signerName })}
+              onClick={() => {
+                const nextVal = signerName || "";
+                edit({ ...form, safetyApprovalSignedName: nextVal });
+                if (fieldError("safetyApprovalSignedName")) {
+                  const err = nextVal.trim()
+                    ? validateName(nextVal, "A typed name for Safety Approval")
+                    : "A typed name is required for Safety Approval";
+                  setErrors((prev) => {
+                    const filtered = prev.filter((item) => item.href !== "#safetyApprovalSignedName");
+                    return err ? [...filtered, { message: err, section: "safety", href: "#safetyApprovalSignedName" }] : filtered;
+                  });
+                }
+              }}
             >
               <PenLine aria-hidden />
               Me

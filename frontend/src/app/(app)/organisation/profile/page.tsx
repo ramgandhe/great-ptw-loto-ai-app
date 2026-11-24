@@ -7,6 +7,7 @@ import { organisationsApi } from "@/lib/organisation/api";
 import type { Organisation } from "@/lib/organisation/types";
 import { OrgStatusBadge } from "@/components/organisation/org-status-badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { AdminPage, AdminPageHeader, FIELD_CLASS } from "@/components/layout/admin-page-header";
 import { EntityParentContext } from "@/components/organisation/entity-crud-page";
 import { useContext } from "react";
@@ -96,8 +97,11 @@ export default function OrganisationProfilePage() {
     try {
       setOrg(await organisationsApi.uploadLogo(org.id, file));
       setSavedMessage("Saved organisation logo.");
+      toast("Saved organisation logo.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Logo upload failed");
+      const msg = err instanceof ApiError ? err.message : "Logo upload failed";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setLogoBusy(false);
     }
@@ -110,8 +114,11 @@ export default function OrganisationProfilePage() {
     try {
       setOrg(await organisationsApi.removeLogo(org.id));
       setSavedMessage("Removed organisation logo.");
+      toast("Removed organisation logo.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Logo removal failed");
+      const msg = err instanceof ApiError ? err.message : "Logo removal failed";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setLogoBusy(false);
     }
@@ -147,11 +154,15 @@ export default function OrganisationProfilePage() {
             overtimeApproverRole: form.overtimeApproverRole,
           })
         : await organisationsApi.create(payload);
-      setOrg(updated);
-      setSavedMessage(org ? "Saved organisation details." : "Registered organisation.");
-      parentContext?.onSaved("profile", updated);
+      setOrg(updated);      
+      const msg = org ? "Saved organisation details." : "Registered organisation.";
+      setSavedMessage(msg);
+      parentContext?.onSaved("profile", updated);      
+      toast(msg);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Save failed");
+      const msg = err instanceof ApiError ? err.message : "Save failed";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setSaving(false);
     }
