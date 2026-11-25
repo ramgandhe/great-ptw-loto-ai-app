@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
-import { ArrowDown, ArrowUp, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, Search, Trash2 } from "lucide-react";
 import { AnimatedNumber } from "@/components/analytics/animated-number";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { RankedBars, SegmentedBar, StatTile } from "@/components/analytics/charts";
@@ -16,8 +16,8 @@ import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { INCIDENT_TYPES, PERIODS, PERMIT_STAGES, PRIORITIES } from "@/lib/analytics/labels";
 import { PlaceFilter } from "@/components/place/place-filter";
-import { getInsights, getReportView } from "@/lib/dashboards/api";
-import type { IncidentReportRow, InsightsPayload, PermitReportRow } from "@/lib/dashboards/types";
+import { deleteReport, getInsights, getReportView, listReports } from "@/lib/dashboards/api";
+import type { IncidentReportRow, InsightsPayload, PermitReportRow, ReportExportRow } from "@/lib/dashboards/types";
 import { formatDateTime, formatStatus, formatWindow } from "@/lib/format";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 
@@ -25,6 +25,7 @@ const TABS = [
   { key: "permits", label: "Permit register" },
   { key: "incidents", label: "Incident register" },
   { key: "summary", label: "Operational summary" },
+  { key: "exports", label: "Generated reports" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -67,6 +68,9 @@ function ReportsView() {
   const [permitRows, setPermitRows] = useState<PermitReportRow[] | null>(null);
   const [incidentRows, setIncidentRows] = useState<IncidentReportRow[] | null>(null);
   const [insights, setInsights] = useState<InsightsPayload | null>(null);
+  const [exportRows, setExportRows] = useState<ReportExportRow[] | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function setParams(next: Record<string, string>) {
@@ -88,13 +92,33 @@ function ReportsView() {
       getReportView<PermitReportRow>("permit_summary", days, { siteId, workLocationId }).then((r) => done(() => { setPermitRows(r.rows); setError(null); }), fail);
     } else if (tab === "incidents") {
       getReportView<IncidentReportRow>("incident_summary", days, { siteId, workLocationId }).then((r) => done(() => { setIncidentRows(r.rows); setError(null); }), fail);
-    } else {
+    } else if (tab === "summary") {
       getInsights(days, { siteId, workLocationId }).then((r) => done(() => { setInsights(r); setError(null); }), fail);
+    } else if (tab === "exports") {
+      listReports().then((r) => done(() => { setExportRows(r); setError(null); }), fail);
     }
     return () => {
       cancelled = true;
     };
   }, [tab, days, reloadKey, siteId, workLocationId]);
+
+  async function handleDeleteReport(id: string, name?: string | null) {
+    if (!window.confirm(`Are you sure you want to delete report ${name ?? id}?`)) {
+      return;
+    }
+    setDeletingId(id);
+    setError(null);
+    setNotice(null);
+    try {
+      await deleteReport(id);
+      setExportRows((prev) => (prev ? prev.filter((r) => r.id !== id) : prev));
+      setNotice("Report deleted successfully.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to delete report export. Try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   function onSort(column: string) {
     setParams({ sort: `${column}:${sort.column === column && sort.dir === "desc" ? "asc" : "desc"}` });
@@ -154,7 +178,7 @@ function ReportsView() {
           options={TABS.map((t) => ({ value: t.key, label: t.label }))}
           className="self-start"
         />
-        {tab !== "summary" ? (
+        {tab !== "summary" && tab !== "exports" ? (
           <div className="flex flex-wrap items-center gap-3">
             <label className="relative flex h-10 w-full items-center sm:w-80">
               <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
@@ -189,6 +213,12 @@ function ReportsView() {
           </div>
         ) : null}
       </PageHeader>
+
+      {notice ? (
+        <p role="status" className="rounded-lg border border-border bg-muted px-4 py-3 text-sm text-foreground">
+          {notice}
+        </p>
+      ) : null}
 
       {error ? (
         <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -399,6 +429,75 @@ function ReportsView() {
                 <StatTile label="Approvals waiting over a day" value={insights.attention.approvalsWaitingOverDay} tone={insights.attention.approvalsWaitingOverDay > 0 ? "warning" : "neutral"} href="/approvals" />
               </div>
             </ChartCard>
+          </motion.div>
+        )
+      ) : null}
+
+      {tab === "exports" ? (
+        exportRows === null ? (
+          error ? (
+            <Button type="button" variant="outline" className="justify-self-start" onClick={() => setReloadKey((k) => k + 1)}>
+              Retry
+            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading generated reports…</p>
+          )
+        ) : (
+          <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid gap-5">
+            <motion.div variants={staggerItem} className="relative overflow-x-auto rounded-xl border border-border bg-card">
+              {exportRows.length === 0 ? (
+                <p className="px-5 py-10 text-center text-sm text-muted-foreground">
+                  No generated reports found.
+                </p>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <caption className="sr-only">Generated report exports</caption>
+                  <thead className="table-tone text-xs">
+                    <tr className="border-b border-border">
+                      <th scope="col" className="px-4 py-2.5 font-semibold">Report</th>
+                      <th scope="col" className="px-4 py-2.5 font-semibold">Format</th>
+                      <th scope="col" className="px-4 py-2.5 font-semibold">Status</th>
+                      <th scope="col" className="px-4 py-2.5 font-semibold">Generated</th>
+                      <th scope="col" className="px-4 py-2.5 font-semibold text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {exportRows.map((r) => (
+                      <tr key={r.id} className="row-hover border-t border-border first:border-t-0">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-foreground">{r.fileName ?? r.reportType}</p>
+                          <p className="font-mono text-xs text-muted-foreground">{r.id}</p>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold uppercase">
+                            {r.format}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <span className="capitalize text-muted-foreground">{r.status}</span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                          {formatDateTime(r.createdAt)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right">
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            disabled={deletingId === r.id}
+                            onClick={() => handleDeleteReport(r.id, r.fileName)}
+                            className="inline-flex items-center gap-1.5"
+                          >
+                            <Trash2 className="size-3.5" aria-hidden />
+                            {deletingId === r.id ? "Deleting…" : "Delete"}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </motion.div>
           </motion.div>
         )
       ) : null}

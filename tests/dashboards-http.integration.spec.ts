@@ -156,6 +156,31 @@ describe('Dashboards HTTP API (PUS-206)', () => {
     expect(list.body.data.some((r: { id: string }) => r.id === gen.body.data.id)).toBe(true);
   });
 
+  httpTest('DELETE /reports/:id removes generated report for authorized user', async () => {
+    const server = app.getHttpServer();
+
+    const gen = await request(server)
+      .post('/api/v1/reports/generate')
+      .send({
+        reportType: 'operational_kpis',
+        format: 'csv',
+        filters: { source: 'delete-test' },
+      })
+      .expect(201);
+
+    const reportId = gen.body.data.id;
+
+    const del = await request(server)
+      .delete(`/api/v1/reports/${reportId}`)
+      .expect(200);
+
+    expect(del.body.data.success).toBe(true);
+    expect(del.body.data.id).toBe(reportId);
+
+    const list = await request(server).get('/api/v1/reports').expect(200);
+    expect(list.body.data.some((r: { id: string }) => r.id === reportId)).toBe(false);
+  });
+
   httpTest('GET /analytics and /analytics/trends', async () => {
     const server = app.getHttpServer();
 

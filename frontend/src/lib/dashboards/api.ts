@@ -1,5 +1,5 @@
 import { fetchApi } from "@/lib/api";
-import type { InsightsPayload, ReportView, ReportViewType } from "./types";
+import type { InsightsPayload, ReportExportRow, ReportView, ReportViewType } from "./types";
 
 type PlaceQuery = { siteId?: string; workLocationId?: string };
 
@@ -17,3 +17,13 @@ export function getInsights(days = 90, place?: PlaceQuery) {
 export function getReportView<T>(type: ReportViewType, days = 90, place?: PlaceQuery) {
   return fetchApi<ReportView<T>>(`/reports/view?type=${type}&${placeParams(days, place)}`);
 }
+
+export function listReports(status?: string) {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  return fetchApi<ReportExportRow[]>(`/reports${query}`);
+}
+
+export function deleteReport(id: string) {
+  return fetchApi<{ success: boolean; id: string }>(`/reports/${id}`, { method: "DELETE" });
+}
+
