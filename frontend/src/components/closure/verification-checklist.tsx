@@ -1,6 +1,4 @@
-import { useState } from "react";
 import type { VerificationChecklist } from "@/lib/closure/types";
-import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 
 const checklistItems: Array<{ key: keyof VerificationChecklist; label: string }> = [
   { key: "workCompleted", label: "Work has been completed as described in the permit" },
@@ -22,8 +20,6 @@ export function VerificationChecklistPanel({
   hasExistingEvidence = false,
   onChange,
 }: VerificationChecklistProps) {
-  const [itemEvidences, setItemEvidences] = useState<Record<string, File | null>>({});
-
   return (
     <ul className="grid gap-3">
       {checklistItems.map((item) => {
@@ -53,19 +49,6 @@ export function VerificationChecklistPanel({
               >
                 Notice: No execution evidence files were found on this permit. You can still proceed if offline or physical evidence was inspected.
               </div>
-            ) : null}
-
-            {/* N-16, N-17, N-18: Offer upload on check for other items */}
-            {!isEvidenceReviewed ? (
-              <VerificationEvidenceCapture
-                visible={checked}
-                label={`Evidence for "${item.label}"`}
-                file={itemEvidences[item.key] ?? null}
-                onFileChange={(file) =>
-                  setItemEvidences((prev) => ({ ...prev, [item.key]: file }))
-                }
-                disabled={disabled}
-              />
             ) : null}
           </li>
         );

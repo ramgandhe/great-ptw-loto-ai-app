@@ -1,11 +1,9 @@
 "use client";
 import { AppSelect } from "@/components/ui/select";
 
-import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { createHandover } from "@/lib/multi-day/api";
-import { uploadEvidence } from "@/lib/execution/api";
 import type { DailyProgressRecord } from "@/lib/multi-day/types";
 import { listTenantUserNames } from "@/lib/workforce/api";
 import type { TenantUser } from "@/lib/workforce/types";
@@ -36,7 +34,6 @@ export function HandoverForm({
   const [completedActivities, setCompletedActivities] = useState("");
   const [outstandingWork, setOutstandingWork] = useState("");
   const [safetyObservations, setSafetyObservations] = useState("");
-  const [handoverEvidence, setHandoverEvidence] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -58,9 +55,6 @@ export function HandoverForm({
     setIsSubmitting(true);
     setError(null);
     try {
-      if (handoverEvidence) {
-        await uploadEvidence(permitId, handoverEvidence, { comment: "Shift handover evidence" });
-      }
       await createHandover(permitId, {
         incomingUserId,
         completedActivities: completedActivities.trim(),
@@ -68,7 +62,6 @@ export function HandoverForm({
         safetyObservations: safetyObservations.trim() || undefined,
         dailyProgressId: dailyProgressId || undefined,
       });
-      setHandoverEvidence(null);
       setIncomingUserId("");
       setCompletedActivities("");
       setOutstandingWork("");
@@ -161,13 +154,6 @@ export function HandoverForm({
           onChange={(event) => setSafetyObservations(event.target.value)}
         />
       </label>
-      <VerificationEvidenceCapture
-        visible={true}
-        label="Handover site/log evidence"
-        file={handoverEvidence}
-        onFileChange={setHandoverEvidence}
-        disabled={isSubmitting}
-      />
       <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Saving…" : "Submit handover"}
       </Button>

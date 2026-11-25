@@ -264,8 +264,11 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
         try {
           await uploadIncidentEvidence(incident.id, incidentEvidence, "Initial incident evidence");
           setIncidentEvidence(null);
-        } catch {
-          // If upload fails, show error or let user retry
+        } catch (uploadErr) {
+          const msg = uploadErr instanceof ApiError ? uploadErr.message : "Failed to upload incident evidence";
+          setError(msg);
+          setSubmitting(false);
+          return;
         }
       }
       onCreated(incident, submit);

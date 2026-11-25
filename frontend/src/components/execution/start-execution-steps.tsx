@@ -12,6 +12,8 @@ import type { PermitFormState } from "@/lib/permit/types";
 import { hazardControlKey, type ExecutionStartState } from "@/lib/execution/start";
 import { permitControlLines } from "@/lib/permit/form";
 import { uploadEvidence } from "@/lib/execution/api";
+import { toast } from "@/components/ui/toast";
+import { ApiError } from "@/lib/api";
 
 const STEPS = [
   { id: "toolbox", label: "Toolbox talk" },
@@ -118,32 +120,37 @@ export function StartExecutionSteps({
   ][step];
 
   async function goNext() {
-    if (step === 0 && toolboxEvidence) {
-      await uploadEvidence(permitId, toolboxEvidence, { comment: "Toolbox talk evidence" });
-      setToolboxEvidence(null);
-    } else if (step === 1) {
-      for (const [key, file] of Object.entries(hazardEvidences)) {
-        if (file) {
-          await uploadEvidence(permitId, file, { comment: `Hazard control ${key} evidence` });
+    try {
+      if (step === 0 && toolboxEvidence) {
+        await uploadEvidence(permitId, toolboxEvidence, { comment: "Toolbox talk evidence" });
+        setToolboxEvidence(null);
+      } else if (step === 1) {
+        for (const [key, file] of Object.entries(hazardEvidences)) {
+          if (file) {
+            await uploadEvidence(permitId, file, { comment: `Hazard control ${key} evidence` });
+          }
         }
-      }
-      setHazardEvidences({});
-    } else if (step === 2) {
-      for (const [ppeId, file] of Object.entries(ppeEvidences)) {
-        if (file) {
-          await uploadEvidence(permitId, file, { comment: `PPE ${ppeNames.get(ppeId) ?? ppeId} readiness evidence` });
+        setHazardEvidences({});
+      } else if (step === 2) {
+        for (const [ppeId, file] of Object.entries(ppeEvidences)) {
+          if (file) {
+            await uploadEvidence(permitId, file, { comment: `PPE ${ppeNames.get(ppeId) ?? ppeId} readiness evidence` });
+          }
         }
+        setPpeEvidences({});
+      } else if (step === 3 && lototoEvidence) {
+        await uploadEvidence(permitId, lototoEvidence, { comment: "LOTOTO verification evidence" });
+        setLototoEvidence(null);
+      } else if (step === 4 && gasMeterPhoto) {
+        await uploadEvidence(permitId, gasMeterPhoto, { comment: "Gas test meter photo" });
+        setGasMeterPhoto(null);
       }
-      setPpeEvidences({});
-    } else if (step === 3 && lototoEvidence) {
-      await uploadEvidence(permitId, lototoEvidence, { comment: "LOTOTO verification evidence" });
-      setLototoEvidence(null);
-    } else if (step === 4 && gasMeterPhoto) {
-      await uploadEvidence(permitId, gasMeterPhoto, { comment: "Gas test meter photo" });
-      setGasMeterPhoto(null);
+      await onSave();
+      setStep((current) => Math.min(current + 1, STEPS.length - 1));
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Evidence upload failed";
+      toast(msg, "error");
     }
-    await onSave();
-    setStep((current) => Math.min(current + 1, STEPS.length - 1));
   }
 
   return (

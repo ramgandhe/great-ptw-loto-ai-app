@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { closePermit, getPermitAudit, getPermitHistory, getPermitVerification, verifyPermit } from "@/lib/closure/api";
-import { sendBackToExecutor, sendBackToIssuer, uploadEvidence } from "@/lib/execution/api";
+import { sendBackToExecutor, sendBackToIssuer } from "@/lib/execution/api";
 import type { AuditLogEntry, PermitHistoryEntry, PermitVerification } from "@/lib/closure/types";
 import { getEvidenceDownloadUrl, listEvidence, listProgress } from "@/lib/execution/api";
 import type { EvidenceRecord, ProgressRecord } from "@/lib/execution/types";
@@ -137,7 +137,7 @@ export default function PermitClosurePage() {
     }
   }
 
-  async function handleClose(closureEvidenceFile?: File | null) {
+  async function handleClose() {
     if (!closureComment.trim() || !isChecklistComplete(closeChecklist)) {
       setCloseError("Complete the closure checklist and add a comment.");
       return;
@@ -145,9 +145,6 @@ export default function PermitClosurePage() {
     setIsSubmitting(true);
     setCloseError(null);
     try {
-      if (closureEvidenceFile) {
-        await uploadEvidence(permitId, closureEvidenceFile, { comment: "Closure verification evidence" });
-      }
       await closePermit(permitId, {
         comment: closureComment.trim(),
         checklist: closeChecklist,

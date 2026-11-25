@@ -5,11 +5,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { resolveSimopsCase } from "@/lib/simops/api";
-import { uploadEvidence } from "@/lib/execution/api";
 import type { SimopsCaseDetail, SimopsPermitDecision } from "@/lib/simops/types";
 import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { toast } from "@/components/ui/toast";
 import { ConflictSeverityBadge } from "@/components/simops/conflict-severity-badge";
 
@@ -39,7 +37,6 @@ export function CaseResolve({
     Object.fromEntries(detail.members.map((m) => [m.permitId, m.comments ?? ""])),
   );
   const [controlText, setControlText] = useState<Record<string, string>>({});
-  const [controlEvidences, setControlEvidences] = useState<Record<string, File | null>>({});
   const [controlPerson, setControlPerson] = useState<Record<string, string>>({});
   const [controlComments, setControlComments] = useState<Record<string, string>>({});
 
@@ -54,11 +51,6 @@ export function CaseResolve({
     setSaving(true);
     setError(null);
     try {
-      for (const [permitId, file] of Object.entries(controlEvidences)) {
-        if (file) {
-          await uploadEvidence(permitId, file, { comment: "SIMOPS agreed controls evidence" });
-        }
-      }
       const controls = detail.members
         .filter((m) => decisions[m.permitId] === "allow_with_controls")
         .map((m) => ({
@@ -182,16 +174,6 @@ export function CaseResolve({
                     }
                     placeholder="Control comments"
                     className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  />
-                  <VerificationEvidenceCapture
-                    visible={true}
-                    label="Agreed SIMOPS controls evidence"
-                    hint="Optional — photo of physical barrier or signed joint agreement"
-                    file={controlEvidences[member.permitId] ?? null}
-                    onFileChange={(file) =>
-                      setControlEvidences((prev) => ({ ...prev, [member.permitId]: file }))
-                    }
-                    disabled={saving}
                   />
                 </div>
               ) : null}

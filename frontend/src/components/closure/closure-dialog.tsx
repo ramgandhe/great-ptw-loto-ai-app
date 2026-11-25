@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 
 type ClosureDialogProps = {
   open: boolean;
@@ -10,7 +9,7 @@ type ClosureDialogProps = {
   isSubmitting?: boolean;
   error?: string | null;
   onCommentChange: (value: string) => void;
-  onConfirm: (evidenceFile?: File | null) => void;
+  onConfirm: () => void;
   onClose: () => void;
 };
 
@@ -25,7 +24,6 @@ export function ClosureDialog({
 }: ClosureDialogProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [closureEvidence, setClosureEvidence] = useState<File | null>(null);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -56,7 +54,7 @@ export function ClosureDialog({
         onSubmit={(event) => {
           event.preventDefault();
           if (!isSubmitting) {
-            onConfirm(closureEvidence);
+            onConfirm();
           }
         }}
       >
@@ -82,15 +80,6 @@ export function ClosureDialog({
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
         </div>
-
-        <VerificationEvidenceCapture
-          visible={true}
-          label="Final close verification evidence"
-          hint="Optional — offer closing photo/doc if none attached"
-          file={closureEvidence}
-          onFileChange={setClosureEvidence}
-          disabled={isSubmitting}
-        />
 
         {error ? (
           <p role="alert" className="text-sm text-destructive">

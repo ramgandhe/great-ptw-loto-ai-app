@@ -2,14 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
-import { uploadEvidence } from "@/lib/execution/api";
-import { toast } from "@/components/ui/toast";
-import { ApiError } from "@/lib/api";
 import type { WorkCycleSnapshot } from "@/lib/execution/types";
 
 type WorkResumeFormProps = {
-  permitId: string;
   work: WorkCycleSnapshot;
   disabled?: boolean;
   isSubmitting?: boolean;
@@ -20,11 +15,10 @@ type WorkResumeFormProps = {
   }) => Promise<void>;
 };
 
-export function WorkResumeForm({ permitId, work, disabled, isSubmitting, onSubmit }: WorkResumeFormProps) {
+export function WorkResumeForm({ work, disabled, isSubmitting, onSubmit }: WorkResumeFormProps) {
   const items = work.resumeTemplate.items;
   const [notes, setNotes] = useState("");
   const [checks, setChecks] = useState<Record<string, boolean>>({});
-  const [resumeEvidence, setResumeEvidence] = useState<File | null>(null);
   const [crewUserIds, setCrewUserIds] = useState("");
   const crewRequired = work.crewRosterRequired === true;
   const suggested = work.suggestedCrew ?? [];
@@ -48,20 +42,10 @@ export function WorkResumeForm({ permitId, work, disabled, isSubmitting, onSubmi
   return (
     <form
       className="grid gap-3 rounded-lg border border-border p-4"
-      onSubmit={async (event) => {
+      onSubmit={(event) => {
         event.preventDefault();
         if (!allRequired || !crewReady || handoverBlocked || disabled || isSubmitting) return;
         const suggestionById = new Map(suggested.map((row) => [row.workforceUserId, row.role]));
-        if (resumeEvidence) {
-          try {
-            await uploadEvidence(permitId, resumeEvidence, { comment: "Resume clearance evidence" });
-            setResumeEvidence(null);
-          } catch (err) {
-            const msg = err instanceof ApiError ? err.message : "Failed to upload resume evidence";
-            toast(msg, "error");
-            return;
-          }
-        }
         void onSubmit({
           checklist: checks,
           notes: notes.trim() || undefined,
@@ -112,13 +96,6 @@ export function WorkResumeForm({ permitId, work, disabled, isSubmitting, onSubmi
           {item.label}
         </label>
       ))}
-      <VerificationEvidenceCapture
-        visible={Object.values(checks).some(Boolean)}
-        label="Resume clearance verification evidence"
-        file={resumeEvidence}
-        onFileChange={setResumeEvidence}
-        disabled={disabled || isSubmitting}
-      />
       {crewRequired ? (
         <div className="grid gap-2">
           <label className="block text-sm">

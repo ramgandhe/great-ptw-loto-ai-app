@@ -115,9 +115,7 @@ export default function PermitExecutionPage() {
   const [ppeNames, setPpeNames] = useState<Map<string, string>>(new Map());
   const [wizardOpen, setWizardOpen] = useState(false);
   const [siteReady, setSiteReady] = useState(false);
-  const [siteReadyEvidence, setSiteReadyEvidence] = useState<File | null>(null);
   const [detailsCorrect, setDetailsCorrect] = useState(false);
-  const [detailsCorrectEvidence, setDetailsCorrectEvidence] = useState<File | null>(null);
   const [completeComment, setCompleteComment] = useState("");
   const [completeEvidence, setCompleteEvidence] = useState<File | null>(null);
   const [completeChecklist, setCompleteChecklist] = useState({
@@ -246,17 +244,9 @@ export default function PermitExecutionPage() {
     setIsSubmitting(true);
     setActionError(null);
     try {
-      if (siteReadyEvidence) {
-        await uploadEvidence(permitId, siteReadyEvidence, { comment: "Site readiness evidence" });
-      }
-      if (detailsCorrectEvidence) {
-        await uploadEvidence(permitId, detailsCorrectEvidence, { comment: "Workplace and personnel check evidence" });
-      }
       await releasePermitForExecution(permitId, { siteReady: true, detailsCorrect: true });
       setSiteReady(false);
-      setSiteReadyEvidence(null);
       setDetailsCorrect(false);
-      setDetailsCorrectEvidence(null);
       toast("Released for execution");
       await loadData();
     } catch (err) {
@@ -274,17 +264,7 @@ export default function PermitExecutionPage() {
       setIsSubmitting(true);
       setActionError(null);
       try {
-        if (siteReadyEvidence) {
-          await uploadEvidence(permitId, siteReadyEvidence, { comment: "Site readiness evidence" });
-        }
-        if (detailsCorrectEvidence) {
-          await uploadEvidence(permitId, detailsCorrectEvidence, { comment: "Workplace and personnel check evidence" });
-        }
         await releasePermitForExecution(permitId, { siteReady: true, detailsCorrect: true });
-        setSiteReady(false);
-        setSiteReadyEvidence(null);
-        setDetailsCorrect(false);
-        setDetailsCorrectEvidence(null);
         toast("Released for execution");
         await loadData();
       } catch (err) {
@@ -618,24 +598,12 @@ export default function PermitExecutionPage() {
               <input type="checkbox" checked={siteReady} onChange={(event) => setSiteReady(event.target.checked)} />
               Site is ready for execution
             </label>
-            <VerificationEvidenceCapture
-              visible={siteReady}
-              label="Site readiness evidence"
-              file={siteReadyEvidence}
-              onFileChange={setSiteReadyEvidence}
-            />
           </div>
           <div className="grid gap-2">
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" checked={detailsCorrect} onChange={(event) => setDetailsCorrect(event.target.checked)} />
               The approved work, place and people are still correct
             </label>
-            <VerificationEvidenceCapture
-              visible={detailsCorrect}
-              label="Workplace and personnel check evidence"
-              file={detailsCorrectEvidence}
-              onFileChange={setDetailsCorrectEvidence}
-            />
           </div>
         </section>
       ) : null}
@@ -738,7 +706,6 @@ export default function PermitExecutionPage() {
 
           {isActive && workPaused && workCycle && canWriteProgress ? (
             <WorkResumeForm
-              permitId={permitId}
               work={workCycle}
               disabled={!canRunThisPermit}
               isSubmitting={isSubmitting}

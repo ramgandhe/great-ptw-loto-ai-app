@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -17,7 +16,6 @@ import {
   type PersonalLock,
   type PersonalLocks,
 } from "@/lib/lototo/personal-locks";
-import { uploadEvidence } from "@/lib/execution/api";
 
 const FIELD =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -44,7 +42,6 @@ export function PersonalLocks({
   const [masterLock, setMasterLock] = useState("");
   const [place, setPlace] = useState("");
   const [lockNumber, setLockNumber] = useState("");
-  const [personalLockEvidence, setPersonalLockEvidence] = useState<File | null>(null);
   const [permitId, setPermitId] = useState("");
   const [absentLock, setAbsentLock] = useState<PersonalLock | null>(null);
   const [contactAttempts, setContactAttempts] = useState("");
@@ -238,17 +235,11 @@ export function PersonalLocks({
               className="grid gap-3"
               onSubmit={(event) => {
                 event.preventDefault();
-                void run(async () => {
-                  if (chosenPermit && personalLockEvidence) {
-                    await uploadEvidence(chosenPermit, personalLockEvidence, { comment: `Personal lock ${lockNumber.trim()} applied proof` });
-                    setPersonalLockEvidence(null);
-                  }
-                  return applyPersonalLock(detail.lockbox!.id, {
-                    personalLockNumber: lockNumber.trim(),
-                    workerName: displayName(profile),
-                    permitId: chosenPermit,
-                  });
-                }, "Lock applied");
+                void run(() => applyPersonalLock(detail.lockbox!.id, {
+                  personalLockNumber: lockNumber.trim(),
+                  workerName: displayName(profile),
+                  permitId: chosenPermit,
+                }), "Lock applied");
               }}
             >
               {detail.myPermits.length > 1 ? (
@@ -265,13 +256,6 @@ export function PersonalLocks({
                 <span className="font-medium">My lock number</span>
                 <input className={FIELD} value={lockNumber} onChange={(event) => setLockNumber(event.target.value)} required />
               </label>
-              <VerificationEvidenceCapture
-                visible={Boolean(lockNumber.trim())}
-                label="Personal lock photo / applied proof"
-                file={personalLockEvidence}
-                onFileChange={setPersonalLockEvidence}
-                disabled={busy}
-              />
               <div>
                 <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Add my lock"}</Button>
               </div>
