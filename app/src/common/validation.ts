@@ -47,18 +47,27 @@ export const UUID_MESSAGE = (field: string = 'id') => `${field} must be a valid 
 export const DATETIME_MESSAGE = (field: string = 'field') => `${field} must be a valid date and time`;
 
 /** Transformer for class-transformer to require both date and time components. */
-export function transformDateTime({ value }: { value: unknown }): Date | undefined {
-  if (value === null || value === undefined || value === '') return undefined;
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? new Date(NaN) : value;
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
+export function transformDateTime({
+  value,
+  obj,
+  key,
+}: {
+  value: unknown;
+  obj?: Record<string, unknown>;
+  key?: string;
+}): Date | undefined {
+  const raw = obj && key && key in obj ? obj[key] : value;
+  if (raw === null || raw === undefined || raw === '') return undefined;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
     if (!trimmed) return undefined;
     if (!/[T ]\d{2}:\d{2}/.test(trimmed)) {
       return new Date(NaN);
     }
     return new Date(trimmed);
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? new Date(NaN) : value;
   }
   return new Date(NaN);
 }
