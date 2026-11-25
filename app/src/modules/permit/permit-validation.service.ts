@@ -59,6 +59,11 @@ export class PermitValidationService {
 
     if (!permit.plannedStartAt || !permit.plannedEndAt) {
       errors.push('plannedStartAt and plannedEndAt are required');
+    } else if (
+      Number.isNaN(permit.plannedStartAt.getTime()) ||
+      Number.isNaN(permit.plannedEndAt.getTime())
+    ) {
+      errors.push('plannedStartAt and plannedEndAt must be valid dates and times');
     } else if (permit.plannedEndAt <= permit.plannedStartAt) {
       errors.push('plannedEndAt must be after plannedStartAt');
     } else {
