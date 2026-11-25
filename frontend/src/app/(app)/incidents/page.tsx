@@ -24,7 +24,7 @@ import { formatRelative } from "@/lib/format";
 import { listIncidents } from "@/lib/incidents/api";
 import type { Incident } from "@/lib/incidents/types";
 import { staggerContainer, staggerItem } from "@/lib/motion";
-import { INCIDENT_STATUS } from "@/lib/safety/status";
+import { INCIDENT_NEXT_STEP, INCIDENT_STATUS } from "@/lib/safety/status";
 import { useWorkQueue } from "@/lib/work-queue-context";
 
 const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -209,7 +209,19 @@ function IncidentsBoard() {
                     }
                     accent={priority?.color}
                     status={<IncidentStatusBadge status={incident.status} />}
-                    action={action ? <ActionLink item={action} /> : null}
+                    action={
+                      action ? (
+                        <ActionLink item={action} />
+                      ) : (
+                        <span
+                          className={`text-xs text-muted-foreground ${
+                            incident.status === "investigating" || incident.status === "open" ? "font-bold text-foreground" : ""
+                          }`}
+                        >
+                          {INCIDENT_NEXT_STEP[incident.status] ?? "No action needed"}
+                        </span>
+                      )
+                    }
                   />
                 );
               })}
