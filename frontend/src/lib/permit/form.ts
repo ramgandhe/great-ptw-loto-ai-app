@@ -327,8 +327,14 @@ export function formToSavePayload(
     workLocationId: optionalUuid(form.workLocationId),
     exactSpot: form.exactSpot.trim() || undefined,
     assetIds: form.assetIds,
-    plannedStartAt: form.plannedStartAt && hasTimeComponent(form.plannedStartAt) ? new Date(form.plannedStartAt).toISOString() : (form.plannedStartAt || undefined),
-    plannedEndAt: form.plannedEndAt && hasTimeComponent(form.plannedEndAt) ? new Date(form.plannedEndAt).toISOString() : (form.plannedEndAt || undefined),
+    plannedStartAt:
+      form.plannedStartAt && hasTimeComponent(form.plannedStartAt)
+        ? new Date(form.plannedStartAt).toISOString()
+        : undefined,
+    plannedEndAt:
+      form.plannedEndAt && hasTimeComponent(form.plannedEndAt)
+        ? new Date(form.plannedEndAt).toISOString()
+        : undefined,
     currentStep: form.currentStep,
     hazards: form.hazards
       .filter((h) => (h.hazardCategoryId ?? "").trim() || h.customName?.trim())

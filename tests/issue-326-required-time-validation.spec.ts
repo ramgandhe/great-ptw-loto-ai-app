@@ -8,7 +8,7 @@ import {
   formatLocalDateTimeLabel,
   hasTimeComponent,
 } from '@/lib/datetime';
-import { createEmptyPermitForm, validateStep } from '@/lib/permit/form';
+import { createEmptyPermitForm, validateStep, formToSavePayload } from '@/lib/permit/form';
 import { CreatePermitDto } from '../app/src/modules/permit/dto/create-permit.dto';
 import { UpdatePermitDto } from '../app/src/modules/permit/dto/update-permit.dto';
 import { PermitValidationService } from '../app/src/modules/permit/permit-validation.service';
@@ -295,6 +295,87 @@ describe('Issue #326 - Required time validation', () => {
     it('accepts submission with valid start and end dates with time', () => {
       const record = validRecord();
       expect(() => service.validateForSubmit(record)).not.toThrow();
+    });
+  });
+
+  describe('formToSavePayload draft date handling', () => {
+    const baseForm = () => {
+      const f = createEmptyPermitForm();
+      f.title = 'Draft Title';
+      f.siteNotes = 'Draft Site Notes';
+      f.emergencyPhone = '+919876543210';
+      f.plantId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      return f;
+    };
+
+    it('converts plannedStartAt and plannedEndAt to ISO strings when both have valid date and time', () => {
+      const form = baseForm();
+      form.plannedStartAt = '2026-11-25T08:00';
+      form.plannedEndAt = '2026-11-25T16:00';
+      const payload = formToSavePayload(form);
+
+      expect(payload.plannedStartAt).toBe(new Date('2026-11-25T08:00').toISOString());
+      expect(payload.plannedEndAt).toBe(new Date('2026-11-25T16:00').toISOString());
+      expect(payload.title).toBe('Draft Title');
+      expect(payload.emergencyPhone).toBe('+919876543210');
+    });
+
+    it('omits plannedStartAt (undefined) when only start date is selected without time, while persisting other fields', () => {
+      const form = baseForm();
+      form.plannedStartAt = '2026-11-25';
+      form.plannedEndAt = '2026-11-25T16:00';
+      const payload = formToSavePayload(form);
+
+      expect(payload.plannedStartAt).toBeUndefined();
+      expect(payload.plannedEndAt).toBe(new Date('2026-11-25T16:00').toISOString());
+      expect(payload.title).toBe('Draft Title');
+      expect(payload.emergencyPhone).toBe('+919876543210');
+    });
+
+    it('omits plannedEndAt (undefined) when only end date is selected without time, while persisting other fields', () => {
+      const form = baseForm();
+      form.plannedStartAt = '2026-11-25T08:00';
+      form.plannedEndAt = '2026-11-25';
+      const payload = formToSavePayload(form);
+
+      expect(payload.plannedStartAt).toBe(new Date('2026-11-25T08:00').toISOString());
+      expect(payload.plannedEndAt).toBeUndefined();
+      expect(payload.title).toBe('Draft Title');
+      expect(payload.emergencyPhone).toBe('+919876543210');
+    });
+
+    it('omits both plannedStartAt and plannedEndAt (undefined) when both dates are selected without time', () => {
+      const form = baseForm();
+      form.plannedStartAt = '2026-11-25';
+      form.plannedEndAt = '2026-11-25';
+      const payload = formToSavePayload(form);
+
+      expect(payload.plannedStartAt).toBeUndefined();
+      expect(payload.plannedEndAt).toBeUndefined();
+      expect(payload.title).toBe('Draft Title');
+      expect(payload.emergencyPhone).toBe('+919876543210');
+    });
+
+    it('omits plannedStartAt and plannedEndAt when both are empty strings', () => {
+      const form = baseForm();
+      form.plannedStartAt = '';
+      form.plannedEndAt = '';
+      const payload = formToSavePayload(form);
+
+      expect(payload.plannedStartAt).toBeUndefined();
+      expect(payload.plannedEndAt).toBeUndefined();
+    });
+
+    it('ensures date-only strings are never passed into payload', () => {
+      const form = baseForm();
+      form.plannedStartAt = '2026-11-25';
+      form.plannedEndAt = '2026-11-26';
+      const payload = formToSavePayload(form);
+
+      expect(payload.plannedStartAt).not.toBe('2026-11-25');
+      expect(payload.plannedEndAt).not.toBe('2026-11-26');
+      expect(payload.plannedStartAt).toBeUndefined();
+      expect(payload.plannedEndAt).toBeUndefined();
     });
   });
 });
