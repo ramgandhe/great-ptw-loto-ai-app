@@ -31,6 +31,19 @@ export const INCIDENT_STATUS: Record<string, Tone> = {
   closed: st("Closed", "closed"),
 };
 
+/**
+ * Expected next step text for an incident when the viewing user has no direct action assigned.
+ */
+export const INCIDENT_NEXT_STEP: Record<string, string> = {
+  draft: "Submit report",
+  pending_hod_decision: "Awaiting Approver decision",
+  open: "Awaiting investigator",
+  investigating: "Assigned investigator",
+  pending_verification: "Awaiting verification",
+  verified: "Ready to close",
+  closed: "Closed",
+};
+
 export const CONFLICT_STATUS: Record<string, Tone> = {
   open: st("Open", "deferred"),
   assessed: st("Assessed", "pending_approval"),
