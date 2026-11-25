@@ -62,3 +62,17 @@ export type IncidentReportRow = {
 };
 
 export type ReportView<T> = { type: ReportViewType; period: { days: number; from: string; to: string }; rows: T[] };
+
+export type ReportExportRow = {
+  id: string;
+  reportType: string;
+  format: string;
+  status: string;
+  fileName?: string | null;
+  storageKey?: string | null;
+  requestedBy: string;
+  createdAt: string;
+  completedAt?: string | null;
+  errorMessage?: string | null;
+};
+

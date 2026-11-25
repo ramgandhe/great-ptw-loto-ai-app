@@ -1,4 +1,9 @@
-import { ForbiddenException, NotFoundException, RequestMethod } from '@nestjs/common';
+import {
+  ForbiddenException,
+  InternalServerErrorException,
+  NotFoundException,
+  RequestMethod,
+} from '@nestjs/common';
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { Reflector } from '@nestjs/core';
 import { randomUUID } from 'crypto';
@@ -230,7 +235,7 @@ describe('Issue #324 - Delete generated reports (ReportingService & ReportingCon
       expect(db.delete).toHaveBeenCalled();
     });
 
-    it('safely catches storage deletion failure and completes database delete', async () => {
+    it('throws InternalServerErrorException and leaves database record intact when storage deletion fails', async () => {
       const existingReport = {
         id: reportId,
         tenantId,
@@ -249,9 +254,8 @@ describe('Issue #324 - Delete generated reports (ReportingService & ReportingCon
         roles: ['safety-officer'],
       };
 
-      const result = await service.delete(reportId, user);
-      expect(result).toEqual({ success: true, id: reportId });
-      expect(db.delete).toHaveBeenCalled();
+      await expect(service.delete(reportId, user)).rejects.toThrow(InternalServerErrorException);
+      expect(db.delete).not.toHaveBeenCalled();
       expect(logService.logEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'dashboard.report-delete-storage-failed',
@@ -303,27 +307,6 @@ describe('Issue #324 - Delete generated reports (ReportingService & ReportingCon
       await expect(service.delete(reportId, noTenantUser)).rejects.toThrow(ForbiddenException);
     });
 
-    it('delegates remove method to delete method', async () => {
-      const existingReport = {
-        id: reportId,
-        tenantId,
-        requestedBy: actorId,
-        storageKey: null,
-      };
-      const { service } = createService(existingReport);
-      const user: AuthenticatedUser = {
-        id: actorId,
-        username: 'creator-user',
-        tenantId,
-        roles: ['tenant-owner'],
-      };
-
-      const deleteSpy = jest.spyOn(service, 'delete');
-      const result = await service.remove(reportId, user);
-
-      expect(deleteSpy).toHaveBeenCalledWith(reportId, user);
-      expect(result).toEqual({ success: true, id: reportId });
-    });
 
     it('throws ForbiddenException when user has empty or undefined roles and tries to delete another report', async () => {
       const existingReport = {

@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -83,6 +84,9 @@ export class ReportingService {
             error: error instanceof Error ? error.message : String(error),
           },
         });
+        throw new InternalServerErrorException(
+          `Failed to delete report storage object: ${error instanceof Error ? error.message : 'Storage error'}`,
+        );
       }
     }
 
@@ -108,10 +112,6 @@ export class ReportingService {
     });
 
     return { success: true, id: reportId };
-  }
-
-  async remove(reportId: string, user: AuthenticatedUser) {
-    return this.delete(reportId, user);
   }
 
   async generate(dto: ReportRequestDto, user: AuthenticatedUser) {
