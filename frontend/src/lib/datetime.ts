@@ -1,16 +1,29 @@
-const LOCAL_DATETIME_PATTERN = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/;
+const LOCAL_DATETIME_PATTERN = /^(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2}))?$/;
 
 export function parseLocalDateTime(value: string): { date: string; time: string } {
+  if (!value) {
+    return { date: "", time: "" };
+  }
   const match = value.match(LOCAL_DATETIME_PATTERN);
   if (!match) {
     return { date: "", time: "" };
   }
-  return { date: match[1], time: match[2] };
+  return { date: match[1], time: match[2] ?? "" };
+}
+
+export function hasTimeComponent(value: string | null | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+  return /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.test(value);
 }
 
 export function combineLocalDateTime(date: string, time: string): string {
-  if (!date || !time) {
+  if (!date) {
     return "";
+  }
+  if (!time) {
+    return date;
   }
   return `${date}T${time}`;
 }
@@ -45,7 +58,7 @@ export function formatLocalDateTime(date: Date): string {
 
 export function formatLocalDateTimeLabel(value: string): string {
   const { date, time } = parseLocalDateTime(value);
-  if (!date || !time) {
+  if (!date) {
     return "";
   }
 
@@ -56,6 +69,9 @@ export function formatLocalDateTimeLabel(value: string): string {
     month: "short",
     year: "numeric",
   });
+  if (!time) {
+    return dateLabel;
+  }
   return `${dateLabel}, ${time}`;
 }
 

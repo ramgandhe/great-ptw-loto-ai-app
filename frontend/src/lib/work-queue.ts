@@ -266,8 +266,10 @@ export function buildWorkQueue(
   );
 }
 
+export const LIVE_WORK_STATUSES = ["approved", "active", "suspended"] as const;
+
 /** Nav badge counts keyed by nav href. */
-export function workCountsByRoute(items: WorkItem[]): Record<string, number> {
+export function workCountsByRoute(items: WorkItem[], permits: PermitRecord[] = []): Record<string, number> {
   const counts: Record<string, number> = {};
   const bump = (href: string) => (counts[href] = (counts[href] ?? 0) + 1);
   for (const item of items) {
@@ -275,6 +277,12 @@ export function workCountsByRoute(items: WorkItem[]): Record<string, number> {
     else if (!item.permit) bump("/incidents");
     // Every permit step (review, drafts, work, closure) is worked from the Permits list.
     else bump("/permits");
+  }
+  const liveCount = permits.filter((permit) =>
+    (LIVE_WORK_STATUSES as readonly string[]).includes(permit.status),
+  ).length;
+  if (liveCount > 0) {
+    counts["/execution"] = liveCount;
   }
   return counts;
 }

@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -15,12 +15,14 @@ import {
   ValidateIf,
 } from 'class-validator';
 import {
+  DATETIME_MESSAGE,
   EMERGENCY_PHONE_MESSAGE,
   EMERGENCY_PHONE_REGEX,
   TEXT_MESSAGE,
   TEXT_REGEX,
   TITLE_MESSAGE,
   TITLE_REGEX,
+  transformDateTime,
 } from '../../../common/validation';
 import { PermitRelationsDto } from './permit-relations.dto';
 
@@ -91,13 +93,13 @@ export class CreatePermitDto extends PermitRelationsDto {
   assetIds?: string[];
 
   @IsOptional()
-  @Type(() => Date)
-  @IsDate()
+  @Transform(transformDateTime)
+  @IsDate({ message: DATETIME_MESSAGE('plannedStartAt') })
   plannedStartAt?: Date;
 
   @IsOptional()
-  @Type(() => Date)
-  @IsDate()
+  @Transform(transformDateTime)
+  @IsDate({ message: DATETIME_MESSAGE('plannedEndAt') })
   plannedEndAt?: Date;
 
   /**

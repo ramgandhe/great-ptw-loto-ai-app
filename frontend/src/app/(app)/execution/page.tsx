@@ -17,7 +17,9 @@ import { listPermits } from "@/lib/permit/api";
 import type { PermitRecord } from "@/lib/permit/types";
 import { cn } from "@/lib/utils";
 
-const EXECUTION_STATUSES = ["approved", "active", "suspended"] as const;
+import { LIVE_WORK_STATUSES } from "@/lib/work-queue";
+
+const EXECUTION_STATUSES = LIVE_WORK_STATUSES;
 type WorkFilter = (typeof EXECUTION_STATUSES)[number] | "all";
 
 const FILTERS: { value: WorkFilter; label: string; hint: string }[] = [

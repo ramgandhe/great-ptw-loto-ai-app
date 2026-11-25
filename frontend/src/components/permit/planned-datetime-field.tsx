@@ -83,7 +83,7 @@ export function PlannedDateTimeField({
   }, [open]);
 
   function updateDate(nextDate: string) {
-    const nextTime = time && timeOptions.includes(time) ? time : timeOptions[0] ?? "08:00";
+    const nextTime = time && timeOptions.includes(time) ? time : "";
     onChange(combineLocalDateTime(nextDate, nextTime));
     setOpen(false);
   }
@@ -199,12 +199,13 @@ export function PlannedDateTimeField({
 
       <AppSelect
         aria-label="Time"
+        aria-required="true"
         className={fieldClassName}
         value={time}
         disabled={disabled || !date}
         onChange={(event) => updateTime(event.target.value)}
       >
-        <option value="">{date ? "Time" : "Pick date first"}</option>
+        <option value="">{date ? "Time *" : "Pick date first"}</option>
         {timeOptions.map((option) => (
           <option key={option} value={option}>
             {option}

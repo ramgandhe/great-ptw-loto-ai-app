@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -16,6 +16,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import {
+  DATETIME_MESSAGE,
   EMERGENCY_PHONE_MESSAGE,
   EMERGENCY_PHONE_REGEX,
   NAME_MESSAGE,
@@ -24,6 +25,7 @@ import {
   TEXT_REGEX,
   TITLE_MESSAGE,
   TITLE_REGEX,
+  transformDateTime,
 } from '../../../common/validation';
 import {
   PermitExecutorDto,
@@ -104,13 +106,13 @@ export class UpdatePermitDto {
   assetIds?: string[];
 
   @IsOptional()
-  @Type(() => Date)
-  @IsDate()
+  @Transform(transformDateTime)
+  @IsDate({ message: DATETIME_MESSAGE('plannedStartAt') })
   plannedStartAt?: Date;
 
   @IsOptional()
-  @Type(() => Date)
-  @IsDate()
+  @Transform(transformDateTime)
+  @IsDate({ message: DATETIME_MESSAGE('plannedEndAt') })
   plannedEndAt?: Date;
 
   /**

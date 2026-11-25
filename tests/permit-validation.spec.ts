@@ -68,6 +68,10 @@ describe('PermitValidationService', () => {
         id: 'hazard-id',
         permitId: 'permit-id',
         hazardCategoryId: 'hazard-cat-id',
+        customKey: null,
+        customName: null,
+        customDescription: null,
+        catalogueRequest: 'none' as const,
         description: null,
         extraConsequences: [],
         extraRisks: [],
@@ -150,6 +154,7 @@ describe('PermitValidationService', () => {
     record.lototo = [
       {
         id: 'instance-id',
+        certificateId: null,
         procedureId: 'procedure-id',
         procedureVersionId: 'version-id',
         frozenAt: null,
@@ -180,6 +185,7 @@ describe('PermitValidationService', () => {
     record.lototo = [
       {
         id: 'instance-id',
+        certificateId: null,
         procedureId: 'procedure-id',
         procedureVersionId: 'version-id',
         frozenAt: null,

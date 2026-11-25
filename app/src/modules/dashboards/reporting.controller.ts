@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -34,5 +43,14 @@ export class ReportingController {
   @Post('generate')
   generate(@Body() dto: ReportRequestDto, @CurrentUser() user: AuthenticatedUser) {
     return this.reportingService.generate(dto, user);
+  }
+
+  @Roles(...DASHBOARD_REPORT_ROLES)
+  @Delete(':id')
+  delete(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.reportingService.delete(id, user);
   }
 }
