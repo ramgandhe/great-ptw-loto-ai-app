@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
 COPY frontend/package.json frontend/
+COPY scripts/fix-multer-type-is.mjs scripts/fix-multer-type-is.mjs
 RUN npm ci --workspace=web --workspace=@ptw/shared --include-workspace-root
 
 FROM node:22-alpine AS builder
@@ -25,6 +26,7 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
 COPY frontend/package.json frontend/
+COPY scripts/fix-multer-type-is.mjs scripts/fix-multer-type-is.mjs
 RUN npm ci --workspace=web --workspace=@ptw/shared --include-workspace-root --omit=dev
 COPY --from=builder --chown=node:node /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder --chown=node:node /app/frontend/.next ./frontend/.next

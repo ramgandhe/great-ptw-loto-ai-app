@@ -4,6 +4,19 @@ function assignmentLines(details: unknown): string[] {
   return Array.isArray(details) ? details.map(String).filter(Boolean) : [];
 }
 
+async function askConfirm(message: string): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  try {
+    const { confirmAction } = await import("@/components/ui/confirm-dialog");
+    return await confirmAction(message);
+  } catch {
+    if (typeof window.confirm === "function") {
+      return window.confirm(message);
+    }
+    return false;
+  }
+}
+
 /** First confirm delete; if the API reports assignments, confirm Delete anyway, then retry with force. */
 export async function deleteWithAssignmentConfirm(
   name: string,
@@ -23,7 +36,7 @@ export async function deleteWithAssignmentConfirm(
     const lines = assignmentLines(error.details);
     const extra = lines.length ? `\n\n${lines.map((line) => `• ${line}`).join("\n")}` : "";
     if (
-      !(await confirmAction(
+      !(await askConfirm(
         `${name} is assigned to other records.${extra}\n\nDelete anyway? Historical records stay.`,
       ))
     ) {

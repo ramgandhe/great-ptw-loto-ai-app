@@ -10,6 +10,11 @@ import { ApiError } from "@/lib/api";
 import { INCIDENT_TYPES } from "@/lib/analytics/labels";
 import { createIncident, uploadIncidentEvidence } from "@/lib/incidents/api";
 import type { Incident, IncidentType } from "@/lib/incidents/types";
+import {
+  validateIncidentReport,
+  type IncidentReportFieldErrors,
+  type IncidentReportFormValues,
+} from "@/lib/incidents/validation";
 import { createLototoPlan } from "@/lib/lototo/api";
 import { sitesApi } from "@/lib/organisation/api";
 import type { OrgRecord } from "@/lib/organisation/types";
@@ -19,17 +24,37 @@ import type { PermitRecord } from "@/lib/permit/types";
 
 /** Same field look as the organisation "Add" forms. */
 const FIELD =
-  "w-full min-w-0 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "w-full min-w-0 rounded-lg border border-border bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive";
 
-function Field({ label, optional, wide, children }: { label: string; optional?: boolean; wide?: boolean; children: React.ReactNode }) {
+function Field({
+  label,
+  htmlFor,
+  optional,
+  wide,
+  error,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  optional?: boolean;
+  wide?: boolean;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  const errorId = htmlFor ? `${htmlFor}-error` : undefined;
   return (
-    <label className={`grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5 text-sm ${wide ? "sm:col-span-2" : ""}`}>
-      <span className="font-medium">
+    <div className={`grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5 text-sm ${wide ? "sm:col-span-2" : ""}`}>
+      <label htmlFor={htmlFor} className="font-medium">
         {label}
         {optional ? <span className="font-normal text-muted-foreground"> (optional)</span> : <span className="text-destructive"> *</span>}
-      </span>
+      </label>
       {children}
-    </label>
+      {error ? (
+        <p id={errorId} role="alert" className="text-xs font-medium text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -39,7 +64,7 @@ function Panel({ title, error, onSubmit, children }: { title: string; error: str
     ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, []);
   return (
-    <form ref={ref} onSubmit={onSubmit} className="reveal-in grid scroll-mt-48 grid-cols-[minmax(0,1fr)] gap-4 rounded-xl border border-border bg-card p-5 shadow-(--shadow-lg) sm:grid-cols-2">
+    <form ref={ref} onSubmit={onSubmit} noValidate className="reveal-in grid scroll-mt-48 grid-cols-[minmax(0,1fr)] gap-4 rounded-xl border border-border bg-card p-5 shadow-(--shadow-lg) sm:grid-cols-2">
       <h2 className="font-heading text-lg font-semibold sm:col-span-2">{title}</h2>
       {error ? (
         <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive sm:col-span-2">
@@ -163,8 +188,18 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
   const [permitId, setPermitId] = useState(initialPermitId ?? "");
   const [incidentEvidence, setIncidentEvidence] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<IncidentReportFieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const asDraft = useRef(false);
+
+  function clearFieldError(field: keyof IncidentReportFormValues) {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
 
   useEffect(() => {
     listPermits().then(setPermits, () => setPermits([]));
@@ -192,16 +227,34 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     const submit = !asDraft.current;
-    setSubmitting(true);
     setError(null);
+
+    const validationErrors = validateIncidentReport(
+      {
+        title,
+        description,
+        siteId,
+        workLocationId,
+        occurredAt,
+      },
+      submit,
+    );
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      return;
+    }
+
+    setSubmitting(true);
+    setFieldErrors({});
     try {
       const incident = await createIncident({
         incidentType,
         title: title.trim(),
         description: description.trim(),
         locationDescription: locationDescription.trim() || undefined,
-        siteId,
-        workLocationId,
+        siteId: siteId || undefined,
+        workLocationId: workLocationId || undefined,
         assetIds: assetIds.length ? assetIds : undefined,
         occurredAt: new Date(occurredAt).toISOString(),
         permitIds: permitId ? [permitId] : undefined,
@@ -234,20 +287,70 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
           className="max-w-full self-start overflow-x-auto"
         />
       </div>
-      <Field label="Title" wide>
-        <input required autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Dropped tool from scaffold" className={`h-10 ${FIELD}`} />
+      <Field label="Title" htmlFor="incident-title" wide error={fieldErrors.title}>
+        <input
+          id="incident-title"
+          required
+          autoFocus
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            clearFieldError("title");
+          }}
+          placeholder="Dropped tool from scaffold"
+          aria-invalid={Boolean(fieldErrors.title)}
+          aria-describedby={fieldErrors.title ? "incident-title-error" : undefined}
+          className={`h-10 ${FIELD}`}
+        />
       </Field>
-      <Field label="Description" wide>
-        <textarea required rows={4} value={description} onChange={(e) => setDescription(e.target.value)} className={`py-2 ${FIELD}`} />
+      <Field label="Description" htmlFor="incident-description" wide error={fieldErrors.description}>
+        <textarea
+          id="incident-description"
+          required
+          rows={4}
+          value={description}
+          onChange={(e) => {
+            setDescription(e.target.value);
+            clearFieldError("description");
+          }}
+          aria-invalid={Boolean(fieldErrors.description)}
+          aria-describedby={fieldErrors.description ? "incident-description-error" : undefined}
+          className={`py-2 ${FIELD}`}
+        />
       </Field>
-      <Field label="Site">
-        <AppSelect required value={siteId} onChange={(e) => { setSiteId(e.target.value); setWorkLocationId(""); setAssetIds([]); }} className={`h-10 ${FIELD}`}>
+      <Field label="Site" htmlFor="incident-site" error={fieldErrors.siteId}>
+        <AppSelect
+          id="incident-site"
+          required
+          value={siteId}
+          onChange={(e) => {
+            setSiteId(e.target.value);
+            setWorkLocationId("");
+            setAssetIds([]);
+            clearFieldError("siteId");
+          }}
+          aria-invalid={Boolean(fieldErrors.siteId)}
+          aria-describedby={fieldErrors.siteId ? "incident-site-error" : undefined}
+          className={`h-10 ${FIELD}`}
+        >
           <option value="">Select site</option>
           {sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
         </AppSelect>
       </Field>
-      <Field label="Work location">
-        <AppSelect required value={workLocationId} onChange={(e) => { setWorkLocationId(e.target.value); setAssetIds([]); }} className={`h-10 ${FIELD}`}>
+      <Field label="Work location" htmlFor="incident-work-location" error={fieldErrors.workLocationId}>
+        <AppSelect
+          id="incident-work-location"
+          required
+          value={workLocationId}
+          onChange={(e) => {
+            setWorkLocationId(e.target.value);
+            setAssetIds([]);
+            clearFieldError("workLocationId");
+          }}
+          aria-invalid={Boolean(fieldErrors.workLocationId)}
+          aria-describedby={fieldErrors.workLocationId ? "incident-work-location-error" : undefined}
+          className={`h-10 ${FIELD}`}
+        >
           <option value="">Select work location</option>
           {locations.map((row) => <option key={row.id} value={row.id}>{row.pathText || row.name}</option>)}
         </AppSelect>
@@ -270,8 +373,20 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
           ))}
         </div>
       ) : null}
-      <Field label="When">
-        <input required type="datetime-local" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} className={`h-10 ${FIELD}`} />
+      <Field label="When" htmlFor="incident-occurred-at" error={fieldErrors.occurredAt}>
+        <input
+          id="incident-occurred-at"
+          required
+          type="datetime-local"
+          value={occurredAt}
+          onChange={(e) => {
+            setOccurredAt(e.target.value);
+            clearFieldError("occurredAt");
+          }}
+          aria-invalid={Boolean(fieldErrors.occurredAt)}
+          aria-describedby={fieldErrors.occurredAt ? "incident-occurred-at-error" : undefined}
+          className={`h-10 ${FIELD}`}
+        />
       </Field>
       <Field label="Linked permit" optional wide>
         <AppSelect value={permitId} onChange={(e) => setPermitId(e.target.value)} className={`h-10 ${FIELD}`}>
