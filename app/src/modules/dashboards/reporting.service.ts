@@ -48,6 +48,72 @@ export class ReportingService {
       .orderBy(desc(reportExports.createdAt));
   }
 
+  async delete(reportId: string, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const actorId = requireActorId(user);
+
+    const [report] = await this.db
+      .select()
+      .from(reportExports)
+      .where(and(eq(reportExports.id, reportId), eq(reportExports.tenantId, tenantId)))
+      .limit(1);
+
+    if (!report) {
+      throw new NotFoundException('Report export not found');
+    }
+
+    const isAdmin = (user.roles ?? []).some((role) =>
+      ['tenant-owner', 'tenant-admin', 'platform-admin'].includes(role),
+    );
+    if (report.requestedBy !== actorId && !isAdmin) {
+      throw new ForbiddenException('Not authorized to delete this report');
+    }
+
+    if (report.storageKey) {
+      try {
+        await this.storageService.deleteObject(report.storageKey);
+      } catch (error) {
+        this.logService.logEvent({
+          action: 'dashboard.report-delete-storage-failed',
+          tenantId,
+          userId: actorId,
+          reportId,
+          metadata: {
+            storageKey: report.storageKey,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+    }
+
+    await this.db
+      .delete(reportExports)
+      .where(and(eq(reportExports.id, reportId), eq(reportExports.tenantId, tenantId)));
+
+    this.logService.logEvent({
+      action: 'dashboard.report-deleted',
+      tenantId,
+      userId: actorId,
+      reportId,
+      metadata: { storageKey: report.storageKey },
+    });
+
+    await this.auditService.log({
+      action: 'dashboard.report-deleted',
+      entityType: 'report_export',
+      entityId: reportId,
+      userId: actorId,
+      tenantId,
+      metadata: { storageKey: report.storageKey },
+    });
+
+    return { success: true, id: reportId };
+  }
+
+  async remove(reportId: string, user: AuthenticatedUser) {
+    return this.delete(reportId, user);
+  }
+
   async generate(dto: ReportRequestDto, user: AuthenticatedUser) {
     const tenantId = this.requireTenant(user);
     const actorId = requireActorId(user);

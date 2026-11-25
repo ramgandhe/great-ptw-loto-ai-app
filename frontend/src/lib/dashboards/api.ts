@@ -17,3 +17,8 @@ export function getInsights(days = 90, place?: PlaceQuery) {
 export function getReportView<T>(type: ReportViewType, days = 90, place?: PlaceQuery) {
   return fetchApi<ReportView<T>>(`/reports/view?type=${type}&${placeParams(days, place)}`);
 }
+
+export function deleteReport(id: string) {
+  return fetchApi<{ success: boolean; id: string }>(`/reports/${id}`, { method: "DELETE" });
+}
+
