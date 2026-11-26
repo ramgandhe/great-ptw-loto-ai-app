@@ -48,6 +48,7 @@ export class LototoProcedureService {
   private async resolveTarget(
     tenantId: string,
     dto: { assetId?: string | null; machineryId?: string | null; workLocationId?: string | null },
+    allowUnlinked = false,
   ): Promise<{ assetId: string | null; machineryId: string | null; workLocationId: string | null }> {
     if (dto.assetId || dto.machineryId) {
       const linked = await this.validationService.resolveAssetLink(tenantId, dto);
@@ -57,13 +58,16 @@ export class LototoProcedureService {
       await this.validationService.assertWorkLocationExists(tenantId, dto.workLocationId);
       return { assetId: null, machineryId: null, workLocationId: dto.workLocationId };
     }
+    if (allowUnlinked) {
+      return { assetId: null, machineryId: null, workLocationId: null };
+    }
     throw new BadRequestException('A work location or an asset is required');
   }
 
-  async create(dto: CreateLototoProcedureDto, user: AuthenticatedUser) {
+  async create(dto: CreateLototoProcedureDto, user: AuthenticatedUser, options?: { allowUnlinked?: boolean }) {
     const tenantId = this.validationService.requireTenant(user);
     await this.assertEnergyTypes(tenantId, dto.lockoutPoints);
-    const target = await this.resolveTarget(tenantId, dto);
+    const target = await this.resolveTarget(tenantId, dto, options?.allowUnlinked);
     if (dto.workstationId) {
       await this.validationService.assertWorkstationExists(tenantId, dto.workstationId);
     }
@@ -177,7 +181,12 @@ export class LototoProcedureService {
     return { ...row.version, ...content, procedure: row.procedure };
   }
 
-  async update(id: string, dto: UpdateLototoProcedureDto, user: AuthenticatedUser) {
+  async update(
+    id: string,
+    dto: UpdateLototoProcedureDto,
+    user: AuthenticatedUser,
+    options?: { allowUnlinked?: boolean },
+  ) {
     const tenantId = this.validationService.requireTenant(user);
     await this.assertEnergyTypes(tenantId, dto.lockoutPoints);
     const procedure = await this.requireProcedure(id, tenantId);
@@ -185,7 +194,9 @@ export class LototoProcedureService {
     const target =
       dto.assetId || dto.machineryId || dto.workLocationId
         ? await this.resolveTarget(tenantId, dto)
-        : null;
+        : options?.allowUnlinked
+          ? { assetId: null, machineryId: null, workLocationId: null }
+          : null;
     if (dto.workstationId) {
       await this.validationService.assertWorkstationExists(tenantId, dto.workstationId);
     }
@@ -1027,10 +1038,20 @@ export class LototoProcedureService {
         };
       }),
     );
+    const unassignedPhotos = await Promise.all(
+      photos
+        .filter((row) => !row.lockoutPointId && !row.sequenceStepId)
+        .map(async (photo) => ({
+          id: photo.id,
+          fileName: photo.fileName,
+          url: await this.storageService.presignedGetObject(photo.storageKey, 3600),
+        })),
+    );
     return {
       lockoutPoints: points,
       sequenceSteps: steps,
       authorizedRoles: roles.map((row) => row.role),
+      unassignedPhotos,
     };
   }
 

@@ -15,7 +15,9 @@ import { LototoJobsService } from './lototo-jobs.service';
 import { LototoLogService } from './lototo-log.service';
 import { LototoService } from './lototo.service';
 import { LototoProcedureService } from './lototo-procedure.service';
+import { LototoPdfExtractionModule } from '../lototo-pdf-extraction/lototo-pdf-extraction.module';
 import { LototoProcedureImportService } from './lototo-procedure-import.service';
+import { LototoProcedurePdfImportService } from './lototo-procedure-pdf-import.service';
 import { LototoProcedureTemplateService } from './lototo-procedure-template.service';
 import { IsolationCertificateService } from './isolation-certificate.service';
 import { ZveVerificationService } from './zve-verification.service';
@@ -27,7 +29,7 @@ import { NotificationService } from './notification.service';
 import { SequenceService } from './sequence.service';
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [NotificationsModule, LototoPdfExtractionModule],
   controllers: [
     LototoEnergySourcesController,
     LototoController,
@@ -44,6 +46,7 @@ import { SequenceService } from './sequence.service';
     LototoService,
     LototoProcedureService,
     LototoProcedureImportService,
+    LototoProcedurePdfImportService,
     LototoProcedureTemplateService,
     IsolationCertificateService,
     ZveVerificationService,

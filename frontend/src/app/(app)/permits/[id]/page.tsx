@@ -31,8 +31,8 @@ import { SuspensionDialog } from "@/components/execution/suspension-dialog";
 import { PermitReportDialog, downloadPermitReport } from "@/components/permit/permit-report-dialog";
 import { CalendarClock, FileText, LockKeyhole, Pencil, Printer } from "lucide-react";
 import { PersonalLocks } from "@/components/lototo/personal-locks";
-import { certificateStatusLabel } from "@/lib/lototo/certificates";
-import { CERTIFICATE_WRITE_ROLES } from "@/lib/auth/roles";
+import { certificateStatusLabel, isolationIsRestored } from "@/lib/lototo/certificates";
+import { CERTIFICATE_WRITE_ROLES, NAV_LOTOTO_ROLES } from "@/lib/auth/roles";
 import { cn } from "@/lib/utils";
 import { formatRelative, formatWindow } from "@/lib/format";
 import { safetyVetoPermit } from "@/lib/approval/api";
@@ -121,7 +121,13 @@ function PermitWorkspace() {
   }
 
   const { permit } = detail;
-  const restorationPending = permit.status === "execution_completed" && permit.lototoRequired === true && permit.lototoRestored !== true;
+  const isolationCertificates = detail.isolationCertificates ?? [];
+  const canOpenIsolation = hasAnyRole(roles, NAV_LOTOTO_ROLES);
+  const isolationsRestored = isolationCertificates.length > 0 && isolationCertificates.every((certificate) => isolationIsRestored(certificate.status));
+  const visibleIsolationCertificates = canOpenIsolation
+    ? isolationCertificates
+    : isolationCertificates.filter((certificate) => !isolationIsRestored(certificate.status));
+  const restorationPending = permit.status === "execution_completed" && permit.lototoRequired === true && permit.lototoRestored !== true && !isolationsRestored;
   const tabs = workspaceTabs(permit.status, roles, { restorationPending });
   const requested = searchParams.get("tab") as WorkspaceTab | null;
   // A link to a tab that has nothing for this person (or this status) lands on the Overview.
@@ -333,14 +339,13 @@ function PermitWorkspace() {
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="grid min-w-0 gap-5">
             <PermitJourney id={permit.id} part="now" />
-            {(detail.isolationCertificates ?? []).length > 0 ? (
+            {visibleIsolationCertificates.length > 0 ? (
               <section aria-label="Isolations" className="grid gap-3 rounded-[10px] border border-border bg-card p-5">
                 <h2 className="text-sm font-semibold">Isolations</h2>
-                {(detail.isolationCertificates ?? []).map((certificate) => {
+                {visibleIsolationCertificates.map((certificate) => {
                   const verified =
                     certificate.status === "isolated_verified" || certificate.status === "sanction_for_test";
-                  const restoring =
-                    certificate.status === "restoration_in_progress" || certificate.status === "restored_verified";
+                  const restoring = certificate.status === "restoration_in_progress";
                   const workDone =
                     permit.status === "execution_completed" ||
                     permit.status === "pending_closure" ||
@@ -360,15 +365,17 @@ function PermitWorkspace() {
                         <p className="text-sm text-muted-foreground">
                           {certificate.title} · {certificateStatusLabel(certificate.status)}
                         </p>
-                        {verified ? (
+                        {verified && canOpenIsolation ? (
                           <p className="mt-1 text-sm">
                             Apply steps are already passed on this isolation. Add your personal lock before you work, and take it off when you are clear.
                           </p>
                         ) : null}
                       </div>
-                      <Link href={`/lototo/certificates/${certificate.id}`} className={buttonVariants({ size: "lg" })}>
-                        {actionLabel}
-                      </Link>
+                      {canOpenIsolation ? (
+                        <Link href={`/lototo/certificates/${certificate.id}`} className={buttonVariants({ size: "lg" })}>
+                          {actionLabel}
+                        </Link>
+                      ) : null}
                     </div>
                     <PersonalLocks
                       certificateId={certificate.id}
@@ -386,7 +393,9 @@ function PermitWorkspace() {
                 <p>
                   {restorationPending
                     ? "1) Verify completion. 2) Restore energy / remove personal locks in LOTOTO. 3) Request close. 4) Approver closes."
-                    : "1) Verify completion. 2) Request close (plant may stay isolated until restored in LOTOTO). 3) Approver closes."}
+                    : isolationsRestored && !canOpenIsolation
+                      ? "1) Verify completion. 2) Request close. 3) Approver closes."
+                      : "1) Verify completion. 2) Request close (plant may stay isolated until restored in LOTOTO). 3) Approver closes."}
                 </p>
               </div>
             ) : null}

@@ -5,6 +5,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PermitLototoExecution } from "@/components/permit/lototo-execution";
 import { certificateStatusLabel } from "@/lib/lototo/certificates";
+import { useAuthProfile } from "@/lib/auth/auth-profile-context";
+import { hasAnyRole } from "@/lib/auth/rbac";
+import { NAV_LOTOTO_ROLES } from "@/lib/auth/roles";
 import type { PermitDetail } from "@/lib/permit/types";
 import type { HazardRecord } from "@/lib/master-data/api";
 import type { PermitFormState } from "@/lib/permit/types";
@@ -58,6 +61,8 @@ export function StartExecutionSteps({
   onSuspend?: () => void;
 }) {
   const [step, setStep] = useState(0);
+  const { roles } = useAuthProfile();
+  const canOpenIsolation = hasAnyRole(roles, NAV_LOTOTO_ROLES);
   const lototoRequired = Boolean(detail.permit.lototoRequired);
   const gasRequired = Boolean(detail.permit.gasTestingRequired);
 
@@ -192,9 +197,13 @@ export function StartExecutionSteps({
               <ul className="grid gap-1">
                 {certificates.map((certificate) => (
                   <li key={certificate.id}>
-                    <Link href={`/lototo/certificates/${certificate.id}`} className="underline">
-                      {certificate.certificateNumber}
-                    </Link>
+                    {canOpenIsolation ? (
+                      <Link href={`/lototo/certificates/${certificate.id}`} className="underline">
+                        {certificate.certificateNumber}
+                      </Link>
+                    ) : (
+                      <span>{certificate.certificateNumber}</span>
+                    )}
                     {" · "}
                     {certificateStatusLabel(certificate.status)}
                   </li>

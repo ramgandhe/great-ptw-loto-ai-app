@@ -3,6 +3,7 @@ import {
   index,
   date,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -487,5 +488,40 @@ export const lototoProcedureInspections = pgTable(
   (table) => [
     index('lototo_procedure_inspections_procedure_id_idx').on(table.procedureId),
     index('lototo_procedure_inspections_tenant_id_idx').on(table.tenantId),
+  ],
+);
+
+export const LOTOTO_PDF_IMPORT_STATUSES = [
+  'queued',
+  'extracting',
+  'interpreting',
+  'awaiting_override',
+  'creating_draft',
+  'completed',
+  'failed',
+  'cancelled',
+] as const;
+
+export const lototoProcedurePdfImportJobs = pgTable(
+  'lototo_procedure_pdf_import_jobs',
+  {
+    ...auditColumns,
+    tenantId: uuid('tenant_id').notNull(),
+    status: varchar('status', { length: 32 }).notNull().default('queued'),
+    fileName: varchar('file_name', { length: 255 }).notNull(),
+    storageBucket: varchar('storage_bucket', { length: 128 }).notNull(),
+    storageKey: varchar('storage_key', { length: 512 }).notNull(),
+    confirmOverride: boolean('confirm_override').notNull().default(false),
+    procedureId: uuid('procedure_id'),
+    extractionResult: jsonb('extraction_result').$type<Record<string, unknown>>(),
+    warnings: jsonb('warnings').$type<unknown[]>().notNull().default([]),
+    errors: jsonb('errors').$type<unknown[]>().notNull().default([]),
+    actor: jsonb('actor').$type<Record<string, unknown>>().notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('lototo_pdf_import_jobs_tenant_id_idx').on(table.tenantId),
+    index('lototo_pdf_import_jobs_status_idx').on(table.status),
+    index('lototo_pdf_import_jobs_expires_at_idx').on(table.expiresAt),
   ],
 );

@@ -7,6 +7,9 @@ export const LOTOTO_OPTIONS_WRITE_ROLES = [
 /** Procedure Excel template download + import (tenant configurers). */
 export const LOTOTO_PROCEDURE_IMPORT_ROLES = [...LOTOTO_OPTIONS_WRITE_ROLES] as const;
 
+export const LOTOTO_PROCEDURE_PDF_IMPORT_JOB = 'lototo.procedure.pdf_import';
+export const LOTOTO_PROCEDURE_PDF_IMPORT_CLEANUP_JOB = 'lototo.procedure.pdf_import_cleanup';
+
 export const LOTOTO_WRITE_ROLES = [
   'permit-approver',
   'tenant-owner', 'tenant-admin',

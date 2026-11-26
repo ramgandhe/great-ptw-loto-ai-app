@@ -21,7 +21,7 @@ import {
   LOTOTO_IMPORT_MAX_BYTES,
   parseLototoProcedureWorkbook,
 } from './lototo-procedure-excel.parser';
-import type { LototoImportOverrideWarning } from './lototo-procedure-import.types';
+import type { LototoImportOverrideWarning, ParsedLototoProcedureImport } from './lototo-procedure-import.types';
 import { LototoProcedureService } from './lototo-procedure.service';
 import { LototoValidationService } from './lototo-validation.service';
 
@@ -40,8 +40,6 @@ export class LototoProcedureImportService {
     user: AuthenticatedUser,
   ) {
     this.assertFile(file);
-    const tenantId = this.validationService.requireTenant(user);
-
     const { parsed, errors } = await parseLototoProcedureWorkbook(file.buffer);
     if (!parsed || errors.length > 0) {
       throw new BadRequestException({
@@ -51,15 +49,35 @@ export class LototoProcedureImportService {
       });
     }
 
+    const committed = await this.importParsed(parsed, confirmOverride, user);
+    return committed.procedure;
+  }
+
+  async importParsed(
+    parsed: ParsedLototoProcedureImport,
+    confirmOverride: boolean,
+    user: AuthenticatedUser,
+    options?: { softMasterData?: boolean },
+  ) {
+    const tenantId = this.validationService.requireTenant(user);
     const resolved = await this.resolveMasterData(tenantId, parsed);
-    if (resolved.errors.length > 0) {
+    if (resolved.errors.length > 0 && !options?.softMasterData) {
       throw new BadRequestException({
         message: 'LOTOTO procedure Excel validation failed',
         error: 'VALIDATION_ERROR',
         details: { errors: resolved.errors },
       });
     }
-
+    const unlinked = Boolean(options?.softMasterData && !resolved.assetId && !resolved.workLocationId);
+    const warnings = options?.softMasterData ? resolved.errors.map(pdfLinkWarning) : [];
+    if (unlinked && warnings.length === 0) {
+      warnings.push({
+        sheet: 'Header',
+        field: 'Asset',
+        code: 'NOT_FOUND',
+        message: 'No asset or work location was read from the PDF. Select a work location or an asset on this draft.',
+      });
+    }
     const dto: CreateLototoProcedureDto = {
       ...parsed.dto,
       assetId: resolved.assetId,
@@ -98,7 +116,7 @@ export class LototoProcedureImportService {
         });
       }
 
-      const result = await this.replaceExisting(existing.id, dto, user);
+      const result = await this.replaceExisting(existing.id, dto, user, unlinked);
       await this.auditService.log({
         action: 'lototo.procedure.import_overridden',
         entityType: 'lototo_procedure',
@@ -107,10 +125,10 @@ export class LototoProcedureImportService {
         tenantId,
         metadata: { code: dto.code },
       });
-      return result;
+      return { procedure: result, warnings };
     }
 
-    const created = await this.procedureService.create(dto, user);
+    const created = await this.procedureService.create(dto, user, unlinked ? { allowUnlinked: true } : undefined);
     await this.auditService.log({
       action: 'lototo.procedure.imported',
       entityType: 'lototo_procedure',
@@ -119,7 +137,7 @@ export class LototoProcedureImportService {
       tenantId,
       metadata: { code: dto.code },
     });
-    return created;
+    return { procedure: created, warnings };
   }
 
   private assertFile(file: UploadedFilePayload | undefined): asserts file is UploadedFilePayload {
@@ -175,7 +193,12 @@ export class LototoProcedureImportService {
     return row;
   }
 
-  private async replaceExisting(procedureId: string, dto: CreateLototoProcedureDto, user: AuthenticatedUser) {
+  private async replaceExisting(
+    procedureId: string,
+    dto: CreateLototoProcedureDto,
+    user: AuthenticatedUser,
+    clearLinks = false,
+  ) {
     const detail = await this.procedureService.get(procedureId, user);
     if (!detail.draftVersion) {
       await this.procedureService.createRevision(procedureId, user);
@@ -201,6 +224,7 @@ export class LototoProcedureImportService {
         authorizedRoles: [],
       },
       user,
+      clearLinks ? { allowUnlinked: true } : undefined,
     );
   }
 
@@ -271,4 +295,16 @@ export class LototoProcedureImportService {
 
     return { assetId, workLocationId, errors };
   }
+}
+
+function pdfLinkWarning(error: { sheet: string; field: string; message: string; code: string }) {
+  const named = error.message.match(/^(Asset|Work location) code (.+) (not found for this tenant|is ambiguous across sites)$/);
+  if (!named) return error;
+  const kind = named[1];
+  const code = named[2];
+  const missing = named[3] === 'not found for this tenant';
+  const message = missing
+    ? `${kind} "${code}" is not in this organisation. Select the ${kind === 'Asset' ? 'asset' : 'work location'} on this draft.`
+    : `${kind} "${code}" matches more than one site. Select the correct ${kind === 'Asset' ? 'asset' : 'work location'} on this draft.`;
+  return { ...error, message };
 }

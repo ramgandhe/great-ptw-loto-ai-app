@@ -146,6 +146,7 @@ export type LototoProcedureVersion = {
   lockoutPoints: LototoLockoutPoint[];
   sequenceSteps: LototoSequenceStep[];
   authorizedRoles: string[];
+  unassignedPhotos?: { id: string; fileName: string; url: string }[];
 };
 
 export type LototoProcedureInspection = {

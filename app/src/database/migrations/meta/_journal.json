@@ -848,6 +848,13 @@
       "when": 1797500000000,
       "tag": "0117_safe_work_permit_work_location",
       "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1797600000000,
+      "tag": "0118_lototo_procedure_pdf_import_jobs",
+      "breakpoints": true
     }
   ]
 }

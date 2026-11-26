@@ -5,6 +5,7 @@ import {
   Injectable,
   Optional,
 } from '@nestjs/common';
+import { requireActorId } from '../../common/helpers/require-actor-id';
 import { eq } from 'drizzle-orm';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { KeycloakAdminService } from '../../infrastructure/keycloak/keycloak-admin.service';
@@ -166,6 +167,49 @@ export class VerificationService {
       .where(eq(permitVerifications.permitId, permitId));
 
     return verification ? this.serializeVerification(verification) : null;
+  }
+
+  /** The receiver asks the operator assigned on this permit to restore an isolation that is still open. */
+  async requestRestoration(permitId: string, user: AuthenticatedUser) {
+    const tenantId = this.requireTenant(user);
+    const detail = await this.permitService.findOne(permitId, user);
+    if (detail.permit.status !== EXECUTION_COMPLETED_STATUS) {
+      throw new ConflictException('Ask for restoration only while this permit is ready to close');
+    }
+    const open = detail.isolationCertificates.filter(
+      (certificate) => certificate.status !== 'restored_verified' && certificate.status !== 'closed',
+    );
+    if (open.length === 0) {
+      throw new ConflictException('Isolation is already restored');
+    }
+    const actorId = requireActorId(user);
+    const recipients = [
+      ...new Set(detail.executors.map((row) => row.workforceUserId).filter((id) => id && id !== actorId)),
+    ];
+    if (recipients.length === 0) {
+      throw new ConflictException('No operator is assigned on this permit');
+    }
+    if (!this.inbox) {
+      throw new ConflictException('Notifications are unavailable');
+    }
+    const numbers = open.map((certificate) => certificate.certificateNumber).join(', ');
+    const name = detail.permit.reference
+      ? `${detail.permit.reference}: ${detail.permit.title}`
+      : detail.permit.title;
+    const single = open.length === 1 ? open[0] : null;
+    const result = await this.inbox.generateSystem(tenantId, actorId, {
+      eventType: 'task_reminder',
+      category: 'workflow',
+      priority: 'high',
+      title: `Restore ${numbers}`,
+      body: `${name} is ready to close. Restore ${numbers}. The receiver can close without that restoration.`,
+      recipientUserIds: recipients,
+      entityType: single ? 'isolation_certificate' : 'permit',
+      entityId: single ? single.id : permitId,
+      dedupeKey: `${tenantId}:permit:${permitId}:restore_request`,
+      sourceModule: 'closure',
+    });
+    return { notified: true, alreadySent: result.deduplicated };
   }
 
   private assertChecklistComplete(dto: VerificationDto) {

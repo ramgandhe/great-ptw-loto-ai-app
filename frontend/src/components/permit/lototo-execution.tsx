@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
+import { hasAnyRole } from "@/lib/auth/rbac";
+import { NAV_LOTOTO_ROLES } from "@/lib/auth/roles";
 import {
   confirmPermitLototoPhase,
   getPermitLototoExecution,
@@ -29,7 +31,7 @@ export function PermitLototoExecution({
   reloadKey?: string;
   onBoardChange?: (board: PermitLototoExecutionBoard) => void;
 }) {
-  const { profile } = useAuthProfile();
+  const { profile, roles } = useAuthProfile();
   const [board, setBoard] = useState<PermitLototoExecutionBoard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -61,6 +63,9 @@ export function PermitLototoExecution({
   const canWrite = board.permitStatus === "approved" || board.permitStatus === "active";
   const canRestore = board.permitStatus === "execution_completed" || board.permitStatus === "pending_closure";
   const phase: "apply" | "remove" = canRestore ? "remove" : "apply";
+  if (!hasAnyRole(roles, NAV_LOTOTO_ROLES) && canRestore && board.restored) {
+    return null;
+  }
 
   async function run(key: string, work: () => Promise<PermitLototoExecutionBoard>) {
     setBusy(key);

@@ -14,6 +14,7 @@ import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
 import { LOTOTO_LIBRARY_WRITE_ROLES, LOTOTO_PROCEDURE_IMPORT_ROLES } from "@/lib/auth/roles";
 import { ProcedureExcelImport } from "@/components/lototo/procedure-excel-import";
+import { ProcedurePdfImport } from "@/components/lototo/procedure-pdf-import";
 import { energySourceChoices, useEnergySourceOptions } from "@/lib/lototo/energy-sources";
 import { energyLevelHint, ISOLATION_METHODS, proofsForEnergy } from "@/lib/lototo/point-fields";
 import {
@@ -231,6 +232,7 @@ export function LototoProcedureEditor({
     authorizedRoles: [],
   });
   const [error, setError] = useState<string | null>(null);
+  const [reviewNotes, setReviewNotes] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(procedureId));
   const [saving, setSaving] = useState(false);
 
@@ -265,6 +267,11 @@ export function LototoProcedureEditor({
       .then((row) => {
         setDetail(row);
         setForm(fromProcedure(row));
+        const notes = sessionStorage.getItem(`lototo-pdf-warnings:${row.id}`);
+        if (notes) {
+          sessionStorage.removeItem(`lototo-pdf-warnings:${row.id}`);
+          setReviewNotes(notes);
+        }
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Procedure could not be loaded."))
       .finally(() => setLoading(false));
@@ -449,7 +456,13 @@ export function LototoProcedureEditor({
         }
       />
 
-      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p role="alert" className="whitespace-pre-wrap text-sm text-destructive">{error}</p> : null}
+      {reviewNotes ? (
+        <section role="status" className="rounded-lg border border-border bg-muted/50 p-3 text-sm">
+          <p className="font-medium">Fix these on the draft</p>
+          <p className="mt-2 whitespace-pre-wrap">{reviewNotes}</p>
+        </section>
+      ) : null}
       {detail?.publishedVersion ? (
         <p className="text-sm text-muted-foreground">
           Published v{detail.publishedVersion.versionNumber}
@@ -458,7 +471,26 @@ export function LototoProcedureEditor({
         </p>
       ) : null}
 
-      {canImport ? <ProcedureExcelImport /> : null}
+      {canImport ? (
+        <>
+          <ProcedureExcelImport />
+          <ProcedurePdfImport />
+        </>
+      ) : null}
+      {detail?.draftVersion?.unassignedPhotos?.length ? (
+        <section className="rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold">Unassigned photos</h2>
+          <p className="mt-1 text-sm text-muted-foreground">These came from the PDF and still need a point or step.</p>
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            {detail.draftVersion.unassignedPhotos.map((photo) => (
+              <li key={photo.id} className="text-sm">
+                <img src={photo.url} alt={photo.fileName} className="mb-1 max-h-40 rounded-lg border border-border" />
+                {photo.fileName}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
         <h2 className="text-sm font-semibold sm:col-span-2">Procedure</h2>

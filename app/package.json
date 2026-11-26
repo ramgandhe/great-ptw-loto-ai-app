@@ -15,7 +15,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/database/migrate.ts",
     "db:reset": "tsx src/database/reset.ts",
-    "db:seed": "tsx src/database/seed.ts"
+    "db:seed": "tsx src/database/seed.ts",
+    "postinstall": "node ../scripts/fix-multer-type-is.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.12",
@@ -36,6 +37,7 @@
     "jwks-rsa": "^3.2.0",
     "minio": "^8.0.5",
     "multer": "^2.5.0",
+    "mupdf": "^1.28.6",
     "nestjs-pino": "^4.3.0",
     "nodemailer": "^10.4.0",
     "passport": "^0.7.0",

@@ -29,6 +29,12 @@ export class ClosureController {
   }
 
   @Roles(...CLOSURE_VERIFY_ROLES)
+  @Post(':id/request-restoration')
+  requestRestoration(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.verificationService.requestRestoration(id, user);
+  }
+
+  @Roles(...CLOSURE_VERIFY_ROLES)
   @Post(':id/verify')
   verify(
     @Param('id', ParseUUIDPipe) id: string,

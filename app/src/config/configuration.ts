@@ -128,6 +128,17 @@ export default () => ({
   lototo: {
     cacheTtlSeconds: parseInt(process.env.LOTOTO_CACHE_TTL_SECONDS ?? '300', 10),
     planningReminderCron: process.env.LOTOTO_PLANNING_REMINDER_CRON ?? '0 8 * * *',
+    pdfImport: {
+      maxBytes: parseInt(process.env.LOTOTO_PDF_IMPORT_MAX_BYTES ?? String(20 * 1024 * 1024), 10),
+      ttlHours: parseInt(process.env.LOTOTO_PDF_IMPORT_TTL_HOURS ?? '24', 10),
+      cleanupCron: process.env.LOTOTO_PDF_IMPORT_CLEANUP_CRON ?? '15 * * * *',
+      llmBaseUrl: process.env.LOTOTO_PDF_LLM_BASE_URL ?? 'https://integrate.api.nvidia.com/v1',
+      llmApiKey: process.env.LOTOTO_PDF_LLM_API_KEY || process.env.NVIDIA_API_KEY || '',
+      llmModel:
+        process.env.LOTOTO_PDF_LLM_MODEL ?? 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
+      llmTimeoutMs: parseInt(process.env.LOTOTO_PDF_LLM_TIMEOUT_MS ?? '120000', 10),
+      llmMaxTokens: parseInt(process.env.LOTOTO_PDF_LLM_MAX_TOKENS ?? '8192', 10),
+    },
   },
   isolation: {
     cacheTtlSeconds: parseInt(process.env.ISOLATION_CACHE_TTL_SECONDS ?? '300', 10),

@@ -14,7 +14,10 @@ import { formatDateTime, formatWindow } from "@/lib/format";
 import { loadLookups, nameOf, type Lookups } from "@/lib/lookups";
 import { PermitStatusBadge } from "./permit-status-badge";
 import { cn } from "@/lib/utils";
-import { certificateStatusLabel } from "@/lib/lototo/certificates";
+import { certificateStatusLabel, isolationIsRestored } from "@/lib/lototo/certificates";
+import { useAuthProfile } from "@/lib/auth/auth-profile-context";
+import { hasAnyRole } from "@/lib/auth/rbac";
+import { NAV_LOTOTO_ROLES } from "@/lib/auth/roles";
 
 type Catalogues = {
   hazards: Map<string, HazardRecord>;
@@ -191,6 +194,7 @@ export function PermitSummary({
   singleColumn = false,
   additionalSections = [],
   certificates = [],
+  hideLototo = false,
 }: {
   form: PermitFormState;
   status?: string;
@@ -202,9 +206,18 @@ export function PermitSummary({
   singleColumn?: boolean;
   additionalSections?: { id: string; label: string }[];
   certificates?: Array<{ id: string; certificateNumber: string; title: string; status: string }>;
+  /** Receiver closure request after isolation is restored: leave the isolation off that request. */
+  hideLototo?: boolean;
   /** Pages that already show the title, reference and status pass false to avoid repeating them. */
   showHeader?: boolean;
 }) {
+  const { roles } = useAuthProfile();
+  const canOpenIsolation = hasAnyRole(roles, NAV_LOTOTO_ROLES);
+  const visibleCertificates = canOpenIsolation
+    ? certificates
+    : certificates.filter((certificate) => !isolationIsRestored(certificate.status));
+  const lototoRestoredForViewer =
+    hideLototo || (!canOpenIsolation && certificates.length > 0 && visibleCertificates.length === 0);
   const [lookups, setLookups] = useState<Lookups | null>(null);
   const [catalogues, setCatalogues] = useState<Catalogues | null>(null);
   const [lototoVersions, setLototoVersions] = useState<Record<string, LototoProcedureVersion>>({});
@@ -293,7 +306,7 @@ export function PermitSummary({
         <nav aria-label="Permit record sections" className="sticky top-16 z-10 -mx-1 flex gap-1 overflow-x-auto rounded-xl border border-border bg-card/95 p-2 shadow-sm backdrop-blur lg:col-span-2 print:hidden">
           {[
             ...recordSections
-              .filter((title) => title !== "Attachments" || attachments.length > 0)
+              .filter((title) => (title !== "Attachments" || attachments.length > 0) && (title !== "LOTOTO" || !lototoRestoredForViewer))
               .map((title) => ({ id: recordSectionId(title), label: title })),
             ...additionalSections,
           ].map(({ id, label }) => (
@@ -495,10 +508,10 @@ export function PermitSummary({
           <span className="text-sm text-muted-foreground">Loading…</span>
         )}
       </Section>
-      <Section kind="lototo" title="LOTOTO" wide>
-        {certificates.length > 0 ? (
+      {lototoRestoredForViewer ? null : <Section kind="lototo" title="LOTOTO" wide>
+        {visibleCertificates.length > 0 ? (
           <ul className="mb-4 grid gap-2">
-            {certificates.map((certificate) => (
+            {visibleCertificates.map((certificate) => (
               <li key={certificate.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3">
                 <div>
                   <p className="font-semibold">{certificate.certificateNumber}</p>
@@ -506,9 +519,11 @@ export function PermitSummary({
                     {certificate.title} · {certificateStatusLabel(certificate.status)}
                   </p>
                 </div>
-                <Link href={`/lototo/certificates/${certificate.id}`} className="text-sm font-semibold text-(--act-do) underline underline-offset-2">
-                  Isolate
-                </Link>
+                {canOpenIsolation ? (
+                  <Link href={`/lototo/certificates/${certificate.id}`} className="text-sm font-semibold text-(--act-do) underline underline-offset-2">
+                    Isolate
+                  </Link>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -641,7 +656,7 @@ export function PermitSummary({
         {form.lototo.some((item) => item.frozenAt) ? (
           <p className="text-xs text-muted-foreground">Procedure content is frozen at approval. Assigned people can still be changed until work starts.</p>
         ) : null}
-      </Section>
+      </Section>}
       <Section kind="gas" title="Gas testing" wide>
         {form.gasTestingRequired ? (
           <div className="grid gap-4">
