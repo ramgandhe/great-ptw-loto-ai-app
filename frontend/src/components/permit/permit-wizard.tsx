@@ -58,7 +58,6 @@ import {
   permitDetailToForm,
   shouldSaveExecutorPayload,
   shouldSaveSafetyApprovalOnly,
-  titleFromScope,
   validateStep,
 } from "@/lib/permit/form";
 import {
@@ -288,10 +287,6 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
   // Values both people changed differently; each needs the person's choice before saving again.
   const [conflicts, setConflicts] = useState<FieldConflict[]>([]);
   const [errors, setErrors] = useState<{ message: string; href?: string; section?: PermitEditorSectionId }[]>([]);
-  // The title follows the scope's first sentence until someone types their own.
-  const [titleEdited, setTitleEdited] = useState(
-    () => Boolean(initialDetail) && initialDetail!.permit.title !== titleFromScope(initialDetail!.permit.workScope ?? ""),
-  );
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [apiError, setApiError] = useState<string | null>(null);
@@ -930,7 +925,6 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         safetyOfficerSiteVisited: false,
         currentStep: 0,
       });
-      setTitleEdited(copy.title !== titleFromScope(copy.workScope));
       setCopiedFrom(source.permit.reference ?? source.permit.title);
       toast("Draft created from permit successfully");
     } catch (error) {
@@ -1573,7 +1567,7 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             </div>
           )}
         </div>
-        <FormField label="Work scope" htmlFor="workScope" hint="What will be done and how. The title below is suggested from its first sentence.">
+        <FormField label="Work scope" htmlFor="workScope" hint="What will be done and how.">
           <textarea
             id="workScope"
             className={`${fieldClassName} min-h-24 py-2`}
@@ -1581,18 +1575,17 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             disabled={!editable(0)}
             onChange={(e) => {
               const workScope = e.target.value;
-              edit((current) => ({ ...current, workScope, title: titleEdited ? current.title : titleFromScope(workScope) }));
+              edit((current) => ({ ...current, workScope }));
             }}
           />
         </FormField>
-        <FormField label="Title" htmlFor="title" error={fieldError("title")} hint={titleEdited ? undefined : "Suggested from the scope. Change it if it does not read well."}>
+        <FormField label="Title" htmlFor="title" error={fieldError("title")}>
           <input
             id="title"
             className={fieldClassName}
             value={form.title}
             disabled={!editable(0)}
             onChange={(e) => {
-              setTitleEdited(true);
               const val = e.target.value;
               edit({ ...form, title: val });
               if (fieldError("title")) {
