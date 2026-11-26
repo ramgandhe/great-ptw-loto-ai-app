@@ -50,7 +50,7 @@ function SiteAttention() {
   if (!data) return <p className="text-sm text-muted-foreground">Loading site figures…</p>;
   const a = data.attention;
   const tiles = [
-    { label: "Work past planned end", value: a.overdueActivePermits, href: "/execution", tone: "danger" as const },
+    { label: "Work past planned end", value: a.overdueActivePermits, href: "/execution?filter=overdue", tone: "danger" as const },
     { label: "Approvals waiting over a day", value: a.approvalsWaitingOverDay, href: "/approvals", tone: "warning" as const },
     { label: "High-severity SIMOPS clashes", value: a.highSeverityConflicts, href: "/simops/conflicts", tone: "danger" as const },
     { label: "Serious incidents open", value: a.criticalIncidentsOpen, href: "/incidents", tone: "danger" as const },
