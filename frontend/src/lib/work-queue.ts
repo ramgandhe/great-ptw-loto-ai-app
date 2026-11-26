@@ -181,7 +181,8 @@ export function buildWorkQueue(
       case "approved": {
         const released = Boolean(permit.executionReleasedAt);
         const isReceiver = Boolean(userId && (permit.submittedBy === userId || permit.createdBy === userId));
-        if (!released && isReceiver) {
+        const canRelease = isReceiver || privileged;
+        if (!released && canRelease) {
           add("release-execution", permit, workspaceHref(permit.id, "work"));
         }
         if (released && canRunPermit(permit)) {

@@ -84,7 +84,7 @@ function waitingOn(detail: PermitDetail, review: ApprovalReview | null, journey:
     case "approved":
       if (!permit.executionReleasedAt) {
         return {
-          who: "Permit receiver",
+          who: "Permit receiver or administrator",
           people: issuer ? [issuer] : [],
           action: "Confirm the site checklist and release the permit for execution",
         };

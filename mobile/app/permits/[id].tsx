@@ -93,7 +93,7 @@ export default function PermitDetailScreen() {
   const executable = ["approved", "active", "suspended"].includes(status);
   const released = Boolean(permit.executionReleasedAt);
   const isReceiver = Boolean(userId && (permit.submittedBy === userId || permit.createdBy === userId));
-  const assigned = Boolean(userId && detail.executors.some((row) => row.workforceUserId === userId));
+  const assigned = Boolean(userId && detail?.executors.some((row) => row.workforceUserId === userId));
 
   return (
     <Screen
@@ -111,7 +111,7 @@ export default function PermitDetailScreen() {
             {canEdit ? (
               <Button label={isResubmit ? "Revise and resubmit" : "Edit draft"} icon={Pencil} color={isResubmit ? tokens.action.fix : undefined} onPress={() => router.push(`/permits/${id}/edit`)} />
             ) : null}
-            {status === "approved" && !released && isReceiver ? (
+            {status === "approved" && !released && (isReceiver || privileged) ? (
               <Button label="Release for execution" onPress={() => router.push(`/execution/${id}`)} />
             ) : null}
             {status === "approved" && released && (assigned || privileged) ? (

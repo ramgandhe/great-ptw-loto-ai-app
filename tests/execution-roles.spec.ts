@@ -4,6 +4,7 @@ import { RolesGuard } from '../app/src/common/guards/roles.guard';
 import {
   EXECUTION_ACTION_ROLES,
   EXECUTION_READ_ROLES,
+  EXECUTION_RELEASE_ROLES,
   EXECUTION_UPDATE_ROLES,
 } from '../app/src/modules/execution/execution.constants';
 import { mockRoleGuardReflector } from './helpers/role-guard-mock';
@@ -62,6 +63,26 @@ describe('Execution role enforcement (PUS-145)', () => {
     mockRoleGuardReflector(getAllAndOverride, EXECUTION_ACTION_ROLES);
 
     expect(() => guard.canActivate(buildContext({ roles: ['permit-receiver'] }))).toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it('allows release roles for execution release endpoint', () => {
+    mockRoleGuardReflector(getAllAndOverride, EXECUTION_RELEASE_ROLES);
+
+    expect(guard.canActivate(buildContext({ roles: ['platform-admin'] }))).toBe(true);
+    expect(guard.canActivate(buildContext({ roles: ['tenant-admin'] }))).toBe(true);
+    expect(guard.canActivate(buildContext({ roles: ['tenant-owner'] }))).toBe(true);
+    expect(guard.canActivate(buildContext({ roles: ['permit-receiver'] }))).toBe(true);
+  });
+
+  it('denies operator or viewer for execution release endpoint', () => {
+    mockRoleGuardReflector(getAllAndOverride, EXECUTION_RELEASE_ROLES);
+
+    expect(() => guard.canActivate(buildContext({ roles: ['permit-operator'] }))).toThrow(
+      ForbiddenException,
+    );
+    expect(() => guard.canActivate(buildContext({ roles: ['viewer'] }))).toThrow(
       ForbiddenException,
     );
   });

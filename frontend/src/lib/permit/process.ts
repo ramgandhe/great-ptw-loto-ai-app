@@ -259,7 +259,7 @@ export const EDGES: ProcessEdge[] = [
   { id: "resubmit-rejected", labelT: 0.3, from: "rejected", to: "pending_approval", label: "Resubmit", actor: "Permit receiver", actions: ["resubmitted"], tone: "forward", bend: -40 },
   { id: "stage", from: "pending_approval", to: "pending_approval", label: "Next stage", actor: "Stage approver", actions: ["stage_advanced"], when: "More stages remain", tone: "forward" },
   { id: "approve", from: "pending_approval", to: "approved", label: "Final approval", actor: "Last-stage approver", actions: ["approved"], tone: "forward" },
-  { id: "release", from: "approved", to: "approved", label: "Release for execution", actor: "Permit receiver", actions: ["execution_released"], when: "Both site checks confirmed", tone: "forward" },
+  { id: "release", from: "approved", to: "approved", label: "Release for execution", actor: "Permit receiver or admin", actions: ["execution_released"], when: "Both site checks confirmed", tone: "forward" },
   { id: "defer", labelT: 0.4, from: "pending_approval", to: "deferred", label: "Defer", actor: "Stage approver", actions: ["deferred"], tone: "back", bend: -40 },
   { id: "reject", labelT: 0.4, from: "pending_approval", to: "rejected", label: "Reject", actor: "Stage approver", actions: ["rejected"], tone: "stop", bend: -40 },
   { id: "activate", from: "approved", to: "active", label: "Start Permit Execution", actor: "Assigned executor", actions: ["activated"], tone: "forward" },

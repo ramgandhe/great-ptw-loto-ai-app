@@ -79,7 +79,8 @@ export function buildWorkQueue(roles: string[], permits: PermitRecord[], approva
       case "approved": {
         const released = Boolean(permit.executionReleasedAt);
         const isReceiver = Boolean(userId && (permit.submittedBy === userId || permit.createdBy === userId));
-        if (!released && isReceiver) add("release-execution", permit, `/execution/${permit.id}`);
+        const canRelease = isReceiver || has(roles, ["tenant-owner", "tenant-admin", "platform-admin"]);
+        if (!released && canRelease) add("release-execution", permit, `/execution/${permit.id}`);
         if (released && has(roles, EXECUTOR)) add("start-work", permit, `/execution/${permit.id}`);
         break;
       }

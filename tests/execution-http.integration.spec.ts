@@ -130,6 +130,8 @@ describe('Execution HTTP integration (PUS-141 / PUS-142 / PUS-143)', () => {
         submittedAt: new Date(),
         submittedBy: executorId,
         createdBy: executorId,
+        executionReleasedAt: new Date(),
+        executionReleasedBy: executorId,
       })
       .returning();
 

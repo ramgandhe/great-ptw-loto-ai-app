@@ -27,6 +27,7 @@ describe('ExecutionService integration (PUS-141)', () => {
   let progressService: ProgressService;
   let evidenceService: EvidenceService;
   let executionCacheService: ExecutionCacheService;
+  let mockInboxService: { generateSystem: jest.Mock };
 
   const issuerId = randomUUID();
   const executorId = randomUUID();
@@ -116,6 +117,15 @@ describe('ExecutionService integration (PUS-141)', () => {
       }),
     } as unknown as PermitService;
 
+    const mockWorkCycleService = {
+      initializeAtSubmit: jest.fn(),
+      assertWorkWrite: jest.fn().mockResolvedValue(undefined),
+    } as never;
+
+    mockInboxService = {
+      generateSystem: jest.fn().mockResolvedValue(undefined),
+    };
+
     executionService = new ExecutionService(
       db,
       permitService,
@@ -128,7 +138,10 @@ describe('ExecutionService integration (PUS-141)', () => {
       permitCacheService,
       executionCacheService,
       executionLogService,
-      { initializeAtSubmit: jest.fn() } as never,
+      mockWorkCycleService,
+      { initializeWorkflow: jest.fn() } as never,
+      { assertClearedForWorkToday: jest.fn().mockResolvedValue(undefined) } as never,
+      mockInboxService as never,
     );
 
     progressService = new ProgressService(
@@ -139,6 +152,8 @@ describe('ExecutionService integration (PUS-141)', () => {
       permitCacheService,
       executionCacheService,
       executionLogService,
+      { noteFromWork: jest.fn().mockResolvedValue(undefined) } as never,
+      mockWorkCycleService,
     );
 
     evidenceService = new EvidenceService(
@@ -150,6 +165,7 @@ describe('ExecutionService integration (PUS-141)', () => {
       permitCacheService,
       executionCacheService,
       executionLogService,
+      mockWorkCycleService,
     );
   });
 
@@ -188,7 +204,39 @@ describe('ExecutionService integration (PUS-141)', () => {
       email: 'outsider@example.com',
     };
 
-    async function createApprovedPermit(status: string = 'approved') {
+    const issuerUser: AuthenticatedUser = {
+      id: issuerId,
+      username: 'permit-receiver',
+      tenantId,
+      roles: ['permit-receiver'],
+      email: 'issuer@example.com',
+    };
+
+    const adminUser: AuthenticatedUser = {
+      id: randomUUID(),
+      username: 'tenant-admin',
+      tenantId,
+      roles: ['tenant-admin'],
+      email: 'admin@example.com',
+    };
+
+    const ownerUser: AuthenticatedUser = {
+      id: randomUUID(),
+      username: 'tenant-owner',
+      tenantId,
+      roles: ['tenant-owner'],
+      email: 'owner@example.com',
+    };
+
+    const platformAdminUser: AuthenticatedUser = {
+      id: randomUUID(),
+      username: 'platform-admin',
+      tenantId,
+      roles: ['platform-admin'],
+      email: 'platform@example.com',
+    };
+
+    async function createApprovedPermit(status: string = 'approved', released = true) {
       const [permit] = await db
         .insert(schema.permits)
         .values({
@@ -202,7 +250,7 @@ describe('ExecutionService integration (PUS-141)', () => {
           submittedAt: new Date(),
           submittedBy: issuerId,
           createdBy: issuerId,
-          ...(status === 'approved'
+          ...(status === 'approved' && released
             ? { executionReleasedAt: new Date(), executionReleaseSiteReady: true, executionReleaseDetailsCorrect: true }
             : {}),
         })
@@ -235,6 +283,10 @@ describe('ExecutionService integration (PUS-141)', () => {
       permitTypeId,
       executorUser,
       outsiderUser,
+      issuerUser,
+      adminUser,
+      ownerUser,
+      platformAdminUser,
       createApprovedPermit,
       activatePermit,
       startOk,
@@ -270,6 +322,89 @@ describe('ExecutionService integration (PUS-141)', () => {
     await expect(
       executionService.activate(permit.id, { start: startOk }, executorUser),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  dbTest('allows tenant admin to release approved permit for execution', async () => {
+    const { adminUser, createApprovedPermit } = testContext();
+    const permit = await createApprovedPermit('approved', false);
+
+    await executionService.releaseForExecution(
+      permit.id,
+      { siteReady: true, detailsCorrect: true },
+      adminUser,
+    );
+
+    const [updated] = await db.select().from(schema.permits).where(eq(schema.permits.id, permit.id));
+    expect(updated.executionReleasedAt).toBeDefined();
+    expect(updated.executionReleasedBy).toBe(adminUser.id);
+
+    // Verify inbox reminder is sent to executors and receiver (submittedBy = issuerId)
+    expect(mockInboxService.generateSystem).toHaveBeenCalledWith(
+      expect.any(String),
+      adminUser.id,
+      expect.objectContaining({
+        title: expect.stringContaining('Released for execution'),
+        recipientUserIds: expect.arrayContaining([issuerId]),
+      }),
+    );
+  });
+
+  dbTest('allows platform admin to release approved permit for execution', async () => {
+    const { platformAdminUser, createApprovedPermit } = testContext();
+    const permit = await createApprovedPermit('approved', false);
+
+    await executionService.releaseForExecution(
+      permit.id,
+      { siteReady: true, detailsCorrect: true },
+      platformAdminUser,
+    );
+
+    const [updated] = await db.select().from(schema.permits).where(eq(schema.permits.id, permit.id));
+    expect(updated.executionReleasedAt).toBeDefined();
+    expect(updated.executionReleasedBy).toBe(platformAdminUser.id);
+  });
+
+  dbTest('allows tenant owner to release approved permit for execution', async () => {
+    const { ownerUser, createApprovedPermit } = testContext();
+    const permit = await createApprovedPermit('approved', false);
+
+    await executionService.releaseForExecution(
+      permit.id,
+      { siteReady: true, detailsCorrect: true },
+      ownerUser,
+    );
+
+    const [updated] = await db.select().from(schema.permits).where(eq(schema.permits.id, permit.id));
+    expect(updated.executionReleasedAt).toBeDefined();
+    expect(updated.executionReleasedBy).toBe(ownerUser.id);
+  });
+
+  dbTest('allows permit receiver (issuer) to release their permit', async () => {
+    const { issuerUser, createApprovedPermit } = testContext();
+    const permit = await createApprovedPermit('approved', false);
+
+    await executionService.releaseForExecution(
+      permit.id,
+      { siteReady: true, detailsCorrect: true },
+      issuerUser,
+    );
+
+    const [updated] = await db.select().from(schema.permits).where(eq(schema.permits.id, permit.id));
+    expect(updated.executionReleasedAt).toBeDefined();
+    expect(updated.executionReleasedBy).toBe(issuerUser.id);
+  });
+
+  dbTest('rejects non-issuer non-privileged user from releasing permit', async () => {
+    const { outsiderUser, createApprovedPermit } = testContext();
+    const permit = await createApprovedPermit('approved', false);
+
+    await expect(
+      executionService.releaseForExecution(
+        permit.id,
+        { siteReady: true, detailsCorrect: true },
+        outsiderUser,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   dbTest('rejects activation when toolbox talk is not ticked', async () => {
