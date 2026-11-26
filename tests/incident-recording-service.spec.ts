@@ -68,6 +68,17 @@ describe('IncidentsService (PUS-186)', () => {
           // first requireIncident / loadDetail hit
           return Promise.resolve([incident]);
         };
+        chain.then = (
+          resolve: (val: unknown) => unknown,
+          reject?: (err: unknown) => unknown,
+        ) =>
+          Promise.resolve([
+            {
+              id: '55555555-5555-4555-8555-555555555555',
+              siteId: '44444444-4444-4444-8444-444444444444',
+              status: 'active',
+            },
+          ]).then(resolve, reject);
         return chain;
       }),
       insert: jest.fn().mockReturnValue({
@@ -118,11 +129,19 @@ describe('IncidentsService (PUS-186)', () => {
       canonicalNotificationService as never,
     );
 
-    return { service, db, auditService, logService, cacheService, selectCall: () => selectCall };
+    return {
+      service,
+      db,
+      auditService,
+      logService,
+      cacheService,
+      canonicalNotificationService,
+      selectCall: () => selectCall,
+    };
   }
 
   it('creates a draft near miss', async () => {
-    const { service, auditService, logService } = buildService({});
+    const { service, auditService, logService, canonicalNotificationService } = buildService({});
     const result = await service.create(
       {
         incidentType: 'near_miss',
@@ -139,6 +158,132 @@ describe('IncidentsService (PUS-186)', () => {
     );
     expect(logService.logEvent).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'incident.created' }),
+    );
+    expect(canonicalNotificationService.fromIncidentReported).not.toHaveBeenCalled();
+  });
+
+  it('creates a submitted incident and notifies safety officers', async () => {
+    const { service, auditService, logService, canonicalNotificationService } = buildService({});
+    const result = await service.create(
+      {
+        incidentType: 'incident',
+        title: 'Workplace injury',
+        description: 'Fell from ladder',
+        occurredAt: '2026-07-31T10:00:00.000Z',
+        siteId: '44444444-4444-4444-8444-444444444444',
+        workLocationId: '55555555-5555-4555-8555-555555555555',
+        submit: true,
+      },
+      user,
+    );
+
+    expect(result.incident).toBeDefined();
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'incident.submitted' }),
+    );
+    expect(logService.logEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'incident.submitted' }),
+    );
+    expect(canonicalNotificationService.fromIncidentReported).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId,
+        actorId: user.id,
+        severityPath: 'accident',
+        reference: 'INC-2026-ABCD',
+      }),
+    );
+  });
+
+  it('submits a draft incident and notifies safety officers', async () => {
+    const draftIncident = {
+      id: '33333333-3333-4333-8333-333333333333',
+      tenantId,
+      status: 'draft',
+      title: 'Near miss draft',
+      description: 'Almost tripped',
+      reference: 'INC-2026-ABCD',
+      severityPath: 'near_miss',
+      siteId: '44444444-4444-4444-8444-444444444444',
+      workLocationId: '55555555-5555-4555-8555-555555555555',
+    };
+    const { service, auditService, canonicalNotificationService } = buildService({
+      incident: draftIncident,
+    });
+
+    const result = await service.submit('33333333-3333-4333-8333-333333333333', user);
+
+    expect(result.incident).toBeDefined();
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'incident.submitted' }),
+    );
+    expect(canonicalNotificationService.fromIncidentReported).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId,
+        incidentId: '33333333-3333-4333-8333-333333333333',
+        actorId: user.id,
+        reference: 'INC-2026-ABCD',
+        severityPath: 'near_miss',
+      }),
+    );
+  });
+
+  it('does not crash create(submit: true) when notification dispatch fails', async () => {
+    const { service, auditService, logService, cacheService, canonicalNotificationService } = buildService({});
+    canonicalNotificationService.fromIncidentReported.mockRejectedValueOnce(
+      new Error('Notification service unreachable'),
+    );
+
+    const result = await service.create(
+      {
+        incidentType: 'near_miss',
+        title: 'Near miss title',
+        description: 'Near miss description',
+        occurredAt: '2026-11-26T10:00:00.000Z',
+        siteId: '44444444-4444-4444-8444-444444444444',
+        workLocationId: '55555555-5555-4555-8555-555555555555',
+        submit: true,
+      },
+      user,
+    );
+
+    expect(result.incident).toBeDefined();
+    expect(cacheService.invalidateIncident).toHaveBeenCalled();
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'incident.notification_failed' }),
+    );
+    expect(logService.logEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'incident.notification_failed' }),
+    );
+  });
+
+  it('does not crash submit() when notification dispatch fails', async () => {
+    const draftIncident = {
+      id: '33333333-3333-4333-8333-333333333333',
+      tenantId,
+      status: 'draft',
+      title: 'Near miss draft',
+      description: 'Almost tripped',
+      reference: 'INC-2026-ABCD',
+      severityPath: 'near_miss',
+      siteId: '44444444-4444-4444-8444-444444444444',
+      workLocationId: '55555555-5555-4555-8555-555555555555',
+    };
+    const { service, auditService, logService, cacheService, canonicalNotificationService } = buildService({
+      incident: draftIncident,
+    });
+    canonicalNotificationService.fromIncidentReported.mockRejectedValueOnce(
+      new Error('Notification write error'),
+    );
+
+    const result = await service.submit('33333333-3333-4333-8333-333333333333', user);
+
+    expect(result.incident).toBeDefined();
+    expect(cacheService.invalidateIncident).toHaveBeenCalled();
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'incident.notification_failed' }),
+    );
+    expect(logService.logEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'incident.notification_failed' }),
     );
   });
 

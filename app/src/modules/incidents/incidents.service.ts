@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -44,6 +45,8 @@ import {
 
 @Injectable()
 export class IncidentsService {
+  private readonly logger = new Logger(IncidentsService.name);
+
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly auditService: AuditService,
@@ -133,6 +136,37 @@ export class IncidentsService {
       userId: actorId,
       metadata: { reference, incidentType: dto.incidentType },
     });
+
+    if (submit) {
+      try {
+        await this.canonicalNotificationService.fromIncidentReported({
+          tenantId,
+          incidentId: row.id,
+          actorId,
+          reference: row.reference,
+          severityPath,
+        });
+      } catch (err) {
+        this.logger.error(
+          `Failed to dispatch incident notification for ${row.id}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        await this.auditService.log({
+          action: 'incident.notification_failed',
+          entityType: 'incident',
+          entityId: row.id,
+          userId: actorId,
+          tenantId,
+          metadata: { error: err instanceof Error ? err.message : String(err) },
+        });
+        this.logService.logEvent({
+          action: 'incident.notification_failed',
+          incidentId: row.id,
+          tenantId,
+          userId: actorId,
+          metadata: { error: err instanceof Error ? err.message : String(err) },
+        });
+      }
+    }
 
     await this.cacheService.invalidateIncident(tenantId, row.id);
     return this.loadDetail(row.id, tenantId);
@@ -270,13 +304,34 @@ export class IncidentsService {
       metadata: { reference: row.reference },
     });
 
-    await this.canonicalNotificationService.fromIncidentReported({
-      tenantId,
-      incidentId: id,
-      actorId,
-      reference: row.reference,
-      severityPath: incident.severityPath,
-    });
+    try {
+      await this.canonicalNotificationService.fromIncidentReported({
+        tenantId,
+        incidentId: id,
+        actorId,
+        reference: row.reference,
+        severityPath: incident.severityPath,
+      });
+    } catch (err) {
+      this.logger.error(
+        `Failed to dispatch incident notification for ${id}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      await this.auditService.log({
+        action: 'incident.notification_failed',
+        entityType: 'incident',
+        entityId: id,
+        userId: actorId,
+        tenantId,
+        metadata: { error: err instanceof Error ? err.message : String(err) },
+      });
+      this.logService.logEvent({
+        action: 'incident.notification_failed',
+        incidentId: id,
+        tenantId,
+        userId: actorId,
+        metadata: { error: err instanceof Error ? err.message : String(err) },
+      });
+    }
 
     await this.cacheService.invalidateIncident(tenantId, id);
     return this.loadDetail(id, tenantId);
