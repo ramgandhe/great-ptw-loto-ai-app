@@ -32,6 +32,14 @@ function gasReadingKey(row: { id: string; gasTestingCatalogueId: string | null }
   return row.gasTestingCatalogueId ?? row.id;
 }
 
+export interface StartExecutionEvidences {
+  toolbox?: File | null;
+  hazards?: Record<string, File | null>;
+  ppes?: Record<string, File | null>;
+  lototo?: File | null;
+  gasMeter?: File | null;
+}
+
 export function StartExecutionSteps({
   permitId,
   detail,
@@ -57,7 +65,7 @@ export function StartExecutionSteps({
   isSubmitting: boolean;
   onChange: (next: ExecutionStartState) => void;
   onSave: () => Promise<void>;
-  onBeginWork: () => Promise<void>;
+  onBeginWork: (evidences?: StartExecutionEvidences) => Promise<void>;
   onPostpone?: () => void;
   onSuspend?: () => void;
 }) {
@@ -121,34 +129,10 @@ export function StartExecutionSteps({
 
   async function goNext() {
     try {
-      if (step === 0 && toolboxEvidence) {
-        await uploadEvidence(permitId, toolboxEvidence, { comment: "Toolbox talk evidence" });
-        setToolboxEvidence(null);
-      } else if (step === 1) {
-        for (const [key, file] of Object.entries(hazardEvidences)) {
-          if (file) {
-            await uploadEvidence(permitId, file, { comment: `Hazard control ${key} evidence` });
-          }
-        }
-        setHazardEvidences({});
-      } else if (step === 2) {
-        for (const [ppeId, file] of Object.entries(ppeEvidences)) {
-          if (file) {
-            await uploadEvidence(permitId, file, { comment: `PPE ${ppeNames.get(ppeId) ?? ppeId} readiness evidence` });
-          }
-        }
-        setPpeEvidences({});
-      } else if (step === 3 && lototoEvidence) {
-        await uploadEvidence(permitId, lototoEvidence, { comment: "LOTOTO verification evidence" });
-        setLototoEvidence(null);
-      } else if (step === 4 && gasMeterPhoto) {
-        await uploadEvidence(permitId, gasMeterPhoto, { comment: "Gas test meter photo" });
-        setGasMeterPhoto(null);
-      }
       await onSave();
       setStep((current) => Math.min(current + 1, STEPS.length - 1));
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Evidence upload failed";
+      const msg = err instanceof ApiError ? err.message : "Failed to save start state";
       toast(msg, "error");
     }
   }
@@ -408,7 +392,19 @@ export function StartExecutionSteps({
             Next
           </Button>
         ) : (
-          <Button type="button" onClick={() => void onBeginWork()} disabled={isSubmitting || !canAdvance}>
+          <Button
+            type="button"
+            onClick={() =>
+              void onBeginWork({
+                toolbox: toolboxEvidence,
+                hazards: hazardEvidences,
+                ppes: ppeEvidences,
+                lototo: lototoEvidence,
+                gasMeter: gasMeterPhoto,
+              })
+            }
+            disabled={isSubmitting || !canAdvance}
+          >
             {isSubmitting ? "Starting..." : "Begin work"}
           </Button>
         )}

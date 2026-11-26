@@ -36,7 +36,7 @@ import { getDayCycle, listDaySecures, listHandovers, listRevalidationHistory } f
 import type { DaySecureRecord, RevalidationHistoryEvent, ShiftHandoverRecord } from "@/lib/multi-day/types";
 import type { WorkCycleSnapshot } from "@/lib/execution/types";
 import { parseExecutionStart, type ExecutionStartState } from "@/lib/execution/start";
-import { StartExecutionSteps } from "@/components/execution/start-execution-steps";
+import { StartExecutionSteps, type StartExecutionEvidences } from "@/components/execution/start-execution-steps";
 import { masterDataApi, type HazardRecord } from "@/lib/master-data/api";
 import type { EvidenceRecord, PermitExecution, ProgressRecord } from "@/lib/execution/types";
 import { getPermit, getPermitLototoExecution } from "@/lib/permit/api";
@@ -213,7 +213,7 @@ export default function PermitExecutionPage() {
       .catch(() => undefined);
   }, [permitId]);
 
-  async function handleActivate() {
+  async function handleActivate(evidences?: StartExecutionEvidences) {
     setIsSubmitting(true);
     setActionError(null);
     try {
@@ -223,6 +223,53 @@ export default function PermitExecutionPage() {
         current ? { ...current, permit: result.permit } : current,
       );
       setExecution(result.execution);
+
+      if (evidences) {
+        if (evidences.toolbox) {
+          try {
+            await uploadEvidence(permitId, evidences.toolbox, { comment: "Toolbox talk evidence" });
+          } catch {
+            // Non-blocking upload error after activation
+          }
+        }
+        if (evidences.hazards) {
+          for (const [key, file] of Object.entries(evidences.hazards)) {
+            if (file) {
+              try {
+                await uploadEvidence(permitId, file, { comment: `Hazard control ${key} evidence` });
+              } catch {
+                // Non-blocking upload error
+              }
+            }
+          }
+        }
+        if (evidences.ppes) {
+          for (const [ppeId, file] of Object.entries(evidences.ppes)) {
+            if (file) {
+              try {
+                await uploadEvidence(permitId, file, { comment: `PPE ${ppeNames.get(ppeId) ?? ppeId} readiness evidence` });
+              } catch {
+                // Non-blocking upload error
+              }
+            }
+          }
+        }
+        if (evidences.lototo) {
+          try {
+            await uploadEvidence(permitId, evidences.lototo, { comment: "LOTOTO verification evidence" });
+          } catch {
+            // Non-blocking upload error
+          }
+        }
+        if (evidences.gasMeter) {
+          try {
+            await uploadEvidence(permitId, evidences.gasMeter, { comment: "Gas test meter photo" });
+          } catch {
+            // Non-blocking upload error
+          }
+        }
+      }
+
       toast("Work started");
       await loadData();
     } catch (err) {
