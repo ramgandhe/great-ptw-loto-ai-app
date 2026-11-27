@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState, ErrorNote, RecordList, RecordRow } from "@/components/safety/record-list";
 import { Button } from "@/components/ui/button";
 import { confirmAction } from "@/components/ui/confirm-dialog";
+import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api";
 import { deleteWithAssignmentConfirm } from "@/lib/confirm-delete";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -36,6 +37,7 @@ function ProcedureLibrary() {
   const [locations, setLocations] = useState<WorkLocationRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     sitesApi.list().then(async (sites) => {
@@ -62,24 +64,32 @@ function ProcedureLibrary() {
 
   async function runAction(id: string, action: "deactivate" | "reactivate" | "delete") {
     setError(null);
+    setBusyId(id);
     try {
       if (action === "deactivate") {
         if (!(await confirmAction("Deactivate this procedure? It will no longer be offered on new permits."))) {
           return;
         }
         await deactivateLototoProcedure(id);
+        toast("Procedure deactivated");
       } else if (action === "reactivate") {
         await reactivateLototoProcedure(id);
+        toast("Procedure reactivated");
       } else {
         const name = rows?.find((row) => row.id === id)?.title ?? "this procedure";
         const ok = await deleteWithAssignmentConfirm(name, (force) =>
           deleteLototoProcedure(id, force).then(() => undefined),
         );
         if (!ok) return;
+        toast("Procedure deleted");
       }
       await reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "That action could not be completed.");
+      const msg = err instanceof ApiError ? err.message : "That action could not be completed.";
+      setError(msg);
+      toast(msg, "error");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -154,17 +164,35 @@ function ProcedureLibrary() {
                 canWrite ? (
                   <div className="flex flex-wrap justify-end gap-1">
                     {row.status === "published" ? (
-                      <Button type="button" variant="ghost" size="sm" onClick={() => void runAction(row.id, "deactivate")}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={Boolean(busyId)}
+                        onClick={() => void runAction(row.id, "deactivate")}
+                      >
                         Deactivate
                       </Button>
                     ) : null}
                     {row.status === "inactive" ? (
-                      <Button type="button" variant="ghost" size="sm" onClick={() => void runAction(row.id, "reactivate")}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={Boolean(busyId)}
+                        onClick={() => void runAction(row.id, "reactivate")}
+                      >
                         Reactivate
                       </Button>
                     ) : null}
                     {row.status !== "published" ? (
-                      <Button type="button" variant="ghost" size="sm" onClick={() => void runAction(row.id, "delete")}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={Boolean(busyId)}
+                        onClick={() => void runAction(row.id, "delete")}
+                      >
                         Delete
                       </Button>
                     ) : null}
