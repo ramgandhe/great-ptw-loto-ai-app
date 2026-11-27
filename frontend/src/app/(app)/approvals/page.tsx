@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api";
 import { listPendingApprovals } from "@/lib/approval/api";
 import type { PendingApprovalItem } from "@/lib/approval/types";
 import { ApprovalCard } from "@/components/approval/approval-card";
+import { AnalyticsBackLink } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 
 export default function ApprovalQueuePage() {
@@ -27,6 +28,7 @@ export default function ApprovalQueuePage() {
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+      <AnalyticsBackLink />
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-heading text-3xl font-bold tracking-tight">Approvals</h1>

@@ -33,8 +33,12 @@ function save() {
 
 const pathOf = (url: string) => url.split("?")[0];
 
+/** Stubs that immediately redirect elsewhere and must not be recorded in history. */
+const REDIRECT_STUBS = /^\/simops\/conflicts$/;
+
 /** Called on every route change with the current path and query. */
 export function recordVisit(url: string) {
+  if (REDIRECT_STUBS.test(pathOf(url))) return;
   const last = trail.at(-1);
   if (last && pathOf(last) === pathOf(url)) {
     // Same page, new filters: remember the latest view of it.
@@ -50,6 +54,53 @@ export function recordVisit(url: string) {
   save();
 }
 
+/** Computes previous page in the trail for the given pathname without hook subscription. */
+export function getPreviousPage(pathname: string): string | null {
+  if (trail.length < 2 || pathOf(trail.at(-1)!) !== pathname) return null;
+  for (let i = trail.length - 2; i >= 0; i--) {
+    const candidate = trail[i];
+    if (!NOT_A_BACK_TARGET.test(pathOf(candidate))) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+/** Returns true if the page was navigated to from an Analytics drill-down. */
+export function isFromAnalytics(pathname: string): boolean {
+  if (pathname === "/analytics") return false;
+  const current = trail.length > 0 && pathOf(trail.at(-1)!) === pathname ? trail.at(-1)! : null;
+  if (current) {
+    try {
+      const search = current.split("?")[1];
+      if (search && new URLSearchParams(search).get("from") === "analytics") return true;
+    } catch {
+      // ignore
+    }
+  }
+  if (typeof window !== "undefined") {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("from") === "analytics") return true;
+    } catch {
+      // ignore
+    }
+  }
+  return false;
+}
+
+/** Hydration-safe hook returning true if the current route was opened from Analytics. */
+export function useIsFromAnalytics(pathname: string): boolean {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => isFromAnalytics(pathname),
+    () => false,
+  );
+}
+
 /**
  * The page the user came from, if it was inside the app. Only when the trail ends on `pathname`:
  * pages outside the app shell (sign-in) are not recorded, so an old trail must not apply to them.
@@ -60,7 +111,7 @@ export function usePreviousPage(pathname: string): string | null {
       listeners.add(l);
       return () => listeners.delete(l);
     },
-    () => (trail.length > 1 && pathOf(trail.at(-1)!) === pathname ? trail.at(-2)! : null),
+    () => getPreviousPage(pathname),
     () => null,
   );
 }
@@ -104,4 +155,4 @@ export function pageLabel(url: string): string {
 }
 
 /** Pages that are steps of a task, not places to return to (a submitted form would reopen). */
-export const NOT_A_BACK_TARGET = /\/(new|edit|execute)$|\/permits\/new/;
+export const NOT_A_BACK_TARGET = /\/(new|edit|execute)$|\/permits\/new|\/simops\/conflicts$/;

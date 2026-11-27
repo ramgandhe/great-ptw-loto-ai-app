@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { ArrowLeft } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { NOT_A_BACK_TARGET, pageLabel, usePreviousPage } from "@/lib/nav-history";
+import { NOT_A_BACK_TARGET, pageLabel, useIsFromAnalytics, usePreviousPage } from "@/lib/nav-history";
 import { cn } from "@/lib/utils";
 
 /**
@@ -28,6 +28,12 @@ export function PageHeader({
   children?: React.ReactNode;
   className?: string;
 }) {
+  const pathname = usePathname();
+  const previous = usePreviousPage(pathname);
+  const fromAnalytics = useFromAnalytics();
+  const analyticsTarget = previous && previous.split("?")[0] === "/analytics" ? previous : "/analytics";
+  const effectiveBack = back ?? (fromAnalytics ? { href: analyticsTarget, label: "Analytics" } : undefined);
+
   // Publish the header's height so table headings can stick right beneath it.
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -51,7 +57,7 @@ export function PageHeader({
         className,
       )}
     >
-      {back ? <BackLink {...back} /> : null}
+      {effectiveBack ? <BackLink {...effectiveBack} /> : null}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <h1 className="flex items-center gap-3 font-heading text-2xl font-semibold tracking-tight sm:text-[1.8rem]">
@@ -70,6 +76,26 @@ export function PageHeader({
   );
 }
 
+/** Returns true if the user navigated to the current page from the Analytics dashboard. */
+export function useFromAnalytics(): boolean {
+  const pathname = usePathname();
+  return useIsFromAnalytics(pathname);
+}
+
+/** Renders a BackLink to Analytics only when the current view was navigated to from Analytics. */
+export function AnalyticsBackLink({ className }: { className?: string }) {
+  const fromAnalytics = useFromAnalytics();
+  const pathname = usePathname();
+  const previous = usePreviousPage(pathname);
+  const analyticsTarget = previous && previous.split("?")[0] === "/analytics" ? previous : "/analytics";
+  if (!fromAnalytics) return null;
+  return (
+    <div className={className}>
+      <BackLink href={analyticsTarget} label="Analytics" />
+    </div>
+  );
+}
+
 /** The one "back" control: a quiet link above the title, same place and wording on every page. */
 /**
  * "← Back to …": returns to the page the user came from inside the app (with its filters),
@@ -78,9 +104,22 @@ export function PageHeader({
 export function BackLink({ href, label }: { href: string; label: string }) {
   const pathname = usePathname();
   const previous = usePreviousPage(pathname);
-  const usePrevious = previous !== null && !NOT_A_BACK_TARGET.test(previous.split("?")[0]) && previous.split("?")[0] !== pathname;
-  const target = usePrevious ? previous : href;
-  const name = usePrevious ? pageLabel(previous) : label;
+  const isAnalyticsBack = label === "Analytics" || href.split("?")[0] === "/analytics";
+
+  let target: string;
+  let name: string;
+
+  if (isAnalyticsBack) {
+    target = previous && previous.split("?")[0] === "/analytics" ? previous : (href || "/analytics");
+    name = "Analytics";
+  } else {
+    const usePrevious =
+      previous !== null &&
+      !NOT_A_BACK_TARGET.test(previous.split("?")[0]) &&
+      previous.split("?")[0] !== pathname;
+    target = usePrevious ? previous : href;
+    name = usePrevious ? pageLabel(previous) : label;
+  }
   return (
     <Link
       href={target}
