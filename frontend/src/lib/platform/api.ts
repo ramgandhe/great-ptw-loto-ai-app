@@ -248,6 +248,18 @@ export const platformDefaultsApi = {
     fetchApi<{ id: string; deleted: boolean }>(`${defaults}/hazards/${id}`, { method: "DELETE" }),
 };
 
+export type PostalLookupResult = {
+  pin: string;
+  state: string;
+  country: string;
+  area?: string;
+};
+
+export const postalLookupApi = {
+  lookup: (pin: string) =>
+    fetchApi<PostalLookupResult>(`/platform/postal-lookup/${encodeURIComponent(pin.trim())}`),
+};
+
 export const industriesApi = {
   list: () => fetchApi<Industry[]>("/platform/industries"),
   create: (body: { name: string; description?: string }) =>

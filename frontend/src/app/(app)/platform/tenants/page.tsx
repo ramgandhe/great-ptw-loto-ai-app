@@ -16,6 +16,7 @@ import {
   accessRequestsApi,
   industriesApi,
   platformTenantsApi,
+  postalLookupApi,
   type AccessRequest,
   type CreatedTenant,
   type Industry,
@@ -79,6 +80,8 @@ export default function PlatformTenantsPage() {
   const [actingId, setActingId] = useState<string | null>(null);
   const [view, setView] = useState<"organisations" | "requests">("organisations");
   const [query, setQuery] = useState("");
+  const [pinLookupLoading, setPinLookupLoading] = useState(false);
+  const [pinLookupError, setPinLookupError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   function loadTenants() {
@@ -149,6 +152,35 @@ export default function PlatformTenantsPage() {
       setError(err instanceof ApiError ? err.message : "Failed to create tenant");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePinLookup(pinValue: string) {
+    const trimmed = pinValue.trim();
+    if (!trimmed) {
+      setPinLookupError(null);
+      return;
+    }
+    setPinLookupLoading(true);
+    setPinLookupError(null);
+    try {
+      const geo = await postalLookupApi.lookup(trimmed);
+      if (geo) {
+        setForm((prev) => {
+          // If the user modified the PIN while the request was in flight, discard stale response
+          if (prev.pin.trim() !== trimmed) return prev;
+          return {
+            ...prev,
+            state: geo.state || prev.state,
+            country: geo.country || prev.country,
+            addressLine2: prev.addressLine2 ? prev.addressLine2 : (geo.area || prev.addressLine2),
+          };
+        });
+      }
+    } catch {
+      setPinLookupError("PIN not found. You can enter State and Country manually.");
+    } finally {
+      setPinLookupLoading(false);
     }
   }
 
@@ -375,14 +407,24 @@ export default function PlatformTenantsPage() {
               />
             </label>
             <label className="grid gap-1.5 text-sm">
-              <span className="font-medium">PIN</span>
+              <span className="font-medium">
+                PIN {pinLookupLoading ? <span className="text-xs text-muted-foreground font-normal">(Looking up…)</span> : null}
+              </span>
               <input
                 required
                 maxLength={32}
                 value={form.pin}
                 className={FIELD_CLASS}
-                onChange={(e) => setForm((prev) => ({ ...prev, pin: e.target.value }))}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm((prev) => ({ ...prev, pin: val }));
+                  if (val.replace(/[\s-]/g, '').length === 6) {
+                    handlePinLookup(val);
+                  }
+                }}
+                onBlur={() => handlePinLookup(form.pin)}
               />
+              {pinLookupError ? <span className="text-xs text-destructive">{pinLookupError}</span> : null}
             </label>
           </div>
           <div className="flex flex-wrap gap-2 sm:col-span-2">
