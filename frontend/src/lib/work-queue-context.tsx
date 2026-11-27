@@ -70,7 +70,7 @@ export function WorkQueueProvider({ children }: { children: React.ReactNode }) {
     const retry = () => setAttempt((n) => n + 1);
     if (!data) return { items: [], permits: [], counts: {}, loaded: false, failed: [], retry };
     const items = buildWorkQueue(roles, data.permits, data.approvals, data.conflicts, data.incidents, Date.now(), profile?.id);
-    return { items, permits: data.permits, counts: workCountsByRoute(items, data.permits), loaded: true, failed: data.failed, retry };
+    return { items, permits: data.permits, counts: workCountsByRoute(items, data.permits, data.conflicts), loaded: true, failed: data.failed, retry };
   }, [data, roles, profile?.id]);
 
   return <WorkQueueContext.Provider value={value}>{children}</WorkQueueContext.Provider>;
