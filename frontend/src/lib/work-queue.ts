@@ -82,7 +82,7 @@ const INCIDENT_HOD_ROLES = ["permit-approver", "tenant-owner", "tenant-admin"];
 const INCIDENT_SAFETY_ROLES = ["safety-officer", "tenant-owner", "tenant-admin"];
 const INVESTIGATION_ROLES = ["safety-officer", "permit-approver", "tenant-owner", "tenant-admin"];
 const SAFETY_OFFICER_ROLES = ["safety-officer"];
-const OPEN_CONFLICT_STATUSES = ["open", "assessed", "mitigation_planned"];
+export const OPEN_CONFLICT_STATUSES = ["open", "assessed", "mitigation_planned"] as const;
 
 function overdueNote(permit: PermitRecord, now: number): string | undefined {
   if (!permit.plannedEndAt) return undefined;
@@ -214,7 +214,9 @@ export function buildWorkQueue(
   }
 
   if (hasAnyRole(roles, SIMOPS_RESOLVE_ROLES)) {
-    for (const conflict of conflicts.filter((c) => OPEN_CONFLICT_STATUSES.includes(c.status))) {
+    for (const conflict of conflicts.filter((c) =>
+      (OPEN_CONFLICT_STATUSES as readonly string[]).includes(c.status),
+    )) {
       items.push({
         key: `resolve-conflict:${conflict.id}`,
         action: "resolve-conflict",
@@ -270,20 +272,34 @@ export function buildWorkQueue(
 export const LIVE_WORK_STATUSES = ["approved", "active", "suspended"] as const;
 
 /** Nav badge counts keyed by nav href. */
-export function workCountsByRoute(items: WorkItem[], permits: PermitRecord[] = []): Record<string, number> {
+export function workCountsByRoute(
+  items: WorkItem[],
+  permits: PermitRecord[] = [],
+  conflicts: SimopsConflict[] = [],
+): Record<string, number> {
   const counts: Record<string, number> = {};
   const bump = (href: string) => (counts[href] = (counts[href] ?? 0) + 1);
   for (const item of items) {
-    if (item.action === "resolve-conflict") bump("/simops");
-    else if (!item.permit) bump("/incidents");
-    // Every permit step (review, drafts, work, closure) is worked from the Permits list.
-    else bump("/permits");
+    if (item.action === "resolve-conflict") {
+      // Counted from the full conflicts entity list below.
+    } else if (!item.permit) {
+      bump("/incidents");
+    } else {
+      // Every permit step (review, drafts, work, closure) is worked from the Permits list.
+      bump("/permits");
+    }
   }
   const liveCount = permits.filter((permit) =>
     (LIVE_WORK_STATUSES as readonly string[]).includes(permit.status),
   ).length;
   if (liveCount > 0) {
     counts["/execution"] = liveCount;
+  }
+  const unresolvedSimopsCount = conflicts.filter((conflict) =>
+    (OPEN_CONFLICT_STATUSES as readonly string[]).includes(conflict.status),
+  ).length;
+  if (unresolvedSimopsCount > 0) {
+    counts["/simops"] = unresolvedSimopsCount;
   }
   return counts;
 }
