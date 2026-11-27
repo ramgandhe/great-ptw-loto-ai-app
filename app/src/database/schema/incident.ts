@@ -34,7 +34,7 @@ export const INCIDENT_STATUSES = [
 ] as const;
 export type IncidentStatus = (typeof INCIDENT_STATUSES)[number];
 
-export const INCIDENT_PRIORITIES = ['low', 'medium', 'high', 'critical'] as const;
+export const INCIDENT_PRIORITIES = ['low', 'medium', 'high'] as const;
 export type IncidentPriority = (typeof INCIDENT_PRIORITIES)[number];
 
 export const incidents = pgTable(

@@ -253,8 +253,8 @@ export function buildWorkQueue(
       href: `/incidents/${incident.id}`,
       title: incident.title,
       reference: incident.reference,
-      meta: `${incident.incidentType.replace(/_/g, " ")}, ${incident.priority} priority`,
-      urgent: incident.priority === "critical" || incident.priority === "high",
+      meta: `${incident.incidentType.replace(/_/g, " ")}, ${incident.priority} severity`,
+      urgent: incident.priority === "high",
     });
   }
 

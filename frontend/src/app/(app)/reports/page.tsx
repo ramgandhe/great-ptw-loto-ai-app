@@ -195,7 +195,7 @@ function ReportsView() {
               />
             </label>
             <MultiToggle
-              label={tab === "permits" ? "Status" : "Priority"}
+              label={tab === "permits" ? "Status" : "Severity"}
               selected={filter}
               onChange={(next) => setParams({ filter: next.join(",") })}
               options={(tab === "permits" ? PERMIT_STAGES : PRIORITIES)
@@ -352,7 +352,7 @@ function ReportsView() {
                       <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                         <span className="rounded-md bg-muted px-1.5 font-mono font-semibold text-foreground">{r.reference}</span>
                         <span>{INCIDENT_TYPES[r.type]?.label ?? formatStatus(r.type)}</span>
-                        <span>{formatStatus(r.priority)} priority</span>
+                        <span>{formatStatus(r.priority)} severity</span>
                         <span>{formatStatus(r.status)}</span>
                         <span>{formatDateTime(r.occurredAt)}</span>
                       </p>
@@ -366,7 +366,7 @@ function ReportsView() {
                       <SortHeader column="reference" label="Reference" sort={sort} onSort={onSort} />
                       <SortHeader column="title" label="Incident" sort={sort} onSort={onSort} />
                       <SortHeader column="type" label="Type" sort={sort} onSort={onSort} />
-                      <SortHeader column="priority" label="Priority" sort={sort} onSort={onSort} />
+                      <SortHeader column="priority" label="Severity" sort={sort} onSort={onSort} />
                       <SortHeader column="status" label="Status" sort={sort} onSort={onSort} />
                       <SortHeader column="date" label="Occurred" sort={sort} onSort={onSort} />
                     </tr>

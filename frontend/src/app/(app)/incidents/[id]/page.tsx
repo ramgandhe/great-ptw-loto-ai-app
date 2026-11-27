@@ -197,7 +197,7 @@ export default function IncidentDetailPage() {
             <span className="font-mono text-xs font-semibold text-foreground">{incident.reference}</span>
             <IncidentStatusBadge status={incident.status} />
             {type ? <StatusChip label={type.label} color={type.color} /> : null}
-            {priority ? <StatusChip label={`${priority.label} priority`} color={priority.color} /> : null}
+            {priority ? <StatusChip label={`${priority.label} severity`} color={priority.color} /> : null}
           </span>
         }
         actions={

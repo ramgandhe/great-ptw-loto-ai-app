@@ -107,7 +107,7 @@ export default function AnalyticsPage() {
               <AttentionTile label="Work past planned end" value={data.attention.overdueActivePermits} href="/execution" tone="danger" />
               <AttentionTile label="Approvals waiting over a day" value={data.attention.approvalsWaitingOverDay} href="/approvals" tone="warning" />
               <AttentionTile label="High-severity SIMOPS clashes" value={data.attention.highSeverityConflicts} href="/simops/conflicts" tone="danger" />
-              <AttentionTile label="Serious incidents open" value={data.attention.criticalIncidentsOpen} href="/incidents" tone="danger" />
+              <AttentionTile label="Serious incidents open" value={data.attention.criticalIncidentsOpen} href="/incidents?priority=high" tone="danger" />
               <AttentionTile label="Corrective actions overdue" value={data.attention.overdueCorrectiveActions} href="/incidents" tone="warning" />
               <AttentionTile label="Suspended permits" value={data.attention.suspendedPermits} href="/permits?view=live&status=suspended" tone="warning" />
             </motion.div>
@@ -198,7 +198,7 @@ export default function AnalyticsPage() {
                   }))}
                 />
               </ChartCard>
-              <ChartCard title="Incidents by priority" insight="Critical and high need an investigator quickly.">
+              <ChartCard title="Incidents by severity" insight="High severity incidents need an investigator quickly.">
                 <SegmentedBar
                   emptyMessage={`No incidents reported in the last ${periodLabel}.`}
                   segments={PRIORITIES.map((p) => ({ ...p, count: data.incidents.byPriority[p.key] ?? 0 }))}
