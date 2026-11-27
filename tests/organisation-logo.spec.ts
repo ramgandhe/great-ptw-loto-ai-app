@@ -44,4 +44,16 @@ describe('organisation logo', () => {
     ).toBe('12 Harbour Road, Kerala, 682001');
     expect(organisationAddress({})).toBeNull();
   });
+
+  it('keeps organisation profile logo helper text decoupled from permit reports (#348)', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const pagePath = path.resolve(__dirname, '../frontend/src/app/(app)/organisation/profile/page.tsx');
+    const content = fs.readFileSync(pagePath, 'utf8');
+
+    // Expected: States only accepted image parameters (formats and size)
+    expect(content).toContain('PNG, JPEG or WebP, up to 2 MB.');
+    // Expected: Report-specific claims removed
+    expect(content).not.toContain('Printed on the first page of a permit report');
+  });
 });
