@@ -46,7 +46,10 @@ export const PERMIT_EDITOR_SECTIONS = [
 ] as const;
 export type PermitEditorSectionId = (typeof PERMIT_EDITOR_SECTIONS)[number]["id"];
 
-/** A short title suggested from the work scope: its first line or sentence, at most 120 characters. */
+/**
+ * A short title suggested from the work scope: its first line or sentence, at most 120 characters.
+ * @deprecated Decoupled under Issue #325 — permit Title and Work Scope are managed independently.
+ */
 export function titleFromScope(scope: string): string {
   const first = scope.trim().split(/\n|(?<=[.!?])\s/)[0]?.trim().replace(/[.!?]+$/, "") ?? "";
   if (first.length <= 120) return first;
