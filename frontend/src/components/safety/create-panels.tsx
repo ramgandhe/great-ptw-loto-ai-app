@@ -1,4 +1,5 @@
 "use client";
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { AppSelect } from "@/components/ui/select";
 
 import { useRouter } from "next/navigation";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { SegmentedToggle } from "@/components/ui/toggle-group";
 import { ApiError } from "@/lib/api";
 import { INCIDENT_TYPES } from "@/lib/analytics/labels";
-import { createIncident } from "@/lib/incidents/api";
+import { createIncident, uploadIncidentEvidence } from "@/lib/incidents/api";
 import type { Incident, IncidentType } from "@/lib/incidents/types";
 import {
   validateIncidentReport,
@@ -185,6 +186,7 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
     return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
   });
   const [permitId, setPermitId] = useState(initialPermitId ?? "");
+  const [incidentEvidence, setIncidentEvidence] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<IncidentReportFieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -258,6 +260,17 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
         permitIds: permitId ? [permitId] : undefined,
         submit,
       });
+      if (incidentEvidence) {
+        try {
+          await uploadIncidentEvidence(incident.id, incidentEvidence, "Initial incident evidence");
+          setIncidentEvidence(null);
+        } catch (uploadErr) {
+          const msg = uploadErr instanceof ApiError ? uploadErr.message : "Failed to upload incident evidence";
+          setError(msg);
+          setSubmitting(false);
+          return;
+        }
+      }
       onCreated(incident, submit);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "The report could not be saved. Try again.");
@@ -389,6 +402,15 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
           ))}
         </AppSelect>
       </Field>
+      <div className="sm:col-span-2">
+        <VerificationEvidenceCapture
+          visible={true}
+          label="Initial incident evidence (photo / report)"
+          file={incidentEvidence}
+          onFileChange={setIncidentEvidence}
+          disabled={submitting}
+        />
+      </div>
       <div className="flex flex-wrap gap-2 sm:col-span-2">
         <Button type="submit" disabled={submitting} onClick={() => (asDraft.current = false)}>
           {submitting ? "Saving…" : "Submit report"}

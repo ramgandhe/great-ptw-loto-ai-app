@@ -1,5 +1,6 @@
 "use client";
 
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { BackLink } from "@/components/layout/page-header";
 import Link from "next/link";
 import { formatDateTime, formatWindow } from "@/lib/format";
@@ -35,7 +36,7 @@ import { getDayCycle, listDaySecures, listHandovers, listRevalidationHistory } f
 import type { DaySecureRecord, RevalidationHistoryEvent, ShiftHandoverRecord } from "@/lib/multi-day/types";
 import type { WorkCycleSnapshot } from "@/lib/execution/types";
 import { parseExecutionStart, type ExecutionStartState } from "@/lib/execution/start";
-import { StartExecutionSteps } from "@/components/execution/start-execution-steps";
+import { StartExecutionSteps, type StartExecutionEvidences } from "@/components/execution/start-execution-steps";
 import { masterDataApi, type HazardRecord } from "@/lib/master-data/api";
 import type { EvidenceRecord, PermitExecution, ProgressRecord } from "@/lib/execution/types";
 import { getPermit, getPermitLototoExecution } from "@/lib/permit/api";
@@ -116,6 +117,7 @@ export default function PermitExecutionPage() {
   const [siteReady, setSiteReady] = useState(false);
   const [detailsCorrect, setDetailsCorrect] = useState(false);
   const [completeComment, setCompleteComment] = useState("");
+  const [completeEvidence, setCompleteEvidence] = useState<File | null>(null);
   const [completeChecklist, setCompleteChecklist] = useState({
     workDescribedComplete: false,
     procedureFollowed: false,
@@ -211,7 +213,7 @@ export default function PermitExecutionPage() {
       .catch(() => undefined);
   }, [permitId]);
 
-  async function handleActivate() {
+  async function handleActivate(evidences?: StartExecutionEvidences) {
     setIsSubmitting(true);
     setActionError(null);
     try {
@@ -221,6 +223,53 @@ export default function PermitExecutionPage() {
         current ? { ...current, permit: result.permit } : current,
       );
       setExecution(result.execution);
+
+      if (evidences) {
+        if (evidences.toolbox) {
+          try {
+            await uploadEvidence(permitId, evidences.toolbox, { comment: "Toolbox talk evidence" });
+          } catch {
+            // Non-blocking upload error after activation
+          }
+        }
+        if (evidences.hazards) {
+          for (const [key, file] of Object.entries(evidences.hazards)) {
+            if (file) {
+              try {
+                await uploadEvidence(permitId, file, { comment: `Hazard control ${key} evidence` });
+              } catch {
+                // Non-blocking upload error
+              }
+            }
+          }
+        }
+        if (evidences.ppes) {
+          for (const [ppeId, file] of Object.entries(evidences.ppes)) {
+            if (file) {
+              try {
+                await uploadEvidence(permitId, file, { comment: `PPE ${ppeNames.get(ppeId) ?? ppeId} readiness evidence` });
+              } catch {
+                // Non-blocking upload error
+              }
+            }
+          }
+        }
+        if (evidences.lototo) {
+          try {
+            await uploadEvidence(permitId, evidences.lototo, { comment: "LOTOTO verification evidence" });
+          } catch {
+            // Non-blocking upload error
+          }
+        }
+        if (evidences.gasMeter) {
+          try {
+            await uploadEvidence(permitId, evidences.gasMeter, { comment: "Gas test meter photo" });
+          } catch {
+            // Non-blocking upload error
+          }
+        }
+      }
+
       toast("Work started");
       await loadData();
     } catch (err) {
@@ -319,10 +368,13 @@ export default function PermitExecutionPage() {
     }
   }
 
-  async function handleSuspend() {
+  async function handleSuspend(file?: File | null) {
     setIsSubmitting(true);
     setSuspendError(null);
     try {
+      if (file) {
+        await uploadEvidence(permitId, file, { comment: "Suspension evidence" });
+      }
       const result = await suspendPermit(permitId, suspendReason);
       setDetail((current) =>
         current ? { ...current, permit: result.permit } : current,
@@ -409,6 +461,9 @@ export default function PermitExecutionPage() {
     setIsSubmitting(true);
     setActionError(null);
     try {
+      if (completeEvidence) {
+        await uploadEvidence(permitId, completeEvidence, { comment: "Execution completion evidence" });
+      }
       const updated = await completeExecution(permitId, {
         comment: completeComment.trim(),
         checklist: {
@@ -418,6 +473,7 @@ export default function PermitExecutionPage() {
         },
       });
       setDetail(updated);
+      setCompleteEvidence(null);
       toast("Execution marked complete");
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Could not complete execution";
@@ -584,14 +640,18 @@ export default function PermitExecutionPage() {
       {isApproved && !released && isReceiver ? (
         <section className="grid gap-3 rounded-xl border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">Release for execution</h2>
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" checked={siteReady} onChange={(event) => setSiteReady(event.target.checked)} />
-            Site is ready for execution
-          </label>
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" checked={detailsCorrect} onChange={(event) => setDetailsCorrect(event.target.checked)} />
-            The approved work, place and people are still correct
-          </label>
+          <div className="grid gap-2">
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={siteReady} onChange={(event) => setSiteReady(event.target.checked)} />
+              Site is ready for execution
+            </label>
+          </div>
+          <div className="grid gap-2">
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={detailsCorrect} onChange={(event) => setDetailsCorrect(event.target.checked)} />
+              The approved work, place and people are still correct
+            </label>
+          </div>
         </section>
       ) : null}
 
@@ -844,6 +904,14 @@ export default function PermitExecutionPage() {
                     placeholder="Completion comments (required)"
                     rows={3}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                  <VerificationEvidenceCapture
+                    visible={Boolean(completeChecklist.workDescribedComplete && completeChecklist.procedureFollowed)}
+                    label="Execution completion photo / closing evidence"
+                    hint="Optional — attach a closing site photo if none uploaded yet"
+                    file={completeEvidence}
+                    onFileChange={setCompleteEvidence}
+                    disabled={isSubmitting || completeOff || workWriteBlocked}
                   />
                   <Button
                     onClick={() => void handleCompleteExecution()}

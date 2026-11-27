@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 
 type SuspensionDialogProps = {
   open: boolean;
@@ -9,7 +10,7 @@ type SuspensionDialogProps = {
   isSubmitting?: boolean;
   error?: string | null;
   onReasonChange: (value: string) => void;
-  onConfirm: () => void;
+  onConfirm: (evidenceFile?: File | null) => void;
   onClose: () => void;
 };
 
@@ -24,6 +25,7 @@ export function SuspensionDialog({
 }: SuspensionDialogProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -56,7 +58,7 @@ export function SuspensionDialog({
         onSubmit={(event) => {
           event.preventDefault();
           if (canConfirm && !isSubmitting) {
-            onConfirm();
+            onConfirm(evidenceFile);
           }
         }}
       >
@@ -83,6 +85,14 @@ export function SuspensionDialog({
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
         </div>
+
+        <VerificationEvidenceCapture
+          visible={true}
+          label="Suspension condition evidence"
+          file={evidenceFile}
+          onFileChange={setEvidenceFile}
+          disabled={isSubmitting}
+        />
 
         {error ? (
           <p role="alert" className="text-sm text-destructive">

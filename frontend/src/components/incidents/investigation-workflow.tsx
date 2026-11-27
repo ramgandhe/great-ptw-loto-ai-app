@@ -9,6 +9,7 @@ import {
   createPreventiveAction,
   recordRootCause,
   updateCorrectiveAction,
+  uploadIncidentEvidence,
 } from "@/lib/incidents/api";
 import type { ActionStatus, InvestigationDetail } from "@/lib/incidents/types";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -20,6 +21,7 @@ import { fieldClassName } from "@/components/permit/form-field";
 import { SelectField } from "@/components/lototo/select-field";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { StatusChip } from "@/components/ui/status-chip";
 import { toast } from "@/components/ui/toast";
 import { validateCorrectiveAction, validatePreventiveAction } from "@/lib/incidents/validation";
@@ -58,6 +60,7 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Props) 
   const [rootCause, setRootCause] = useState("");
   const [corrective, setCorrective] = useState({ title: "", ownerId: "", dueDate: "" });
   const [preventive, setPreventive] = useState({ title: "", ownerId: "", dueDate: "" });
+  const [actionEvidences, setActionEvidences] = useState<Record<string, File | null>>({});
   const [correctiveOwnerError, setCorrectiveOwnerError] = useState<string | null>(null);
   const [preventiveOwnerError, setPreventiveOwnerError] = useState<string | null>(null);
 
@@ -188,7 +191,21 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Props) 
                     <StatusChip {...ACTION_TONE[action.status]} />
                     {canWrite && open ? (
                       <>
-                        <Button size="sm" variant="outline" disabled={busy} onClick={() => void run(() => updateCorrectiveAction(action.id, { status: "completed" }), "Corrective action completed")}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() =>
+                            void run(async () => {
+                              const file = actionEvidences[action.id];
+                              if (file) {
+                                await uploadIncidentEvidence(incidentId, file, `Action "${action.title}" completion evidence`);
+                                setActionEvidences((prev) => ({ ...prev, [action.id]: null }));
+                              }
+                              return updateCorrectiveAction(action.id, { status: "completed" });
+                            }, "Corrective action completed")
+                          }
+                        >
                           Mark complete
                         </Button>
                         <Button
@@ -206,6 +223,17 @@ export function InvestigationWorkflow({ incidentId, detail, onUpdated }: Props) 
                       </>
                     ) : null}
                   </span>
+                  {open ? (
+                    <div className="w-full">
+                      <VerificationEvidenceCapture
+                        visible={true}
+                        label="Corrective action completion evidence"
+                        file={actionEvidences[action.id] ?? null}
+                        onFileChange={(file) => setActionEvidences((prev) => ({ ...prev, [action.id]: file }))}
+                        disabled={busy}
+                      />
+                    </div>
+                  ) : null}
                 </li>
               );
             })}

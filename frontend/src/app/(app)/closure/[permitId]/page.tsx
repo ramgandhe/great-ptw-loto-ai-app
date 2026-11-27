@@ -374,6 +374,7 @@ export default function PermitClosurePage() {
           <VerificationChecklistPanel
             value={checklist}
             disabled={isSubmitting}
+            hasExistingEvidence={(evidence?.length ?? 0) > 0}
             onChange={setChecklist}
           />
           {stageFields}
@@ -441,6 +442,7 @@ export default function PermitClosurePage() {
           <VerificationChecklistPanel
             value={closeChecklist}
             disabled={isSubmitting}
+            hasExistingEvidence={(evidence?.length ?? 0) > 0}
             onChange={setCloseChecklist}
           />
           {stageFields}

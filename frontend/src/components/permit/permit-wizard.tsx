@@ -1,5 +1,6 @@
 "use client";
 import { toast } from "@/components/ui/toast";
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { AppSelect } from "@/components/ui/select";
 
 import { inUse } from "@/components/organisation/org-status-badge";
@@ -818,6 +819,14 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
 
     // Create stores only type, title and scope; this save stores the rest of the form.
     try {
+      if (form.executorSiteVisited && form.executorSiteVisitedEvidence) {
+        await uploadPermitAttachment(id, form.executorSiteVisitedEvidence);
+        edit((current) => ({ ...current, executorSiteVisitedEvidence: null }));
+      }
+      if (form.safetyOfficerSiteVisited && form.safetyOfficerSiteVisitedEvidence) {
+        await uploadPermitAttachment(id, form.safetyOfficerSiteVisitedEvidence);
+        edit((current) => ({ ...current, safetyOfficerSiteVisitedEvidence: null }));
+      }
       const saved = await savePermitDraft(id, { ...payload, expectedRevision: baseRevision });
       setGasNotice(saved.gasChanges && saved.gasChanges.length > 0 ? saved.gasChanges : null);
       setRevision(saved.permit.draftRevision);
@@ -2572,16 +2581,25 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
         ) : null}
 
         {siteSafetyStep === "verification" ? (
-        <label className={safetyParameterClassName}>
-          <input
-            type="checkbox"
-            className="size-4 shrink-0 accent-primary"
-            disabled={!siteEditable}
-            checked={form.executorSiteVisited}
-            onChange={(e) => edit({ ...form, executorSiteVisited: e.target.checked })}
-          />
-          Site visited and verified
-        </label>
+          <div>
+            <label className={safetyParameterClassName}>
+              <input
+                type="checkbox"
+                className="size-4 shrink-0 accent-primary"
+                disabled={!siteEditable}
+                checked={form.executorSiteVisited}
+                onChange={(e) => edit({ ...form, executorSiteVisited: e.target.checked })}
+              />
+              Site visited and verified
+            </label>
+            <VerificationEvidenceCapture
+              visible={Boolean(form.executorSiteVisited)}
+              label="Operator site visit evidence"
+              file={form.executorSiteVisitedEvidence ?? null}
+              onFileChange={(file) => edit({ ...form, executorSiteVisitedEvidence: file })}
+              disabled={!siteEditable}
+            />
+          </div>
         ) : null}
 
         {siteSafetyStep === "notes" ? (
@@ -2737,16 +2755,25 @@ export function PermitWizard({ mode, initialDetail }: PermitWizardProps) {
             <p className="text-sm text-muted-foreground">No safety controls listed on this permit.</p>
           )}
         </div>
-        <label className={safetyParameterClassName}>
-          <input
-            type="checkbox"
-            className="size-4 shrink-0 accent-primary"
+        <div>
+          <label className={safetyParameterClassName}>
+            <input
+              type="checkbox"
+              className="size-4 shrink-0 accent-primary"
+              disabled={!safetyEditable}
+              checked={form.safetyOfficerSiteVisited}
+              onChange={(e) => edit({ ...form, safetyOfficerSiteVisited: e.target.checked })}
+            />
+            Site visited and verified
+          </label>
+          <VerificationEvidenceCapture
+            visible={Boolean(form.safetyOfficerSiteVisited)}
+            label="Safety officer site visit evidence"
+            file={form.safetyOfficerSiteVisitedEvidence ?? null}
+            onFileChange={(file) => edit({ ...form, safetyOfficerSiteVisitedEvidence: file })}
             disabled={!safetyEditable}
-            checked={form.safetyOfficerSiteVisited}
-            onChange={(e) => edit({ ...form, safetyOfficerSiteVisited: e.target.checked })}
           />
-          Site visited and verified
-        </label>
+        </div>
         <ul className="grid gap-1 text-sm">
           {form.safetyOfficers
             .filter((row) => row.workforceUserId)

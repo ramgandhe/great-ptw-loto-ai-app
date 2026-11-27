@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { VerificationEvidenceCapture } from "@/components/common/verification-evidence-capture";
 import { PermitLototoExecution } from "@/components/permit/lototo-execution";
 import { certificateStatusLabel } from "@/lib/lototo/certificates";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
@@ -13,6 +14,9 @@ import type { HazardRecord } from "@/lib/master-data/api";
 import type { PermitFormState } from "@/lib/permit/types";
 import { hazardControlKey, type ExecutionStartState } from "@/lib/execution/start";
 import { permitControlLines } from "@/lib/permit/form";
+import { uploadEvidence } from "@/lib/execution/api";
+import { toast } from "@/components/ui/toast";
+import { ApiError } from "@/lib/api";
 
 const STEPS = [
   { id: "toolbox", label: "Toolbox talk" },
@@ -29,6 +33,14 @@ function toggle(list: string[], id: string, on: boolean) {
 
 function gasReadingKey(row: { id: string; gasTestingCatalogueId: string | null }) {
   return row.gasTestingCatalogueId ?? row.id;
+}
+
+export interface StartExecutionEvidences {
+  toolbox?: File | null;
+  hazards?: Record<string, File | null>;
+  ppes?: Record<string, File | null>;
+  lototo?: File | null;
+  gasMeter?: File | null;
 }
 
 export function StartExecutionSteps({
@@ -56,11 +68,16 @@ export function StartExecutionSteps({
   isSubmitting: boolean;
   onChange: (next: ExecutionStartState) => void;
   onSave: () => Promise<void>;
-  onBeginWork: () => Promise<void>;
+  onBeginWork: (evidences?: StartExecutionEvidences) => Promise<void>;
   onPostpone?: () => void;
   onSuspend?: () => void;
 }) {
   const [step, setStep] = useState(0);
+  const [toolboxEvidence, setToolboxEvidence] = useState<File | null>(null);
+  const [hazardEvidences, setHazardEvidences] = useState<Record<string, File | null>>({});
+  const [ppeEvidences, setPpeEvidences] = useState<Record<string, File | null>>({});
+  const [gasMeterPhoto, setGasMeterPhoto] = useState<File | null>(null);
+  const [lototoEvidence, setLototoEvidence] = useState<File | null>(null);
   const { roles } = useAuthProfile();
   const canOpenIsolation = hasAnyRole(roles, NAV_LOTOTO_ROLES);
   const lototoRequired = Boolean(detail.permit.lototoRequired);
@@ -116,8 +133,13 @@ export function StartExecutionSteps({
   ][step];
 
   async function goNext() {
-    await onSave();
-    setStep((current) => Math.min(current + 1, STEPS.length - 1));
+    try {
+      await onSave();
+      setStep((current) => Math.min(current + 1, STEPS.length - 1));
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to save start state";
+      toast(msg, "error");
+    }
   }
 
   return (
@@ -137,33 +159,54 @@ export function StartExecutionSteps({
       </div>
 
       {step === 0 ? (
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={start.toolboxTalk}
-            onChange={(event) => onChange({ ...start, toolboxTalk: event.target.checked })}
+        <div className="grid gap-2">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={start.toolboxTalk}
+              onChange={(event) => onChange({ ...start, toolboxTalk: event.target.checked })}
+            />
+            Toolbox talk completed with the crew
+          </label>
+          <VerificationEvidenceCapture
+            visible={start.toolboxTalk}
+            label="Toolbox talk evidence (sign-in sheet or crew photo)"
+            file={toolboxEvidence}
+            onFileChange={setToolboxEvidence}
           />
-          Toolbox talk completed with the crew
-        </label>
+        </div>
       ) : null}
 
       {step === 1 ? (
         locationItems.length === 0 ? (
           <p className="text-sm text-muted-foreground">No assigned hazard controls. Continue.</p>
         ) : (
-          <div className="grid gap-2">
-            {locationItems.map((item) => (
-              <label key={item.key} className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={start.hazardControls.includes(item.key)}
-                  onChange={(event) =>
-                    onChange({ ...start, hazardControls: toggle(start.hazardControls, item.key, event.target.checked) })
-                  }
-                />
-                {item.label}
-              </label>
-            ))}
+          <div className="grid gap-3">
+            {locationItems.map((item) => {
+              const checked = start.hazardControls.includes(item.key);
+              return (
+                <div key={item.key} className="grid gap-1">
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) =>
+                        onChange({ ...start, hazardControls: toggle(start.hazardControls, item.key, event.target.checked) })
+                      }
+                    />
+                    {item.label}
+                  </label>
+                  <VerificationEvidenceCapture
+                    visible={checked}
+                    label={`Evidence for ${item.label}`}
+                    file={hazardEvidences[item.key] ?? null}
+                    onFileChange={(file) =>
+                      setHazardEvidences((prev) => ({ ...prev, [item.key]: file }))
+                    }
+                  />
+                </div>
+              );
+            })}
           </div>
         )
       ) : null}
@@ -172,20 +215,34 @@ export function StartExecutionSteps({
         ppeItems.length === 0 ? (
           <p className="text-sm text-muted-foreground">No assigned PPE. Continue.</p>
         ) : (
-          <div className="grid gap-2">
-            {ppeItems.map((item) => (
-              <label key={item.ppeCatalogueId} className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={start.ppeIds.includes(item.ppeCatalogueId)}
-                  onChange={(event) =>
-                    onChange({ ...start, ppeIds: toggle(start.ppeIds, item.ppeCatalogueId, event.target.checked) })
-                  }
-                />
-                {ppeNames.get(item.ppeCatalogueId) ?? "PPE"}
-                {item.quantity && item.quantity > 1 ? ` × ${item.quantity}` : ""}
-              </label>
-            ))}
+          <div className="grid gap-3">
+            {ppeItems.map((item) => {
+              const checked = start.ppeIds.includes(item.ppeCatalogueId);
+              const ppeName = ppeNames.get(item.ppeCatalogueId) ?? "PPE";
+              return (
+                <div key={item.ppeCatalogueId} className="grid gap-1">
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) =>
+                        onChange({ ...start, ppeIds: toggle(start.ppeIds, item.ppeCatalogueId, event.target.checked) })
+                      }
+                    />
+                    {ppeName}
+                    {item.quantity && item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                  </label>
+                  <VerificationEvidenceCapture
+                    visible={checked}
+                    label={`Readiness evidence for ${ppeName}`}
+                    file={ppeEvidences[item.ppeCatalogueId] ?? null}
+                    onFileChange={(file) =>
+                      setPpeEvidences((prev) => ({ ...prev, [item.ppeCatalogueId]: file }))
+                    }
+                  />
+                </div>
+              );
+            })}
           </div>
         )
       ) : null}
@@ -214,12 +271,31 @@ export function StartExecutionSteps({
                   ? "Every isolation is proved. Work can start."
                   : "Work starts when every isolation is Isolated."}
               </p>
+              {lototoDone ? (
+                <VerificationEvidenceCapture
+                  visible={true}
+                  label="LOTOTO verification evidence"
+                  hint="Optional — offer photo if certificate has none linked"
+                  file={lototoEvidence}
+                  onFileChange={setLototoEvidence}
+                />
+              ) : null}
             </div>
           ) : (
-          <PermitLototoExecution
-            permitId={permitId}
-            onBoardChange={(board) => onChange({ ...start, lototoVerified: board.isolated })}
-          />
+          <div className="grid gap-2">
+            <PermitLototoExecution
+              permitId={permitId}
+              onBoardChange={(board) => onChange({ ...start, lototoVerified: board.isolated })}
+            />
+            {start.lototoVerified ? (
+              <VerificationEvidenceCapture
+                visible={true}
+                label="LOTOTO verification evidence"
+                file={lototoEvidence}
+                onFileChange={setLototoEvidence}
+              />
+            ) : null}
+          </div>
           )
         ) : (
           <p className="text-sm text-muted-foreground">LOTOTO is not required for this permit (N/A).</p>
@@ -265,6 +341,13 @@ export function StartExecutionSteps({
                   </label>
                 );
               })}
+              <VerificationEvidenceCapture
+                visible={gasEntered && !gasUnfavourable}
+                label="Gas test meter photo"
+                hint="Optional — photo of gas detector screen or calibration reading"
+                file={gasMeterPhoto}
+                onFileChange={setGasMeterPhoto}
+              />
               {gasUnfavourable ? (
                 <div role="status" className="grid gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-3 text-sm">
                   <p>Conditions are not favourable. Work cannot start until the readings are inside the range.</p>
@@ -318,7 +401,19 @@ export function StartExecutionSteps({
             Next
           </Button>
         ) : (
-          <Button type="button" onClick={() => void onBeginWork()} disabled={isSubmitting || !canAdvance}>
+          <Button
+            type="button"
+            onClick={() =>
+              void onBeginWork({
+                toolbox: toolboxEvidence,
+                hazards: hazardEvidences,
+                ppes: ppeEvidences,
+                lototo: lototoEvidence,
+                gasMeter: gasMeterPhoto,
+              })
+            }
+            disabled={isSubmitting || !canAdvance}
+          >
             {isSubmitting ? "Starting..." : "Begin work"}
           </Button>
         )}
