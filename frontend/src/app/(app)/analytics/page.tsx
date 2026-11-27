@@ -104,7 +104,7 @@ export default function AnalyticsPage() {
         <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="flex flex-col gap-10">
           <Section title="Needs attention" description="Anything above zero here is waiting on someone.">
             <motion.div variants={staggerItem} className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-              <AttentionTile label="Work past planned end" value={data.attention.overdueActivePermits} href="/execution" tone="danger" />
+              <AttentionTile label="Work past planned end" value={data.attention.overdueActivePermits} href="/execution?filter=overdue" tone="danger" />
               <AttentionTile label="Approvals waiting over a day" value={data.attention.approvalsWaitingOverDay} href="/approvals" tone="warning" />
               <AttentionTile label="High-severity SIMOPS clashes" value={data.attention.highSeverityConflicts} href="/simops/conflicts" tone="danger" />
               <AttentionTile label="Serious incidents open" value={data.attention.criticalIncidentsOpen} href="/incidents" tone="danger" />

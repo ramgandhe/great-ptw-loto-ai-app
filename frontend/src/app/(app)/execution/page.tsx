@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Clock3, HardHat, ShieldAlert } from "lucide-react";
 import { DayCycleBadge } from "@/components/multi-day/day-cycle-badge";
@@ -20,19 +21,32 @@ import { cn } from "@/lib/utils";
 import { LIVE_WORK_STATUSES } from "@/lib/work-queue";
 
 const EXECUTION_STATUSES = LIVE_WORK_STATUSES;
-type WorkFilter = (typeof EXECUTION_STATUSES)[number] | "all";
+type WorkFilter = (typeof EXECUTION_STATUSES)[number] | "all" | "overdue";
 
 const FILTERS: { value: WorkFilter; label: string; hint: string }[] = [
   { value: "all", label: "All work", hint: "Every permit ready to start or currently on site." },
+  { value: "overdue", label: "Past planned", hint: "Work exceeding its scheduled work window." },
   { value: "suspended", label: "Suspended", hint: "Work stopped until the permit is reviewed and revalidated." },
   { value: "active", label: "In progress", hint: "Work currently under way at the site." },
   { value: "approved", label: "Ready to start", hint: "Approved permits. Verify site controls before starting." },
 ];
 
-export default function ActivePermitsPage() {
+function ActivePermitsContent() {
   const reduceMotion = useReducedMotion();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const filterParam = searchParams.get("filter");
+  const activeFilter: WorkFilter =
+    filterParam === "overdue" ||
+    filterParam === "suspended" ||
+    filterParam === "active" ||
+    filterParam === "approved"
+      ? filterParam
+      : "all";
+
   const [permits, setPermits] = useState<PermitRecord[]>([]);
-  const [filter, setFilter] = useState<WorkFilter>("all");
+  const [filter, setFilter] = useState<WorkFilter>(activeFilter);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDayCycle, setSelectedDayCycle] = useState<DayCycleSnapshot | null>(null);
   const [lookups, setLookups] = useState<Lookups | null>(null);
@@ -40,6 +54,24 @@ export default function ActivePermitsPage() {
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadedAt] = useState(() => Date.now());
+
+  useEffect(() => {
+    setFilter(activeFilter);
+    setSelectedId(null);
+  }, [activeFilter]);
+
+  const handleFilterChange = (nextFilter: WorkFilter) => {
+    setFilter(nextFilter);
+    setSelectedId(null);
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextFilter === "all") {
+      params.delete("filter");
+    } else {
+      params.set("filter", nextFilter);
+    }
+    const query = params.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
+  };
 
   useEffect(() => {
     Promise.all(EXECUTION_STATUSES.map((status) => listPermits(status)))
@@ -52,15 +84,24 @@ export default function ActivePermitsPage() {
   const counts = useMemo(
     () => ({
       all: permits.length,
+      overdue: permits.filter(
+        (permit) => Boolean(permit.plannedEndAt && new Date(permit.plannedEndAt).getTime() < loadedAt),
+      ).length,
       suspended: permits.filter((permit) => permit.status === "suspended").length,
       active: permits.filter((permit) => permit.status === "active").length,
       approved: permits.filter((permit) => permit.status === "approved").length,
     }),
-    [permits],
+    [permits, loadedAt],
   );
   const visible = useMemo(
     () => permits
-      .filter((permit) => filter === "all" || permit.status === filter)
+      .filter((permit) => {
+        if (filter === "all") return true;
+        if (filter === "overdue") {
+          return Boolean(permit.plannedEndAt && new Date(permit.plannedEndAt).getTime() < loadedAt);
+        }
+        return permit.status === filter;
+      })
       .sort((a, b) => {
         const aOverdue = Boolean(a.plannedEndAt && new Date(a.plannedEndAt).getTime() < loadedAt);
         const bOverdue = Boolean(b.plannedEndAt && new Date(b.plannedEndAt).getTime() < loadedAt);
@@ -110,7 +151,7 @@ export default function ActivePermitsPage() {
         </Link>
       </header>
 
-      <section aria-label="Filter live work" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <section aria-label="Filter live work" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {FILTERS.map((item) => {
           const count = counts[item.value];
           return (
@@ -118,10 +159,7 @@ export default function ActivePermitsPage() {
               key={item.value}
               type="button"
               aria-pressed={filter === item.value}
-              onClick={() => {
-                setFilter(item.value);
-                setSelectedId(null);
-              }}
+              onClick={() => handleFilterChange(item.value)}
               className={cn(
                 "group min-h-24 rounded-xl border p-3 text-left transition-[transform,background-color,border-color,box-shadow] duration-150 hover:-translate-y-0.5 sm:p-4",
                 filter === item.value ? "border-primary bg-primary text-primary-foreground shadow-md" : "border-border bg-card hover:border-primary/50",
@@ -151,8 +189,10 @@ export default function ActivePermitsPage() {
       ) : visible.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-card px-5 py-12 text-center">
           <span className="mx-auto mb-3 grid size-11 place-items-center rounded-full bg-muted text-muted-foreground"><HardHat className="size-5" aria-hidden /></span>
-          <p className="font-semibold">No permits in this work view</p>
-          <p className="mt-1 text-sm text-muted-foreground">Approved, active and suspended permits will appear here.</p>
+          <p className="font-semibold">{filter === "overdue" ? "No work past planned end" : "No permits in this work view"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {filter === "overdue" ? "Permits exceeding their planned end time will appear here." : "Approved, active and suspended permits will appear here."}
+          </p>
         </div>
       ) : (
         <div className="grid min-h-[34rem] overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-[minmax(20rem,0.78fr)_minmax(0,1.5fr)]">
@@ -252,5 +292,13 @@ export default function ActivePermitsPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function ActivePermitsPage() {
+  return (
+    <Suspense fallback={<div className="page-in mx-auto flex w-full max-w-370 flex-1 flex-col gap-6 px-4 pb-10 pt-6 sm:px-8 sm:pt-8 text-sm text-muted-foreground">Loading work control…</div>}>
+      <ActivePermitsContent />
+    </Suspense>
   );
 }

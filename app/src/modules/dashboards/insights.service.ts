@@ -23,6 +23,7 @@ const DAY_MS = 86_400_000;
 const OPEN_INCIDENT_STATUSES = ['open', 'pending_hod_decision', 'investigating', 'pending_verification', 'verified'];
 const OPEN_CONFLICT_STATUSES = ['review_required'];
 const LIVE_PERMIT_STATUSES = ['pending_approval', 'approved', 'active', 'suspended'];
+const OVERDUE_WORK_STATUSES = ['approved', 'active', 'suspended'];
 
 type Bucket = { key: string; label: string; count: number };
 
@@ -179,7 +180,7 @@ export class InsightsService {
       this.db
         .select({ count: count() })
         .from(permits)
-        .where(and(eq(permits.tenantId, tenantId), eq(permits.status, 'active'), lt(permits.plannedEndAt, now), ...scope.permit)),
+        .where(and(eq(permits.tenantId, tenantId), inArray(permits.status, OVERDUE_WORK_STATUSES), lt(permits.plannedEndAt, now), ...scope.permit)),
       this.db
         .select({
           type: incidents.incidentType,
