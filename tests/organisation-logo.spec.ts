@@ -12,13 +12,30 @@ const PNG = Buffer.from(
 );
 
 describe('organisation logo', () => {
-  it('accepts a small PNG and refuses other files', () => {
+  it('accepts a small PNG, JPEG and WebP images', () => {
     expect(() => assertOrganisationLogo({ mimetype: 'image/png', size: PNG.length, buffer: PNG })).not.toThrow();
-    expect(() => assertOrganisationLogo({ mimetype: 'application/pdf', size: 10, buffer: Buffer.from('x') })).toThrow(
-      BadRequestException,
+    expect(() => assertOrganisationLogo({ mimetype: 'image/jpeg', size: 100, buffer: Buffer.from('jpeg-bytes') })).not.toThrow();
+    expect(() => assertOrganisationLogo({ mimetype: 'image/webp; charset=binary', size: 100, buffer: Buffer.from('webp-bytes') })).not.toThrow();
+  });
+
+  it('validates edge cases: missing files, empty buffers, invalid types and size limits', () => {
+    expect(() => assertOrganisationLogo(undefined)).toThrow(
+      new BadRequestException('Choose a logo image.'),
     );
-    expect(() => assertOrganisationLogo({ mimetype: 'image/png', size: 3 * 1024 * 1024, buffer: PNG })).toThrow(
-      BadRequestException,
+    expect(() => assertOrganisationLogo({ mimetype: 'image/png', size: 0, buffer: Buffer.alloc(0) })).toThrow(
+      new BadRequestException('Choose a logo image.'),
+    );
+    expect(() => assertOrganisationLogo({ mimetype: 'application/pdf', size: 10, buffer: Buffer.from('x') })).toThrow(
+      new BadRequestException('Logo must be a PNG, JPEG or WebP image.'),
+    );
+    expect(() => assertOrganisationLogo({ mimetype: 'image/svg+xml', size: 50, buffer: Buffer.from('<svg></svg>') })).toThrow(
+      new BadRequestException('Logo must be a PNG, JPEG or WebP image.'),
+    );
+    // Boundary check: exactly 2 MB passes
+    expect(() => assertOrganisationLogo({ mimetype: 'image/png', size: 2 * 1024 * 1024, buffer: PNG })).not.toThrow();
+    // Exceeding 2 MB fails
+    expect(() => assertOrganisationLogo({ mimetype: 'image/png', size: 2 * 1024 * 1024 + 1, buffer: PNG })).toThrow(
+      new BadRequestException('Logo must be 2 MB or smaller.'),
     );
   });
 

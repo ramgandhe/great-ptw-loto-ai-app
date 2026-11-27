@@ -91,7 +91,26 @@ export default function OrganisationProfilePage() {
   }, [org?.id, org?.hasLogo, org?.logoFileName]);
 
   async function handleLogo(file: File | undefined) {
-    if (!org || !file) return;
+    if (!org) return;
+    setSavedMessage(null);
+    if (!file) {
+      setError("Choose a logo image.");
+      toast("Choose a logo image.", "error");
+      return;
+    }
+    const acceptedTypes = ["image/png", "image/jpeg", "image/webp"];
+    if (!acceptedTypes.includes(file.type.toLowerCase())) {
+      const msg = "Logo must be a PNG, JPEG or WebP image.";
+      setError(msg);
+      toast(msg, "error");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      const msg = "Logo must be 2 MB or smaller.";
+      setError(msg);
+      toast(msg, "error");
+      return;
+    }
     setLogoBusy(true);
     setError(null);
     try {
@@ -218,9 +237,11 @@ export default function OrganisationProfilePage() {
                   className="sr-only"
                   disabled={logoBusy}
                   onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    event.target.value = "";
-                    void handleLogo(file);
+                    const input = event.currentTarget;
+                    const file = input.files?.[0];
+                    void handleLogo(file).finally(() => {
+                      input.value = "";
+                    });
                   }}
                 />
                 <span className="inline-flex h-9 cursor-pointer items-center rounded-md border border-border px-3 text-sm font-medium">

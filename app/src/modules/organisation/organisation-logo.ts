@@ -12,7 +12,10 @@ export function assertOrganisationLogo(file: { mimetype?: string; size?: number;
   size: number;
   buffer: Buffer;
 } {
-  if (!file?.buffer?.length) {
+  if (!file) {
+    throw new BadRequestException('Choose a logo image.');
+  }
+  if (!file.buffer || file.buffer.length === 0) {
     throw new BadRequestException('Choose a logo image.');
   }
   const type = (file.mimetype ?? '').split(';')[0].trim().toLowerCase();
