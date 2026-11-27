@@ -53,7 +53,7 @@ function SiteAttention() {
     { label: "Work past planned end", value: a.overdueActivePermits, href: "/execution?filter=overdue", tone: "danger" as const },
     { label: "Approvals waiting over a day", value: a.approvalsWaitingOverDay, href: "/approvals", tone: "warning" as const },
     { label: "High-severity SIMOPS clashes", value: a.highSeverityConflicts, href: "/simops/conflicts", tone: "danger" as const },
-    { label: "Serious incidents open", value: a.criticalIncidentsOpen, href: "/incidents", tone: "danger" as const },
+    { label: "Serious incidents open", value: a.criticalIncidentsOpen, href: "/incidents?priority=high", tone: "danger" as const },
   ];
   return (
     <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

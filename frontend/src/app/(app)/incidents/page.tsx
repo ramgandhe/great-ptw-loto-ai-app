@@ -27,7 +27,7 @@ import { staggerContainer, staggerItem } from "@/lib/motion";
 import { INCIDENT_NEXT_STEP, INCIDENT_STATUS } from "@/lib/safety/status";
 import { useWorkQueue } from "@/lib/work-queue-context";
 
-const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+const PRIORITY_RANK: Record<string, number> = { high: 0, medium: 1, low: 2 };
 const list = (value: string | null) => (value ?? "").split(",").filter(Boolean);
 
 function IncidentsBoard() {
@@ -37,7 +37,7 @@ function IncidentsBoard() {
   const { roles } = useAuthProfile();
   const { items } = useWorkQueue();
   const canReport = hasAnyRole(roles, INCIDENT_REPORT_ROLES);
-  const view = params.get("view") === "closed" ? "closed" : "open";
+  const view = params.get("view") === "closed" ? "closed" : params.get("view") === "draft" ? "draft" : "open";
   const priorities = list(params.get("priority"));
   const types = list(params.get("type"));
   const statuses = list(params.get("status"));
@@ -66,9 +66,10 @@ function IncidentsBoard() {
   const actionByIncident = useMemo(() => new Map(items.filter((i) => !i.permit && i.href.startsWith("/incidents/")).map((i) => [i.href.split("/")[2], i])), [items]);
 
   const all = incidents ?? [];
-  const open = all.filter((i) => i.status !== "closed");
+  const open = all.filter((i) => i.status !== "closed" && i.status !== "draft");
+  const drafts = all.filter((i) => i.status === "draft");
   const closed = all.filter((i) => i.status === "closed");
-  const source = view === "open" ? open : closed;
+  const source = view === "open" ? open : view === "draft" ? drafts : closed;
   const rows = source
     .filter(
       (i) =>
@@ -104,13 +105,14 @@ function IncidentsBoard() {
           onChange={(v) => setParams({ view: v === "open" ? "" : v, status: "" })}
           options={[
             { value: "open", label: "Needs follow-up", count: open.length },
+            ...(drafts.length > 0 ? [{ value: "draft", label: "Drafts", count: drafts.length }] : []),
             { value: "closed", label: "Closed", count: closed.length },
           ]}
           className="self-start"
         />
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           <MultiToggle
-            label="Priority"
+            label="Severity"
             selected={priorities}
             onChange={(next) => setParams({ priority: next.join(",") })}
             options={PRIORITIES.map((p) => ({ value: p.key, label: p.label, color: p.color, count: source.filter((i) => i.priority === p.key).length }))}
@@ -137,7 +139,7 @@ function IncidentsBoard() {
         <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           {[
             { label: "Open", value: open.length, tone: "warning" as const, href: "/incidents" },
-            { label: "Critical or high, open", value: open.filter((i) => i.priority === "critical" || i.priority === "high").length, tone: "danger" as const, href: "/incidents?priority=critical,high" },
+            { label: "High severity, open", value: open.filter((i) => i.priority === "high").length, tone: "danger" as const, href: "/incidents?priority=high" },
             { label: "Awaiting HOD decision", value: open.filter((i) => i.status === "pending_hod_decision").length, tone: "warning" as const, href: "/incidents?status=pending_hod_decision" },
             { label: "Closed", value: closed.length, href: "/incidents?view=closed" },
           ].map((t) => (
@@ -179,7 +181,7 @@ function IncidentsBoard() {
 
           {rows.length === 0 ? (
             <EmptyState
-              title={view === "open" ? "No open incidents match" : "No closed incidents match"}
+              title={view === "open" ? "No open incidents match" : view === "draft" ? "No draft incidents match" : "No closed incidents match"}
               hint={all.length === 0 ? "Report near misses too: they are how the next accident is prevented." : "Remove a filter above to widen the list."}
             />
           ) : (
@@ -198,7 +200,7 @@ function IncidentsBoard() {
                     meta={
                       <>
                         {type ? <StatusChip label={type.label} color={type.color} className="py-0" /> : null}
-                        {priority ? <StatusChip label={`${priority.label} priority`} color={priority.color} className="py-0" /> : null}
+                        {priority ? <StatusChip label={`${priority.label} severity`} color={priority.color} className="py-0" /> : null}
                       </>
                     }
                     context={

@@ -8,7 +8,7 @@ export type IncidentStatus =
   | "pending_verification"
   | "verified"
   | "closed";
-export type IncidentPriority = "low" | "medium" | "high" | "critical";
+export type IncidentPriority = "low" | "medium" | "high";
 export type ActionStatus = "open" | "in_progress" | "completed" | "cancelled";
 
 export type Incident = {

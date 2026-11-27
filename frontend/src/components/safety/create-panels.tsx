@@ -6,9 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SegmentedToggle } from "@/components/ui/toggle-group";
 import { ApiError } from "@/lib/api";
-import { INCIDENT_TYPES } from "@/lib/analytics/labels";
+import { INCIDENT_TYPES, PRIORITIES } from "@/lib/analytics/labels";
 import { createIncident } from "@/lib/incidents/api";
-import type { Incident, IncidentType } from "@/lib/incidents/types";
+import type { Incident, IncidentPriority, IncidentType } from "@/lib/incidents/types";
 import {
   validateIncidentReport,
   type IncidentReportFieldErrors,
@@ -170,6 +170,7 @@ export function LototoPlanCreatePanel({ initialMachineryId, onClose }: { initial
 export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { initialPermitId?: string; onCreated: (incident: Incident, submitted: boolean) => void; onClose: () => void }) {
   const [permits, setPermits] = useState<PermitRecord[]>([]);
   const [incidentType, setIncidentType] = useState<IncidentType>("near_miss");
+  const [priority, setPriority] = useState<IncidentPriority>("medium");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [locationDescription, setLocationDescription] = useState("");
@@ -248,6 +249,7 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
     try {
       const incident = await createIncident({
         incidentType,
+        priority,
         title: title.trim(),
         description: description.trim(),
         locationDescription: locationDescription.trim() || undefined,
@@ -274,6 +276,16 @@ export function IncidentReportPanel({ initialPermitId, onCreated, onClose }: { i
           value={incidentType}
           onChange={setIncidentType}
           options={(Object.keys(INCIDENT_TYPES) as IncidentType[]).map((key) => ({ value: key, label: INCIDENT_TYPES[key].label }))}
+          className="max-w-full self-start overflow-x-auto"
+        />
+      </div>
+      <div className="grid gap-1.5 text-sm sm:col-span-2">
+        <span className="font-medium">Severity</span>
+        <SegmentedToggle
+          label="Severity"
+          value={priority}
+          onChange={setPriority}
+          options={PRIORITIES.map((p) => ({ value: p.key as IncidentPriority, label: p.label }))}
           className="max-w-full self-start overflow-x-auto"
         />
       </div>

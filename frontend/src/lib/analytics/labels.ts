@@ -14,8 +14,7 @@ export const INCIDENT_TYPES: Record<string, { label: string; color: string }> = 
 };
 
 export const PRIORITIES: { key: string; label: string; color: string }[] = [
-  { key: "critical", label: "Critical", color: "var(--status-danger)" },
-  { key: "high", label: "High", color: "var(--vivid-4)" },
+  { key: "high", label: "High", color: "var(--status-danger)" },
   { key: "medium", label: "Medium", color: "var(--status-warning)" },
   { key: "low", label: "Low", color: "var(--muted-foreground)" },
 ];

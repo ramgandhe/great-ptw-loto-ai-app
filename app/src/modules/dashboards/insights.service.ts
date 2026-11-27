@@ -20,7 +20,7 @@ import { descendantIds } from '../place/place-rules';
 type PlaceFilter = { siteId?: string; workLocationId?: string };
 
 const DAY_MS = 86_400_000;
-const OPEN_INCIDENT_STATUSES = ['open', 'pending_hod_decision', 'investigating', 'pending_verification', 'verified'];
+export const OPEN_INCIDENT_STATUSES = ['open', 'pending_hod_decision', 'investigating', 'pending_verification', 'verified'];
 const OPEN_CONFLICT_STATUSES = ['review_required'];
 const LIVE_PERMIT_STATUSES = ['pending_approval', 'approved', 'active', 'suspended'];
 const OVERDUE_WORK_STATUSES = ['approved', 'active', 'suspended'];
@@ -114,6 +114,7 @@ export class InsightsService {
       incidentRows,
       conflictRows,
       actionRows,
+      seriousIncidentsOpenCount,
     ] = await Promise.all([
       this.db
         .select({ key: permits.status, count: count() })
@@ -198,6 +199,17 @@ export class InsightsService {
         .select({ status: correctiveActions.status, dueDate: correctiveActions.dueDate })
         .from(correctiveActions)
         .where(eq(correctiveActions.tenantId, tenantId)),
+      this.db
+        .select({ count: count() })
+        .from(incidents)
+        .where(
+          and(
+            eq(incidents.tenantId, tenantId),
+            inArray(incidents.status, OPEN_INCIDENT_STATUSES),
+            eq(incidents.priority, 'high'),
+            ...scope.incident,
+          ),
+        ),
     ]);
 
     const hours = (a: Date, b: Date) => (a.getTime() - b.getTime()) / 3_600_000;
@@ -228,7 +240,7 @@ export class InsightsService {
         overdueActivePermits: Number(overdueActive[0]?.count ?? 0),
         approvalsWaitingOverDay: ageBuckets[2].count + ageBuckets[3].count,
         highSeverityConflicts: openConflicts.filter((c) => c.severity === 'high').length,
-        criticalIncidentsOpen: openIncidents.filter((i) => i.priority === 'critical' || i.priority === 'high').length,
+        criticalIncidentsOpen: Number(seriousIncidentsOpenCount[0]?.count ?? 0),
         overdueCorrectiveActions: actionsOverdue,
         suspendedPermits: Number(byStatus.find((s) => s.key === 'suspended')?.count ?? 0),
       },
