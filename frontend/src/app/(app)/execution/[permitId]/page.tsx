@@ -507,8 +507,9 @@ export default function PermitExecutionPage() {
   const canRunThisPermit = privileged || assignedExecutor;
   const released = Boolean(permit.executionReleasedAt);
   const isReceiver = Boolean(profile && (permit.submittedBy === profile.id || permit.createdBy === profile.id));
+  const canRelease = isReceiver || privileged;
   const checksReady = siteReady && detailsCorrect;
-  const releasesThenStarts = isApproved && !released && isReceiver && canRunThisPermit;
+  const releasesThenStarts = isApproved && !released && canRelease && canRunThisPermit;
   const canWriteProgress = hasAnyRole(roles, START_RESUME_ROLES);
   const canComplete = privileged || (hasAnyRole(roles, ["permit-operator"]) && primaryExecutor);
   const completeOff = hasAnyRole(roles, ["permit-operator"]) && !canComplete;
@@ -581,7 +582,7 @@ export default function PermitExecutionPage() {
         />
       ) : null}
 
-      {isApproved && !released && isReceiver ? (
+      {isApproved && !released && canRelease ? (
         <section className="grid gap-3 rounded-xl border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">Release for execution</h2>
           <label className="flex items-start gap-2 text-sm">
@@ -595,7 +596,7 @@ export default function PermitExecutionPage() {
         </section>
       ) : null}
 
-      {isApproved && !released && !isReceiver ? (
+      {isApproved && !released && !canRelease ? (
         <p className="text-sm text-muted-foreground">Waiting for the receiver to release this permit.</p>
       ) : null}
 
@@ -633,7 +634,7 @@ export default function PermitExecutionPage() {
       ) : null}
 
       <section className="flex flex-wrap gap-2">
-        {isApproved && !released && isReceiver && !canRunThisPermit ? (
+        {isApproved && !released && canRelease && !canRunThisPermit ? (
           <Button onClick={() => void handleRelease()} disabled={isSubmitting || !checksReady}>
             Release for execution
           </Button>

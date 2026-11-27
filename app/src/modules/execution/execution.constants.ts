@@ -40,6 +40,7 @@ export const EXECUTION_RELEASE_ROLES = [
   'permit-receiver',
   'tenant-owner',
   'tenant-admin',
+  'platform-admin',
 ] as const;
 
 export const MAX_EVIDENCE_SIZE_BYTES = 10 * 1024 * 1024;

@@ -645,8 +645,9 @@ export class ExecutionService {
     if (permit.status !== APPROVED_STATUS) {
       throw new ConflictException('Only an approved permit can be released for execution');
     }
-    if (!isPermitIssuer(detail, user.id)) {
-      throw new ForbiddenException('Only the permit receiver can release this permit for execution');
+    const isPrivileged = user.roles.includes('platform-admin') || isTenantPrivileged(user.roles);
+    if (!isPermitIssuer(detail, user.id) && !isPrivileged) {
+      throw new ForbiddenException('Only the permit receiver or an administrator can release this permit for execution');
     }
     if (permit.executionReleasedAt) {
       throw new ConflictException('This permit is already released for execution');
@@ -694,9 +695,15 @@ export class ExecutionService {
       metadata: { siteReady: true, detailsCorrect: true },
     });
 
-    const recipients = detail.executors
-      .map((row) => row.workforceUserId)
-      .filter((id) => id !== user.id);
+    const recipientSet = new Set<string>(
+      detail.executors.map((row) => row.workforceUserId),
+    );
+    const receiverId = permit.submittedBy ?? permit.createdBy;
+    if (receiverId) {
+      recipientSet.add(receiverId);
+    }
+    recipientSet.delete(user.id);
+    const recipients = Array.from(recipientSet);
     if (recipients.length > 0 && this.inbox) {
       try {
         await this.inbox.generateSystem(tenantId, user.id, {

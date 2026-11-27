@@ -347,10 +347,11 @@ export default function ExecutePermitScreen() {
   const isSuspended = permit.status === "suspended";
   const released = Boolean(permit.executionReleasedAt);
   const isReceiver = Boolean(userId && (permit.submittedBy === userId || permit.createdBy === userId));
+  const canRelease = isReceiver || privileged;
   const assigned = Boolean(userId && detail.executors.some((row) => row.workforceUserId === userId));
   const canStart = assigned || privileged;
   const checksReady = siteReady && detailsCorrect;
-  const releasesThenStarts = isApproved && !released && isReceiver && canStart;
+  const releasesThenStarts = isApproved && !released && canRelease && canStart;
   const workPaused = workCycle?.workUiState === "paused";
   const workInProgress = workCycle?.workUiState === "in_progress" || (isActive && !workPaused && workCycle == null);
   const missedSecureDates = workCycle?.missingPriorSecureDates ?? [];
@@ -364,9 +365,9 @@ export default function ExecutePermitScreen() {
   return (
     <Screen
       footer={
-        (isApproved && !released && isReceiver) || (isApproved && released && canStart) || isSuspended ? (
+        (isApproved && !released && canRelease) || (isApproved && released && canStart) || isSuspended ? (
           <ActionBar>
-            {isApproved && !released && isReceiver && !canStart ? (
+            {isApproved && !released && canRelease && !canStart ? (
               <Button label="Release for execution" size="lg" loading={submitting} disabled={!checksReady} onPress={handleRelease} />
             ) : null}
             {isApproved && ((released && canStart) || releasesThenStarts) ? (
@@ -408,14 +409,14 @@ export default function ExecutePermitScreen() {
       {isActive && workInProgress ? (
         <Banner tone="success" title="Work in progress">Log progress, pause leave-safe, or complete when finished.</Banner>
       ) : null}
-      {isApproved && !released && isReceiver ? (
+      {isApproved && !released && canRelease ? (
         <Card style={{ gap: tokens.space[2] }}>
           <SectionTitle title="Release for execution" />
           <CheckRow label="Site is ready for execution" value={siteReady} onChange={setSiteReady} />
           <CheckRow label="The approved work, place and people are still correct" value={detailsCorrect} onChange={setDetailsCorrect} />
         </Card>
       ) : null}
-      {isApproved && !released && !isReceiver ? (
+      {isApproved && !released && !canRelease ? (
         <Banner tone="warning">Waiting for the receiver to release this permit.</Banner>
       ) : null}
       {isApproved && released ? (
