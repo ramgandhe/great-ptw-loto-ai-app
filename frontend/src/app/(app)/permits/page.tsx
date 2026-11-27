@@ -7,6 +7,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { ClipboardList, ListFilter, Plus, Search, X } from "lucide-react";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { PermitTypeChip } from "@/components/permit/permit-type-chip";
+import { AnalyticsBackLink } from "@/components/layout/page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 import { toast } from "@/components/ui/toast";
@@ -143,6 +144,7 @@ function PermitsBoard() {
 
   return (
     <main className="mx-auto flex w-full max-w-370 flex-1 flex-col gap-5 px-4 pb-10 pt-6 sm:gap-6 sm:px-8 sm:pt-8">
+      <AnalyticsBackLink />
       <header className="flex flex-col gap-5 border-b border-border pb-5 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">

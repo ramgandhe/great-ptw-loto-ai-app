@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
 import { RefreshCw } from "lucide-react";
 import { AnimatedNumber } from "@/components/analytics/animated-number";
@@ -30,13 +31,26 @@ function sum(values: Record<string, number>): number {
   return Object.values(values).reduce((a, b) => a + b, 0);
 }
 
-export default function AnalyticsPage() {
-  const [days, setDays] = useState(90);
-  const [siteId, setSiteId] = useState("");
-  const [workLocationId, setWorkLocationId] = useState("");
+function AnalyticsContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+
+  const days = Number(params.get("days") ?? 90);
+  const siteId = params.get("site") ?? "";
+  const workLocationId = params.get("workLocationId") ?? params.get("location") ?? "";
   const [data, setData] = useState<InsightsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  function setParams(next: Record<string, string>) {
+    const search = new URLSearchParams(params.toString());
+    for (const [key, value] of Object.entries(next)) {
+      if (value && value !== "90") search.set(key, value);
+      else search.delete(key);
+    }
+    router.replace(`${pathname}${search.size ? `?${search}` : ""}`, { scroll: false });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +83,12 @@ export default function AnalyticsPage() {
         }
         actions={
           <>
-            <SegmentedToggle label="Period" value={days} onChange={setDays} options={PERIODS.map((p) => ({ value: p.days, label: p.label }))} />
+            <SegmentedToggle
+              label="Period"
+              value={days}
+              onChange={(v) => setParams({ days: String(v) })}
+              options={PERIODS.map((p) => ({ value: p.days, label: p.label }))}
+            />
             <Button type="button" variant="ghost" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
               <RefreshCw aria-hidden />
               Refresh
@@ -81,8 +100,7 @@ export default function AnalyticsPage() {
         siteId={siteId}
         workLocationId={workLocationId}
         onChange={(next) => {
-          setSiteId(next.siteId);
-          setWorkLocationId(next.workLocationId);
+          setParams({ site: next.siteId, workLocationId: next.workLocationId });
         }}
       />
 
@@ -104,12 +122,12 @@ export default function AnalyticsPage() {
         <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="flex flex-col gap-10">
           <Section title="Needs attention" description="Anything above zero here is waiting on someone.">
             <motion.div variants={staggerItem} className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-              <AttentionTile label="Work past planned end" value={data.attention.overdueActivePermits} href="/execution?filter=overdue" tone="danger" />
-              <AttentionTile label="Approvals waiting over a day" value={data.attention.approvalsWaitingOverDay} href="/approvals" tone="warning" />
-              <AttentionTile label="High-severity SIMOPS clashes" value={data.attention.highSeverityConflicts} href="/simops/conflicts" tone="danger" />
-              <AttentionTile label="Serious incidents open" value={data.attention.criticalIncidentsOpen} href="/incidents" tone="danger" />
-              <AttentionTile label="Corrective actions overdue" value={data.attention.overdueCorrectiveActions} href="/incidents" tone="warning" />
-              <AttentionTile label="Suspended permits" value={data.attention.suspendedPermits} href="/permits?view=live&status=suspended" tone="warning" />
+              <AttentionTile label="Work past planned end" value={data.attention.overdueActivePermits} href="/execution?filter=overdue&from=analytics" tone="danger" />
+              <AttentionTile label="Approvals waiting over a day" value={data.attention.approvalsWaitingOverDay} href="/approvals?from=analytics" tone="warning" />
+              <AttentionTile label="High-severity SIMOPS clashes" value={data.attention.highSeverityConflicts} href="/simops?view=active&from=analytics" tone="danger" />
+              <AttentionTile label="Serious incidents open" value={data.attention.criticalIncidentsOpen} href="/incidents?from=analytics" tone="danger" />
+              <AttentionTile label="Corrective actions overdue" value={data.attention.overdueCorrectiveActions} href="/incidents?from=analytics" tone="warning" />
+              <AttentionTile label="Suspended permits" value={data.attention.suspendedPermits} href="/permits?view=live&status=suspended&from=analytics" tone="warning" />
             </motion.div>
           </Section>
 
@@ -157,7 +175,7 @@ export default function AnalyticsPage() {
                 <StatTile
                   label="Waiting now"
                   value={<AnimatedNumber value={data.approvals.waitingByAge.reduce((n, b) => n + b.count, 0)} />}
-                  href="/approvals"
+                  href="/approvals?from=analytics"
                   hint="Permits pending a decision"
                 />
               </motion.div>
@@ -290,5 +308,13 @@ function MiniFigure({ label, value, alert }: { label: string; value: number; ale
       <p className={cn("font-heading text-xl font-bold tabular-nums", alert ? "text-(--status-danger)" : "")}>{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
+  );
+}
+
+export default function AnalyticsPage() {
+  return (
+    <Suspense fallback={<main className="p-8 text-sm text-muted-foreground">Loading analytics…</main>}>
+      <AnalyticsContent />
+    </Suspense>
   );
 }

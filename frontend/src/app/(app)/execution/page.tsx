@@ -6,6 +6,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Clock3, HardHat, ShieldAlert } from "lucide-react";
 import { DayCycleBadge } from "@/components/multi-day/day-cycle-badge";
+import { AnalyticsBackLink } from "@/components/layout/page-header";
 import { PermitStatusBadge } from "@/components/permit/permit-status-badge";
 import { PermitTypeChip } from "@/components/permit/permit-type-chip";
 import { buttonVariants } from "@/components/ui/button";
@@ -135,6 +136,7 @@ function ActivePermitsContent() {
 
   return (
     <main className="page-in mx-auto flex w-full max-w-370 flex-1 flex-col gap-6 px-4 pb-10 pt-6 sm:px-8 sm:pt-8">
+      <AnalyticsBackLink />
       <header className="flex flex-col justify-between gap-4 border-b border-border pb-5 sm:flex-row sm:items-end">
         <div>
           <p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">

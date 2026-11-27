@@ -134,11 +134,15 @@ function SimopsBoard() {
             { label: "High severity", value: open.filter((c) => c.severity === "high").length, tone: "danger" as const, href: "/simops?severity=high" },
             { label: "Needs HOD", value: open.filter((c) => c.status === "open").length, tone: "warning" as const, href: "/simops" },
             { label: "Resolved", value: history.length, href: "/simops?view=history" },
-          ].map((t) => (
-            <motion.div key={t.label} variants={staggerItem}>
-              <StatTile compact label={t.label} value={<AnimatedNumber value={t.value} />} href={t.href} tone={t.tone && t.value > 0 ? t.tone : "neutral"} />
-            </motion.div>
-          ))}
+          ].map((t) => {
+            const isFromAnalytics = params.get("from") === "analytics";
+            const targetHref = isFromAnalytics ? `${t.href}${t.href.includes("?") ? "&" : "?"}from=analytics` : t.href;
+            return (
+              <motion.div key={t.label} variants={staggerItem}>
+                <StatTile compact label={t.label} value={<AnimatedNumber value={t.value} />} href={targetHref} tone={t.tone && t.value > 0 ? t.tone : "neutral"} />
+              </motion.div>
+            );
+          })}
         </motion.div>
       </PageHeader>
 

@@ -140,11 +140,15 @@ function IncidentsBoard() {
             { label: "Critical or high, open", value: open.filter((i) => i.priority === "critical" || i.priority === "high").length, tone: "danger" as const, href: "/incidents?priority=critical,high" },
             { label: "Awaiting HOD decision", value: open.filter((i) => i.status === "pending_hod_decision").length, tone: "warning" as const, href: "/incidents?status=pending_hod_decision" },
             { label: "Closed", value: closed.length, href: "/incidents?view=closed" },
-          ].map((t) => (
-            <motion.div key={t.label} variants={staggerItem}>
-              <StatTile compact label={t.label} value={<AnimatedNumber value={t.value} />} href={t.href} tone={t.tone && t.value > 0 ? t.tone : "neutral"} />
-            </motion.div>
-          ))}
+          ].map((t) => {
+            const isFromAnalytics = params.get("from") === "analytics";
+            const targetHref = isFromAnalytics ? `${t.href}${t.href.includes("?") ? "&" : "?"}from=analytics` : t.href;
+            return (
+              <motion.div key={t.label} variants={staggerItem}>
+                <StatTile compact label={t.label} value={<AnimatedNumber value={t.value} />} href={targetHref} tone={t.tone && t.value > 0 ? t.tone : "neutral"} />
+              </motion.div>
+            );
+          })}
         </motion.div>
       </PageHeader>
 
