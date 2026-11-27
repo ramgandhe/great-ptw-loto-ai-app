@@ -208,7 +208,7 @@ export default function OrganisationProfilePage() {
           <div className="grid gap-2">
             <div>
               <h2 className="text-sm font-medium">Organisation Logo</h2>
-              <p className="text-xs text-muted-foreground">PNG, JPEG or WebP, up to 2 MB. Printed on the first page of a permit report.</p>
+              <p className="text-xs text-muted-foreground">PNG, JPEG or WebP, up to 2 MB.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <label className={logoBusy ? "pointer-events-none opacity-60" : ""}>
