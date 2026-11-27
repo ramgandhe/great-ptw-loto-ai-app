@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { Authenticated, Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ForceQuery } from '../../common/decorators/force-query.decorator';
@@ -9,6 +9,7 @@ import { CreateTenantDto, IndustryNameDto, UpdateTenantDto } from './dto/create-
 import { PLATFORM_ADMIN_ROLES } from './platform.constants';
 import { PlatformAccessRequestsService } from './platform-access-requests.service';
 import { PlatformTenantsService } from './platform-tenants.service';
+import { PostalLookupService } from './postal-lookup.service';
 
 @Controller('platform/tenants')
 export class PlatformTenantsController {
@@ -143,3 +144,20 @@ export class PlatformAccessRequestsController {
     return this.accessRequestsService.list();
   }
 }
+
+@Controller('platform/postal-lookup')
+export class PlatformPostalLookupController {
+  constructor(private readonly postalLookupService: PostalLookupService) {}
+
+  @Roles(...PLATFORM_ADMIN_ROLES)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Get(':pin')
+  async lookup(@Param('pin') pin: string) {
+    const result = await this.postalLookupService.lookup(pin);
+    if (!result) {
+      throw new NotFoundException(`Geography details not found for PIN ${pin}`);
+    }
+    return result;
+  }
+}
+

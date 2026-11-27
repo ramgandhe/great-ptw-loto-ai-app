@@ -6,11 +6,13 @@ import {
   AccessRequestsController,
   PlatformAccessRequestsController,
   PlatformIndustriesController,
+  PlatformPostalLookupController,
   PlatformTenantInvitesController,
   PlatformTenantsController,
 } from './platform-tenants.controller';
 import { PlatformAccessRequestsService } from './platform-access-requests.service';
 import { PlatformTenantsService } from './platform-tenants.service';
+import { PostalLookupService } from './postal-lookup.service';
 
 @Module({
   imports: [KeycloakAdminModule],
@@ -20,8 +22,9 @@ import { PlatformTenantsService } from './platform-tenants.service';
     PlatformTenantInvitesController,
     AccessRequestsController,
     PlatformAccessRequestsController,
+    PlatformPostalLookupController,
     PlatformDefaultsController,
   ],
-  providers: [PlatformTenantsService, PlatformAccessRequestsService, PlatformDefaultsService],
+  providers: [PlatformTenantsService, PlatformAccessRequestsService, PlatformDefaultsService, PostalLookupService],
 })
 export class PlatformModule {}
