@@ -149,6 +149,40 @@ export function importLototoProcedure(file: File, options?: { confirmOverride?: 
   });
 }
 
+export type LototoPdfImportJob = {
+  jobId: string;
+  status: string;
+  fileName: string;
+  procedureId: string | null;
+  warnings: unknown;
+  errors: unknown;
+};
+
+export function startLototoPdfImport(file: File) {
+  const formData = new FormData();
+  formData.append("file", file, file.name || "procedure.pdf");
+  return fetchApi<{ jobId: string }>("/lototo/procedures/import/pdf", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export function getLototoPdfImportJob(jobId: string) {
+  return fetchApi<LototoPdfImportJob>(`/lototo/procedures/import/pdf/jobs/${jobId}`);
+}
+
+export function confirmLototoPdfImport(jobId: string) {
+  return fetchApi<{ jobId: string }>(`/lototo/procedures/import/pdf/jobs/${jobId}/confirm-override`, {
+    method: "POST",
+  });
+}
+
+export function cancelLototoPdfImport(jobId: string) {
+  return fetchApi<LototoPdfImportJob>(`/lototo/procedures/import/pdf/jobs/${jobId}/cancel`, {
+    method: "POST",
+  });
+}
+
 export function updateLototoProcedure(id: string, payload: Partial<LototoProcedurePayload>) {
   return fetchApi<LototoProcedure>(`/lototo/procedures/${id}`, {
     method: "PATCH",

@@ -8,7 +8,10 @@ import { QueueService } from '../../infrastructure/queue/queue.service';
 import {
   LOTOTO_NOTIFICATION_JOB,
   LOTOTO_PLANNING_REMINDER_JOB,
+  LOTOTO_PROCEDURE_PDF_IMPORT_CLEANUP_JOB,
+  LOTOTO_PROCEDURE_PDF_IMPORT_JOB,
 } from './lototo.constants';
+import { LototoProcedurePdfImportService } from './lototo-procedure-pdf-import.service';
 import { LototoCacheService } from './lototo-cache.service';
 import { LototoLogService } from './lototo-log.service';
 import { CanonicalNotificationService } from '../notifications/canonical-notification.service';
@@ -25,6 +28,7 @@ export class LototoJobsService implements OnModuleInit {
     private readonly lototoLogService: LototoLogService,
     private readonly lototoCacheService: LototoCacheService,
     private readonly canonicalNotificationService: CanonicalNotificationService,
+    private readonly pdfImportService: LototoProcedurePdfImportService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -35,6 +39,14 @@ export class LototoJobsService implements OnModuleInit {
     this.queueService.registerHandler(LOTOTO_PLANNING_REMINDER_JOB, async () => {
       await this.sendPlanningReminders();
       await this.remindLongTermWalks();
+    });
+
+    this.queueService.registerHandler(LOTOTO_PROCEDURE_PDF_IMPORT_JOB, async (job) => {
+      const jobId = (job.data as { jobId?: string }).jobId;
+      if (jobId) await this.pdfImportService.process(jobId);
+    });
+    this.queueService.registerHandler(LOTOTO_PROCEDURE_PDF_IMPORT_CLEANUP_JOB, async () => {
+      await this.pdfImportService.cleanupExpired();
     });
 
     const cron = this.configService.get<string>('lototo.planningReminderCron') ?? '0 8 * * *';
@@ -51,6 +63,19 @@ export class LototoJobsService implements OnModuleInit {
       this.logger.log(`Scheduled LOTOTO planning reminder job (${cron})`);
     } catch (error) {
       this.logger.warn('Could not schedule LOTOTO planning reminder job');
+      this.logger.debug(error);
+    }
+
+    const cleanupCron = this.configService.get<string>('lototo.pdfImport.cleanupCron') ?? '15 * * * *';
+    try {
+      await this.queueService.getQueue().add(
+        LOTOTO_PROCEDURE_PDF_IMPORT_CLEANUP_JOB,
+        {},
+        { repeat: { pattern: cleanupCron }, jobId: 'lototo-pdf-import-cleanup' },
+      );
+      this.logger.log(`Scheduled LOTOTO PDF import cleanup (${cleanupCron})`);
+    } catch (error) {
+      this.logger.warn('Could not schedule LOTOTO PDF import cleanup');
       this.logger.debug(error);
     }
   }

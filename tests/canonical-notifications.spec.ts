@@ -10,12 +10,19 @@ describe('CanonicalNotificationService (FR-NOT-002–008)', () => {
     select: jest.fn(),
   };
 
-  const service = new CanonicalNotificationService(db as never, notificationsService, {
+  const keycloakAdmin = {
     listUsersForTenant: jest.fn().mockResolvedValue([]),
-  } as never);
+  };
+
+  const service = new CanonicalNotificationService(
+    db as never,
+    notificationsService,
+    keycloakAdmin as never,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
+    keycloakAdmin.listUsersForTenant.mockResolvedValue([]);
   });
 
   it('maps permit approved to permit_approved notification', async () => {
@@ -105,7 +112,12 @@ describe('CanonicalNotificationService (FR-NOT-002–008)', () => {
     );
   });
 
-  it('maps incident submit to incident_reported', async () => {
+  it('maps incident submit to incident_reported and notifies in-scope Safety Officers', async () => {
+    keycloakAdmin.listUsersForTenant.mockResolvedValueOnce([
+      { id: 'safety-officer-1', enabled: true, roles: ['safety-officer'] },
+      { id: 'operator-1', enabled: true, roles: ['permit-operator'] },
+    ]);
+
     await service.fromIncidentReported({
       tenantId: 'tenant-1',
       incidentId: 'incident-1',
@@ -114,10 +126,132 @@ describe('CanonicalNotificationService (FR-NOT-002–008)', () => {
       severityPath: 'accident',
     });
 
+    expect(keycloakAdmin.listUsersForTenant).toHaveBeenCalledWith('tenant-1');
     expect(notificationsService.generateSystem).toHaveBeenCalledWith(
       'tenant-1',
       'reporter-1',
-      expect.objectContaining({ eventType: 'incident_reported', priority: 'critical' }),
+      expect.objectContaining({
+        eventType: 'incident_reported',
+        priority: 'critical',
+        recipientUserIds: ['safety-officer-1'],
+      }),
+    );
+  });
+
+  it('does not send notification when no Safety Officers exist in tenant', async () => {
+    keycloakAdmin.listUsersForTenant.mockResolvedValueOnce([]);
+
+    await service.fromIncidentReported({
+      tenantId: 'tenant-1',
+      incidentId: 'incident-1',
+      actorId: 'reporter-1',
+      reference: 'INC-1',
+      severityPath: 'near_miss',
+    });
+
+    expect(notificationsService.generateSystem).not.toHaveBeenCalled();
+  });
+
+  it('resolves Safety Officers from database tenant records and linked permits', async () => {
+    db.select
+      .mockReturnValueOnce({
+        from: () => ({
+          where: () => Promise.resolve([{ userId: 'db-safety-officer-1' }]),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({
+          where: () => Promise.resolve([{ permitId: 'permit-1' }]),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({
+          innerJoin: () => ({
+            where: () => Promise.resolve([{ userId: 'assigned-permit-safety-officer' }]),
+          }),
+          where: () => Promise.resolve([{ userId: 'assigned-permit-safety-officer' }]),
+        }),
+      });
+
+    await service.fromIncidentReported({
+      tenantId: 'tenant-1',
+      incidentId: 'incident-1',
+      actorId: 'reporter-1',
+      reference: 'INC-100',
+      severityPath: 'accident',
+    });
+
+    expect(notificationsService.generateSystem).toHaveBeenCalledWith(
+      'tenant-1',
+      'reporter-1',
+      expect.objectContaining({
+        eventType: 'incident_reported',
+        recipientUserIds: expect.arrayContaining([
+          'db-safety-officer-1',
+          'assigned-permit-safety-officer',
+        ]),
+      }),
+    );
+  });
+
+  it('excludes reporter from recipients when other Safety Officers exist', async () => {
+    keycloakAdmin.listUsersForTenant.mockResolvedValueOnce([
+      { id: 'safety-officer-1', enabled: true, roles: ['safety-officer'] },
+      { id: 'reporter-so', enabled: true, roles: ['safety-officer'] },
+    ]);
+
+    await service.fromIncidentReported({
+      tenantId: 'tenant-1',
+      incidentId: 'incident-1',
+      actorId: 'reporter-so',
+      reference: 'INC-1',
+      severityPath: 'accident',
+    });
+
+    expect(notificationsService.generateSystem).toHaveBeenCalledWith(
+      'tenant-1',
+      'reporter-so',
+      expect.objectContaining({
+        eventType: 'incident_reported',
+        recipientUserIds: ['safety-officer-1'],
+      }),
+    );
+  });
+
+  it('handles thenables without a .catch method safely', async () => {
+    const chainWithoutCatch = (rows: unknown[]) => {
+      const c: Record<string, unknown> = {};
+      for (const m of ['from', 'innerJoin', 'where', 'orderBy', 'limit']) c[m] = () => c;
+      c.then = (resolve: (v: unknown) => void) => resolve(rows);
+      return c;
+    };
+    const dbResults = [
+      [{ userId: 'db-safety-officer-1' }],
+      [{ permitId: 'permit-1' }],
+      [{ userId: 'assigned-permit-safety-officer' }],
+    ];
+    const thenableDb = { select: jest.fn(() => chainWithoutCatch(dbResults.shift() ?? [])) };
+    const testService = new CanonicalNotificationService(
+      thenableDb as never,
+      notificationsService,
+      { listUsersForTenant: jest.fn().mockResolvedValue([]) } as never,
+    );
+
+    await testService.fromIncidentReported({
+      tenantId: 'tenant-1',
+      incidentId: 'incident-1',
+      actorId: 'reporter-1',
+      reference: 'INC-THENABLE',
+      severityPath: 'accident',
+    });
+
+    expect(notificationsService.generateSystem).toHaveBeenCalledWith(
+      'tenant-1',
+      'reporter-1',
+      expect.objectContaining({
+        eventType: 'incident_reported',
+        recipientUserIds: expect.arrayContaining(['db-safety-officer-1']),
+      }),
     );
   });
 

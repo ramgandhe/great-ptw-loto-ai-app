@@ -110,6 +110,10 @@ export type CreateIsolationCertificatePayload = {
   assetId?: string;
 };
 
+export function isolationIsRestored(status: string) {
+  return status === "restored_verified" || status === "closed";
+}
+
 export function certificateStatusLabel(status: string) {
   switch (status) {
     case "draft":

@@ -461,7 +461,9 @@ export class PermitService {
     const cached = await this.permitCacheService.getPermitDetail(tenantId, id);
     if (cached) {
       await assertPermitVisible(this.db, user, cached);
-      return this.withReportEligibility(await this.withFreshRestoration(cached));
+      // Certificate status changes do not rewrite this cache. Closure must see Restored or Closed now.
+      const current = await this.withFreshIsolationStatus(cached);
+      return this.withReportEligibility(await this.withFreshRestoration(current));
     }
 
     const detail = await this.loadDetail(this.db, id, tenantId);
@@ -482,6 +484,29 @@ export class PermitService {
       .where(and(eq(approvalHistory.permitId, detail.permit.id), eq(approvalHistory.action, 'approved')))
       .limit(1);
     return { ...detail, previouslyApproved: Boolean(approved) };
+  }
+
+  /** Isolation status is read live so a restored certificate is not still treated as open. */
+  private async withFreshIsolationStatus(detail: PermitDetail): Promise<PermitDetail> {
+    const certificates = await this.db
+      .select({
+        id: isolationCertificates.id,
+        certificateNumber: isolationCertificates.certificateNumber,
+        title: isolationCertificates.title,
+        status: isolationCertificates.status,
+      })
+      .from(isolationCertificatePermits)
+      .innerJoin(
+        isolationCertificates,
+        eq(isolationCertificatePermits.certificateId, isolationCertificates.id),
+      )
+      .where(
+        and(
+          eq(isolationCertificatePermits.permitId, detail.permit.id),
+          ne(isolationCertificatePermits.attachmentStatus, 'detached'),
+        ),
+      );
+    return { ...detail, isolationCertificates: certificates };
   }
 
   /** Restoration changes without rewriting the cached permit, so read it on the way out. */

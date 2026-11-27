@@ -15,7 +15,8 @@ export function ReadonlyPermitViewer({
   detail,
   verification,
   closure,
-}: ReadonlyPermitViewerProps) {
+  hideLototo = false,
+}: ReadonlyPermitViewerProps & { hideLototo?: boolean }) {
   const form = permitDetailToForm(detail);
 
   return (
@@ -29,6 +30,7 @@ export function ReadonlyPermitViewer({
         status={detail.permit.status}
         reference={detail.permit.reference}
         identity={identityFromPermit(detail.permit)}
+        hideLototo={hideLototo}
       />
       {verification ? (
         <section className="rounded-lg border border-border p-4 text-sm">

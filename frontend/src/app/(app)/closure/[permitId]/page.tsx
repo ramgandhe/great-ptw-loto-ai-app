@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
-import { closePermit, getPermitAudit, getPermitHistory, getPermitVerification, verifyPermit } from "@/lib/closure/api";
+import { closePermit, getPermitAudit, getPermitHistory, getPermitVerification, requestIsolationRestoration, verifyPermit } from "@/lib/closure/api";
 import { sendBackToExecutor, sendBackToIssuer } from "@/lib/execution/api";
 import type { AuditLogEntry, PermitHistoryEntry, PermitVerification } from "@/lib/closure/types";
 import { getEvidenceDownloadUrl, listEvidence, listProgress } from "@/lib/execution/api";
@@ -29,6 +29,8 @@ import { toast } from "@/components/ui/toast";
 import { openPresignedDownload } from "@/lib/download";
 import { useAuthProfile } from "@/lib/auth/auth-profile-context";
 import { hasAnyRole } from "@/lib/auth/rbac";
+import { NAV_LOTOTO_ROLES } from "@/lib/auth/roles";
+import { isolationIsRestored } from "@/lib/lototo/certificates";
 import { formatDateTime } from "@/lib/format";
 
 const CONFLICT_MESSAGE = "Someone else updated this permit. It has been reloaded with your entries kept. Check it and confirm again.";
@@ -57,6 +59,7 @@ export default function PermitClosurePage() {
   const [closeError, setCloseError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [closeWhileIsolated, setCloseWhileIsolated] = useState(false);
+  const [restorationNotice, setRestorationNotice] = useState<string | null>(null);
   const [downloadingEvidenceId, setDownloadingEvidenceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -92,6 +95,25 @@ export default function PermitClosurePage() {
     }
   }
 
+  async function handleRequestRestoration() {
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      const result = await requestIsolationRestoration(permitId);
+      const message = result.alreadySent
+        ? "The operator assigned on this permit has already been asked to restore the isolation."
+        : "The operator assigned on this permit has been asked to restore the isolation.";
+      setRestorationNotice(message);
+      toast(message);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Could not notify the operator";
+      setActionError(msg);
+      toast(msg, "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function handleVerify() {
     if (!comment.trim()) {
       setActionError("A verification comment is required.");
@@ -102,7 +124,7 @@ export default function PermitClosurePage() {
       return;
     }
     const stillIsolated = (detail?.isolationCertificates ?? []).filter(
-      (certificate) => certificate.status !== "restored_verified" && certificate.status !== "closed",
+      (certificate) => !isolationIsRestored(certificate.status),
     );
     if (stillIsolated.length > 0 && !closeWhileIsolated) {
       setActionError("Confirm that this permit can close while the isolation stays in place.");
@@ -227,10 +249,11 @@ export default function PermitClosurePage() {
     return <p className="p-8 text-sm text-muted-foreground">Loading permit closure...</p>;
   }
 
-  const restorationPending = detail.permit.lototoRequired === true && detail.permit.lototoRestored !== true;
-  const stillIsolated = (detail.isolationCertificates ?? []).filter(
-    (certificate) => certificate.status !== "restored_verified" && certificate.status !== "closed",
-  );
+  const isolationCertificates = detail.isolationCertificates ?? [];
+  const canOpenIsolation = hasAnyRole(roles, NAV_LOTOTO_ROLES);
+  const isolationsRestored = isolationCertificates.length > 0 && isolationCertificates.every((certificate) => isolationIsRestored(certificate.status));
+  const restorationPending = detail.permit.lototoRequired === true && detail.permit.lototoRestored !== true && !isolationsRestored;
+  const stillIsolated = isolationCertificates.filter((certificate) => !isolationIsRestored(certificate.status));
   const canVerify = detail.permit.status === "execution_completed" && !restorationPending && hasAnyRole(roles, ["permit-receiver", "tenant-owner", "tenant-admin", "platform-admin"]);
   const canSendBackToExecutor = detail.permit.status === "execution_completed" && hasAnyRole(roles, ["permit-receiver", "tenant-owner", "tenant-admin", "platform-admin"]);
   const canClose = Boolean(verification) && detail.permit.status === "pending_closure" && hasAnyRole(roles, ["permit-approver", "tenant-owner", "tenant-admin", "platform-admin"]);
@@ -262,8 +285,12 @@ export default function PermitClosurePage() {
         </Link>
       </div>
 
-      <ReadonlyPermitViewer detail={detail} verification={verification} />
-      {detail.permit.lototoRequired && (detail.isolationCertificates ?? []).length === 0 ? <PermitLototoExecution permitId={detail.permit.id} /> : null}
+      <ReadonlyPermitViewer
+        detail={detail}
+        verification={verification}
+        hideLototo={!canOpenIsolation && (isolationsRestored || detail.permit.lototoRestored === true)}
+      />
+      {detail.permit.lototoRequired && isolationCertificates.length === 0 && (canOpenIsolation || detail.permit.lototoRestored !== true) ? <PermitLototoExecution permitId={detail.permit.id} /> : null}
       </>
       )}
 
@@ -310,13 +337,17 @@ export default function PermitClosurePage() {
           <h2 className="text-sm font-semibold">Issuer verification</h2>
           {stillIsolated.length > 0 ? (
             <div className="grid gap-2 rounded-md border border-border p-3 text-sm">
-              <p>This permit can close while the isolation stays in place. The device lock comes off when the isolation is restored.</p>
+              <p>This isolation is not restored. You can close without that restoration, or ask the operator assigned on this permit to restore it first.</p>
               <ul className="grid gap-1">
                 {stillIsolated.map((certificate) => (
                     <li key={certificate.id}>
-                      <Link href={`/lototo/certificates/${certificate.id}`} className="underline">
-                        Restore now · {certificate.certificateNumber}
-                      </Link>
+                      {canOpenIsolation ? (
+                        <Link href={`/lototo/certificates/${certificate.id}`} className="underline">
+                          Restore now · {certificate.certificateNumber}
+                        </Link>
+                      ) : (
+                        <span>{certificate.certificateNumber} is not restored.</span>
+                      )}
                     </li>
                   ))}
               </ul>
@@ -332,6 +363,12 @@ export default function PermitClosurePage() {
                   Close this permit while {stillIsolated.map((certificate) => certificate.certificateNumber).join(", ")} stay isolated
                 </span>
               </label>
+              <div>
+                <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => void handleRequestRestoration()}>
+                  Notify the operator to restore
+                </Button>
+              </div>
+              {restorationNotice ? <p className="text-muted-foreground">{restorationNotice}</p> : null}
             </div>
           ) : null}
           <VerificationChecklistPanel

@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -26,6 +28,7 @@ import {
 } from './lototo.constants';
 import { LOTOTO_IMPORT_MAX_BYTES } from './lototo-procedure-excel.parser';
 import { LototoProcedureImportService } from './lototo-procedure-import.service';
+import { LototoProcedurePdfImportService } from './lototo-procedure-pdf-import.service';
 import { LototoProcedureTemplateService } from './lototo-procedure-template.service';
 import { LototoProcedureService } from './lototo-procedure.service';
 import { UploadedFilePayload } from '../permit/uploaded-file.interface';
@@ -36,6 +39,7 @@ export class LototoProcedureController {
     private readonly procedureService: LototoProcedureService,
     private readonly templateService: LototoProcedureTemplateService,
     private readonly importService: LototoProcedureImportService,
+    private readonly pdfImportService: LototoProcedurePdfImportService,
   ) {}
 
   @Roles(...LOTOTO_LIBRARY_WRITE_ROLES)
@@ -81,6 +85,32 @@ export class LototoProcedureController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.importService.import(file, confirmOverride === 'true' || confirmOverride === '1', user);
+  }
+
+  @Roles(...LOTOTO_PROCEDURE_IMPORT_ROLES)
+  @Post('import/pdf')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  importPdf(@UploadedFile() file: UploadedFilePayload, @CurrentUser() user: AuthenticatedUser) {
+    return this.pdfImportService.start(file, user);
+  }
+
+  @Roles(...LOTOTO_PROCEDURE_IMPORT_ROLES)
+  @Get('import/pdf/jobs/:jobId')
+  pdfImportStatus(@Param('jobId', ParseUUIDPipe) jobId: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.pdfImportService.getStatus(jobId, user);
+  }
+
+  @Roles(...LOTOTO_PROCEDURE_IMPORT_ROLES)
+  @Post('import/pdf/jobs/:jobId/confirm-override')
+  pdfImportConfirm(@Param('jobId', ParseUUIDPipe) jobId: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.pdfImportService.confirmOverride(jobId, user);
+  }
+
+  @Roles(...LOTOTO_PROCEDURE_IMPORT_ROLES)
+  @Post('import/pdf/jobs/:jobId/cancel')
+  pdfImportCancel(@Param('jobId', ParseUUIDPipe) jobId: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.pdfImportService.cancel(jobId, user);
   }
 
   @Roles(...LOTOTO_LIBRARY_READ_ROLES)

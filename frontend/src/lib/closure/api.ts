@@ -45,6 +45,13 @@ export function getArchiveAttachmentDownloadUrl(permitId: string, attachmentId: 
   );
 }
 
+export function requestIsolationRestoration(permitId: string) {
+  return fetchApi<{ notified: boolean; alreadySent: boolean }>(`/permits/${permitId}/request-restoration`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
 export function verifyPermit(
   permitId: string,
   payload: { comment?: string; checklist: VerificationChecklist; stageAnswers?: StageAnswersPayload },
